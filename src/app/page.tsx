@@ -4,6 +4,7 @@ import Image from "next/image";
 import styles from "./page.module.css";
 import Button from "@/components/button/button";
 import { useState } from "react";
+import FAQCard from "@/components/faqCard/faqCard";
 
 const cxmputeGreen = "#20a191";
 const cxmputePink = "#fe91e8";
@@ -706,7 +707,7 @@ export default function Home() {
           </div>
         </div>
         <div className={styles.testimonials}>
-          <h2>What do our users say?</h2>
+          <h2>What do users say?</h2>
           <div className={styles.testimonialsContainer}>
             <div className={styles.testimonial}
               style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
@@ -748,6 +749,166 @@ export default function Home() {
               &quot;Cxmpute is revolutionizing how we think about idle resources. By enabling anyone to contribute to a decentralized network, it opens up new avenues for revenue and innovation without compromising security or speed. It’s an exciting step toward a more connected, efficient digital ecosystem.&quot;
               </p>
             </div>
+          </div>
+        </div>
+        <div className={styles.architecture}>
+          <div className={styles.architectureContainer}>
+            <div className={styles.ALeft}>
+              <h1>Cxmpute Network Architecture</h1>
+            </div>
+            <div className={styles.ARight}>
+              <div className={styles.architectureLayer}
+                style={{ "--architecture-layer-color": cxmputePurple } as React.CSSProperties}
+              >
+                <h1>Cxmpute Core</h1>
+                <p>The main hub for users to access services, manage workloads, and deploy AI models. It offers a simple interface and powerful APIs, making it easy for anyone to leverage Cxmpute’s decentralized computing.</p>
+              </div>
+              <div className={styles.architectureLayer}
+                style={{ "--architecture-layer-color": cxmputeGreen } as React.CSSProperties}
+              >
+                <h1>Financial Layer</h1>
+                <p>Blockchain layers for automated payments and rewards distribution. Cxmpute&apos;s multi-chain architecture allows you to participate with your preferred blockchain.</p>
+              </div>
+              <div className={styles.architectureLayer}
+                style={{ "--architecture-layer-color": cxmputeYellow } as React.CSSProperties}
+              >
+                <h1>Orchestration Network Layer</h1>
+                <p>Manages requests and matches users with the best providers based on pricing, hardware, and availability. It ensures smooth operation of services like serverless compute, AI inference, and distributed training.</p>
+              </div>
+              <div className={styles.architectureLayer}
+                style={{ "--architecture-layer-color": cxmputePink } as React.CSSProperties}
+              >
+                <h1>Provider Network Layer</h1>
+                <p>The core of Cxmpute’s infrastructure. This global network provides scalable, secure computing power for AI inference, serverless apps, and distributed workloads. Providers earn rewards by sharing their resources.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className={styles.token}>
+          <div className={styles.tokenContainer}>
+            <div className={styles.ARight}>
+              <div className={styles.cxptToken}>
+                <Image
+                  src="/8.png"
+                  alt="Cxmpute token"
+                  fill
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
+            </div>
+            <div className={styles.ALeft}>
+              <h1>$CXPT Token</h1>
+              <p>The Cxmpute token is a utility token that lets providers optionally stake tokens to demonstrate reputation and enhance network security. It rewards users for participation and grants access to special features and services. The token is not live yet, but stay tuned for updates!</p>
+            </div>
+          </div>
+        </div>
+        <div className={styles.blog}>
+          <div className={styles.blogContainer}>
+            <h1 className={styles.blogTitle}>Read more: browse our latest news</h1>
+            <div className={styles.blogCards}>
+              <div className={styles.blogCard}>
+                <div className={styles.blogCardImage}>
+                  <Image
+                    src="/8.png"
+                    alt="Cxmpute blog"
+                    fill
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+                <div className={styles.blogCardText}>
+                  <h1>Cxmpute 101: What is Cxmpute?</h1>
+                  <p>Before we dive into Cxmpute 101, let’s start with an analogy to understand idle compute power. Imagine your computer as a power plant with extra capacity sitting idle most of the...</p>
+                  <a href="/101" target="_blank">
+                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                  </a>
+                </div>
+              </div>
+              <div className={styles.blogCard}>
+                <div className={styles.blogCardImage}>
+                  <Image
+                    src="/6.png"
+                    alt="Cxmpute blog"
+                    fill
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+                <div className={styles.blogCardText}>
+                  <h1>Cxmpute Roadmap</h1>
+                  <p>Our Future Vision and How We&apos;ll Get There. Our journey is guided by a clear blueprint that transforms vision into reality—one inspiring step at a time.</p>
+                  <a href="/roadmap" target="_blank">
+                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                  </a>
+                </div>
+              </div>
+              <div className={styles.blogCard}>
+                <div className={styles.blogCardImage}>
+                  <Image
+                    src="/7.png"
+                    alt="Cxmpute blog"
+                    fill
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+                <div className={styles.blogCardText}>
+                  <h1>Cxmpute Services Overview</h1>
+                  <p>Imagine a bustling digital marketplace where every piece of idle compute power is transformed into a vibrant service—this is the heart of Cxmpute. Today, we’re taking you on a tour of our extensive suite of services that...</p>
+                  <a href="/services" target="_blank">
+                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                  </a>
+                </div>
+              </div>
+              <div className={styles.blogCard}>
+                <div className={styles.blogCardImage}>
+                  <Image
+                    src="/8.png"
+                    alt="Cxmpute blog"
+                    fill
+                    style={{ objectFit: "contain" }}
+                  />
+                </div>
+                <div className={styles.blogCardText}>
+                  <h1>How to maximize your earnings as a provider</h1>
+                  <p>Ready to boost your earnings on the Cxmpute network? Whether you’re just starting out or already part of our growing community, here are some quick tips to help you maximize...</p>
+                  <a href="/maximize" target="_blank">
+                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                  </a>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+        <div className={styles.faq}>
+          <div className={styles.faqContainer}>
+            <h1>Frequently Asked Questions</h1>
+            <FAQCard
+              question="Is my personal data truly safe with Cxmpute?"
+              answer="Absolutely. Cxmpute is built on a philosophy of strict privacy. We only harness your unused computing power and never access your personal files or monitor your online activity, ensuring your data remains completely secure."
+            />
+            <FAQCard
+              question="Will running Cxmpute slow down my device or affect my internet speed?"
+              answer="Not necessarily—you control exactly how much of your device's computing power Cxmpute uses. If you want to maximize your rewards, you can configure it to tap into more resources when you're not using your computer. For example, if you're going to bed, you can allow Cxmpute to operate at full capacity overnight, maximizing rewards without interrupting your daily activities. Conversely, if you need to use your device during the day, you can adjust the settings so that Cxmpute uses only a portion of your available power. Importantly, mining sessions only begin when you explicitly turn them on—Cxmpute is never active without your permission. The flexibility of these settings can vary by device and category, with more powerful systems generally offering greater customization. For further details on eligible devices and recommended configurations, please refer to our Get Started page."
+            />
+            <FAQCard
+              question="How complicated is the installation and setup process?"
+              answer="We’ve made it extremely user-friendly. The setup is straightforward—even if you’re not tech-savvy—thanks to our intuitive interface and step-by-step instructions. You set it up once and then watch the rewards accumulate effortlessly."
+            />
+            <FAQCard
+              question="How does Cxmpute ensure fair rewards for my unused computing power?"
+              answer="Our reward mechanism is transparent and automated. All our code is open-source and available on our GitHub. Using a robust multi-chain architecture, Cxmpute calculates rewards based on your contributed idle capacity and distributes them fairly, so you always get your due share without any extra effort."
+            />
+            <FAQCard
+              question="What if I run into technical issues or experience downtime?"
+              answer="Our dedicated support team is here to help. Contact us via our Discord if you encounter any issues. The platform is built for high reliability and is continuously monitored to address any issues swiftly, ensuring minimal disruption to your experience."
+            />
+            <FAQCard
+              question="Can I control when and how my resources are used?"
+              answer="Yes, you remain in complete control. Cxmpute leverages only your idle computing power. This means you decide when to run it, and your primary activities and system performance remain unaffected."
+            />
+            <FAQCard
+              question="What if I have concerns about long-term reliability and support?"
+              answer="We’re committed to continuous improvement and customer satisfaction. Our platform is regularly updated, and our support team is always available to assist you—ensuring you enjoy a seamless, reliable experience with Cxmpute."
+            />
           </div>
         </div>
 
