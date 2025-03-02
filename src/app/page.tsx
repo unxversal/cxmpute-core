@@ -14,6 +14,9 @@ const cxmputeBeigerBeige = "#fdede3";
 
 
 export default function Home() {
+
+  
+
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -65,30 +68,94 @@ export default function Home() {
         </div>
         <div className={styles.whoIsCxmputeFor}>
           <h3>Who is Cxmpute for?</h3>
-          <h2>What Cxmpute can do for you</h2>
+          <h1>Here&apos;s what Cxmpute does for you</h1>
           <p>I am a...</p>
-          <div className={styles.whoIsCxmputeForCards}>
+            <div className={styles.whoIsCxmputeForCards}>
             <div className={styles.whoIsCxmputeForCard}>
-              <div className={styles.whoIsCxmputeForCardImage}>
+              <div className={styles.whoIsCxmputeForCardImage}
+              style={{ backgroundColor: cxmputeGreen }}
+              >
+              <Image
+                src="/code.svg"
+                alt="code icon"
+                fill
+                style={{ objectFit: "contain" }}
+              />
+              </div>
+              <span className={styles.whoIsCxmputeForCard__title}>Developer</span>
+              <p className={styles.whoIsCxmputeForCard__content}>Access flexible, decentralized infrastructure to build, test, and deploy faster—without the limitations of traditional cloud services.</p>
+              <button className={styles.whoIsCxmputeForCard__button}>
+                That&apos;s me!
+              </button>
+            </div>
+            <div className={styles.whoIsCxmputeForCard}>
+              <div className={styles.whoIsCxmputeForCardImage}
+              style={{ backgroundColor: cxmputeYellow }}
+              >
+              <Image
+                src="/brain-electricity.svg"
+                alt="brain icon"
+                fill
+                style={{ objectFit: "contain" }}
+              />
+              </div>
+              <span className={styles.whoIsCxmputeForCard__title}>ML Engineer</span>
+              <p className={styles.whoIsCxmputeForCard__content}>Train and run AI models at scale using cost-efficient in a familiar Jupyter Environment, with globally distributed compute resources designed for scale, performance, and reliability.</p>
+              <button className={styles.whoIsCxmputeForCard__button}
+                style={{ "--select-bg-color": cxmputeYellow } as React.CSSProperties}
+              >
+                That&apos;s me!
+              </button>
+            </div>
+            <div className={styles.whoIsCxmputeForCard}>
+              <div className={styles.whoIsCxmputeForCardImage}
+              style={{ backgroundColor: cxmputePurple }}
+              >
+              <div className={styles.imageWrapper}>
                 <Image
-                  src="/dolphin.png"
-                  alt="dolphin image"
+                  src="/computer.png"
+                  alt="computer image"
                   fill
                   style={{ objectFit: "contain" }}
                 />
               </div>
-              <h3>Computing Hardware Providers</h3>
-              <p>Use or provide computing power, storage, and more.</p>
-            </div>
-            <div className={styles.whoIsCxmputeForCard}>
-              <span className={styles.whoIsCxmputeForCard__title}>Developer</span>
-              <p className={styles.whoIsCxmputeForCard__content}>Access flexible, decentralized infrastructure to build, test, and deploy faster—without the limitations of traditional cloud services.</p>
-              <button className={styles.whoIsCxmputeForCard__button}>
-                  That&apos;s me!
+              </div>
+              <span className={styles.whoIsCxmputeForCard__title}>Individual Compute Provider</span>
+              <p className={styles.whoIsCxmputeForCard__content}>Monetize your idle computer resources by contributing to a decentralized network—and get rewarded for your unused power.</p>
+              <button className={styles.whoIsCxmputeForCard__button}
+                style={{ "--select-bg-color": cxmputePurple } as React.CSSProperties}
+              >
+                That&apos;s me!
               </button>
             </div>
-          </div>
+            <div className={styles.whoIsCxmputeForCard}>
+              <div className={styles.whoIsCxmputeForCardImage}
+              style={{ backgroundColor: cxmputeSand }}
+              >
+              <div className={styles.imageWrapper}>
+                <Image
+                  src="/server.png"
+                  alt="server image"
+                  fill
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
+              </div>
+              <span className={styles.whoIsCxmputeForCard__title}>Enterprise Compute Provider</span>
+              <p className={styles.whoIsCxmputeForCard__content}>Maximize the ROI of your infrastructure by offering your datacenter capacity to a global marketplace for decentralized compute.</p>
+              <button className={styles.whoIsCxmputeForCard__button}
+                style={{ "--select-bg-color": cxmputeSand } as React.CSSProperties}
+              >
+                That&apos;s me!
+              </button>
+            </div>
+            </div>
         </div>
+        <div className={styles.identitySpecific} id="identitySpecific">
+
+        </div>
+
+
       </div>
     </div>
 

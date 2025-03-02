@@ -121,6 +121,27 @@
 .whoIsCxmputeForCards{
   display: flex;
   gap: 24px;
+  padding: 32px;
+  padding-top: 0;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.whoIsCxmputeForCardImage{
+  width: 100px;
+  height: 100px;
+  position: relative;
+  border: 6px solid #000;
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+
+.imageWrapper{
+  margin: 5px;
+  position: relative;
+  height: 80px;
+  width: 80px;
 }
 
 
@@ -131,6 +152,10 @@
   border: 6px solid #000;
   box-shadow: 12px 12px 0 #000;
   transition: transform 0.3s, box-shadow 0.3s;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .whoIsCxmputeForCard:hover {
@@ -142,7 +167,7 @@
   font-size: 32px;
   font-weight: 900;
   color: #000;
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
   margin-bottom: 15px;
   display: block;
   position: relative;
@@ -218,7 +243,7 @@
   left: 0;
   width: 100%;
   height: 105%;
-  background-color: #5ad641;
+  background-color: var(--select-bg-color, #20a191);
   color: #000;
   display: flex;
   align-items: center;
