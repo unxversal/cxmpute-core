@@ -687,6 +687,70 @@ export default function Home() {
             </div>
           )}
         </div>
+        <div className={styles.protected}>
+          <div className={styles.protectedContainer}>
+            <div className={styles.protectedImageContainer}>
+              <div className={styles.imageWrapper2}>
+                <Image
+                  src="/shield.png"
+                  alt="Cxmpute protects your privacy"
+                  fill
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
+            </div>
+            <div className={styles.protectedTextContainer}>
+              <h1>Cxmpute protects your privacy</h1>
+              <p>At Cxmpute, our philosophy is to secure your computing resources from unauthorized use. It is impossible for Cxmpute to access your personal files or monitor your activity. Cxmpute is a network designed solely for contributing unused computing power, ensuring that your data remains private and your device stays protected while you help power the next generation of decentralized technology.</p>
+            </div>
+          </div>
+        </div>
+        <div className={styles.testimonials}>
+          <h2>What do our users say?</h2>
+          <div className={styles.testimonialsContainer}>
+            <div className={styles.testimonial}
+              style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
+            >
+              <h1>&quot;★★★★★&quot;</h1>
+              <p>
+              &quot;I&apos;m thoroughly impressed with Cxmpute. The installation was incredibly straightforward—even for someone like me who isn’t particularly tech-savvy. Once it was set up, everything just worked. The intuitive interface makes managing my resources effortless, and the rewards start flowing in automatically.&quot;
+              </p>
+            </div>
+            <div className={styles.testimonial}
+              style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
+            >
+              <h1>&quot;Privacy First&quot;</h1>
+              <p>
+              &quot;What really sets Cxmpute apart is its uncompromising approach to privacy. I never worry about my personal data being exposed—Cxmpute only leverages unused computing power without peeking into my files or online activity. It’s like sharing your spare resources without opening your digital front door.&quot;
+              </p>
+            </div>
+            <div className={styles.testimonial}
+              style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
+            >
+              <h1>&quot;Seamless Performance&quot;</h1>
+              <p>
+              &quot;Contributing my idle computing resources through Cxmpute has been a game-changer. I get to earn passive income without any noticeable drop in system performance. The background operations are smooth and efficient, leaving my everyday tasks unaffected.&quot;
+              </p>
+            </div>
+            <div className={styles.testimonial}
+              style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
+            >
+              <h1>&quot;Modern and Transparent Dashboard&quot;</h1>
+              <p>
+              &quot;The Cxmpute dashboard is sleek and user-friendly, offering clear insights into resource usage and rewards. I appreciate the transparency in how rewards are calculated and the quick support whenever I’ve had questions. It makes participating in decentralized computing both fun and reassuring.&quot;
+              </p>
+            </div>
+            <div className={styles.testimonial}
+              style={{ "--testimonial-color": cxmputeYellow } as React.CSSProperties}
+            >
+              <h1>&quot;Empowering the Future of Computing&quot;</h1>
+              <p>
+              &quot;Cxmpute is revolutionizing how we think about idle resources. By enabling anyone to contribute to a decentralized network, it opens up new avenues for revenue and innovation without compromising security or speed. It’s an exciting step toward a more connected, efficient digital ecosystem.&quot;
+              </p>
+            </div>
+          </div>
+        </div>
+
 
 
       </div>

@@ -145,6 +145,14 @@
 }
 
 
+.imageWrapper2{
+  margin: 20px;
+  position: relative;
+  height: 300px;
+  width: 300px;
+}
+
+
 .whoIsCxmputeForCard {
   width: 300px;
   padding: 20px;
@@ -287,7 +295,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 20vh;
+  /* min-height: 10vh; */
   height: auto;
   padding: 16px 32px;
 }
@@ -323,6 +331,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 30px;
+  justify-content: flex-end;
 }
 
 .ISBottom{
@@ -459,5 +468,93 @@
 .idenitytSpecificInput__container h1{
   font-weight: 600;
 }
+
+.protected{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 54px;
+}
+
+.protectedContainer{
+  width: 100%;
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 32px;
+  max-width: 1300px;
+  background-color: #d4d4cb;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+
+}
+
+.protectedImageContainer{
+  width: 50%;
+  height: auto;
+  background-color: #20a191;
+  border: 6px solid #000;
+  border-radius: 20px;
+}
+
+.protectedTextContainer h1{
+  font-size: 56px;
+  margin-bottom: 20px;
+}
+
+.testimonials{
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 54px;
+}
+
+.testimonials h2{
+  /* font-size: 56px; */
+  margin-bottom: 20px;
+  width: 100%;
+  text-align: center;
+  font-size: 48px;
+}
+
+.testimonialsContainer {
+  width: 100%;
+  display: flex; 
+  gap: 20px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 32px;
+  max-width: 1300px;
+  border-radius: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.testimonial {
+  background-color: var(--testimonial-color);
+  border: 6px solid #000;
+  padding: 48px;
+  min-width: 300px; /* Ensures each card has a base width */
+  max-width: 800px;
+  font-size: 20px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  border-radius: 10px;
+  box-shadow: 12px 12px 0 #000;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.testimonial:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
 
 /* 320px, 480px, 768px, 992px, 1200px */
