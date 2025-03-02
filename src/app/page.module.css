@@ -72,3 +72,191 @@
 .header h1{
   font-size: 20px;
 }
+
+.hero{
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 32px;
+}
+
+.heroLeft{
+  width: 50%;
+}
+
+.heroLeft h1{
+  font-size: 56px;
+}
+
+.heroLeft h3{
+  margin-bottom: 8px;
+}
+
+.heroLeft p{
+  margin-top: 20px;
+  margin-bottom: 20px;
+  /* max-width: 80%; */
+}
+
+.heroRight{
+  position: relative;
+  width: 500px;
+  height: 500px;
+}
+
+.heroButtons{
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.whoIsCxmputeFor{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.whoIsCxmputeForCards{
+  display: flex;
+  gap: 24px;
+}
+
+
+.whoIsCxmputeForCard {
+  width: 300px;
+  padding: 20px;
+  background: #fff;
+  border: 6px solid #000;
+  box-shadow: 12px 12px 0 #000;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.whoIsCxmputeForCard:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.whoIsCxmputeForCard__title {
+  font-size: 32px;
+  font-weight: 900;
+  color: #000;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.whoIsCxmputeForCard__title::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 90%;
+  height: 3px;
+  background-color: #000;
+  transform: translateX(-100%);
+  transition: transform 0.3s;
+}
+
+.whoIsCxmputeForCard:hover .whoIsCxmputeForCard__title::after {
+  transform: translateX(0);
+}
+
+.whoIsCxmputeForCard__content {
+  font-size: 16px;
+  line-height: 1.4;
+  color: #000;
+  margin-bottom: 20px;
+}
+
+.whoIsCxmputeForCard__form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.whoIsCxmputeForCard__form input {
+  padding: 10px;
+  border: 3px solid #000;
+  font-size: 16px;
+  font-family: inherit;
+  transition: transform 0.3s;
+  width: calc(100% - 26px); /* Adjust for padding and border */
+}
+
+.whoIsCxmputeForCard__form input:focus {
+  outline: none;
+  transform: scale(1.05);
+  background-color: #000;
+  color: #ffffff;
+}
+
+.whoIsCxmputeForCard__button {
+  border: 3px solid #000;
+  background: #000;
+  color: #fff;
+  padding: 10px;
+  font-size: 16px;
+  left: 20%;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s;
+  width: 50%;
+  height: auto;
+}
+
+.whoIsCxmputeForCard__button::before {
+  content: "SELECT";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 105%;
+  background-color: #5ad641;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(100%);
+  transition: transform 0.3s;
+}
+
+.whoIsCxmputeForCard__button:hover::before {
+  transform: translateY(0);
+}
+
+.whoIsCxmputeForCard__button:active {
+  transform: scale(0.95);
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(2px, 2px);
+  }
+  25% {
+    transform: translate(-2px, -2px);
+  }
+  50% {
+    transform: translate(-2px, 2px);
+  }
+  75% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(2px, 2px);
+  }
+}
+
+.glitch {
+  animation: glitch 0.3s infinite;
+}
+
+
+
+/* 320px, 480px, 768px, 992px, 1200px */
