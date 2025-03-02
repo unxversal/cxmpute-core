@@ -5,6 +5,7 @@ import styles from "./page.module.css";
 import Button from "@/components/button/button";
 import { useState } from "react";
 import FAQCard from "@/components/faqCard/faqCard";
+import Map from "@/components/map/map";
 
 const cxmputeGreen = "#20a191";
 const cxmputePink = "#fe91e8";
@@ -912,7 +913,25 @@ export default function Home() {
           </div>
         </div>
 
-
+        <div className={styles.mapt}>
+          <div className={styles.mapContainer}>
+            <Map/>
+            <div className={styles.mapTextOverlay}>
+              <div className={styles.mapOverlayImage}>
+                <Image
+                  src="/3.png"
+                  alt="Cxmpute Dolphin Logo"
+                  fill
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
+              <h1>Start earning off your computing power</h1>
+              <a href="/download" target="_blank">
+              <Button text="Get started" backgroundColor={cxmputeYellow} />
+              </a>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
