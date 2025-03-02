@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Roboto_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Roboto_Mono, Roboto } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,6 +17,11 @@ const robotoMono = Roboto_Mono({
   subsets: ["latin"],
 });
 
+const roboto = Roboto({
+  variable: "--font-roboto",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "Cxmpute - The World Datacenter",
   description: "Redefining the utility of idle hardware.",
@@ -29,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${robotoMono.variable} ${roboto.variable}`}>
         {children}
       </body>
     </html>
