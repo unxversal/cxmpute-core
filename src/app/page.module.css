@@ -790,4 +790,344 @@
   width: 100px;
 }
 
+.footer{
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 0%;
+}
+
+
+.footerContainer{
+  width: 100%;
+  gap: 20px;
+  margin-top: 20px;
+  padding: 32px;
+  max-width: 1300px;
+  display: flex;
+  background-color: #20a191;
+  height: 40vh;
+  border-radius: 20px 20px 0 0;
+  border: 6px solid #000;
+  border-bottom: none;
+  justify-content: space-between;
+}
+
+.footerSocialLinks{
+  display: flex;
+}
+
+.footerSocialLink{
+  background-color: #f8cb46;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 10px;
+  transition: transform 0.3s, box-shadow 0.3s;
+  box-shadow: 4px 4px 0 #000;
+  border: 2px solid #000;
+  cursor: pointer;
+  transition : transform 0.3s, box-shadow 0.3s;
+}
+
+.footerSocialLink:hover {
+  transform: translate(-2.5px, -2.5px);
+  box-shadow: 7px 7px 0 #000;
+}
+
+.footerRight{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.footerButtons{
+  display: flex;
+  gap: 20px;
+}
+
 /* 320px, 480px, 768px, 992px, 1200px */
+
+/* 1200px breakpoint */
+@media (max-width: 1200px) {
+  .heroRight {
+    width: 400px;
+    height: 400px;
+  }
+
+  .ALeft h1 {
+    font-size: 48px;
+  }
+
+  .ISLeft h1 {
+    font-size: 48px;
+  }
+}
+
+/* 992px breakpoint */
+@media (max-width: 992px) {
+  /* Hero section */
+  .hero {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .heroLeft {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+  .heroRight {
+    width: 100%;
+    height: 400px;
+  }
+
+  /* Architecture, token, blog layouts */
+  .architectureContainer,
+  .tokenContainer,
+  .blogContainer,
+  .footerContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .architectureLayer,
+  .blogCard,
+  .cxptToken,
+  .protectedContainer {
+    margin: 0 auto 20px auto;
+  }
+
+  .ALeft, .ARight {
+    width: 100%;
+  }
+
+  .cxptToken {
+    margin: 0 auto;
+  }
+
+  /* Identity-specific containers */
+  .ISLeft, .ISRight {
+    width: 100%;
+  }
+  .ISRight {
+    justify-content: center;
+  }
+}
+
+/* 768px breakpoint */
+@media (max-width: 768px) {
+  /* Resizing text for smaller screens */
+  .heroLeft h1,
+  .ISLeft h1,
+  .ALeft h1,
+  .protectedTextContainer h1,
+  .tokenContainer .ALeft h1 {
+    font-size: 36px;
+  }
+
+  .heroLeft p,
+  .ISLeft p,
+  .protectedTextContainer p,
+  .architectureLayer p,
+  .blogCard p {
+    font-size: 16px;
+  }
+
+  .whoIsCxmputeForCard__title {
+    font-size: 24px;
+  }
+
+  /* Adjust card widths */
+  .whoIsCxmputeForCard {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* Footer container layout */
+  .footerContainer {
+    height: auto;
+  }
+
+  .menu ul{
+    display: flex;
+    flex-direction: column;
+  }
+
+  .heroButtons{
+    flex-direction: column;
+    display: flex;
+  }
+
+  .whoIsCxmputeFor h1{
+    text-align: center;
+  }
+
+  .idenitytSpecificContainer{
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .protectedContainer{
+    flex-direction: column;
+  }
+
+  .protected{
+    padding: 10px;
+  }
+
+  .protectedImageContainer{
+    width: 100%;
+  }
+
+  .imageWrapper2{
+    margin: 0;
+  }
+
+  .testimonial{
+    width: 200px;
+    padding: 10px;
+  }
+
+  .testimonials{
+    padding: 10px;
+  }
+
+  .cxptToken{
+    width: 200px;
+    height: 200px;
+  }
+
+  .blogContainer{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .blogTitle{
+    max-width: 300px;
+  }
+
+  .token, .architecture{
+    padding: 10px;
+  }
+
+  .footer{
+    padding: 10px;
+  }
+
+  .footerSocialLinks{
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .footerSocialLink{
+    margin-bottom: 10px;
+  }
+}
+
+/* 480px breakpoint */
+@media (max-width: 480px) {
+  /* Reduce padding and gap for tighter space */
+  .hero,
+  .whoIsCxmputeForCards,
+  .testimonialsContainer,
+  .architectureContainer,
+  .tokenContainer,
+  .blogContainer,
+  .faqContainer {
+    padding: 16px;
+  }
+
+  /* Make images smaller */
+  .heroRight,
+  .imageWrapper2,
+  .cxptToken {
+    width: 100%;
+    height: 300px;
+  }
+
+  /* Stack or center text */
+  .heroLeft h1,
+  .heroLeft h3,
+  .ISLeft h1,
+  .ISLeft h3 {
+    text-align: center;
+  }
+
+  .ISLeft p {
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  /* Footer layout */
+  .footerContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+  .footerRight {
+    align-items: center;
+  }
+  .footerButtons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .header{
+    flex-direction: column;
+  }
+
+  .menu{
+    display: none;
+  }
+
+  .cxptToken{
+    width: 200px;
+    height: 200px;
+  }
+
+  
+}
+
+/* 320px breakpoint */
+@media (max-width: 320px) {
+  /* Further reduce font sizes */
+  .heroLeft h1,
+  .ISLeft h1 {
+    font-size: 28px;
+  }
+  .heroLeft p,
+  .ISLeft p {
+    font-size: 14px;
+  }
+
+  /* Narrow testimonials */
+  .testimonialsContainer {
+    padding: 8px;
+  }
+  .testimonial {
+    padding: 24px;
+    min-width: 250px;
+    font-size: 16px;
+  }
+
+  /* Blog cards layout */
+  .blogCards {
+    flex-direction: column;
+    align-items: center;
+  }
+  .blogCard {
+    max-width: 280px;
+  }
+
+  /* Footer social icons */
+  .footerSocialLink {
+    width: 35px;
+    height: 35px;
+  }
+}

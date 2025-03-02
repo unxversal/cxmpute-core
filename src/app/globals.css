@@ -36,3 +36,8 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+
+* {
+  scrollbar-color: black #f9f5f2;
+}

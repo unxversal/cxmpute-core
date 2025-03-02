@@ -38,7 +38,7 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><a href="/download" target="_blank">
+            <li><a href="#" target="_blank">
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
             </a></li>
             <li><a href="/docs" target="_blank">
@@ -188,7 +188,7 @@ export default function Home() {
                   <h3>Cxmpute for</h3>
                   <h1>Developers</h1>
                   <p>Easy access to powerful machines that will otherwise cost you an arm and a leg.</p>
-                  <a href="/docs" target="_blank">
+                  <a href="/services" target="_blank">
                   <Button text="Explore the full feature list" backgroundColor={cxmputeSlate}/>
                   </a>
                   <a href="/dashboard" target="_blank">
@@ -401,7 +401,7 @@ export default function Home() {
                     <h3>Cxmpute for</h3>
                     <h1>ML Engineers</h1>
                     <p>Easy access to powerful machines that will otherwise cost you an arm and a leg.</p>
-                    <a href="/docs" target="_blank">
+                    <a href="/services" target="_blank">
                     <Button text="Explore the full feature list" backgroundColor={cxmputeSlate}/>
                     </a>
                     <a href="/dashboard" target="_blank">
@@ -927,13 +927,111 @@ export default function Home() {
               </div>
               <h1>Start earning off your computing power</h1>
               <a href="/download" target="_blank">
-              <Button text="Get started" backgroundColor={cxmputeYellow} />
+                <Button text="Get started" backgroundColor={cxmputeYellow} />
               </a>
             </div>
           </div>
         </div>
 
       </div>
+      <footer className={styles.footer}>
+        <div className={styles.footerContainer}>
+          <div className={styles.footerLeft}>
+            <div className={styles.footerImage}>
+              <Image
+                src="/8.png"
+                alt="Cxmpute Dolphin Logo"
+                width={150}
+                height={150}
+                style={{ objectFit: "contain" }}
+              />
+            </div>
+          </div>
+          <div className={styles.footerRight}>
+            <div className={styles.footerSocialLinks}>
+              <a
+                href="https://x.com/cxmpute"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerSocialLink}
+              >
+                <Image
+                  src="/x.svg"
+                  alt="Twitter"
+                  width={25}
+                  height={25}
+                  style={{ objectFit: "contain" }}
+                />
+              </a>
+              <a
+                href="https://discord.com/invite/CJGA7B2zKT"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerSocialLink}
+              >
+                <Image
+                  src="/discord.svg"
+                  alt="Discord"
+                  width={25}
+                  height={25}
+                  style={{ objectFit: "contain" }}
+                />
+              </a>
+              <a
+                href="https://www.youtube.com/@cxmputenetwork"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerSocialLink}
+              >
+                <Image
+                  src="/youtube.svg"
+                  alt="Youtube"
+                  width={25}
+                  height={25}
+                  style={{ objectFit: "contain" }}
+                />
+              </a>
+              <a
+                href="https://github.com/unxversal"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerSocialLink}
+              >
+                <Image
+                  src="/github-circle.svg"
+                  alt="Github"
+                  width={25}
+                  height={25}
+                  style={{ objectFit: "contain" }}
+                />
+              </a>
+              <a
+                href="https://www.reddit.com/r/cxmpute/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.footerSocialLink}
+              >
+                <Image
+                  src="/reddit.png"
+                  alt="Reddit"
+                  width={25}
+                  height={25}
+                  style={{ objectFit: "contain" }}
+                />
+              </a>
+
+            </div>
+            <div className={styles.footerButtons}>
+              <a href="/download" target="_blank">
+                <Button text="Get started as a provider" backgroundColor={cxmputeYellow} />
+              </a>
+              <a href="/dashboard" target="_blank">
+                <Button text="Get started as a user" backgroundColor={cxmputeYellow} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
 
   );
