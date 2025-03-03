@@ -707,7 +707,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className={styles.testimonials}>
+        {/* <div className={styles.testimonials}>
           <h2>What do users say?</h2>
           <div className={styles.testimonialsContainer}>
             <div className={styles.testimonial}
@@ -751,7 +751,7 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
         <div className={styles.architecture}>
           <div className={styles.architectureContainer}>
             <div className={styles.ALeft}>
