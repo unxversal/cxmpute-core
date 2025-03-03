@@ -5,7 +5,7 @@
 
 declare module "sst" {
   export interface Resource {
-    "MyWeb": {
+    "CxmputeWebsite": {
       "type": "sst.aws.Nextjs"
       "url": string
     }

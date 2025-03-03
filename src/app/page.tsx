@@ -11,11 +11,11 @@ const cxmputeGreen = "#20a191";
 const cxmputePink = "#fe91e8";
 const cxmputeYellow = "#f8cb46";
 const cxmputePurple = "#91a8eb";
-const cxmputeRed = "#d64989";
-const cxmputeSand = "#d4d4cb";
+// const cxmputeRed = "#d64989";
+// const cxmputeSand = "#d4d4cb";
 const cxmputeSlate = "#d4d4cb";
-const cxmputeBeige = "#f9f5f2";
-const cxmputeBeigerBeige = "#fdede3";
+// const cxmputeBeige = "#f9f5f2";
+// const cxmputeBeigerBeige = "#fdede3";
 
 
 export default function Home() {
@@ -33,7 +33,7 @@ export default function Home() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.logo}>
-          <Image src="/1.png" alt="cxmpute logo" height={70} width={70}/>
+          <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70}/>
           <h1>CXMPUTE</h1>
         </div>
         <div className={styles.menu}>
@@ -71,7 +71,7 @@ export default function Home() {
             </div>
           <div className={styles.heroRight}>
             <Image
-              src="/dolphinhero.png"
+              src="/images/dolphinhero.png"
               alt="dolphin image"
               fill
               style={{ objectFit: "contain" }}
@@ -88,7 +88,7 @@ export default function Home() {
               style={{ backgroundColor: cxmputePurple }}
               >
               <Image
-                src="/code.svg"
+                src="/images/code.svg"
                 alt="code icon"
                 fill
                 style={{ objectFit: "contain" }}
@@ -108,7 +108,7 @@ export default function Home() {
               style={{ backgroundColor: cxmputeGreen }}
               >
               <Image
-                src="/brain-electricity.svg"
+                src="/images/brain-electricity.svg"
                 alt="brain icon"
                 fill
                 style={{ objectFit: "contain" }}
@@ -129,7 +129,7 @@ export default function Home() {
               >
               <div className={styles.imageWrapper}>
                 <Image
-                  src="/computer.png"
+                  src="/images/computer.png"
                   alt="computer image"
                   fill
                   style={{ objectFit: "contain" }}
@@ -151,7 +151,7 @@ export default function Home() {
               >
               <div className={styles.imageWrapper}>
                 <Image
-                  src="/server.png"
+                  src="/images/server.png"
                   alt="server image"
                   fill
                   style={{ objectFit: "contain" }}
@@ -210,7 +210,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -241,7 +241,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -272,7 +272,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -303,7 +303,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -334,7 +334,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -365,7 +365,7 @@ export default function Home() {
                       } as React.CSSProperties}
                     >
                       <Image
-                        src="/code.svg"
+                        src="/images/code.svg"
                         alt="search icon"
                         fill
                         style={{ objectFit: "contain" }}
@@ -423,7 +423,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -454,7 +454,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -485,7 +485,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -516,7 +516,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -547,7 +547,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -578,7 +578,7 @@ export default function Home() {
                         } as React.CSSProperties}
                       >
                         <Image
-                          src="/code.svg"
+                          src="/images/code.svg"
                           alt="search icon"
                           fill
                           style={{ objectFit: "contain" }}
@@ -694,7 +694,7 @@ export default function Home() {
             <div className={styles.protectedImageContainer}>
               <div className={styles.imageWrapper2}>
                 <Image
-                  src="/shield.png"
+                  src="/images/shield.png"
                   alt="Cxmpute protects your privacy"
                   fill
                   style={{ objectFit: "contain" }}
@@ -790,7 +790,7 @@ export default function Home() {
             <div className={styles.ARight}>
               <div className={styles.cxptToken}>
                 <Image
-                  src="/8.png"
+                  src="/images/8.png"
                   alt="Cxmpute token"
                   fill
                   style={{ objectFit: "contain" }}
@@ -810,7 +810,7 @@ export default function Home() {
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
                   <Image
-                    src="/8.png"
+                    src="/images/8.png"
                     alt="Cxmpute blog"
                     fill
                     style={{ objectFit: "contain" }}
@@ -827,7 +827,7 @@ export default function Home() {
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
                   <Image
-                    src="/6.png"
+                    src="/images/6.png"
                     alt="Cxmpute blog"
                     fill
                     style={{ objectFit: "contain" }}
@@ -844,7 +844,7 @@ export default function Home() {
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
                   <Image
-                    src="/7.png"
+                    src="/images/7.png"
                     alt="Cxmpute blog"
                     fill
                     style={{ objectFit: "contain" }}
@@ -861,7 +861,7 @@ export default function Home() {
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
                   <Image
-                    src="/8.png"
+                    src="/images/8.png"
                     alt="Cxmpute blog"
                     fill
                     style={{ objectFit: "contain" }}
@@ -919,7 +919,7 @@ export default function Home() {
             <div className={styles.mapTextOverlay}>
               <div className={styles.mapOverlayImage}>
                 <Image
-                  src="/3.png"
+                  src="/images/3.png"
                   alt="Cxmpute Dolphin Logo"
                   fill
                   style={{ objectFit: "contain" }}
@@ -939,7 +939,7 @@ export default function Home() {
           <div className={styles.footerLeft}>
             <div className={styles.footerImage}>
               <Image
-                src="/8.png"
+                src="/images/8.png"
                 alt="Cxmpute Dolphin Logo"
                 width={150}
                 height={150}
@@ -956,7 +956,7 @@ export default function Home() {
                 className={styles.footerSocialLink}
               >
                 <Image
-                  src="/x.svg"
+                  src="/images/x.svg"
                   alt="Twitter"
                   width={25}
                   height={25}
@@ -970,7 +970,7 @@ export default function Home() {
                 className={styles.footerSocialLink}
               >
                 <Image
-                  src="/discord.svg"
+                  src="/images/discord.svg"
                   alt="Discord"
                   width={25}
                   height={25}
@@ -984,7 +984,7 @@ export default function Home() {
                 className={styles.footerSocialLink}
               >
                 <Image
-                  src="/youtube.svg"
+                  src="/images/youtube.svg"
                   alt="Youtube"
                   width={25}
                   height={25}
@@ -998,7 +998,7 @@ export default function Home() {
                 className={styles.footerSocialLink}
               >
                 <Image
-                  src="/github-circle.svg"
+                  src="/images/github-circle.svg"
                   alt="Github"
                   width={25}
                   height={25}
@@ -1012,7 +1012,7 @@ export default function Home() {
                 className={styles.footerSocialLink}
               >
                 <Image
-                  src="/reddit.png"
+                  src="/images/reddit.png"
                   alt="Reddit"
                   width={25}
                   height={25}
