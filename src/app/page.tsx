@@ -38,7 +38,7 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><a href="#" target="_blank">
+            <li><a href="/download" target="_blank">
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
             </a></li>
             <li><a href="/docs" target="_blank">
