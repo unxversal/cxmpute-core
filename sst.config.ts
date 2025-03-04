@@ -12,7 +12,10 @@ export default $config({
   },
   async run() {
     new sst.aws.Nextjs("CxmputeWebsite",{
-      domain: "cxmpute.cloud"
+      domain: {
+        name: "cxmpute.cloud",
+        redirects: ["www." + "cxmpute.cloud"],
+      }
     });
     
   },
