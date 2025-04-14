@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient, ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, UpdateCommand, GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { Resource } from 'sst';
-import { ApiKeyInfo } from '@/lib/interfaces';
+import { ApiKeyInfo, ProviderRecord } from '@/lib/interfaces';
 
 // Initialize DynamoDB clients
 const client = new DynamoDBClient({});
@@ -350,7 +350,7 @@ interface ServiceMetadataItem {
     }>;
   }
   
-  async function updateServiceMetadata(
+async function updateServiceMetadata(
     serviceName: string,
     serviceUrl: string | null,
     endpoint: string,
@@ -451,32 +451,74 @@ interface ServiceMetadataItem {
     }
 }
 
-// Function to reward provider
-async function rewardProvider(providerId: string, reward: number) {
-  try {
-    const dateStr = getTodayDateString();
-    
-    await docClient.send(
-      new UpdateCommand({
-        TableName: Resource.ProviderTable.name,
-        Key: {
-          providerId: providerId,
-        },
-        UpdateExpression: 'SET totalRewards = totalRewards + :reward, rewards = list_append(if_not_exists(rewards, :emptyList), :newReward)',
-        ExpressionAttributeValues: {
-          ':reward': reward,
-          ':emptyList': [],
-          ':newReward': [{
-            day: dateStr,
-            amount: reward,
-          }],
-        },
-      })
-    );
-  } catch (error) {
-    console.error('Error rewarding provider:', error);
-  }
+
+// Helper: checks if a day string (YYYY-MM-DD) is within the last 30 days
+function isWithinLast30Days(day: string): boolean {
+  // parse day
+  const dayDate = new Date(day + "T00:00:00Z");
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  return dayDate >= thirtyDaysAgo;
 }
+
+// Function to reward provider
+/**
+ * Reward a provider by adding `reward` to today's date, merging if an
+ * entry already exists for today, trimming older-than-30-day entries,
+ * and recomputing totalRewards.
+ */
+export async function rewardProvider(providerId: string, reward: number) {
+    try {
+      // 1) Fetch the provider record
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.ProviderTable.name,
+          Key: { providerId },
+        })
+      );
+  
+      if (!getResp.Item) {
+        console.warn("Provider not found for providerId:", providerId);
+        return; // or throw an error
+      }
+  
+      const provider = getResp.Item as ProviderRecord;
+  
+      // 2) Prepare today's date
+      const dateStr = getTodayDateString();
+  
+      // 3) Filter out old or stale rewards
+      const oldRewards = provider.rewards ?? [];
+      const updatedRewards = oldRewards.filter((r) => isWithinLast30Days(r.day));
+  
+      // 4) Check if there's an existing entry for `dateStr`
+      const existingToday = updatedRewards.find((r) => r.day === dateStr);
+      if (existingToday) {
+        // Merge into existing
+        existingToday.amount += reward;
+      } else {
+        // Append a new RewardEntry
+        updatedRewards.push({ day: dateStr, amount: reward });
+      }
+  
+      // 5) Recompute total
+      const newTotal = updatedRewards.reduce((sum, r) => sum + r.amount, 0);
+  
+      // 6) Store back
+      provider.rewards = updatedRewards;
+      provider.totalRewards = newTotal;
+  
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.ProviderTable.name,
+          Item: provider,
+        })
+      );
+    } catch (error) {
+      console.error("Error rewarding provider:", error);
+    }
+  }
+  
 
 export async function POST(req: NextRequest) {
   try {
