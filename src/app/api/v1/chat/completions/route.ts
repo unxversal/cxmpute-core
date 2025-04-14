@@ -593,7 +593,7 @@ export async function POST(req: NextRequest) {
   
             // Update metadata
             await updateMetadata(
-              '/chat/completions',
+              model,
               model,
               inputTokens,
               outputTokens,
@@ -602,7 +602,7 @@ export async function POST(req: NextRequest) {
             );
   
             if (serviceTitle && serviceUrl) {
-              await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+              await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions', model, inputTokens, outputTokens);
             }
   
             await rewardProvider(provision.providerId, 0.01);
@@ -652,7 +652,7 @@ export async function POST(req: NextRequest) {
   
         // Update daily metadata
         await updateMetadata(
-          '/chat/completions',
+          model,
           model,
           inputTokens,
           outputTokens,
