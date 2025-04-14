@@ -1,18 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/chat/completions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, UpdateCommand, GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { Resource } from 'sst';
-import { randomInt } from 'crypto';
 import { ApiKeyInfo } from '@/lib/interfaces';
 
 // Initialize DynamoDB clients
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const CREDITS_NEEDED = 0;
-// Helper function to get current timestamp
-const getCurrentTimestamp = () => Math.floor(Date.now() / 1000);
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDateString = () => {
@@ -21,19 +18,21 @@ const getTodayDateString = () => {
 };
 
 // Helper function to validate API key
-async function validateApiKey(
+/**
+ * Deducts credits from the user and the matched API key if they have enough.
+ * Returns { valid: true, user } on success, or { valid: false, reason } if not.
+ */
+export async function validateApiKey(
     userId: string,
     apiKey: string,
     creditsNeeded: number
   ): Promise<{ valid: boolean; reason?: string; user?: any }> {
     try {
-      // 1) Fetch the user by userId
+      // 1) Fetch user
       const userResult = await docClient.send(
         new GetCommand({
           TableName: Resource.UserTable.name,
-          Key: {
-            userId: userId,
-          },
+          Key: { userId },
         })
       );
   
@@ -43,36 +42,88 @@ async function validateApiKey(
   
       const user = userResult.Item;
       if (!user.apiKeys || !Array.isArray(user.apiKeys)) {
-        return { valid: false, reason: "User has no API keys" };
+        return { valid: false, reason: "User has no API keys array" };
       }
   
       // 2) Find the matching API key
-      const ak: ApiKeyInfo | undefined = user.apiKeys.find(
+      const akIndex = user.apiKeys.findIndex(
         (entry: ApiKeyInfo) => entry.key === apiKey
       );
-      if (!ak) {
+      if (akIndex === -1) {
         return { valid: false, reason: "API key not found for user" };
       }
+      const ak = user.apiKeys[akIndex] as ApiKeyInfo;
   
       // 3) Check credits
+      //    If user.credits doesn't exist, we default to 0
+      const userCredits = typeof user.credits === "number" ? user.credits : 0;
+  
+      if (userCredits < creditsNeeded) {
+        return { valid: false, reason: "User has insufficient total credits" };
+      }
       if (ak.creditsLeft < creditsNeeded) {
-        return { valid: false, reason: "Not enough credits left" };
+        return { valid: false, reason: "API key has insufficient creditsLeft" };
       }
   
-      // 4) Check if route is permitted
-      //    If your route is always `/chat/completions`, we can hardcode that:
+      // 4) Check if route is permitted (hardcode to /chat/completions in this example)
       const requiredRoute = "/chat/completions";
       if (!ak.permittedRoutes.includes(requiredRoute)) {
         return { valid: false, reason: "Route not permitted" };
       }
   
-      // 5) If all checks pass
+      // 5) Deduct credits
+      const newUserCredits = userCredits - creditsNeeded;
+      const newApiKeyCredits = ak.creditsLeft - creditsNeeded;
+      user.credits = newUserCredits;
+      user.apiKeys[akIndex] = {
+        ...ak,
+        creditsLeft: newApiKeyCredits,
+      };
+  
+      // 6) Write the updated item back with a concurrency check
+      try {
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.UserTable.name,
+            Item: user,
+            // ConditionExpression ensures user.credits == old credits and
+            // user.apiKeys[akIndex].creditsLeft == old key creditsLeft.
+            // Because you can't do a direct "user.apiKeys[0].creditsLeft" path check,
+            // we do a simpler concurrency check that user.credits & ak.creditsLeft
+            // are unchanged.  We store them in ExpressionAttributeValues and compare.
+            ConditionExpression: `
+              #credits = :oldCredits AND
+              contains(JSON_STRING(user.apiKeys), :akSegment)
+            `,
+            ExpressionAttributeNames: {
+              "#credits": "credits",
+            },
+            ExpressionAttributeValues: {
+              ":oldCredits": userCredits,
+              // For the API key check, we rely on a substring check in the JSON representation
+              // This is a hack. A more robust approach is to store lastUpdated or versionNumber
+              // on the user record. Or do a single UpdateCommand with ConditionExpression.
+              ":akSegment": `"key":"${apiKey}","creditsLeft":${ak.creditsLeft}`,
+            },
+          })
+        );
+      } catch (err) {
+        if (err instanceof ConditionalCheckFailedException) {
+          return {
+            valid: false,
+            reason: "User or API key changed concurrently; please retry",
+          };
+        }
+        throw err;
+      }
+  
+      // 7) Return success
       return { valid: true, user };
     } catch (error) {
       console.error("Error validating API key:", error);
       return { valid: false, reason: "Internal error" };
     }
-}
+  }
 
 /**
  * Picks a random provision for the given model, in O(1) time,
@@ -438,7 +489,7 @@ export async function POST(req: NextRequest) {
     
     // Validate API key
 
-    const { valid, reason, user } = await validateApiKey(
+    const { valid, reason } = await validateApiKey(
       userId,
       apiKey,
       CREDITS_NEEDED
