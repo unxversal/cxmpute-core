@@ -26,6 +26,11 @@ export default $config({
         providerId: "string",
         providerEmail: "string",
         apiKey: "string",
+        // provider wallet address: string
+        // - rewards[] // rewards over the past 30 days
+        //     - Day (timestamp)
+        //     - Amount: number
+        // - Total Rewards: number
       },
       primaryIndex: { hashKey: "providerId" },
       globalIndexes: {
@@ -39,6 +44,8 @@ export default $config({
       fields: {
         provisionId: "string",
         providerId: "string",
+        // provision Specs: DeviceDiagnostics type
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
@@ -51,6 +58,8 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
@@ -63,6 +72,8 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
@@ -74,6 +85,8 @@ export default $config({
     const scrapingProvisionPoolTable = new sst.aws.Dynamo("ScrapingProvisionPoolTable", {
       fields: {
         provisionId: "string",
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" }
     });
@@ -82,6 +95,8 @@ export default $config({
     const moonProvisionPoolTable = new sst.aws.Dynamo("MoonProvisionPoolTable", {
       fields: {
         provisionId: "string",
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" }
     });
@@ -92,6 +107,8 @@ export default $config({
         provisionId: "string",
         model: "string",
         type: "string", // "image" or "video"
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
@@ -105,6 +122,8 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        // provision endpoint: string, url used to make request to node and get response
+        // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
@@ -117,10 +136,14 @@ export default $config({
       fields: {
         userId: "string",
         userWalletAddress: "string",
+        // api key: {key: string, creditLimit: number, creditsLeft: number}[]
+        // credits: number
+        // rewards: { day: string, amount: number }[]
+        // - Total Rewards: number
       },
       primaryIndex: { hashKey: "userId" },
       globalIndexes: {
-        ByWalletAddress: { hashKey: "userWalletAddress" }
+        ByWalletAddress: { hashKey: "userWalletAddress" },
       }
     });
 
@@ -129,6 +152,14 @@ export default $config({
       fields: {
         endpoint: "string",
         dayTimestamp: "string",
+        // llm?: {
+        //   model: string,
+        //   tokensIn: number,
+        //   tokensOut: number,
+        //   averageTps: number,
+        //   uptime: number,
+        // }
+        // averageLatency: number
       },
       primaryIndex: { hashKey: "endpoint", rangeKey: "dayTimestamp" }
     });
@@ -137,6 +168,18 @@ export default $config({
     const serviceMetadataTable = new sst.aws.Dynamo("ServiceMetadataTable", {
       fields: {
         serviceName: "string",
+        // attributes for each endpoint:
+        // - Total num requests
+        // - requests[] // past week max
+        //    - Past day timestamp
+        //    - Num requests: number
+        // attributes for each model:
+        // - Total input tokens
+        // - Total output tokens
+        //     - totals[] //past week max
+              // - Past day timestamp
+              // - Num input tokens: number
+              // - Num output tokens: number
       },
       primaryIndex: { hashKey: "serviceName" }
     });
@@ -146,6 +189,8 @@ export default $config({
       fields: {
         dateTimestamp: "string",
         endpointOrModel: "string",
+        // current num provisions: number
+        // provision tier: number
       },
       primaryIndex: { hashKey: "dateTimestamp", rangeKey: "endpointOrModel" },
       globalIndexes: {
@@ -158,12 +203,13 @@ export default $config({
       fields: {
         timeSlotTimestamp: "string",
         location: "string",
+        // content: string,
       },
       primaryIndex: { hashKey: "timeSlotTimestamp", rangeKey: "location" }
     });
 
     // Link tables to the NextJS app
-    new sst.aws.Nextjs("CxmputeWebsite", {
+    new sst.aws.Nextjs("CxmputeSite", {
       domain: {
         name: "cxmpute.cloud",
         redirects: ["www." + "cxmpute.cloud"],
