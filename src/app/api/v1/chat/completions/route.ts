@@ -9,7 +9,7 @@ import {
   updateMetadata,
   updateServiceMetadata,
   rewardProvider,
-} from "@/lib/utils"; // <--- import your utils
+} from "@/lib/utils"; 
 
 const CREDITS_NEEDED = 0;
 
@@ -215,3 +215,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        // Allow all origins
+        "Access-Control-Allow-Origin": "*",
+        // Specify which headers are allowed or use '*'
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer",
+        // Which methods are allowed
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      },
+    });
+  }
+  
