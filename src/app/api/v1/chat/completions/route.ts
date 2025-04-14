@@ -176,20 +176,26 @@ async function selectProvision(model: string) {
   
 // Function to check if a provision is healthy with heartbeat
 async function checkProvisionHealth(provisionEndpoint: string) {
-  try {
-    const response = await fetch(`${provisionEndpoint}/heartbeat`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error('Heartbeat check failed:', error);
-    return false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds
+  
+    try {
+      const response = await fetch(`${provisionEndpoint}/heartbeat`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      return response.ok;
+    } catch (error) {
+      console.error('Heartbeat check failed:', error);
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
-}
+  
 
 // Function to remove a provision from the pool
 async function removeProvision(provisionId: string) {
