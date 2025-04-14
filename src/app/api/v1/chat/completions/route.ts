@@ -74,34 +74,55 @@ async function validateApiKey(
     }
 }
 
-// Function to select a random provision from the pool
+/**
+ * Picks a random provision for the given model, in O(1) time,
+ * by using the "ByModelRandom" GSI (model, randomValue).
+ */
 async function selectProvision(model: string) {
-  try {
-    // Get all provisions for the requested model
-    const response = await docClient.send(
+    const r = Math.random(); // random float in [0, 1)
+    const gsiName = "ByModelRandom"; // from your sst config
+  
+    // 1) Query for randomValue > r
+    let response = await docClient.send(
       new QueryCommand({
         TableName: Resource.LLMProvisionPoolTable.name,
-        IndexName: 'ByModel',
-        KeyConditionExpression: 'model = :model',
+        IndexName: gsiName,
+        KeyConditionExpression: "model = :m AND randomValue > :r",
         ExpressionAttributeValues: {
-          ':model': model,
+          ":m": model,
+          ":r": r,
         },
+        Limit: 1,
+        ScanIndexForward: true, // ascending by randomValue
       })
     );
-
+  
+    // 2) If no item found, query for randomValue < r
+    if (!response.Items || response.Items.length === 0) {
+      response = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.LLMProvisionPoolTable.name,
+          IndexName: gsiName,
+          KeyConditionExpression: "model = :m AND randomValue < :r",
+          ExpressionAttributeValues: {
+            ":m": model,
+            ":r": r,
+          },
+          Limit: 1,
+          // we can query descending order so we get the item "closest" to r
+          ScanIndexForward: false,
+        })
+      );
+    }
+  
     if (!response.Items || response.Items.length === 0) {
       throw new Error(`No provisions available for model: ${model}`);
     }
-
-    // Select a random provision from the available ones
-    const randomIndex = randomInt(0, response.Items.length);
-    return response.Items[randomIndex];
-  } catch (error) {
-    console.error('Error selecting provision:', error);
-    throw error;
-  }
+  
+    // Return the single item
+    return response.Items[0];
 }
-
+  
 // Function to check if a provision is healthy with heartbeat
 async function checkProvisionHealth(provisionEndpoint: string) {
   try {
@@ -135,66 +156,109 @@ async function removeProvision(provisionId: string) {
   }
 }
 
-// Function to update metadata
-async function updateMetadata(endpoint: string, model: string, inputTokens: number, outputTokens: number, latency: number) {
-  const dateStr = getTodayDateString();
+/**
+ * Update daily metadata in the "MetadataTable"
+ * 
+ * - endpoint: string (the partition key)
+ * - dayTimestamp: string (the sort key)
+ * - inputTokens, outputTokens: token counts for this request
+ * - latency: e.g. total time from request start to last token
+ * - tps: tokens/second for this single request
+ */
+async function updateMetadata(
+    endpoint: string,
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+    latency: number,
+    tps: number
+  ) {
+    const dateStr = getTodayDateString();
   
-  try {
-    // Check if entry exists for today
-    const existingMetadata = await docClient.send(
-      new GetCommand({
-        TableName: Resource.MetadataTable.name,
-        Key: {
-          endpoint: endpoint,
-          dayTimestamp: dateStr,
-        },
-      })
-    );
-
-    if (existingMetadata.Item) {
-      // Update the existing record
-      await docClient.send(
-        new UpdateCommand({
+    try {
+      // 1) Fetch existing item, if any
+      const existing = await docClient.send(
+        new GetCommand({
           TableName: Resource.MetadataTable.name,
           Key: {
-            endpoint: endpoint,
+            endpoint,
             dayTimestamp: dateStr,
-          },
-          UpdateExpression: 'SET LLM.tokensIn = LLM.tokensIn + :tokensIn, LLM.tokensOut = LLM.tokensOut + :tokensOut, totalNumRequests = totalNumRequests + :one, LLM.model = :model, averageLatency = :newLatency',
-          ExpressionAttributeValues: {
-            ':tokensIn': inputTokens,
-            ':tokensOut': outputTokens,
-            ':one': 1,
-            ':model': model,
-            ':newLatency': ((existingMetadata.Item.averageLatency * existingMetadata.Item.totalNumRequests) + latency) / (existingMetadata.Item.totalNumRequests + 1),
           },
         })
       );
-    } else {
-      // Create a new record
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            endpoint: endpoint,
-            dayTimestamp: dateStr,
-            LLM: {
-              model: model,
-              tokensIn: inputTokens,
-              tokensOut: outputTokens,
-              averageTips: 0,
-              uptime: 100,
+  
+      // 2) If item exists, update it
+      if (existing.Item) {
+        const current = existing.Item;
+        const oldTotalRequests = current.totalNumRequests ?? 0;
+  
+        // Safely pull out existing LLM fields
+        const oldAvgLatency = current.averageLatency ?? 0;
+        const oldAvgTps = current.LLM?.averageTps ?? 0;
+  
+        // Weighted average for new latency
+        const newAvgLatency =
+          (oldAvgLatency * oldTotalRequests + latency) / (oldTotalRequests + 1);
+  
+        // Weighted average for new TPS
+        // 
+        // If you prefer a simpler approach (like storing the sum of TPS and dividing later), you can.
+        // But here is a direct incremental approach:
+        const newAvgTps =
+          (oldAvgTps * oldTotalRequests + tps) / (oldTotalRequests + 1);
+  
+        // We'll build one UpdateExpression to do it all
+        await docClient.send(
+          new UpdateCommand({
+            TableName: Resource.MetadataTable.name,
+            Key: {
+              endpoint,
+              dayTimestamp: dateStr,
             },
-            totalNumRequests: 1,
-            averageLatency: latency,
-          },
-        })
-      );
+            UpdateExpression: `
+              SET
+                totalNumRequests = totalNumRequests + :one,
+                averageLatency = :newAvgLatency,
+                LLM.model = :model,
+                LLM.tokensIn = LLM.tokensIn + :incIn,
+                LLM.tokensOut = LLM.tokensOut + :incOut,
+                LLM.averageTps = :newAvgTps
+            `,
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":newAvgLatency": newAvgLatency,
+              ":model": model,
+              ":incIn": inputTokens,
+              ":incOut": outputTokens,
+              ":newAvgTps": newAvgTps,
+            },
+          })
+        );
+      } else {
+        // 3) Otherwise, create a new record
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              endpoint,
+              dayTimestamp: dateStr,
+              totalNumRequests: 1,
+              averageLatency: latency,
+              LLM: {
+                model,
+                tokensIn: inputTokens,
+                tokensOut: outputTokens,
+                averageTps: tps, // the initial TPS
+              },
+            },
+          })
+        );
+      }
+    } catch (error) {
+      console.error("Error updating metadata:", error);
     }
-  } catch (error) {
-    console.error('Error updating metadata:', error);
   }
-}
+  
 
 // Function to update service metadata
 async function updateServiceMetadata(serviceName: string, serviceUrl: string, endpoint: string) {
@@ -322,7 +386,7 @@ export async function POST(req: NextRequest) {
 
     // Select a provision
     const startTime = Date.now();
-    let provision;
+    let provision: any;
     let isHealthy = false;
     let attempts = 0;
     
@@ -373,92 +437,156 @@ export async function POST(req: NextRequest) {
     
     // Forward the request to the node
     if (stream) {
-      // Handle streaming response
-      const response = await fetch(`${provision.provisionEndpoint}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ...payload, stream: true }),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        return NextResponse.json({ error: `Node returned error: ${errorText}` }, { status: response.status });
-      }
-
-      // Create a TransformStream to process the response
-      const transformStream = new TransformStream({
-        transform(chunk, controller) {
-          // Pass through the chunk
-          controller.enqueue(chunk);
-        },
-        async flush(controller) {
-          // When the stream is done, update metadata
-          const endTime = Date.now();
-          const latency = endTime - startTime;
-          
-          // Note: For streaming responses, we don't have an exact token count
-          // You could estimate or use a default value, or implement a token counter
-          updateMetadata('/chat/completions', model, 500, 500, latency);
-          
-          if (serviceTitle && serviceUrl) {
-            updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+        // --- STREAMING CASE ---
+        const response = await fetch(
+          `${provision.provisionEndpoint}/chat/completions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, stream: true }),
           }
-          
-          // Reward provider (simple reward calculation)
-          rewardProvider(provision.providerId, 0.01);
+        );
+        if (!response.ok) {
+          const errorText = await response.text();
+          return NextResponse.json({ error: `Node returned error: ${errorText}` }, { status: response.status });
         }
-      });
+  
+        // We need to intercept the SSE from the node. We'll store the "final" chunk to get the final stats.
+        let finalChunk: any = null;
+        let latency = 0;
+  
+        const transformStream = new TransformStream({
+          transform(chunk, controller) {
+            // chunk is a Uint8Array from the SSE
+            // We'll pass it along (so the client sees the SSE in real-time)
+            controller.enqueue(chunk);
+  
+            // Also parse it to see if we have the final chunk
+            const text = new TextDecoder().decode(chunk);
+            // SSE lines look like "data: {...}\n\n"
+            // We'll parse JSON from lines that start with "data: "
+            const lines = text.split("\n");
+            for (const line of lines) {
+              if (latency === 0) {
+                const currentTime = Date.now();
+                latency = currentTime - startTime;
+              }
 
-      // Return the streaming response
-      return new Response(response.body?.pipeThrough(transformStream), {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
+              if (line.startsWith("data:")) {
+                const jsonStr = line.replace("data: ", "").trim();
+                if (jsonStr) {
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    // Keep overwriting finalChunk with the latest partial chunk
+                    finalChunk = parsed;
+                  } catch {
+                    // ignore parse errors
+                  }
+                }
+              }
+            }
+          },
+          async flush() {
+            
+  
+            let inputTokens = 0;
+            let outputTokens = 0;
+            let timeTaken = 0;
+            // The final chunk is presumably an Ollama ChatResponse with done = true
+            if (finalChunk) {
+              // E.g. finalChunk.eval_count = total output tokens
+              //     finalChunk.prompt_eval_count = total input tokens
+              if (typeof finalChunk.eval_count === "number") {
+                outputTokens = finalChunk.eval_count;
+                timeTaken += finalChunk.eval_duration;
+              }
+              if (typeof finalChunk.prompt_eval_count === "number") {
+                inputTokens = finalChunk.prompt_eval_count;
+                timeTaken += finalChunk.prompt_eval_duration;
+              }
+              latency += finalChunk.load_duration;
+            }
+
+            const tps = (inputTokens + outputTokens) / timeTaken;
+  
+            // Update metadata
+            await updateMetadata(
+              '/chat/completions',
+              model,
+              inputTokens,
+              outputTokens,
+              latency,
+              tps
+            );
+  
+            if (serviceTitle && serviceUrl) {
+              await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+            }
+  
+            await rewardProvider(provision.providerId, 0.01);
+          },
+        });
+  
+        return new Response(response.body?.pipeThrough(transformStream), {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+          },
+        });
+  
+      } else {
+        // --- NON-STREAMING CASE ---
+        const response = await fetch(
+          `${provision.provisionEndpoint}/chat/completions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!response.ok) {
+          const errorText = await response.text();
+          return NextResponse.json({ error: `Node returned error: ${errorText}` }, { status: response.status });
         }
-      });
-    } else {
-      // Non-streaming response
-      const response = await fetch(`${provision.provisionEndpoint}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        return NextResponse.json({ error: `Node returned error: ${errorText}` }, { status: response.status });
-      }
+  
+        // Ollama’s final ChatResponse
+        const chatResponse = await response.json();
+        const endTime = Date.now();
+        const latency = endTime - startTime + chatResponse.load_duration;
+  
+        // Extract tokens from chatResponse
+        // (prompt_eval_count = input tokens, eval_count = output tokens)
+        const inputTokens = typeof chatResponse.prompt_eval_count === "number"
+          ? chatResponse.prompt_eval_count
+          : 0;
+        const outputTokens = typeof chatResponse.eval_count === "number"
+          ? chatResponse.eval_count
+          : 0;
 
-      const responseData = await response.json();
-      
-      // Calculate latency and update metadata
-      const endTime = Date.now();
-      const latency = endTime - startTime;
-      
-      // Update metadata
-      // For a more accurate implementation, you would calculate actual tokens used
-      const inputTokens = messages.reduce((acc, msg) => acc + msg.content.length / 4, 0); // Rough estimate
-      const outputTokens = (responseData.choices && responseData.choices[0] && responseData.choices[0].message)
-        ? responseData.choices[0].message.content.length / 4
-        : 0;
-        
-      updateMetadata('/chat/completions', model, inputTokens, outputTokens, latency);
-      
-      // Update service metadata if available
-      if (serviceTitle && serviceUrl) {
-        updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+        // Calculate TPS (tokens per second)
+        const timeTaken = chatResponse.prompt_eval_duration + chatResponse.eval_duration;
+        const tps = (inputTokens + outputTokens) / timeTaken;
+  
+        // Update daily metadata
+        await updateMetadata(
+          '/chat/completions',
+          model,
+          inputTokens,
+          outputTokens,
+          latency,
+          tps
+        );
+  
+        if (serviceTitle && serviceUrl) {
+          await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+        }
+  
+        await rewardProvider(provision.providerId, 0.01);
+  
+        // Return the final JSON to the client
+        return NextResponse.json(chatResponse);
       }
-      
-      // Reward provider (simple reward calculation)
-      rewardProvider(provision.providerId, 0.01);
-      
-      return NextResponse.json(responseData);
-    }
   } catch (error) {
     console.error('Error in /chat/completions route:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

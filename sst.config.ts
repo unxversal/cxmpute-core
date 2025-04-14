@@ -178,15 +178,15 @@ export default $config({
     // Metadata Table
     const metadataTable = new sst.aws.Dynamo("MetadataTable", {
       fields: {
-        endpoint: "string",
+        endpoint: "string", // endpoint or model name
         dayTimestamp: "string",
-        // llm?: {
+        // llm?: { THis field exists for when the endpoint is a model
         //   model: string,
         //   tokensIn: number,
         //   tokensOut: number,
         //   averageTps: number,
-        //   uptime: number,
         // }
+        // totalNumRequests: number // incremented with each new request
         // averageLatency: number
       },
       primaryIndex: { hashKey: "endpoint", rangeKey: "dayTimestamp" }
