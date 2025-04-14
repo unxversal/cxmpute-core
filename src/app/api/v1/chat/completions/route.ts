@@ -260,56 +260,138 @@ async function updateMetadata(
   }
   
 
-// Function to update service metadata
-async function updateServiceMetadata(serviceName: string, serviceUrl: string, endpoint: string) {
-  try {
-    // Check if the service already exists
-    const existingService = await docClient.send(
-      new GetCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Key: {
-          serviceName: serviceName,
-        },
-      })
-    );
+/**
+ * Example updated `updateServiceMetadata` that tracks:
+ * 1) Endpoint usage (if endpoint != '/chat/completions')
+ * 2) Model usage (if endpoint == '/chat/completions'), using the `model` param
+ * 
+ * We also store tokens, tps, etc. for the model usage.
+ * This function does a read–modify–write approach.
+ */
 
-    if (existingService.Item) {
-      // Update existing service
-      await docClient.send(
-        new UpdateCommand({
+interface ServiceMetadataItem {
+    serviceName: string;
+    serviceUrl?: string;
+    [key: string]: any; // for dynamic endpoints/models
+  }
+  
+  interface EndpointUsage {
+    totalNumRequests: number;
+    requests: Array<{
+      dayTimestamp: string;
+      numRequests: number;
+    }>;
+  }
+  
+  interface ModelUsage {
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totals: Array<{
+      dayTimestamp: string;
+      numInputTokens: number;
+      numOutputTokens: number;
+    }>;
+  }
+  
+  async function updateServiceMetadata(
+    serviceName: string,
+    serviceUrl: string | null,
+    endpoint: string,
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+  ) {
+    const day = new Date().toISOString().split('T')[0];
+  
+    try {
+      // 1) Fetch existing service item (if any)
+      const existingResp = await docClient.send(
+        new GetCommand({
           TableName: Resource.ServiceMetadataTable.name,
-          Key: {
-            serviceName: serviceName,
-          },
-          UpdateExpression: `SET ${endpoint.replace('/', '').replace(/\//g, '_')}.totalNumRequests = ${endpoint.replace('/', '').replace(/\//g, '_')}.totalNumRequests + :one`,
-          ExpressionAttributeValues: {
-            ':one': 1,
-          },
+          Key: { serviceName },
         })
       );
-    } else {
-      // Create new service
-      const newService = {
-        serviceName: serviceName,
-        serviceUrl: serviceUrl,
-      };
-      
-      // Initialize the endpoint counter
-      newService[endpoint.replace('/', '').replace(/\//g, '_')] = {
-        totalNumRequests: 1,
-        requests: [],
-      };
-      
+      let item = existingResp.Item as ServiceMetadataItem | undefined;
+  
+      // 2) If it doesn't exist, create a minimal skeleton
+      if (!item) {
+        item = {
+          serviceName,
+          serviceUrl: serviceUrl ?? undefined, // store once
+        };
+      }
+      // If the item exists but has no serviceUrl, we can store it
+      if (!item.serviceUrl && serviceUrl) {
+        item.serviceUrl = serviceUrl;
+      }
+  
+      if (endpoint !== "/chat/completions") {
+        // -- A) Endpoint-based usage tracking --
+  
+        // We'll store usage at item[endpoint], e.g. item["/embeddings"] = { totalNumRequests, requests[] }
+        if (!item[endpoint]) {
+          // create it
+          const endpointUsage: EndpointUsage = {
+            totalNumRequests: 0,
+            requests: [],
+          };
+          item[endpoint] = endpointUsage;
+        }
+  
+        const epUsage = item[endpoint] as EndpointUsage;
+        epUsage.totalNumRequests += 1;
+  
+        // Add or aggregate for today's date in epUsage.requests
+        const existingDay = epUsage.requests.find((r) => r.dayTimestamp === day);
+        if (existingDay) {
+          existingDay.numRequests += 1;
+        } else {
+          epUsage.requests.push({
+            dayTimestamp: day,
+            numRequests: 1,
+          });
+        }
+      } else {
+        // -- B) Model-based usage tracking (for /chat/completions) --
+  
+        // We'll store usage at item[model], e.g. item["gpt4"] = { totalInputTokens, totalOutputTokens, totals[] }
+        if (!item[model]) {
+          const modelUsage: ModelUsage = {
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
+            totals: [],
+          };
+          item[model] = modelUsage;
+        }
+  
+        const mUsage = item[model] as ModelUsage;
+        mUsage.totalInputTokens += inputTokens;
+        mUsage.totalOutputTokens += outputTokens;
+  
+        // Add or aggregate for today's date in mUsage.totals
+        const existingDay = mUsage.totals.find((r) => r.dayTimestamp === day);
+        if (existingDay) {
+          existingDay.numInputTokens += inputTokens;
+          existingDay.numOutputTokens += outputTokens;
+        } else {
+          mUsage.totals.push({
+            dayTimestamp: day,
+            numInputTokens: inputTokens,
+            numOutputTokens: outputTokens,
+          });
+        }
+      }
+  
+      // 3) Write updated item back
       await docClient.send(
         new PutCommand({
           TableName: Resource.ServiceMetadataTable.name,
-          Item: newService,
+          Item: item,
         })
       );
+    } catch (err) {
+      console.error("Error updating service metadata:", err);
     }
-  } catch (error) {
-    console.error('Error updating service metadata:', error);
-  }
 }
 
 // Function to reward provider
@@ -579,7 +661,7 @@ export async function POST(req: NextRequest) {
         );
   
         if (serviceTitle && serviceUrl) {
-          await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions');
+          await updateServiceMetadata(serviceTitle, serviceUrl, '/chat/completions', model, inputTokens, outputTokens);
         }
   
         await rewardProvider(provision.providerId, 0.01);
