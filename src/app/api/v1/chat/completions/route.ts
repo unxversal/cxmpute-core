@@ -165,9 +165,12 @@ export async function POST(req: NextRequest) {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          Connection: "keep-alive",
+          "Connection": "keep-alive",
+          // CORS
+          "Access-Control-Allow-Origin": "*",
         },
       });
+      
     } else {
       // Non-streaming
       const response = await fetch(`${provision.provisionEndpoint}/chat/completions`, {
@@ -208,7 +211,15 @@ export async function POST(req: NextRequest) {
       }
       await rewardProvider(provision.providerId, 0.01);
 
-      return NextResponse.json(chatResponse);
+      return new NextResponse(JSON.stringify(chatResponse), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          // CORS
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+      
     }
   } catch (error) {
     console.error("Error in /chat/completions route:", error);
