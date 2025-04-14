@@ -58,12 +58,17 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
-        ByModel: { hashKey: "model" }
+        ByModel: { hashKey: "model" },
+        ByModelRandom: { 
+          hashKey: "model", 
+          rangeKey: "randomValue" 
+        }
       }
     });
 
@@ -72,12 +77,17 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
-        ByModel: { hashKey: "model" }
+        ByModel: { hashKey: "model" },
+        ByModelRandom: { 
+          hashKey: "model", 
+          rangeKey: "randomValue" 
+        }
       }
     });
 
@@ -85,20 +95,28 @@ export default $config({
     const scrapingProvisionPoolTable = new sst.aws.Dynamo("ScrapingProvisionPoolTable", {
       fields: {
         provisionId: "string",
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
-      primaryIndex: { hashKey: "provisionId" }
+      primaryIndex: { hashKey: "provisionId" },
+      globalIndexes: {
+        ByRandom: { hashKey: "randomValue" }
+      }
     });
 
     // Moon Provision Pool Table
     const moonProvisionPoolTable = new sst.aws.Dynamo("MoonProvisionPoolTable", {
       fields: {
         provisionId: "string",
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
-      primaryIndex: { hashKey: "provisionId" }
+      primaryIndex: { hashKey: "provisionId" },
+      globalIndexes: {
+        ByRandom: { hashKey: "randomValue" }
+      }
     });
 
     // Video and Image Provision Pool Table
@@ -107,13 +125,18 @@ export default $config({
         provisionId: "string",
         model: "string",
         type: "string", // "image" or "video"
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
         ByModelAndType: { hashKey: "model", rangeKey: "type" },
-        ByType: { hashKey: "type" }
+        ByType: { hashKey: "type" },
+        ByModelAndTypeRandom: { 
+          hashKey: "model", 
+          rangeKey: "randomValue", 
+        }
       }
     });
 
@@ -122,12 +145,17 @@ export default $config({
       fields: {
         provisionId: "string",
         model: "string",
+        randomValue: "number", // float in [0..1)
         // provision endpoint: string, url used to make request to node and get response
         // location: location object
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
-        ByModel: { hashKey: "model" }
+        ByModel: { hashKey: "model" },
+        ByModelRandom: { 
+          hashKey: "model", 
+          rangeKey: "randomValue" 
+        }
       }
     });
 
