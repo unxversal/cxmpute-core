@@ -22,7 +22,6 @@ export async function OPTIONS() {
   });
 }
 
-
 export async function POST(req: NextRequest) {
   try {
     // Validate user
