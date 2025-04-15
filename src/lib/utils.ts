@@ -539,9 +539,6 @@ export async function selectEmbeddingsProvision(model: string) {
    * We'll store it under endpoint="/embeddings".
    */
   export async function updateEmbeddingsMetadata(
-    model: string,
-    inputTokens: number,
-    outputTokens: number,
     latency: number
   ) {
     const dateStr = getTodayDateString();
@@ -567,12 +564,6 @@ export async function selectEmbeddingsProvision(model: string) {
               dayTimestamp: dateStr,
               totalNumRequests: 1,
               averageLatency: latency,
-              LLM: {
-                model,
-                tokensIn: inputTokens,
-                tokensOut: outputTokens,
-                averageTps: 0, // or compute a tps if you want
-              },
             },
           })
         );
@@ -582,9 +573,7 @@ export async function selectEmbeddingsProvision(model: string) {
         const oldCount = oldItem.totalNumRequests ?? 0;
         const oldLat = oldItem.averageLatency ?? 0;
         const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-  
-        const oldIn = oldItem.LLM?.tokensIn ?? 0;
-        const oldOut = oldItem.LLM?.tokensOut ?? 0;
+
   
         await docClient.send(
           new PutCommand({
@@ -592,13 +581,7 @@ export async function selectEmbeddingsProvision(model: string) {
             Item: {
               ...oldItem,
               totalNumRequests: oldCount + 1,
-              averageLatency: newAvgLat,
-              LLM: {
-                ...oldItem.LLM,
-                model,
-                tokensIn: oldIn + inputTokens,
-                tokensOut: oldOut + outputTokens,
-              },
+              averageLatency: newAvgLat
             },
           })
         );
@@ -665,3 +648,191 @@ export async function selectEmbeddingsProvision(model: string) {
       console.error("Error updating embeddings service metadata:", err);
     }
   }
+
+/* -------------------------------------------------------------------------- */
+/*                      Image Provision / Media Table Logic                   */
+/* -------------------------------------------------------------------------- */
+
+/** 
+ * Picks a random "image" node from the `MediaProvisionPoolTable`. 
+ * We assume we store items with `type="image"` and `model=<some model>`. 
+ * Possibly you want to allow `model` to be optional.  
+ */
+export async function selectImageProvision(model: string) {
+  const r = Math.random();
+  // We’ll assume you have a GSI "ByModelAndTypeRandom" or similar 
+  // that has (model, randomValue) as key. Also ensure item.type="image".
+  const gsiName = "ByModelAndTypeRandom"; // from your SST config if you set that up for model + randomValue
+
+  // Query #1 => randomValue > r
+  let response = await docClient.send(
+    new QueryCommand({
+      TableName: Resource.MediaProvisionPoolTable.name,
+      IndexName: gsiName,
+      // If you store "type" in your table, you might do a FilterExpression => "type = :image"
+      // but more robust is a GSI that includes "type" in the key. For now, let's keep it simple:
+      KeyConditionExpression: "model = :m AND randomValue > :r",
+      ExpressionAttributeValues: {
+        ":m": model,
+        ":r": r,
+      },
+      Limit: 1,
+      ScanIndexForward: true,
+    })
+  );
+
+  if (!response.Items || response.Items.length === 0) {
+    // Query #2 => randomValue < r
+    response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.MediaProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "model = :m AND randomValue < :r",
+        ExpressionAttributeValues: {
+          ":m": model,
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: false,
+      })
+    );
+  }
+
+  if (!response.Items || response.Items.length === 0) {
+    throw new Error(`No image provisions available for model: ${model}`);
+  }
+
+  return response.Items[0];
+}
+
+/** Checks if the image node’s /heartbeat is healthy */
+export async function checkImageHealth(endpoint: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+    return resp.ok;
+  } catch (err) {
+    console.error("Image node heartbeat check failed:", err);
+    return false;
+  }
+}
+
+/** Removes the image node from the table if it’s unhealthy after 3 tries */
+export async function removeImageProvision(provisionId: string) {
+  try {
+    await docClient.send(
+      new DeleteCommand({
+        TableName: Resource.MediaProvisionPoolTable.name,
+        Key: { provisionId },
+      })
+    );
+  } catch (error) {
+    console.error("Error removing image provision:", error);
+  }
+}
+
+/** 
+ * We can store daily usage in the same "MetadataTable" under endpoint="/image" 
+ * or "/image/<model>" – up to you. 
+ */
+export async function updateImageMetadata(
+  latency: number
+) {
+  // For tokens, you might say inputTokens = promptLength, 
+  // outputTokens = imageSize, or any logic you prefer.
+  const endpoint = "/image";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.MetadataTable.name,
+        Key: { endpoint, dayTimestamp: dayStr },
+      })
+    );
+
+    if (!getResp.Item) {
+      // Insert new
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            endpoint,
+            dayTimestamp: dayStr,
+            totalNumRequests: 1,
+            averageLatency: latency,
+          },
+        })
+      );
+    } else {
+      // Update existing
+      const oldItem = getResp.Item;
+      const oldCount = oldItem.totalNumRequests ?? 0;
+      const oldAvgLat = oldItem.averageLatency ?? 0;
+      const newAvgLat = (oldAvgLat * oldCount + latency) / (oldCount + 1);
+
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            ...oldItem,
+            totalNumRequests: oldCount + 1,
+            averageLatency: newAvgLat,
+          },
+        })
+      );
+    }
+  } catch (err) {
+    console.error("Error updating image metadata:", err);
+  }
+}
+
+/** 
+ * Upsert service metadata for /image. If you want to handle model usage, you can. 
+ */
+export async function updateImageServiceMetadata(serviceName: string, serviceUrl: string | null) {
+  const endpointKey = "/image";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Key: { serviceName },
+      })
+    );
+
+    const item = getResp.Item || { serviceName };
+    // store serviceUrl if not present
+    if (!item.serviceUrl && serviceUrl) {
+      item.serviceUrl = serviceUrl;
+    }
+
+    if (!item[endpointKey]) {
+      item[endpointKey] = {
+        totalNumRequests: 0,
+        requests: [],
+      };
+    }
+    const epUsage = item[endpointKey];
+    epUsage.totalNumRequests += 1;
+
+    const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
+    if (existingDay) {
+      existingDay.numRequests += 1;
+    } else {
+      epUsage.requests.push({
+        dayTimestamp: dayStr,
+        numRequests: 1,
+      });
+    }
+
+    await docClient.send(
+      new PutCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Item: item,
+      })
+    );
+  } catch (err) {
+    console.error("Error updating image service metadata:", err);
+  }
+}
