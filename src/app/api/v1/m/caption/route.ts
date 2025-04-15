@@ -22,6 +22,22 @@ export async function OPTIONS() {
   });
 }
 
+  /**
+   * Handles HTTP POST requests for the /m/caption endpoint.
+   *
+   * This function performs the following operations:
+   * 1. Authenticates the request using the authorization header and validates the API key.
+   * 2. Parses the request body to extract image data and length, returning errors for missing fields.
+   * 3. Attempts to select a healthy moon node to handle the request, with retries for unhealthy nodes.
+   * 4. Forwards the request to the selected moon node's /m/caption endpoint and processes the response.
+   * 5. Updates moon metadata with the latency of the request.
+   * 6. Updates service metadata if a service title is provided.
+   * 7. Rewards the provider of the selected moon node.
+   * 8. Returns the response from the moon node as JSON, or an error response if an exception occurs.
+   *
+   * @param req - The incoming HTTP request object.
+   * @returns A NextResponse object containing the result of the operation.
+   */
 export async function POST(req: NextRequest) {
   try {
     // Validate user

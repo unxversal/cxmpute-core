@@ -1011,3 +1011,185 @@ export async function selectMoonProvision() {
       console.error("Error updating moon service metadata:", err);
     }
   }
+
+/* -------------------------------------------------------------------------- */
+/*                         Scraping Provision Logic                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Picks a random scraping node from `ScrapingProvisionPoolTable` 
+ * using the "ByRandom" index (randomValue in [0..1)).
+ */
+export async function selectScrapingProvision() {
+  const r = Math.random();
+  const gsiName = "ByRandom"; // from your sst config
+
+  // 1) Query for randomValue > r
+  let response = await docClient.send(
+    new QueryCommand({
+      TableName: Resource.ScrapingProvisionPoolTable.name,
+      IndexName: gsiName,
+      KeyConditionExpression: "randomValue > :r",
+      ExpressionAttributeValues: {
+        ":r": r,
+      },
+      Limit: 1,
+      ScanIndexForward: true,
+    })
+  );
+
+  // 2) If none found, query randomValue < r
+  if (!response.Items || response.Items.length === 0) {
+    response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.ScrapingProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "randomValue < :r",
+        ExpressionAttributeValues: {
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: false,
+      })
+    );
+  }
+
+  if (!response.Items || response.Items.length === 0) {
+    throw new Error("No scraping provisions available");
+  }
+  return response.Items[0];
+}
+
+/** Checks if a scraping node is healthy by calling /heartbeat */
+export async function checkScrapingHealth(endpoint: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+    return resp.ok;
+  } catch (err) {
+    console.error("Scraping node heartbeat check failed:", err);
+    return false;
+  }
+}
+
+/** Removes a scraping node from the table if unhealthy after 3 tries */
+export async function removeScrapingProvision(provisionId: string) {
+  try {
+    await docClient.send(
+      new DeleteCommand({
+        TableName: Resource.ScrapingProvisionPoolTable.name,
+        Key: { provisionId },
+      })
+    );
+  } catch (err) {
+    console.error("Error removing scraping provision:", err);
+  }
+}
+
+/**
+ * Update daily metadata for /scrape. 
+ * We store in the same "MetadataTable" with endpoint="/scrape".
+ */
+export async function updateScrapeMetadata(latency: number) {
+  const endpoint = "/scrape";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.MetadataTable.name,
+        Key: { endpoint, dayTimestamp: dayStr },
+      })
+    );
+
+    if (!getResp.Item) {
+      // Insert
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            endpoint,
+            dayTimestamp: dayStr,
+            totalNumRequests: 1,
+            averageLatency: latency,
+          },
+        })
+      );
+    } else {
+      // Update existing
+      const oldItem = getResp.Item;
+      const oldCount = oldItem.totalNumRequests ?? 0;
+      const oldLat = oldItem.averageLatency ?? 0;
+      const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
+
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            ...oldItem,
+            totalNumRequests: oldCount + 1,
+            averageLatency: newAvgLat,
+          },
+        })
+      );
+    }
+  } catch (err) {
+    console.error("Error updating /scrape metadata:", err);
+  }
+}
+
+/**
+ * Update service metadata for /scrape. 
+ * We'll treat "/scrape" as an endpoint in ServiceMetadataTable.
+ */
+export async function updateScrapeServiceMetadata(
+  serviceName: string,
+  serviceUrl: string | null
+) {
+  const endpointKey = "/scrape";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Key: { serviceName },
+      })
+    );
+    const item = getResp.Item || { serviceName };
+
+    // If new serviceUrl, store it
+    if (!item.serviceUrl && serviceUrl) {
+      item.serviceUrl = serviceUrl;
+    }
+
+    // If we haven't used "/scrape" yet, create it
+    if (!item[endpointKey]) {
+      item[endpointKey] = {
+        totalNumRequests: 0,
+        requests: [],
+      };
+    }
+    const epUsage = item[endpointKey];
+    epUsage.totalNumRequests += 1;
+
+    // Append or update today's usage
+    const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
+    if (existingDay) {
+      existingDay.numRequests += 1;
+    } else {
+      epUsage.requests.push({
+        dayTimestamp: dayStr,
+        numRequests: 1,
+      });
+    }
+
+    await docClient.send(
+      new PutCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Item: item,
+      })
+    );
+  } catch (err) {
+    console.error("Error updating /scrape service metadata:", err);
+  }
+}
