@@ -94,18 +94,9 @@ export async function POST(req: NextRequest) {
 
     const endTime = Date.now();
     const latency = endTime - startTime + (data.load_duration ?? 0);
-
-    // 5) Calculate tokens
-    const inputTokens = typeof data.prompt_eval_count === "number" ? data.prompt_eval_count : 0;
-    let outputTokens = 0;
-    if (Array.isArray(data.embeddings)) {
-      for (const row of data.embeddings) {
-        outputTokens += row.length;
-      }
-    }
-
+    
     // 6) Update metadata
-    await updateEmbeddingsMetadata(model, inputTokens, outputTokens, latency);
+    await updateEmbeddingsMetadata(latency);
 
     // 7) Update service metadata if we have a serviceTitle
     if (serviceTitle) {
