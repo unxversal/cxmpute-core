@@ -1193,3 +1193,181 @@ export async function updateScrapeServiceMetadata(
     console.error("Error updating /scrape service metadata:", err);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                            TTS Provision Logic                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Picks a random TTS node from `TTSProvisionPoolTable` 
+ * using the "ByModelRandom" GSI (model, randomValue).
+ */
+export async function selectTTSProvision(model: string) {
+    const r = Math.random();
+    const gsiName = "ByModelRandom"; // from your sst config
+  
+    // Query #1 => randomValue > r
+    let response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.TTSProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "model = :m AND randomValue > :r",
+        ExpressionAttributeValues: {
+          ":m": model,
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: true,
+      })
+    );
+  
+    if (!response.Items || response.Items.length === 0) {
+      // Query #2 => randomValue < r
+      response = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.TTSProvisionPoolTable.name,
+          IndexName: gsiName,
+          KeyConditionExpression: "model = :m AND randomValue < :r",
+          ExpressionAttributeValues: {
+            ":m": model,
+            ":r": r,
+          },
+          Limit: 1,
+          ScanIndexForward: false,
+        })
+      );
+    }
+  
+    if (!response.Items || response.Items.length === 0) {
+      throw new Error(`No TTS provisions available for model: ${model}`);
+    }
+    return response.Items[0];
+  }
+  
+  /** Check if TTS node is healthy by calling /heartbeat */
+  export async function checkTTSHealth(endpoint: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+      return resp.ok;
+    } catch (err) {
+      console.error("TTS node heartbeat failed:", err);
+      return false;
+    }
+  }
+  
+  /** Remove TTS node from the table if it’s unhealthy after 3 tries */
+  export async function removeTTSProvision(provisionId: string) {
+    try {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: Resource.TTSProvisionPoolTable.name,
+          Key: { provisionId },
+        })
+      );
+    } catch (err) {
+      console.error("Error removing TTS provision:", err);
+    }
+  }
+  
+  /**
+   * Update daily metadata for /tts in the "MetadataTable".
+   */
+  export async function updateTTSMetadata(latency: number) {
+    const endpoint = "/tts";
+    const dayStr = getTodayDateString();
+  
+    try {
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.MetadataTable.name,
+          Key: { endpoint, dayTimestamp: dayStr },
+        })
+      );
+  
+      if (!getResp.Item) {
+        // Create
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              endpoint,
+              dayTimestamp: dayStr,
+              totalNumRequests: 1,
+              averageLatency: latency,
+            },
+          })
+        );
+      } else {
+        // Update
+        const oldItem = getResp.Item;
+        const oldCount = oldItem.totalNumRequests ?? 0;
+        const oldLat = oldItem.averageLatency ?? 0;
+        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
+  
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              ...oldItem,
+              totalNumRequests: oldCount + 1,
+              averageLatency: newAvgLat,
+            },
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Error updating TTS metadata:", err);
+    }
+  }
+  
+  /**
+   * Update service metadata for /tts in the "ServiceMetadataTable".
+   */
+  export async function updateTTSServiceMetadata(serviceName: string, serviceUrl: string | null) {
+    const endpointKey = "/tts";
+    const dayStr = getTodayDateString();
+  
+    try {
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Key: { serviceName },
+        })
+      );
+      const item = getResp.Item || { serviceName };
+  
+      // If new serviceUrl, store it
+      if (!item.serviceUrl && serviceUrl) {
+        item.serviceUrl = serviceUrl;
+      }
+  
+      if (!item[endpointKey]) {
+        item[endpointKey] = {
+          totalNumRequests: 0,
+          requests: [],
+        };
+      }
+      const epUsage = item[endpointKey];
+      epUsage.totalNumRequests += 1;
+  
+      const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
+      if (existingDay) {
+        existingDay.numRequests += 1;
+      } else {
+        epUsage.requests.push({
+          dayTimestamp: dayStr,
+          numRequests: 1,
+        });
+      }
+  
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Item: item,
+        })
+      );
+    } catch (err) {
+      console.error("Error updating TTS service metadata:", err);
+    }
+  }
+  
