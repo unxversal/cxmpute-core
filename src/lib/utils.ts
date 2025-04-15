@@ -836,3 +836,178 @@ export async function updateImageServiceMetadata(serviceName: string, serviceUrl
     console.error("Error updating image service metadata:", err);
   }
 }
+
+// Moon api
+/**
+ * 1) Select a random "moon" provision from the MoonProvisionPoolTable
+ *    using the GSI "ByRandom" => randomValue in [0..1).
+ */
+export async function selectMoonProvision() {
+    const r = Math.random();
+    const gsiName = "ByRandom"; // from your sst config
+  
+    // Query #1 => randomValue > r
+    let response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.MoonProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "randomValue > :r",
+        ExpressionAttributeValues: {
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: true,
+      })
+    );
+  
+    if (!response.Items || response.Items.length === 0) {
+      // Query #2 => randomValue < r
+      response = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.MoonProvisionPoolTable.name,
+          IndexName: gsiName,
+          KeyConditionExpression: "randomValue < :r",
+          ExpressionAttributeValues: {
+            ":r": r,
+          },
+          Limit: 1,
+          ScanIndexForward: false,
+        })
+      );
+    }
+  
+    if (!response.Items || response.Items.length === 0) {
+      throw new Error("No moon provisions available");
+    }
+    return response.Items[0];
+  }
+  
+  /** 2) Check the health of a moon node by calling `endpoint/heartbeat` */
+  export async function checkMoonHealth(endpoint: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+      return resp.ok;
+    } catch (err) {
+      console.error("Moon node heartbeat failed:", err);
+      return false;
+    }
+  }
+  
+  /** 3) Remove a dead moon node after 3 attempts */
+  export async function removeMoonProvision(provisionId: string) {
+    try {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: Resource.MoonProvisionPoolTable.name,
+          Key: { provisionId },
+        })
+      );
+    } catch (err) {
+      console.error("Error removing moon provision:", err);
+    }
+  }
+  
+  /**
+   * 4) Update daily metadata for /m/* endpoints
+   *    We'll store `endpoint` = "/m/query" | "/m/caption" | ...
+   *    Up to you how to measure tokens or inputSize or outputSize.
+   */
+  export async function updateMoonMetadata(
+    endpoint: string,
+    latency: number
+  ) {
+    const dayStr = getTodayDateString();
+    try {
+      // get existing item
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.MetadataTable.name,
+          Key: { endpoint, dayTimestamp: dayStr },
+        })
+      );
+      if (!getResp.Item) {
+        // Insert
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              endpoint,
+              dayTimestamp: dayStr,
+              totalNumRequests: 1,
+              averageLatency: latency,
+            },
+          })
+        );
+      } else {
+        const oldItem = getResp.Item;
+        const oldCount = oldItem.totalNumRequests ?? 0;
+        const oldLat = oldItem.averageLatency ?? 0;
+        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
+  
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              ...oldItem,
+              totalNumRequests: oldCount + 1,
+              averageLatency: newAvgLat,
+            },
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Error updating moon metadata:", err);
+    }
+  }
+  
+  /**
+   * 5) Update service metadata for /m/* endpoints
+   *    We'll store usage at item["/m/query"], item["/m/caption"], etc.
+   */
+  export async function updateMoonServiceMetadata(
+    serviceName: string,
+    serviceUrl: string | null,
+    endpoint: string
+  ) {
+    const dayStr = getTodayDateString();
+    try {
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Key: { serviceName },
+        })
+      );
+      const item = getResp.Item || { serviceName };
+      if (!item.serviceUrl && serviceUrl) {
+        item.serviceUrl = serviceUrl;
+      }
+  
+      if (!item[endpoint]) {
+        item[endpoint] = {
+          totalNumRequests: 0,
+          requests: [],
+        };
+      }
+      item[endpoint].totalNumRequests += 1;
+  
+      const epUsage = item[endpoint];
+      const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
+      if (existingDay) {
+        existingDay.numRequests += 1;
+      } else {
+        epUsage.requests.push({
+          dayTimestamp: dayStr,
+          numRequests: 1,
+        });
+      }
+  
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Item: item,
+        })
+      );
+    } catch (err) {
+      console.error("Error updating moon service metadata:", err);
+    }
+  }
