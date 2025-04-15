@@ -89,15 +89,8 @@ export async function POST(req: NextRequest) {
     const endTime = Date.now();
     const latency = endTime - startTime;
 
-    // Let's define inputSize = question length, outputSize = answer length
-    const inputSize = question.length;
-    let outputSize = 0;
-    if (typeof data.answer === "string") {
-      outputSize = data.answer.length;
-    }
-
     // 5) Update metadata => "/m/query"
-    await updateMoonMetadata("/m/query", inputSize, outputSize, latency);
+    await updateMoonMetadata("/m/query", latency);
 
     // 6) Update service metadata if we have a serviceTitle
     if (serviceTitle) {
