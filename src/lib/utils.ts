@@ -450,3 +450,218 @@ export async function rewardProvider(providerId: string, reward: number) {
     console.error("Error rewarding provider:", error);
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                         Embeddings Provision Logic                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Picks a random embeddings node from `EmbeddingsProvisionPoolTable`
+ * using the "ByModelRandom" GSI (model, randomValue).
+ */
+export async function selectEmbeddingsProvision(model: string) {
+    const r = Math.random();
+    const gsiName = "ByModelRandom"; // from your sst config
+  
+    // 1) Query for randomValue > r
+    let response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.EmbeddingsProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "model = :m AND randomValue > :r",
+        ExpressionAttributeValues: {
+          ":m": model,
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: true,
+      })
+    );
+  
+    // 2) If none found, query randomValue < r
+    if (!response.Items || response.Items.length === 0) {
+      response = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.EmbeddingsProvisionPoolTable.name,
+          IndexName: gsiName,
+          KeyConditionExpression: "model = :m AND randomValue < :r",
+          ExpressionAttributeValues: {
+            ":m": model,
+            ":r": r,
+          },
+          Limit: 1,
+          ScanIndexForward: false,
+        })
+      );
+    }
+  
+    if (!response.Items || response.Items.length === 0) {
+      throw new Error(`No embeddings provisions available for model: ${model}`);
+    }
+    return response.Items[0];
+  }
+  
+  /**
+   * Check if an embeddings node is healthy
+   */
+  export async function checkEmbeddingsHealth(endpoint: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+      return resp.ok;
+    } catch (err) {
+      console.error("Embeddings node heartbeat failed:", err);
+      return false;
+    }
+  }
+  
+  /**
+   * Remove an unhealthy embeddings node from the table
+   */
+  export async function removeEmbeddingsProvision(provisionId: string) {
+    try {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: Resource.EmbeddingsProvisionPoolTable.name,
+          Key: { provisionId },
+        })
+      );
+    } catch (err) {
+      console.error("Error removing embeddings provision:", err);
+    }
+  }
+  
+  /* -------------------------------------------------------------------------- */
+  /*                          Metadata & Service Logging                        */
+  /* -------------------------------------------------------------------------- */
+  
+  /**
+   * Update daily metadata for /embeddings, similar to your chat approach.
+   * We'll store it under endpoint="/embeddings".
+   */
+  export async function updateEmbeddingsMetadata(
+    model: string,
+    inputTokens: number,
+    outputTokens: number,
+    latency: number
+  ) {
+    const dateStr = getTodayDateString();
+    // Freed to handle how you like, here's a short example:
+    try {
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.MetadataTable.name,
+          Key: {
+            endpoint: "/embeddings",
+            dayTimestamp: dateStr,
+          },
+        })
+      );
+  
+      if (!getResp.Item) {
+        // Insert
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              endpoint: "/embeddings",
+              dayTimestamp: dateStr,
+              totalNumRequests: 1,
+              averageLatency: latency,
+              LLM: {
+                model,
+                tokensIn: inputTokens,
+                tokensOut: outputTokens,
+                averageTps: 0, // or compute a tps if you want
+              },
+            },
+          })
+        );
+      } else {
+        // Update existing
+        const oldItem = getResp.Item;
+        const oldCount = oldItem.totalNumRequests ?? 0;
+        const oldLat = oldItem.averageLatency ?? 0;
+        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
+  
+        const oldIn = oldItem.LLM?.tokensIn ?? 0;
+        const oldOut = oldItem.LLM?.tokensOut ?? 0;
+  
+        await docClient.send(
+          new PutCommand({
+            TableName: Resource.MetadataTable.name,
+            Item: {
+              ...oldItem,
+              totalNumRequests: oldCount + 1,
+              averageLatency: newAvgLat,
+              LLM: {
+                ...oldItem.LLM,
+                model,
+                tokensIn: oldIn + inputTokens,
+                tokensOut: oldOut + outputTokens,
+              },
+            },
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Error updating embeddings metadata:", err);
+    }
+  }
+  
+  /**
+   * Update service metadata for /embeddings. 
+   * We'll treat /embeddings like an endpoint, but you can also track the model if you prefer.
+   */
+  export async function updateEmbeddingsServiceMetadata(
+    serviceName: string,
+    serviceUrl: string | null,
+  ) {
+    const day = getTodayDateString();
+    try {
+      const getResp = await docClient.send(
+        new GetCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Key: { serviceName },
+        })
+      );
+      const item = getResp.Item || { serviceName };
+  
+      // If the serviceUrl is new, store it
+      if (!item.serviceUrl && serviceUrl) {
+        item.serviceUrl = serviceUrl;
+      }
+  
+      // We'll store usage at item["/embeddings"]
+      const endpointKey = "/embeddings";
+      if (!item[endpointKey]) {
+        item[endpointKey] = {
+          totalNumRequests: 0,
+          requests: [],
+        };
+      }
+      const epUsage = item[endpointKey];
+      epUsage.totalNumRequests += 1;
+  
+      const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === day);
+      if (existingDay) {
+        existingDay.numRequests += 1;
+      } else {
+        epUsage.requests.push({
+          dayTimestamp: day,
+          numRequests: 1,
+        });
+      }
+  
+      // Optionally also track usage per model. This is up to you. 
+      // For now, let's keep it simple.
+  
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.ServiceMetadataTable.name,
+          Item: item,
+        })
+      );
+    } catch (err) {
+      console.error("Error updating embeddings service metadata:", err);
+    }
+  }
