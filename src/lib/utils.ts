@@ -1371,3 +1371,180 @@ export async function selectTTSProvision(model: string) {
     }
   }
   
+
+/* -------------------------------------------------------------------------- */
+/*                           Video Provision Logic                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Picks a random "video" node from the `MediaProvisionPoolTable`.
+ * We assume items have `type="video"`, `model=<some model>`, and randomValue in [0..1).
+ * We use the "ByModelAndTypeRandom" GSI. 
+ */
+export async function selectVideoProvision(model: string) {
+  const r = Math.random();
+  const gsiName = "ByModelAndTypeRandom"; // from your sst config (hashKey=model, rangeKey=randomValue)
+  
+  // Query #1 => randomValue > r
+  let response = await docClient.send(
+    new QueryCommand({
+      TableName: Resource.MediaProvisionPoolTable.name,
+      IndexName: gsiName,
+      KeyConditionExpression: "model = :m AND randomValue > :r",
+      ExpressionAttributeValues: {
+        ":m": model,
+        ":r": r,
+      },
+      Limit: 1,
+      ScanIndexForward: true,
+    })
+  );
+
+  // If no item found, query randomValue < r
+  if (!response.Items || response.Items.length === 0) {
+    response = await docClient.send(
+      new QueryCommand({
+        TableName: Resource.MediaProvisionPoolTable.name,
+        IndexName: gsiName,
+        KeyConditionExpression: "model = :m AND randomValue < :r",
+        ExpressionAttributeValues: {
+          ":m": model,
+          ":r": r,
+        },
+        Limit: 1,
+        ScanIndexForward: false,
+      })
+    );
+  }
+
+  if (!response.Items || response.Items.length === 0) {
+    throw new Error(`No video provisions available for model: ${model}`);
+  }
+  // Return the single item
+  return response.Items[0];
+}
+
+/** Check if a video node is healthy by calling `endpoint/heartbeat` */
+export async function checkVideoHealth(endpoint: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
+    return resp.ok;
+  } catch (err) {
+    console.error("Video node heartbeat failed:", err);
+    return false;
+  }
+}
+
+/** Remove a video provision from `MediaProvisionPoolTable` if unhealthy */
+export async function removeVideoProvision(provisionId: string) {
+  try {
+    await docClient.send(
+      new DeleteCommand({
+        TableName: Resource.MediaProvisionPoolTable.name,
+        Key: { provisionId },
+      })
+    );
+  } catch (err) {
+    console.error("Error removing video provision:", err);
+  }
+}
+
+/**
+ * Update daily metadata for /video in the "MetadataTable".
+ * We'll store the record with endpoint="/video".
+ */
+export async function updateVideoMetadata(latency: number) {
+  const endpoint = "/video";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.MetadataTable.name,
+        Key: { endpoint, dayTimestamp: dayStr },
+      })
+    );
+
+    if (!getResp.Item) {
+      // Insert
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            endpoint,
+            dayTimestamp: dayStr,
+            totalNumRequests: 1,
+            averageLatency: latency,
+          },
+        })
+      );
+    } else {
+      // Update
+      const oldItem = getResp.Item;
+      const oldCount = oldItem.totalNumRequests ?? 0;
+      const oldLat = oldItem.averageLatency ?? 0;
+      const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
+
+      await docClient.send(
+        new PutCommand({
+          TableName: Resource.MetadataTable.name,
+          Item: {
+            ...oldItem,
+            totalNumRequests: oldCount + 1,
+            averageLatency: newAvgLat,
+          },
+        })
+      );
+    }
+  } catch (err) {
+    console.error("Error updating /video metadata:", err);
+  }
+}
+
+/**
+ * Update service metadata for /video in the "ServiceMetadataTable".
+ */
+export async function updateVideoServiceMetadata(serviceName: string, serviceUrl: string | null) {
+  const endpointKey = "/video";
+  const dayStr = getTodayDateString();
+
+  try {
+    const getResp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Key: { serviceName },
+      })
+    );
+    const item = getResp.Item || { serviceName };
+
+    // If new serviceUrl, store it
+    if (!item.serviceUrl && serviceUrl) {
+      item.serviceUrl = serviceUrl;
+    }
+
+    if (!item[endpointKey]) {
+      item[endpointKey] = {
+        totalNumRequests: 0,
+        requests: [],
+      };
+    }
+    const epUsage = item[endpointKey];
+    epUsage.totalNumRequests += 1;
+
+    const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
+    if (existingDay) {
+      existingDay.numRequests += 1;
+    } else {
+      epUsage.requests.push({ dayTimestamp: dayStr, numRequests: 1 });
+    }
+
+    await docClient.send(
+      new PutCommand({
+        TableName: Resource.ServiceMetadataTable.name,
+        Item: item,
+      })
+    );
+  } catch (err) {
+    console.error("Error updating /video service metadata:", err);
+  }
+}
