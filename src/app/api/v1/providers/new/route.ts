@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
       })
     );
 
+    // 5) TODO: Call out to peaq here to add the provision
+
     // 5) Return success
     return NextResponse.json({ success: true }, { status: 200 });
 
