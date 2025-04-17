@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
       providerEmail: email,
       apiKey: providerAk,
       providerWalletAddress: walletAddress,
-      // rewards: []  // optional
-      // totalRewards: 0  // optional
+      rewards: [],
+      totalRewards: 0 
     };
 
     // 4) Insert into the table
