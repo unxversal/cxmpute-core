@@ -11,28 +11,11 @@ import {
 import { Resource } from "sst";
 import { ProviderRecord } from "@/lib/interfaces";
 
-import { randomBytes } from "crypto";
+import { v4 as uuidv4 } from "uuid";
 
 /****************** 1) CREATE THE DOC CLIENT  **************************/
 const rawClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(rawClient);
-
-/**
- * Simple function to generate a random provider ID – you can use a UUID library if you prefer.
- * This is a minimal approach using Node's crypto.
- */
-function generateProviderId(): string {
-  // 16 random bytes => 32 hex characters
-  return randomBytes(16).toString("hex");
-}
-
-/**
- * Generate provider's API key
- */
-function generateApiKey(): string {
-  // 24 random bytes => 48 hex characters
-  return randomBytes(24).toString("hex");
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,8 +31,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 2) Generate IDs
-    const providerId = generateProviderId();
-    const providerAk = generateApiKey();
+    const providerId = uuidv4().replace(/-/g, "");
+    const providerAk = uuidv4().replace(/-/g, "");
 
     // 3) Build the new provider record
     //    The ProviderRecord interface includes: providerId, providerEmail, apiKey, plus optional wallet, etc.
