@@ -233,7 +233,7 @@ async function calculateServices(deviceDiagnostics: DeviceDiagnostics): Promise<
       service.storageRequired <= remainingStorage
     ) {
       // Format the service identifier
-      const serviceId = service.model ?? service.endpoint;
+      const serviceId = service.model ?? service.endpoint.replace(/\//g, "");
         
       selectedServices.push(serviceId);
       
