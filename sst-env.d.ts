@@ -9,11 +9,11 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
-    "CxmputeSite": {
-      "type": "sst.aws.Nextjs"
+    "CxmputeAuth": {
+      "type": "sst.aws.Auth"
       "url": string
     }
-    "CxmputeWebsite": {
+    "CxmputeSite": {
       "type": "sst.aws.Nextjs"
       "url": string
     }

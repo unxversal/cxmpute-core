@@ -12,13 +12,6 @@ export default $config({
     };
   },
   async run() {
-    // Website
-    new sst.aws.Nextjs("CxmputeWebsite", {
-      domain: {
-        name: "cxmpute.cloud",
-        redirects: ["www." + "cxmpute.cloud"],
-      }
-    });
 
     // Provider Table
     const providerTable = new sst.aws.Dynamo("ProviderTable", {
@@ -236,6 +229,11 @@ export default $config({
       primaryIndex: { hashKey: "timeSlotTimestamp", rangeKey: "location" }
     });
 
+
+    const auth = new sst.aws.Auth("CxmputeAuth", {
+      issuer: "auth/index.handler",
+    });
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {
@@ -255,7 +253,8 @@ export default $config({
         metadataTable,
         serviceMetadataTable,
         networkStatsTable,
-        advertisementTable
+        advertisementTable,
+        auth,
       ]
     });
   },
