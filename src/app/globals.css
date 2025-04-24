@@ -1,12 +1,26 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --cxmpute-green: #20a191;
+  --cxmpute-pink: #fe91e8;
+  --cxmpute-yellow: #f8cb46;
+  --cxmpute-purple: #91a8eb;
+  --cxmpute-slate: #d4d4cb;
+  --cxmpute-lightgreen: #97e1bd;
+  --cxmpute-lightyellow: #f7e48c;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --cxmpute-green: #20a191;
+    --cxmpute-pink: #fe91e8;
+    --cxmpute-yellow: #f8cb46;
+    --cxmpute-purple: #91a8eb;
+    --cxmpute-slate: #d4d4cb;
+    --cxmpute-lightgreen: #97e1bd;
+    --cxmpute-lightyellow: #f7e48c;
   }
 }
 

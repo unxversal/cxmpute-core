@@ -13,6 +13,7 @@
     "@openauthjs/openauth": "^0.4.3",
     "dotted-map": "^2.2.3",
     "hono": "^4.7.7",
+    "lucide-react": "^0.503.0",
     "next": "15.2.0",
     "openauth": "^0.1.3",
     "react": "^19.0.0",
