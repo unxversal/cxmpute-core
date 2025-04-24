@@ -3,16 +3,14 @@
 import { useState } from 'react';
 import { models } from '@/lib/references';
 import styles from './models.module.css';
-import { Search, Grid, List, Info } from 'lucide-react';
+import { Search, Info } from 'lucide-react';
 import Image from 'next/image';
 import Button from '@/components/button/button';
 
 const cxmputeGreen = '#20a191';
-const cxmputeYellow = '#f8cb46';
 const cxmputePurple = '#91a8eb';
 const cxmputePink = "#fe91e8";
 const cxmputeRed = "#d64989";
-const cxmputeBlue = "#4c6ef5";
 const cxmputeOrange = "#f76707";
 
 export default function ModelsPage() {
@@ -22,9 +20,6 @@ export default function ModelsPage() {
   // new category selector  ────────────────┐
   const [category, setCategory] = useState<'all' | 'embeddings' | 'text' | 'vision' | 'code'>('all');
   //                                          └───────────────────────────────────────┘
-
-  // grid / list view
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // combined filter
   const filteredModels = models.filter((model) => {
@@ -119,34 +114,11 @@ export default function ModelsPage() {
             ))}
           </div>
 
-          {/* sort + view options */}
-          <div className={styles.viewOptions}>
-            {/* <div className={styles.sortContainer}>
-              <span>Sort</span>
-              <SortDesc size={16} />
-            </div> */}
-            <button
-              className={`${styles.viewButton} ${
-                viewMode === 'grid' ? styles.active : ''
-              }`}
-              onClick={() => setViewMode('grid')}
-            >
-              <Grid size={18} />
-            </button>
-            <button
-              className={`${styles.viewButton} ${
-                viewMode === 'list' ? styles.active : ''
-              }`}
-              onClick={() => setViewMode('list')}
-            >
-              <List size={18} />
-            </button>
-          </div>
         </div>
 
         {/* model cards */}
         <div
-          className={viewMode === 'grid' ? styles.modelsGrid : styles.modelsList}
+          className={ styles.modelsGrid }
         >
           {filteredModels.map((model, index) => (
             <div key={index} className={styles.modelCard} >
