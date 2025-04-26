@@ -1388,4 +1388,17 @@ export const models: Models[] = [
   vectorSize: undefined,
   slug: generateSlug("Wan-AI/Wan2.1-T2V-1.3B") // "wan-ai-wan2-1-t2v-1-3b"
 },
+{
+  Name: "granite3.3:8b",
+  Category: "text",
+  description: "The IBM Granite 3.3 8B model is an 8-billion-parameter instruction-tuned LLM with a 128K token context window, optimized for reasoning, instruction following, fill-in-the-middle code completion, and structured reasoning.",
+  Creator: "IBM",
+  creatorUrl: "https://www.ibm.com/granite/docs/models/granite/",
+  InputModalities: parseModalities("text"),
+  OutputModalities: parseModalities("text"),
+  contextSize: "128k",
+  outputLength: "8k",
+  blogUrl: "https://www.ibm.com/granite/docs/models/granite/",
+  slug: generateSlug("granite3.3:8b")
+},
 ];

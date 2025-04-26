@@ -12,13 +12,14 @@ const cxmputePurple = '#91a8eb';
 const cxmputePink = "#fe91e8";
 const cxmputeRed = "#d64989";
 const cxmputeOrange = "#f76707";
+const cxmputeYellow = "#f8cb46";
 
 export default function ModelsPage() {
   // text search
   const [filterText, setFilterText] = useState('');
 
   // new category selector  ────────────────┐
-  const [category, setCategory] = useState<'all' | 'embeddings' | 'text' | 'vision' | 'code'>('all');
+  const [category, setCategory] = useState<'all' | 'embeddings' | 'text' | 'vision' | 'code' | 'video' | 'audio'>('all');
   //                                          └───────────────────────────────────────┘
 
   // combined filter
@@ -94,8 +95,8 @@ export default function ModelsPage() {
 
           {/* new category buttons */}
           <div className={styles.categoryFilter}>
-            {(['all', 'embeddings', 'text', 'vision', 'code'] as const).map((c) => (
-              <button
+            {(['all', 'embeddings', 'text', 'vision', 'code', 'video', 'audio'] as const).map((c) => (
+              <div
                 key={c}
                 className={`${styles.categoryButton} ${
                   category === c ? styles.activeCategory : ''
@@ -107,10 +108,13 @@ export default function ModelsPage() {
                     backgroundColor={c === 'all' ? cxmputeGreen 
                         : c === 'embeddings' ? cxmputeOrange 
                         : c === 'text' ? cxmputePurple 
-                        : c === 'vision' ? cxmputePink 
+                        : c === 'vision' ? cxmputeYellow 
+                        : c === 'code' ? cxmputeRed
+                        : c === 'video' ? cxmputePurple
+                        : c === 'audio' ? cxmputeOrange
                         : cxmputeRed}
                 />
-              </button>
+              </div>
             ))}
           </div>
 
