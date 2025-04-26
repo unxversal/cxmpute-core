@@ -1,17 +1,25 @@
-/* Container & Layout */
+/* ─────────────────────────────
+   CXMPUTE – Model detail page
+   ───────────────────────────── */
+
+/* ---------- Root layout ---------- */
 .container {
   padding: 2rem;
-  /* background-color: var(--cxmpute-yellow); */
   min-height: 100vh;
+  background: var(--cxmpute-yellow, transparent);
+  box-sizing: border-box;
+  max-width: 100%;            /* never exceed the viewport */
 }
 
-/* ─── Header ─── */
+/* ---------- Header ---------- */
 .mainheader {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 32px;
+  flex-wrap: wrap;
+  row-gap: 0.75rem;
 }
 
 .logo {
@@ -20,30 +28,60 @@
   cursor: pointer;
 }
 
-.menu ul {
-  display: flex;
-  gap: 24px;
-  list-style: none;
-}
-
 .mainheader h1 {
   font-size: 20px;
+  margin-left: 0.5rem;
 }
 
-/* ─── Hero ─── */
-.hero {
-  padding: 40px;
-  text-align: center;
+.menu ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---------- Two-column grid ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;   /* collapse to one column */
+  }
+}
+
+/* columns stack their children vertically */
+.leftColumn,
+.rightColumn {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background-color: white;
-  border: 6px solid #000;
-  box-shadow: 12px 12px 0 #000;
-  border-radius: 20px;
-  max-width: 800px;
-  margin: 2rem auto 0;
+  gap: 2rem;
+  min-width: 0;
 }
+
+/* ---------- Card-style section base ---------- */
+.hero,
+.details,
+.docs,
+.playground {
+  background: #fff;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 40px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hero { text-align: center; }
 
 .title {
   font-size: 2rem;
@@ -51,36 +89,7 @@
   margin-bottom: 1rem;
 }
 
-.description {
-  max-width: 800px;
-  font-size: 1rem;
-  color: #4b5563;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.blogLink {
-  margin-top: 1.25rem;
-  font-weight: 600;
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.blogLink:hover {
-  text-decoration: underline;
-}
-
-/* ─── Details Card ─── */
-.details {
-  max-width: 800px;
-  margin: 2rem auto 0;
-  border-radius: 20px;
-  padding: 40px;
-  background-color: white;
-  border: 6px solid #000;
-  box-shadow: 12px 12px 0 #000;
-}
-
+/* ---------- Meta & tags ---------- */
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -88,6 +97,7 @@
   font-size: 0.875rem;
   color: #6b7280;
   margin-bottom: 1rem;
+  justify-content: center;
 }
 
 .metaItem span {
@@ -100,16 +110,13 @@
   color: #2563eb;
   text-decoration: none;
 }
+.creatorLink:hover { text-decoration: underline; }
 
-.creatorLink:hover {
-  text-decoration: underline;
-}
-
-/* ─── Tags (re-use palette from listing) ─── */
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: center;
 }
 
 .categoryTag,
@@ -119,68 +126,84 @@
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
 }
+.categoryTag { background: #e0f2fe; color: #0369a1; }
+.inputTag    { background: #f3e8ff; color: #7e22ce; }
+.outputTag   { background: #dcfce7; color: #15803d; }
 
-.categoryTag {
-  background-color: #e0f2fe;
-  color: #0369a1;
+/* ---------- Markdown helpers ---------- */
+.markdown :is(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote) {
+  margin-bottom: 1rem;
 }
 
-.inputTag {
-  background-color: #f3e8ff;
-  color: #7e22ce;
+.markdown ul,
+.markdown ol {
+  margin-left: 1.5rem;                 /* indent lists */
 }
 
-.outputTag {
-  background-color: #dcfce7;
-  color: #15803d;
+.markdown pre {
+  overflow-x: auto;                    /* scroll long code */
+  background: #111827;
+  color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 10px;
 }
 
-/* ─── Responsive ─── */
-@media (max-width: 768px) {
-  .mainheader {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .menu ul {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .details {
-    margin-top: 1.5rem;
-  }
+.markdown a {
+  color: #2563eb;
+  word-break: break-all;
 }
 
-.docs, .playground {
-  max-width: 800px;
-  margin: 2rem auto 0;
-  padding: 40px;
-  background-color: #fff;
-  border: 6px solid #000;
-  border-radius: 20px;
-  box-shadow: 12px 12px 0 #000;
+.markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Keep long tokens from stretching the layout */
+.markdown,
+.pre {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ---------- Playground controls ---------- */
+.textarea,
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  border-radius: 8px;
+  border: 2px solid #d1d5db;
+  margin-bottom: 1rem;
+  color: #111827;
+  background: #f8fafc;
+  box-sizing: border-box;
+  margin-top: 1rem;
 }
 
 .textarea {
-  width: 100%;
   min-height: 120px;
-  padding: 0.75rem;
-  font: inherit;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  margin-bottom: 1rem;
+  resize: vertical;
 }
 
-.input {
-  width: 100%;
-  padding: 0.75rem;
-  font: inherit;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  margin-bottom: 1rem;
+.textarea::placeholder,
+.input::placeholder {
+  color: #9ca3af;
 }
 
+.textarea:focus,
+.input:focus {
+  outline: none;
+  border-color: #20a191;              /* cxmpute green */
+  box-shadow: 0 0 0 2px rgba(32, 161, 145, 0.2);
+}
+
+.small {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* ---------- Result / code block ---------- */
 .pre {
   margin-top: 1.5rem;
   background: #111827;
@@ -189,10 +212,78 @@
   border-radius: 10px;
   overflow-x: auto;
   font-size: 0.875rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-.small {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #6b7280;
+/* ---------- Media player ---------- */
+.video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- Responsive fine-tuning ---------- */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+    overflow-x: hidden;               /* remove stray horizontal scroll */
+  }
+
+  .grid   { gap: 1rem; }
+
+  .hero,
+  .details,
+  .docs,
+  .playground {
+    padding: 28px 20px;
+    border-width: 4px;
+    box-shadow: 6px 6px 0 #000;
+  }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 0.75rem; }
+
+  .hero,
+  .details,
+  .docs,
+  .playground {
+    padding: 20px 16px;
+    border-width: 3px;
+    box-shadow: 4px 4px 0 #000;
+  }
+}
+
+/* ---------- Final safeguard ---------- */
+/* make sure nothing can ever push the page wider than the viewport */
+.grid,
+.hero,
+.details,
+.docs,
+.playground,
+.markdown pre,
+.pre {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* identical look as .input – just for a <select> element */
+.select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  border-radius: 8px;
+  border: 2px solid #d1d5db;
+  margin-bottom: 1rem;
+  color: #111827;
+  background: #f8fafc;
+  box-sizing: border-box;
+  appearance: none;            /* hides default arrow in most browsers */
+}
+
+.select:focus {
+  outline: none;
+  border-color: #20a191;       /* cxmpute green */
+  box-shadow: 0 0 0 2px rgba(32, 161, 145, 0.2);
 }
