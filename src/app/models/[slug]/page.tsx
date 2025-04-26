@@ -15,6 +15,7 @@ import styles from './page.module.css';
 const cxmputeGreen  = '#20a191';
 const cxmputePurple = '#91a8eb';
 const cxmputePink   = '#fe91e8';
+const cxmputeOrange = '#ff8c00';
 
 // Handy: change the host at build-/run-time → NEXT_PUBLIC_ORCH_BASE_URL
 const BASE_URL = '';
@@ -143,7 +144,7 @@ export default function ModelDetailPage({
           <ul>
             <li>
               <Link href="/models">
-                <Button text="ALL MODELS" backgroundColor={cxmputeGreen} />
+                <Button text="ALL MODELS" backgroundColor={cxmputeOrange} />
               </Link>
             </li>
             <li>

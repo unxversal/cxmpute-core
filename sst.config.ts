@@ -229,6 +229,7 @@ export default $config({
       primaryIndex: { hashKey: "timeSlotTimestamp", rangeKey: "location" }
     });
 
+    const graphs = new sst.aws.Bucket("GraphsBucket");
 
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: "auth/index.handler",
@@ -255,6 +256,7 @@ export default $config({
         networkStatsTable,
         advertisementTable,
         auth,
+        graphs,
       ]
     });
   },

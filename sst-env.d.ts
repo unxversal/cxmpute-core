@@ -21,6 +21,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "GraphsBucket": {
+      "name": string
+      "type": "sst.aws.Bucket"
+    }
     "LLMProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
