@@ -73,25 +73,6 @@ export default function ModelDetailPage({
           break;
 
         case 'vision': // falls through to chat/completions but can send image-url, too
-          endpoint      = '/api/v1/chat/completions';
-          body          = {
-            model: model.Name,
-            stream: false,
-            messages: [
-              { role: 'system', content: 'You are a helpful assistant.' },
-              {
-                role   : 'user',
-                content: imageUrl
-                  ? [
-                      { type: 'text',      text: input },
-                      { type: 'image_url', image_url: { url: imageUrl } },
-                    ]
-                  : input,
-              },
-            ],
-          };
-          break;
-
         case 'text':
         case 'code':
         case 'math':
