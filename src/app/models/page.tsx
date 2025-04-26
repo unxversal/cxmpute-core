@@ -60,7 +60,7 @@ export default function ModelsPage() {
             </li>
             <li>
               <a href="/download" target="_blank">
-                <Button text="BECOME A PROVIDER" backgroundColor={cxmputePink} />
+                <Button text="BECOME A PROVIDER" backgroundColor={cxmputeYellow} />
               </a>
             </li>
           </ul>
