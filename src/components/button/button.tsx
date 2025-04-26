@@ -4,13 +4,17 @@ import styles from "./button.module.css";
 type ButtonProps = {
   text: string;
   backgroundColor?: string;
+  disabled?: boolean; // add this line
+  onClick?: () => void;
 };
 
-const Button: React.FC<ButtonProps> = ({ text, backgroundColor = "white" }) => {
+const Button: React.FC<ButtonProps> = ({ text, backgroundColor = "white", disabled, onClick }) => {
   return (
     <button
       className={styles.button}
       style={{ backgroundColor }}
+      disabled={disabled} // add this line
+      onClick={onClick}
     >
       {text}
       <svg

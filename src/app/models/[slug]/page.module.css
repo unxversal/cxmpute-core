@@ -151,3 +151,48 @@
     margin-top: 1.5rem;
   }
 }
+
+.docs, .playground {
+  max-width: 800px;
+  margin: 2rem auto 0;
+  padding: 40px;
+  background-color: #fff;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 0.75rem;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-bottom: 1rem;
+}
+
+.pre {
+  margin-top: 1.5rem;
+  background: #111827;
+  color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+.small {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
