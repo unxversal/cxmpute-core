@@ -9,7 +9,6 @@ import Button from '@/components/button/button';
 
 const cxmputeGreen = '#20a191';
 const cxmputePurple = '#91a8eb';
-const cxmputePink = "#fe91e8";
 const cxmputeRed = "#d64989";
 const cxmputeOrange = "#f76707";
 const cxmputeYellow = "#f8cb46";
@@ -73,6 +72,17 @@ export default function ModelsPage() {
           <p className={styles.heroDescription}>
             All your AI models in one API—LLM, TTS, image gen, instantly.
           </p>
+          <div className={styles.heroBottom}>
+          <h3 className={styles.logoTitle}>Featuring models from:</h3>
+            <div className={styles.logoImages}>
+              <Image src="/images/google.png" alt="google logo" height={70} width={70} />
+              <Image src="/images/qwen.png" alt="qwen logo" height={70} width={70} />
+              <Image src="/images/ibm.png" alt="ibm logo" height={70} width={70} />
+              <Image src="/images/deepseek.png" alt="deepseek logo" height={70} width={70} />
+              <Image src="/images/meta.png" alt="meta logo" height={70} width={70} />
+              <Image src="/images/mistral.png" alt="mistral logo" height={70} width={70} />
+            </div>
+          </div>
         </div>
       </div>
 
