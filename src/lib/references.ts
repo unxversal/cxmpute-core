@@ -1402,3 +1402,1308 @@ export const models: Models[] = [
   slug: generateSlug("granite3.3:8b")
 },
 ];
+
+interface EndpointDoc{
+  route: string;
+  docs: string;
+}
+
+export const endpoints: EndpointDoc[] = [
+  {
+    route: "/api/v1/embeddings",
+    docs: `
+## Endpoint \`POST /api/v1/embeddings\`
+
+Generate vector-embeddings through your decentralized compute network.
+The central **Next .js App Router** accepts the request, selects a healthy Ollama provider node (running in a Tauri side-car), forwards the call, rewards the provider, and streams the response back.
+
+---
+
+### 1  URL
+
+\`\`\`
+POST https://<your-orchestrator-host>/api/v1/embeddings
+\`\`\`
+
+---
+
+### 2  Pre-flight (CORS)
+
+\`\`\`
+OPTIONS /api/v1/embeddings
+\`\`\`
+
+| Header | Value |
+|--------|-------|
+| Access-Control-Allow-Origin | \`*\` |
+| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
+| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
+
+---
+
+### 3  Request Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| **Authorization** | ✓ | \`Bearer <API_KEY>\` – your issued API key. |
+| **X-User-Id** | ✓ | Internal user / customer identifier used for metering. |
+| **X-Title** | — | Friendly service / product name (used for per-service analytics). |
+| **HTTP-Referer** | — | Originating page URL (captured for analytics). |
+| **Content-Type** | ✓ | \`application/json\` |
+
+---
+
+### 4  Request Body
+
+\`\`\`jsonc
+{
+  "model":        "string",            // e.g. "nomic-embed-text"
+  "input":        "string|string[]",   // plain text or array of texts
+  "truncate":     true|false,          // optional – whether to truncate long inputs
+  "keep_alive":   "2h" | 3600,         // optional – keep model weights hot
+  // Any additional Ollama runtime options are also accepted:
+  "temperature":  0.0,
+  "repeat_penalty": 1.1
+}
+\`\`\`
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| \`model\` | \`string\` | ✓ | Name of an embeddings-capable Ollama model available on the network. |
+| \`input\` | \`string\` or \`string[]\` | ✓ | One or more texts to embed. |
+| \`truncate\` | \`boolean\` | — | If \`true\`, long inputs are truncated instead of erroring. |
+| \`keep_alive\` | \`string\` \\| \`number\` | — | Duration to keep the model loaded (\`"30m"\`, \`"2h"\`, or seconds). |
+| _…any other key_ | \`any\` | — | Passed straight through to Ollama; use to tune runtime (e.g. \`temperature\`). |
+
+---
+
+### 5  Successful Response \`200 OK\`
+
+\`\`\`jsonc
+{
+  "model": "nomic-embed-text",
+  "embeddings": [[0.019, -0.023, … ], …],
+  "total_duration": 842,      // ms – wall-clock
+  "load_duration": 337,       // ms – model load if cold
+  "prompt_eval_count": 1
+}
+\`\`\`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| \`model\` | \`string\` | Echo of the model used. |
+| \`embeddings\` | \`number[][]\` | Array of embedding vectors (one per input). |
+| \`total_duration\` | \`number\` | End-to-end time on the provider in ms. |
+| \`load_duration\` | \`number\` | Time spent loading the model (0 if already resident). |
+| \`prompt_eval_count\` | \`number\` | Tokens processed internally by Ollama. |
+
+The response is returned with \`Content-Type: application/json\` and \`Access-Control-Allow-Origin: *\`.
+
+---
+
+### 6  Error Responses
+
+| HTTP status | JSON shape | When it happens |
+|-------------|------------|-----------------|
+| **400** | \`{ "error": "Missing required parameter: model, input" }\` | \`model\` or \`input\` missing. |
+| **401** | \`{ "error": "Invalid API key" }\` | Bad or absent \`Authorization\` header. |
+| **503** | \`{ "error": "No healthy embeddings provision found" }\` | All provider nodes failed health-checks. |
+| **500** | \`{ "error": "Internal server error" }\` | Unhandled exception in router. |
+| **> =502** (proxy) | \`{ "error": "Node error: …" }\` | Provider node replied non-200; message forwarded. |
+
+---
+
+### 7  End-to-End Flow (internals)
+
+1. **Validate key** – credits check via \`validateApiKey\`.
+2. **Choose provider** – \`selectEmbeddingsProvision(model)\` → returns \`{ provisionEndpoint, providerId, provisionId }\`. Health-checked up to 3 times; dead nodes are deregistered.
+3. **Forward request** – JSON envelope is POSTed to \`http://<node>/embeddings\`.
+4. **Measure latency** – total router → node → router time (plus node’s \`load_duration\`).
+5. **Record metrics** – \`updateEmbeddingsMetadata\`, \`updateEmbeddingsServiceMetadata\`.
+6. **Reward provider** – micro-payment \`rewardProvider(providerId, 0.01)\`.
+7. **Return response** – passthrough of Ollama JSON plus CORS headers.
+
+*These internals are purely informational; client code only sees the public contract.*
+
+---
+
+### 8  Example cURL
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/embeddings \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+        "model":"nomic-embed-text",
+        "input":["Hello, world!", "Second sentence."],
+        "truncate":false,
+        "keep_alive":"30m"
+      }'
+\`\`\`
+
+---
+
+### 9  OpenAPI (YAML snippet)
+
+\`\`\`yaml
+paths:
+  /api/v1/embeddings:
+    post:
+      summary: Generate text embeddings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmbeddingsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmbeddingsResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  schemas:
+    EmbeddingsRequest:
+      type: object
+      required: [model, input]
+      properties:
+        model: { type: string }
+        input: { oneOf: [{ type: string }, { type: array, items: { type: string } }] }
+        truncate: { type: boolean }
+        keep_alive: { oneOf: [{ type: string }, { type: number }] }
+        # Additional properties allowed
+      additionalProperties: true
+    EmbeddingsResponse:
+      type: object
+      properties:
+        model: { type: string }
+        embeddings:
+          type: array
+          items:
+            type: array
+            items: { type: number }
+        total_duration: { type: number }
+        load_duration: { type: number }
+        prompt_eval_count: { type: number }
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+\`\`\`
+
+---
+
+### 10  Provider-Node Endpoint (for reference only)
+
+\`\`\`
+POST http://<node-host>:<port>/embeddings
+\`\`\`
+
+Body and response signatures are identical to the public endpoint; authentication is not required because all calls originate from the orchestrator.
+
+---
+
+### 11  Changelog
+
+| Date (UTC) | Change |
+|------------|--------|
+| 2025-04-26 | Initial specification drafted. |
+
+---
+
+> **Next step:** Let me know which endpoint you’d like to document next (e.g., \`/api/v1/completions\`, health probes, credits, etc.), or if you prefer the docs exported in another format (HTML, PDF, full OpenAPI file, etc.).
+`
+  },
+  {
+    route: "/api/v1/video",
+    docs: `
+## Endpoint \`POST /api/v1/video\`
+
+Turn a text prompt into an **MP4 video** via your decentralized media-model network.
+The Next .js router validates the request, selects a healthy “Wan T2V” provider node, streams the MP4 back, and rewards the node.
+
+---
+
+### 1  URL
+
+\`\`\`
+POST https://<orchestrator-host>/api/v1/video
+\`\`\`
+
+---
+
+### 2  Pre-flight (CORS)
+
+\`\`\`
+OPTIONS /api/v1/video
+\`\`\`
+
+| Header | Value |
+|--------|-------|
+| Access-Control-Allow-Origin | \`*\` |
+| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
+| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
+
+---
+
+### 3  Request Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| **Authorization** | ✓ | \`Bearer <API_KEY>\` |
+| **X-User-Id** | ✓ | Internal user identifier for metering / quotas. |
+| **X-Title** | — | Service name for per-service analytics. |
+| **HTTP-Referer** | — | Originating page URL. |
+| **Content-Type** | ✓ | \`application/json\` |
+
+---
+
+### 4  Request Body
+
+\`\`\`jsonc
+{
+  "prompt":              "Two cats boxing on a stage",   // required
+  "size":                "832*480",                      // required (width*height)
+  "ckpt_dir":            "./Wan2.1-T2V-1.3B",            // optional – overrides default model dir
+  "sample_shift":        8,                              // optional int
+  "sample_guide_scale":  6,                              // optional float
+  "offload_model":       true,                           // optional – CPU/GPU memory trade-off
+  "t5_cpu":              true,                           // optional – run text encoder on CPU
+  // …any other CLI flags your generate.py supports
+}
+\`\`\`
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| \`prompt\` | \`string\` | ✓ | Text description of the desired clip. |
+| \`size\` | \`string\` | ✓ | Resolution in \`<width>*<height>\` format (e.g. \`832*480\`). |
+| \`ckpt_dir\` | \`string\` | — | Absolute/relative path to a Wan T2V checkpoint; defaults to the node’s configured model. |
+| \`sample_shift\` | \`integer\` | — | Temporal sampling offset. |
+| \`sample_guide_scale\` | \`number\` | — | Classifier-free guidance strength. |
+| \`offload_model\` | \`boolean\` | — | Off-loads non-active layers to RAM or disk. |
+| \`t5_cpu\` | \`boolean\` | — | Runs the T5 text encoder on CPU to free GPU VRAM. |
+| _…any other key_ | \`any\` | — | Passed straight through to the provider’s \`generate.py\`. |
+
+---
+
+### 5  Successful Response \`200 OK\`
+
+*Binary stream* – an MP4 file.
+
+| Header | Value |
+|--------|-------|
+| \`Content-Type\` | \`video/mp4\` |
+| \`Access-Control-Allow-Origin\` | \`*\` |
+
+> The body is a **streaming MP4**; consume it as a file/pipe, not JSON.
+
+---
+
+### 6  Error Responses
+
+| HTTP status | JSON body | Cause |
+|-------------|-----------|-------|
+| **400** | \`{ "error": "Missing required fields \\"prompt\\" and \\"size\\"." }\` | \`prompt\` or \`size\` not supplied. |
+| **401** | \`{ "error": "Invalid API key" }\` | Bad or absent \`Authorization\`. |
+| **503** | \`{ "error": "No healthy video provision found" }\` | All provider nodes failed health-checks. |
+| **500** | \`{ "error": "Internal server error" }\` | Unhandled exception in router. |
+| **502-504** | \`{ "error": "Node error: …" }\` | Provider returned non-200; message forwarded verbatim. |
+
+---
+
+### 7  Example cURL
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/video \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -H "Content-Type: application/json" \\
+  --output boxing_cats.mp4 \\
+  -d '{
+        "prompt":"Two cats boxing on a stage",
+        "size":"832*480",
+        "sample_guide_scale":6,
+        "offload_model":true
+      }'
+\`\`\`
+
+---
+
+### 8  OpenAPI Snippet
+
+\`\`\`yaml
+paths:
+  /api/v1/video:
+    post:
+      summary: Generate an MP4 video from a text prompt
+      operationId: createVideo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoRequest'
+      responses:
+        '200':
+          description: MP4 stream
+          content:
+            video/mp4: {}
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  schemas:
+    VideoRequest:
+      type: object
+      required: [prompt, size]
+      properties:
+        prompt: { type: string }
+        size:   { type: string, pattern: '^[0-9]+\\\\*[0-9]+$' } # Escaped backslash for pattern
+        ckpt_dir: { type: string }
+        sample_shift: { type: integer }
+        sample_guide_scale: { type: number }
+        offload_model: { type: boolean }
+        t5_cpu: { type: boolean }
+      additionalProperties: true
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+\`\`\`
+
+---
+
+### 9  Internal Flow (router → node)
+
+1. **Key validation** \`validateApiKey\`.
+2. **Node selection** \`selectVideoProvision("wan2.1")\` + health probe (max 3 attempts).
+3. **Forward** to \`http://<node>/video\` with the same JSON body.
+4. **Provider** runs \`python generate.py …\` and writes an MP4 to disk.
+5. **Stream** MP4 back through the router (\`Response(nodeResp.body, { "Content-Type": "video/mp4" })\`).
+6. **Metrics** \`updateVideoMetadata(latency)\` and (optionally) \`updateVideoServiceMetadata\`.
+7. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
+
+Clients never see these internals—only the MP4 stream.
+
+---
+
+### 10  Provider-Node Endpoint (reference)
+
+\`\`\`
+POST http://<node-host>:<port>/video
+\`\`\`
+
+Same JSON as the public endpoint; returns an MP4 stream. No auth needed because only the orchestrator calls it.
+
+---
+
+### 11  Changelog
+
+| Date (UTC) | Change |
+|------------|--------|
+| 2025-04-26 | Initial specification written. |
+
+---
+
+**Next:** tell me which route you’d like documented next (images, completions, health, billing, …); or ask for a full compiled OpenAPI/Swagger file, markdown site, or PDF.
+`,
+  },
+  {
+    route: "/api/v1/image",
+    docs: `
+## Endpoint \`POST /api/v1/image\`
+
+Create a **PNG image** from a text prompt via the decentralized diffusion-model network.
+The Next .js router selects a healthy Stable Diffusion node, forwards the request, rewards the node, and streams the PNG back.
+
+---
+
+### 1 URL
+\`\`\`
+POST https://<orchestrator-host>/api/v1/image
+\`\`\`
+
+---
+
+### 2 Pre-flight (CORS)
+\`\`\`
+OPTIONS /api/v1/image
+\`\`\`
+
+| Header | Value |
+|--------|-------|
+| Access-Control-Allow-Origin | \`*\` |
+| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
+| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
+
+---
+
+### 3 Request Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| **Authorization** | ✓ | \`Bearer <API_KEY>\` |
+| **X-User-Id** | ✓ | Internal user/customer id for metering. |
+| **X-Title** | — | Friendly service / product name (per-service analytics). |
+| **HTTP-Referer** | — | Originating page URL (analytics). |
+| **Content-Type** | ✓ | \`application/json\` |
+
+---
+
+### 4 Request Body
+
+\`\`\`jsonc
+{
+  "prompt":             "an astronaut riding a horse",   // required
+  "negativePrompt":     "low-res, blurry",               // optional
+  "numInferenceSteps":  30,                              // optional (default 30)
+  "width":              512,                             // optional (default 512)
+  "height":             512,                             // optional (default 512)
+
+  // …any diffusers / Stable Diffusion runtime options
+}
+\`\`\`
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| \`prompt\` | \`string\` | ✓ | The positive text-to-image prompt. |
+| \`negativePrompt\` | \`string\` | — | Content to steer *away* from. |
+| \`numInferenceSteps\` | \`integer\` | — | Diffusion steps (quality vs. speed). |
+| \`width\`,\`height\` | \`integer\` | — | Output resolution in pixels (powers of 8). |
+| _…any other key_ | \`any\` | — | Passed straight to Diffusers pipeline. |
+
+---
+
+### 5 Successful Response \`200 OK\`
+
+*Binary stream* – a PNG file.
+
+| Header | Value |
+|--------|-------|
+| \`Content-Type\` | \`image/png\` |
+| \`Access-Control-Allow-Origin\` | \`*\` |
+
+> The body is a **streaming PNG**; save it as a file or pipe it onward.
+
+---
+
+### 6 Error Responses
+
+| HTTP status | JSON body | Cause |
+|-------------|-----------|-------|
+| **400** | \`{ "error": "Missing \\'prompt\\' field." }\` | \`prompt\` absent. |
+| **401** | \`{ "error": "Invalid API key" }\` | Bad/absent \`Authorization\`. |
+| **503** | \`{ "error": "No healthy image provision found" }\` | All image nodes failed health-check. |
+| **500** | \`{ "error": "Internal server error" }\` | Unhandled exception in router. |
+| **502-504** | \`{ "error": "Node error: …" }\` | Provider returned non-200; message forwarded. |
+
+---
+
+### 7 Example cURL
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/image \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -H "Content-Type: application/json" \\
+  --output astronaut_horse.png \\
+  -d '{
+        "prompt": "an astronaut riding a horse",
+        "negativePrompt": "low-res, blurry",
+        "numInferenceSteps": 40,
+        "width": 640,
+        "height": 640
+      }'
+\`\`\`
+
+---
+
+### 8 OpenAPI Snippet
+
+\`\`\`yaml
+paths:
+  /api/v1/image:
+    post:
+      summary: Generate a PNG image from a text prompt
+      operationId: createImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageRequest'
+      responses:
+        '200':
+          description: PNG stream
+          content:
+            image/png: {}
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  schemas:
+    ImageRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string }
+        negativePrompt: { type: string }
+        numInferenceSteps: { type: integer, minimum: 1 }
+        width:  { type: integer, minimum: 64 }
+        height: { type: integer, minimum: 64 }
+      additionalProperties: true
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+\`\`\`
+
+---
+
+### 9 Internal Flow (router → node)
+
+1. **API-key check** \`validateApiKey\`.
+2. **Node selection** \`selectImageProvision("stable-diffusion-2-1-base")\` + three health probes.
+3. **Forward** JSON to \`http://<node>/image\`.
+4. **Provider** runs Diffusers-JS Stable Diffusion pipeline → PNG.
+5. **Stream** PNG back through the router with CORS headers.
+6. **Metrics** \`updateImageMetadata(latency)\` and, if \`X-Title\` present, \`updateImageServiceMetadata\`.
+7. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
+
+Clients are unaware of these internals.
+
+---
+
+### 10 Provider-Node Endpoint (reference)
+
+\`\`\`
+POST http://<node-host>:<port>/image
+\`\`\`
+JSON body identical to public endpoint; returns a PNG stream. No auth—calls originate only from the orchestrator.
+
+---
+
+### 11 Changelog
+
+| Date (UTC) | Change |
+|------------|--------|
+| 2025-04-26 | Initial specification drafted. |
+
+---
+
+**Next:** tell me which route to document next (e.g. \`/api/v1/audio\`, \`/credits/charge\`, health probes) or if you need a consolidated OpenAPI file / HTML docs.
+`,
+  },
+  {
+    route: "/api/v1/m/caption",
+    docs: ``,
+  },
+  {
+    route: "/api/v1/m/detect",
+    docs: ``,
+  },
+  {
+    route: "/api/v1/m/point",
+    docs: ``,
+  },
+  {
+    route: "/api/v1/m/query",
+    docs: ``,
+  },
+  {
+    route: "/api/v1/tts",
+    docs: `
+## Vision-Language (“Moon”) API group
+
+These endpoints let you run image-understanding tasks—captioning, object detection, object centroids, and visual Q & A—through your decentralized **Moon** nodes.
+
+All four routes share the same transport, auth, and CORS behaviour; the only differences are the request body and the JSON they return.
+
+---
+
+### 0 Common contract
+
+| Item | Value |
+|------|-------|
+| **Base URL** | \`https://<orchestrator-host>/api/v1/m\` |
+| **Auth header** | \`Authorization: Bearer <API_KEY>\` |
+| **Mandatory header** | \`X-User-Id\` – internal customer id |
+| **Optional headers** | \`X-Title\`, \`HTTP-Referer\` |
+| **Content-Type** | \`application/json\` |
+| **Pre-flight** | \`OPTIONS /api/v1/m/*\` returns:<br>\`Access-Control-Allow-Origin: *\`<br>\`Access-Control-Allow-Methods: POST, OPTIONS\` |
+
+Error codes are consistent with earlier routes (\`400\`, \`401\`, \`503\`, \`500\`, plus propagated node errors).
+
+---
+
+## 1 \`POST /api/v1/m/caption\`
+
+### Purpose
+Generate a **natural-language caption** for an input image.
+
+### Request body
+\`\`\`jsonc
+{
+  // Image (choose one)
+  "imageUrl":     "https://example.com/pic.jpg"  // remote or data URI
+  "imageBase64":  "<base64-string>",
+  "imageUint8":   [255, 216, 255, 224, …],
+
+  // Options
+  "length": "short" | "normal" | "long"   // default: "normal"
+}
+\`\`\`
+
+### Success \`200 OK\`
+\`\`\`json
+{ "caption": "A golden retriever catching a frisbee in mid-air." }
+\`\`\`
+
+---
+
+## 2 \`POST /api/v1/m/detect\`
+
+### Purpose
+Detect **all bounding boxes** of a given object class.
+
+### Request body
+\`\`\`jsonc
+{
+  // Image  (one of …)
+  "imageUrl": "...",
+  "imageBase64": "...",
+  "imageUint8": [...],
+
+  // Required
+  "target": "car"            // object label
+}
+\`\`\`
+
+### Success \`200 OK\`
+\`\`\`json
+{
+  "objects": [
+    { "label": "car",
+      "box":   [x1, y1, x2, y2],   // pixel coords
+      "confidence": 0.92 }
+  ]
+}
+\`\`\`
+
+---
+
+## 3 \`POST /api/v1/m/point\`
+
+### Purpose
+Return **centroid point(s)** for all instances of a target object.
+
+### Request body
+\`\`\`jsonc
+{
+  "imageUrl": "...",
+  "imageBase64": "...",
+  "imageUint8": [...],
+  "target": "person"
+}
+\`\`\`
+
+### Success \`200 OK\`
+\`\`\`json
+{
+  "points": [
+    { "x": 312, "y": 154 },
+    { "x": 488, "y": 160 }
+  ]
+}
+\`\`\`
+
+---
+
+## 4 \`POST /api/v1/m/query\`
+
+### Purpose
+Ask a **free-form question** about an image (visual question answering).
+
+### Request body
+\`\`\`jsonc
+{
+  "imageUrl": "...",
+  "imageBase64": "...",
+  "imageUint8": [...],
+  "question": "How many bicycles are there?"
+}
+\`\`\`
+
+### Success \`200 OK\`
+\`\`\`json
+{ "answer": "There are three bicycles." }
+\`\`\`
+
+---
+
+### Example cURL (caption)
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/m/caption \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+        "imageUrl":"https://images.example.com/dog.jpg",
+        "length":"short"
+      }'
+\`\`\`
+
+---
+
+### OpenAPI snippet (shared components abbreviated)
+
+\`\`\`yaml
+components:
+  schemas:
+    ImageInput:
+      oneOf:
+        - type: object
+          required: [imageUrl]
+          properties: { imageUrl: { type: string, format: uri } }
+        - type: object
+          required: [imageBase64]
+          properties: { imageBase64: { type: string } }
+        - type: object
+          required: [imageUint8]
+          properties:
+            imageUint8:
+              type: array
+              items: { type: integer, minimum: 0, maximum: 255 }
+    CaptionRequest:
+      allOf:
+        - $ref: '#/components/schemas/ImageInput'
+        - type: object
+          properties:
+            length: { type: string, enum: [short, normal, long] }
+    CaptionResponse:
+      type: object
+      properties: { caption: { type: string } }
+    DetectRequest:
+      allOf:
+        - $ref: '#/components/schemas/ImageInput'
+        - type: object
+          required: [target]
+          properties: { target: { type: string } }
+    DetectResponse:
+      type: object
+      properties:
+        objects:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              box:   { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+              confidence: { type: number }
+    PointRequest:  { allOf: [ { $ref: '#/components/schemas/DetectRequest' } ] }
+    PointResponse:
+      type: object
+      properties:
+        points:
+          type: array
+          items: { type: object, properties: { x: {type:number}, y:{type:number} } }
+    QueryRequest:
+      allOf:
+        - $ref: '#/components/schemas/ImageInput'
+        - type: object
+          required: [question]
+          properties: { question: { type: string } }
+    QueryResponse:
+      type: object
+      properties: { answer: { type: string } }
+\`\`\`
+
+*(Add four \`paths:\` entries referencing these schemas.)*
+
+---
+
+### Internal flow (all four routes)
+
+1. **Key check** \`validateApiKey\`.
+2. **Node selection** \`selectMoonProvision()\` → health-probe (3 tries; bad nodes removed).
+3. **Forward** request to \`http://<node>/m/{caption\\|detect\\|point\\|query}\`.
+4. **Measure** latency; \`updateMoonMetadata(<endpoint>, latency)\`.
+5. **Per-service metrics** if \`X-Title\` present.
+6. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
+7. **Return** JSON with CORS headers.
+
+---
+
+### Changelog
+
+| Date (UTC) | Change |
+|------------|--------|
+| 2025-04-26 | Initial specification for caption, detect, point, query. |
+
+---
+
+**Next:** let me know if you want documentation for any remaining endpoints, a merged OpenAPI file, or HTML/PDF output.
+`,
+  },
+  {
+    route: "/api/v1/scrape",
+    docs: `
+## Endpoint \`POST /api/v1/tts\`
+
+Generate **spoken audio (WAV)** from text using the Kokoro TTS model.
+This endpoint is typically handled directly by the orchestrator or a dedicated TTS service, unlike the decentralized model endpoints.
+
+---
+
+### 1  URL
+
+\`\`\`
+POST https://<your-orchestrator-host>/api/v1/tts
+\`\`\`
+
+---
+
+### 2  Pre-flight (CORS)
+
+\`\`\`
+OPTIONS /api/v1/tts
+\`\`\`
+
+| Header | Value |
+|--------|-------|
+| Access-Control-Allow-Origin | \`*\` |
+| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
+| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
+
+*(Assumes standard CORS setup consistent with other endpoints)*
+
+---
+
+### 3  Request Headers
+
+| Header | Required | Description |
+|--------|----------|-------------|
+| **Authorization** | ✓ | \`Bearer <API_KEY>\` (Assumed standard auth) |
+| **X-User-Id** | ✓ | Internal user/customer id for metering (Assumed standard header) |
+| **X-Title** | — | Friendly service / product name (Assumed standard header) |
+| **HTTP-Referer** | — | Originating page URL (Assumed standard header) |
+| **Content-Type** | ✓ | \`application/json\` |
+
+---
+
+### 4  Request Body
+
+\`\`\`jsonc
+{
+  "text":   "string",    // required – Text to synthesize
+  "voice":  "string"     // optional – Voice ID (e.g., "af_bella", "bm_george")
+}
+\`\`\`
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| \`text\` | \`string\` | ✓ | The text content to be converted into speech. |
+| \`voice\` | \`string\` | — | Optional voice identifier. Defaults to \`"af_bella"\`. Available voices include: \`af\`, \`af_bella\`, \`af_nicole\`, \`af_sarah\`, \`af_sky\`, \`am_adam\`, \`am_michael\`, \`bf_emma\`, \`bf_isabella\`, \`bm_george\`, \`bm_lewis\`, etc. (Refer to Kokoro documentation for full list). |
+
+---
+
+### 5  Successful Response \`200 OK\`
+
+*Binary stream* – a WAV audio file.
+
+| Header | Value |
+|--------|-------|
+| \`Content-Type\` | \`audio/wav\` |
+| \`Access-Control-Allow-Origin\` | \`*\` |
+
+> The body is **streaming WAV audio data**. Consume it directly as an audio file.
+
+---
+
+### 6  Error Responses
+
+| HTTP status | JSON body | Cause |
+|-------------|-----------|-------|
+| **400** | \`{ "error": "Text is required for TTS." }\` | \`text\` field missing in request body. |
+| **401** | \`{ "error": "Invalid API key" }\` | Bad/absent \`Authorization\` (Assumed standard error). |
+| **500** | \`{ "error": "<error message from TTS engine>" }\` | Internal server error during TTS processing (e.g., model not loaded, synthesis failed). |
+| **503** | \`{ "error": "TTS service unavailable" }\` | Service potentially not ready or overloaded (if applicable). |
+
+---
+
+### 7  Example cURL
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/tts \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -H "Content-Type: application/json" \\
+  --output hello_world.wav \\
+  -d '{
+        "text": "Hello world, this is a test.",
+        "voice": "bm_lewis"
+      }'
+\`\`\`
+
+---
+
+### 8  OpenAPI Snippet
+
+\`\`\`yaml
+paths:
+  /api/v1/tts:
+    post:
+      summary: Generate speech (WAV) from text
+      operationId: createTts
+      security:
+        - bearerAuth: [] # Assumed standard security
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TtsRequest'
+      responses:
+        '200':
+          description: WAV audio stream
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+        '400':
+           description: Bad Request (e.g., missing text)
+           content:
+             application/json:
+               schema:
+                 type: object
+                 properties:
+                   error: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' } # Assumed standard
+        '500': { $ref: '#/components/responses/InternalError' } # Assumed standard
+        '503': { $ref: '#/components/responses/ServiceUnavailable' } # Assumed standard
+
+components:
+  schemas:
+    TtsRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: The text to synthesize into speech.
+        voice:
+          type: string
+          description: Optional voice ID. Defaults to 'af_bella'.
+          default: 'af_bella'
+          example: 'bm_george'
+  # Assumed standard responses/securitySchemes defined elsewhere
+  responses:
+    Unauthorized:
+      description: Authentication information is missing or invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalError:
+      description: Unexpected server error.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailable:
+      description: Service is temporarily unavailable.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+\`\`\`
+
+---
+
+### 9  Internal Flow (Orchestrator/Service)
+
+1. **Load Model:** (Done once at startup) The Kokoro TTS model (\`onnx-community/Kokoro-82M-ONNX\`) is loaded into memory using \`KokoroTTS.from_pretrained()\`.
+2. **Receive Request:** The Express router receives the POST request.
+3. **Validate Input:** Checks for the presence of the required \`text\` field.
+4. **Synthesize Audio:** Calls \`tts.generate(text, { voice })\` using the pre-loaded model instance.
+5. **Format Output:** The returned \`Audio\` object is converted to WAV format using \`.toWav()\`.
+6. **Stream Response:** The WAV audio data (as a Buffer) is sent back to the client with the \`Content-Type: audio/wav\` header.
+7. **Error Handling:** Catches errors during synthesis or request processing and returns appropriate JSON error responses.
+
+*(Note: This flow differs from the decentralized endpoints as it likely runs within the main orchestrator or a dedicated service, without node selection or reward mechanisms.)*
+
+---
+
+### 10 Changelog
+
+| Date (UTC) | Change |
+|------------|--------|
+| 2025-04-27 | Initial specification based on Express router code. |
+
+---
+`
+  },
+  {
+    route: "/api/v1/chat/completions",
+    docs: `
+## Endpoint \`POST /api/v1/chat/completions\`
+(OpenAI-compatible chat completions)
+
+The route mirrors the OpenAI \`/v1/chat/completions\` contract so you can point an *unchanged* OpenAI SDK or cURL script at **\`https://<orchestrator-host>/api/v1\`**.
+Internally the request is forwarded to an Ollama-compatible node, parameters are translated, usage is metered, and a micro-payment is sent to the provider.
+
+---
+
+### 1 URL and CORS
+
+\`\`\`
+POST https://<orchestrator-host>/api/v1/chat/completions
+\`\`\`
+
+\`OPTIONS /api/v1/chat/completions\` responds with
+
+\`\`\`
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer
+Access-Control-Allow-Methods: POST, OPTIONS
+\`\`\`
+
+---
+
+### 2 Request Headers
+
+| Header \\| Required \\| Notes |
+|--------\\|----------\\|-------|
+| **Authorization** \\| ✓ \\| \`Bearer <API_KEY>\` issued by your network |
+| **X-User-Id** \\| ✓ \\| Internal customer / tenant id |
+| **X-Title** \\| — \\| Friendly service name for per-service stats |
+| **HTTP-Referer** \\| — \\| Calling-site URL (analytics) |
+| **Content-Type** \\| ✓ \\| \`application/json\` |
+
+---
+
+### 3 Request Body (high-level)
+
+All standard OpenAI fields are accepted (\`model\`, \`messages\`, \`functions\` → translated to Ollama \`tools\`, \`response_format\`, \`stream\`, **plus any** generative parameters such as \`temperature\`, \`top_p\`, \`max_tokens\`, etc.).
+
+\`\`\`jsonc
+{
+  "model":    "gpt-4o",             // required – any model id present in the network
+  "messages": [
+    { "role": "system", "content": "You are a helpful assistant." },
+    { "role": "user",   "content": "Hello!" }
+  ],
+
+  // Optional OpenAI parameters ----------------------------
+  "stream": true,
+  "temperature": 0.7,
+  "functions": [
+    {
+      "name": "get_weather",
+      "description": "Get the weather for a city",
+      "parameters": {
+        "type": "object",
+        "properties": { "city": { "type": "string" } },
+        "required": ["city"]
+      }
+    }
+  ],
+  "response_format": { "type": "json_object" }
+}
+\`\`\`
+
+---
+
+### 4 Successful Response
+
+*Non-streaming* — identical to OpenAI’s **chat completion object**:
+
+\`\`\`json
+{
+  "id": "chatcmpl-qY…",
+  "object": "chat.completion",
+  "created": 1714143432,
+  "model": "gpt-4o",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "Hello! How can I help you today?" },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 14, "completion_tokens": 9, "total_tokens": 23 }
+}
+\`\`\`
+
+*Streaming* — Server-Sent Events exactly like OpenAI (\`data: { "id": … }\` chunks ending with \`data: [DONE]\`).
+
+---
+
+### 5 Error Codes
+
+| Code \\| Meaning |
+|------\\|---------|
+| **400** \\| Missing \`model\` or \`messages\` |
+| **401** \\| Invalid / missing API key |
+| **503** \\| No healthy provision for requested model |
+| **500** \\| Internal error (or propagated provider error with status > 500) |
+
+---
+
+### 6 cURL Examples
+
+**Basic (non-streaming)**
+
+\`\`\`bash
+curl https://api.my-net.io/api/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -d '{
+        "model": "gpt-4o",
+        "messages": [
+          { "role": "system", "content": "You are a helpful assistant." },
+          { "role": "user",   "content": "Hello!" }
+        ],
+        "temperature": 0.7
+      }'
+\`\`\`
+
+**Streaming**
+
+\`\`\`bash
+curl -N https://api.my-net.io/api/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer sk-live-abc123" \\
+  -H "X-User-Id: user_42" \\
+  -d '{
+        "model":"gpt-4o",
+        "stream":true,
+        "messages":[
+          { "role":"system","content":"You are a helpful assistant." },
+          { "role":"user","content":"Tell me a joke." }
+        ]
+      }'
+\`\`\`
+
+---
+
+### 7 OpenAI SDK Examples (fully compatible)
+
+> **Tip :** OpenAI’s SDKs require a key even if your backend doesn’t check it; pass any non-empty string.
+
+#### Node ( \`openai\` ≥ 4 )
+
+\`\`\`ts
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: "sk-live-abc123",
+  baseURL: "https://api.my-net.io/api/v1",
+  defaultHeaders: {           // optional analytics
+    "X-User-Id": "user_42",
+    "X-Title":  "my-awesome-app"
+  },
+});
+
+const chat = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user",   content: "How do I center a div in CSS?" }
+  ],
+  temperature: 0.5,
+});
+
+console.log(chat.choices[0].message.content);
+\`\`\`
+
+#### Python ( \`openai\` ≥ 1.12 )
+
+\`\`\`py
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-live-abc123",
+    base_url="https://api.my-net.io/api/v1",
+    default_headers={
+        "X-User-Id": "user_42",
+        "X-Title": "my-awesome-app"
+    }
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user",   "content": "Explain quantum entanglement in 2 sentences."}
+    ],
+    stream=False          # or True for SSE streaming
+)
+
+print(response.choices[0].message.content)
+\`\`\`
+
+Both snippets:
+
+* use **valid OpenAI roles** (\`system\`, \`user\`, \`assistant\`, \`tool\`);
+* reference a **current model id** (\`gpt-4o\`);
+  replace with any model name registered in your network;
+* set \`baseURL\`/\`base_url\` so the SDK talks to **your** router, not api.openai.com.
+
+---
+
+### 8 Internal Flow (summary)
+
+1. **Auth + quota** → \`validateApiKey\`.
+2. **Provision selection** → \`selectProvision(model)\` → health probes (3 tries).
+3. **Request transform**:
+   * \`response_format\` → \`format\` (Ollama)
+   * \`functions\` → \`tools\`.
+4. **Forward** to \`http://<node>/chat/completions\` (stream or JSON).
+5. **Metrics & rewards** → \`updateMetadata\`, \`updateServiceMetadata\`, \`rewardProvider\`.
+6. **Return** SSE stream or JSON, unmodified from provider (OpenAI shape).
+
+---
+
+### 9 Changelog
+
+| Date (UTC) \\| Change |
+|------------\\|--------|
+| 2025-04-26 \\| Initial OpenAI-compatible specification added |
+
+---
+
+Need a consolidated OpenAPI file or more examples (function calling, tool choice, Vision messages)? Just let me know!
+`,
+  },
+];
