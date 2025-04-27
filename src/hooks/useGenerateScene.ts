@@ -1,65 +1,61 @@
 "use client";
 import { useState, useCallback } from "react";
 import html2canvas from "html2canvas";
-import { GenResultType } from "@/lib/genSchema";
 import { useSandpack } from "@codesandbox/sandpack-react";
+import type { SandpackPreviewRef } from "@codesandbox/sandpack-react";
+import type { GenResultType } from "@/lib/genSchema";
 
-/**
- * Drives the “generate → render → screenshot → refine” loop.
- * Must be used **inside** a SandpackProvider tree.
- */
-export function useGenerateScene(iframeRef: React.RefObject<HTMLIFrameElement>) {
-  const { sandpack, listen } = useSandpack();      // ← official hook
-  const [busy, setBusy]     = useState(false);
+export function useGenerateScene(previewRef: React.RefObject<SandpackPreviewRef | null>) {
+  const { sandpack, listen } = useSandpack();
+  const [busy, setBusy] = useState(false);
 
+  /** Wait for one `"done"` message from the bundler. */
   
 
-  /** Single run initiated by a prompt. */
   const run = useCallback(
     async (prompt: string) => {
 
-        /** Wait for the bundler to finish a rebuild. */
-    const waitForDone = () =>
-        new Promise<void>((resolve) => {
-        const stop = listen((msg) => {
-            if (msg.type === "done") {
-            stop();          // unsubscribe
-            resolve();
-            }
-        });
-        });
-
+        const waitForDone = () =>
+            new Promise<void>((resolve) => {
+              const stop = listen((msg) => {
+                if (msg.type === "done") {
+                  stop();
+                  resolve();
+                }
+              });
+            });
       setBusy(true);
       let code = "";
 
       for (let i = 0; i < 4; i++) {
         if (i > 0) {
-          // ❶ inject the candidate code and wait for rebuild
           sandpack.updateFile("/App.tsx", code);
           await waitForDone();
         }
 
-        // ❷ grab screenshot (only after something rendered)
-        const screenshot =
-          i > 0 && iframeRef.current
-            ? await html2canvas(
-                iframeRef.current.contentDocument!.body,
-                { useCORS: true, backgroundColor: null }
-              ).then((c) => c.toDataURL("image/png").split(",")[1])
-            : "";
+        /* ---------------- Screenshot ---------------- */
+        let screenshotB64 = "";
+        if (i > 0 && previewRef.current) {
+          // Grab iframe inside the preview component
+          const client = await previewRef.current.getClient();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const iframe = (client as any).iframe as HTMLIFrameElement | undefined;
+          if (iframe?.contentDocument?.body) {
+            screenshotB64 = await html2canvas(iframe.contentDocument.body, {
+              useCORS: true,
+              backgroundColor: null
+            }).then((c) => c.toDataURL("image/png").split(",")[1]);
+          }
+        }
 
-        // ❸ collect build errors (if any)
-        const compileErrors = sandpack.error
-          ? [sandpack.error.message]
-          : [];
+        const compileErrors = sandpack.error ? [sandpack.error.message] : [];
 
-        // ❹ ask the model for the next iteration
         const res: GenResultType = await fetch("/api/iterate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt,
-            screenshotBase64: screenshot,
+            screenshotBase64: screenshotB64,
             compileErrors,
             iteration: i
           })
@@ -69,11 +65,11 @@ export function useGenerateScene(iframeRef: React.RefObject<HTMLIFrameElement>) 
         if (res.finished) break;
       }
 
-      // put the final version in the editor
+      // final code goes to the editor
       sandpack.updateFile("/App.tsx", code);
       setBusy(false);
     },
-    [iframeRef, sandpack, listen]
+    [listen, previewRef, sandpack]
   );
 
   return { busy, run };

@@ -214,7 +214,7 @@ export default function ModelDetailPage({
 
           {/* ─── DOCS ─── */}
           <section className={styles.docs}>
-            <h2>Endpoint Documentation</h2>
+            {/* <h2>Endpoint Documentation</h2> */}
             <div className={styles.markdown}>
               <ReactMarkdown>{model.docs}</ReactMarkdown>
             </div>

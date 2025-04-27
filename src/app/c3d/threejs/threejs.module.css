@@ -16,7 +16,8 @@
     margin-right: auto;
     width: 100%;
     max-width: 700px;
-    background-color: #141414;
+    /* background-color: #f9f5f2; */
+    background-color: #ffffff;
     z-index: 9999;
     padding: 20px;
     border: 2px solid #ccc;
@@ -33,8 +34,8 @@
     padding: 10px;
     border-radius: 12px;
     border: 2px solid #ccc;
-    background-color: #141414;
-    color: #ffffff;
+    /* background-color: #f9f5f2; */
+    /* color: #ffffff; */
 }
 
 .inputFooter{
@@ -45,10 +46,10 @@
 }
 
 .leftButtons button{
-    background-color: #141414;
+    background-color: #fff;
     border: none;
     outline: none;
-    color: #ffffff;
+    /* color: #ffffff; */
     /* border: 2px solid #ccc; */
     padding: 5px 10px;
     border-radius: 12px;
@@ -62,25 +63,23 @@
 
 .rightButtons button{
     /* background-color: #ffffff; */
-    border: none;
     outline: none;
-    border: 2px solid #fff;
     padding: 5px 10px;
     cursor: pointer;
 }
 
 .c3dbtn{
-    background-color: #141414;
-    color: #ffffff;
+    background-color: #fff;
+    border: 2px solid #ccc !important;
     transition: all 0.3s ease;
 }
 
 .c3dbtn:hover{
-    background-color: #ffffff;
-    color: #141414;
+    background-color: #ccc;
 }
 
 .inputButton{
-    background-color: #fff;
-    color: black;
+    background-color: #000;
+    border: 2px solid #000;
+    color: white;
 }
