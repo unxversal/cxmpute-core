@@ -1,135 +1,188 @@
-/* root */
+/* ===== root ===== */
 .container {
-    padding: 2rem;
-    min-height: 100vh;
-    background: var(--cxmpute-yellow, transparent);
-    box-sizing: border-box;
+  padding: 2rem;
+  min-height: 100vh;
+  background: var(--cxmpute-yellow, transparent);
+  box-sizing: border-box;
+}
+
+/* ===== header ===== */
+.mainheader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  flex-wrap: wrap;
+  row-gap: 0.75rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.mainheader h1 {
+  font-size: 20px;
+  margin-left: 0.5rem;
+}
+
+.menu ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== main layout ===== */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
   }
-  
-  /* -------- Header (reuse design) -------- */
-  .mainheader {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 32px;
-    flex-wrap: wrap;
-    row-gap: 0.75rem;
-  }
-  
-  .logo {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-  }
-  .mainheader h1 { font-size: 20px; margin-left: 0.5rem; }
-  
-  .menu ul {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 24px;
-    margin: 0; padding: 0;
-  }
-  
-  /* -------- Page layout -------- */
-  .content {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 2rem;
-    margin-top: 2rem;
-  }
-  
-  @media (max-width: 900px) {
-    .content { grid-template-columns: 1fr; }
-  }
-  
-  .leftPane, .rightPane {
+}
+
+/* left column stacks two cards */
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* shared “card” look */
+.cardBase {
+  background: #fff;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 32px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+/* individual cards */
+.graphCard { composes: cardBase; }
+.inputCard { composes: cardBase; }
+.rightPane { composes: cardBase; }
+
+@supports not (composes: cardBase) {
+  /* fallback if CSS Modules `composes` unsupported */
+  .graphCard,
+  .inputCard,
+  .rightPane {
     background: #fff;
-    border: 6px solid #000;
+    border: 5px solid #000;
     border-radius: 20px;
-    box-shadow: 12px 12px 0 #000;
+    box-shadow: 10px 10px 0 #000;
     padding: 32px;
     box-sizing: border-box;
+    max-width: 100%;
   }
-  
-  /* -------- Input area -------- */
-  .textarea {
-    width: 100%;
-    min-height: 120px;
-    resize: vertical;
-    padding: 0.75rem 1rem;
-    font: inherit;
-    border-radius: 8px;
-    border: 2px solid #d1d5db;
-    margin-bottom: 1rem;
-    background: #f8fafc;
-    color: #111827;
+}
+
+/* placeholder text */
+.placeholder {
+  text-align: center;
+  color: #6b7280;
+}
+
+/* -------- prompt area -------- */
+.textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  border-radius: 10px;
+  border: 2px solid #d1d5db;
+  margin: 1rem 0;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #20a191;
+  box-shadow: 0 0 0 2px rgba(32, 161, 145, 0.2);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  user-select: none;
+}
+
+/* chart wrapper */
+.graphCard canvas {
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* -------- saved list -------- */
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.clearBtn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.empty {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.graphItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+.graphLink {
+  cursor: pointer;
+  color: #2563eb;
+  text-decoration: underline;
+}
+.deleteBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ef4444;
+}
+
+/* ===== responsive tweaks ===== */
+@media (max-width: 500px) {
+  .graphCard,
+  .inputCard,
+  .rightPane {
+    padding: 24px 20px;
+    border-width: 4px;
+    box-shadow: 6px 6px 0 #000;
   }
-  
-  .textarea:focus {
-    outline: none;
-    border-color: #20a191;
-    box-shadow: 0 0 0 2px rgba(32,161,145,.2);
-  }
-  
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: .875rem;
-    margin-bottom: 1rem;
-    user-select: none;
-  }
-  
-  .chartWrapper {
-    margin-top: 2rem;
-    overflow-x: auto;
-  }
-  
-  /* -------- Saved graphs list -------- */
-  .listHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: .5rem;
-  }
-  .clearBtn {
-    background: none;
-    border: none;
-    color: #ef4444;
-    cursor: pointer;
-    font-size: .8rem;
-  }
-  .empty { font-size: .9rem; color: #6b7280; }
-  
-  .graphItem {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #e5e7eb;
-    padding: .5rem .75rem;
-    border-radius: 6px;
-    margin-bottom: .5rem;
-  }
-  .graphLink {
-    cursor: pointer;
-    color: #2563eb;
-    text-decoration: underline;
-  }
-  .deleteBtn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #ef4444;
-  }
-  
-  /* responsive tweak */
-  @media (max-width: 500px) {
-    .leftPane, .rightPane {
-      padding: 24px 20px;
-      border-width: 4px;
-      box-shadow: 6px 6px 0 #000;
-    }
-  }
-  
+}
+
+.inputCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
