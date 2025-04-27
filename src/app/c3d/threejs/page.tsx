@@ -33,25 +33,6 @@ const DEFAULT_CODE = `export default function App(): JSX.Element {
         </p>
 
         <a
-          href="https://cxmpute.cloud/c3d/cad"
-          target="_blank"
-          className="
-            text-[0.9rem]
-            w-fit
-            border-2 border-black rounded-[7px]
-            px-[0.5rem] py-[0.3rem]
-            bg-[#20a191]
-            shadow-[5px_5px_0px_black]
-            flex items-center justify-center gap-2
-            font-bold text-center cursor-pointer
-            transition-all duration-300 ease-in-out
-            hover:shadow-[0_0_0_black]
-            hover:translate-x-[3px] hover:translate-y-[3px]
-          "
-        >
-          Check out our Text-to-3D-Model page
-        </a>
-        <a
           href="https://cxmpute.cloud/"
           target="_blank"
           className="
