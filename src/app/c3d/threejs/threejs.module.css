@@ -20,7 +20,8 @@
     background-color: #ffffff;
     z-index: 9999;
     padding: 20px;
-    border: 2px solid #ccc;
+    border: 2px solid black;
+    box-shadow: 5px 5px 0px black;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -33,7 +34,8 @@
     height: 50px;
     padding: 10px;
     border-radius: 12px;
-    border: 2px solid #ccc;
+    border: 2px solid black;
+    /* box-shadow: 2px 2px 0px black; */
     background-color: #fff;
     /* color: #ffffff; */
 }
@@ -46,50 +48,31 @@
 }
 
 .leftButtons button{
-    background-color: #fff;
+    background-color: var(--cxmpute-purple);
     border: none;
     outline: none;
     /* color: #ffffff; */
-    /* border: 2px solid #ccc; */
+    border: 2px solid black;
+    box-shadow: 3px 3px 0px black;
     padding: 5px 10px;
     border-radius: 12px;
     cursor: pointer;
     color: #000;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+
 }
 
+
+.leftButtons button:hover{
+    box-shadow: 0 0 0 black;
+    transform: translateY(3px) translateX(3px);
+}
 .rightButtons{
     display: flex;
     gap: 10px;
 }
 
-.rightButtons button{
-    /* background-color: #ffffff; */
-    outline: none;
-    padding: 5px 10px;
-    cursor: pointer;
-}
-
-.c3dbtn{
-    background-color: #fff;
-    border: 2px solid #ccc !important;
-    transition: all 0.3s ease;
-    color: #000;
-}
-
-.c3dbtn:hover{
-    background-color: #ccc;
-}
-
-.inputButton{
-    background-color: #000;
-    border: 2px solid #000;
-    color: white;
-}
-
-.busyButton {
-  background-color: #ff5e5e;
-}
-
-.busyButton:hover {
-  background-color: #ff3333;
+.toggleButton{
+    background-color: var(--cxmpute-slate) !important;
 }

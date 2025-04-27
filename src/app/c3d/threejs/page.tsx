@@ -13,7 +13,8 @@ import {
 } from "@codesandbox/sandpack-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import styles from "./threejs.module.css";
-import { Undo2, Redo2 } from "lucide-react";
+import { Undo2, Redo2, Code2 } from "lucide-react";
+import Button from "@/components/button/button";
 
 const DEFAULT_CODE = `export default function App(): JSX.Element {
   return (
@@ -77,6 +78,7 @@ const DEFAULT_CODE = `export default function App(): JSX.Element {
 export default function ThreeJSPage() {
   /** This ref is shared with the SandpackPreview so we can screenshot. */
   const previewRef = useRef<SandpackPreviewRef | null>(null);
+  const [codeVisisble, setCodeVisible] = useState(true);
 
   /* ------------------------------------------------------------------
    *  Inner component – lives INSIDE <SandpackProvider>
@@ -256,6 +258,7 @@ export default function ThreeJSPage() {
       }
     }, [prompt, sandpack, listen, busy]);
 
+
     return (
       <>
         {/* Sandpack UI -------------------------------------------------- */}
@@ -263,13 +266,19 @@ export default function ThreeJSPage() {
           <SandpackPreview
             ref={previewRef}
             style={{ height: "100vh", border: "none" }}
+            // actionsChildren={
+            //   <button onClick={() => setCodeVisible(!codeVisisble)} className={styles.codeButton}>
+            //     Toggle Code
+            //   </button>
+            // }
           />
-          <SandpackCodeEditor
+
+          {codeVisisble && <SandpackCodeEditor
             style={{ height: "100vh" }}
             showLineNumbers
             showTabs
             wrapContent
-          />
+          />}
         </SandpackLayout>
 
         {/* Prompt overlay ---------------------------------------------- */}
@@ -279,7 +288,7 @@ export default function ThreeJSPage() {
             value={prompt}
             disabled={busy}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What imagination do you wish to make reality?"
+            placeholder="What imagination will you make reality?"
           />
 
           <div className={styles.inputFooter}>
@@ -296,25 +305,35 @@ export default function ThreeJSPage() {
               >
                 <Redo2 size={16} />
               </button>
+              <button
+                className={styles.toggleButton}
+                onClick={() => setCodeVisible(!codeVisisble)}
+              >
+                <Code2 size={16} />
+              </button>
             </div>
 
             <div className={styles.rightButtons}>
-              <button
+              <div
                 className={styles.c3dbtn}
                 onClick={() => window.open("/c3d", "_blank")}
               >
-                Learn more about C3D
-              </button>
-              <button
+                <Button text="Learn more about C3D" backgroundColor="#f8cb46" />
+              </div>
+              <div
                 className={`${styles.inputButton} ${busy ? styles.busyButton : ''}`}
                 onClick={run}
                 onMouseEnter={() => busy && setIsHovering(true)}
                 onMouseLeave={() => setIsHovering(false)}
               >
-                {busy 
-                  ? isHovering ? "Kill" : "Generating…" 
-                  : "Submit"}
-              </button>
+                
+                  <Button 
+                    text={busy 
+                      ? isHovering ? "Kill" : "Generating…" 
+                      : "Submit"} 
+                    backgroundColor="#20a191" 
+                  />
+              </div>
             </div>
           </div>
         </div>
@@ -327,7 +346,7 @@ export default function ThreeJSPage() {
     <div className={styles.tt3d}>
       <SandpackProvider
         template="react-ts"
-        theme="auto"
+        theme="light"
         customSetup={{
           dependencies: {
             three: "0.161.0",
