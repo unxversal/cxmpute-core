@@ -10,6 +10,8 @@ import {
   SandpackCodeEditor,
   useSandpack,
   type SandpackPreviewRef,
+  SandpackConsole,
+  SandpackFileExplorer
 } from "@codesandbox/sandpack-react";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Undo2, Redo2, Download } from "lucide-react";
@@ -179,8 +181,6 @@ export default function CADPage() {
       }
     };
 
-    
-
     /** Download model as STL */
     const downloadModel = useCallback(async () => {
       if (!previewRef.current) return;
@@ -261,7 +261,7 @@ export default function CADPage() {
 
           if (i > 0) {
             // 1️⃣ inject candidate code and wait for rebuild
-            sandpack.updateFile("/src/model.js", code);
+            sandpack.updateFile("/model.js", code);
             await waitForDone();
           }
 
@@ -298,7 +298,7 @@ export default function CADPage() {
         }
 
         // final candidate → editor
-        sandpack.updateFile("/src/model.js", code);
+        sandpack.updateFile("/model.js", code);
         
         // Add to history
         setModelHistory(prev => {
@@ -324,7 +324,7 @@ export default function CADPage() {
       if (historyIndex > 0) {
         const newIndex = historyIndex - 1;
         setHistoryIndex(newIndex);
-        sandpack.updateFile("/src/model.js", modelHistory[newIndex]);
+        sandpack.updateFile("/model.js", modelHistory[newIndex]);
       }
     }, [historyIndex, modelHistory, sandpack]);
 
@@ -333,16 +333,14 @@ export default function CADPage() {
       if (historyIndex < modelHistory.length - 1) {
         const newIndex = historyIndex + 1;
         setHistoryIndex(newIndex);
-        sandpack.updateFile("/src/model.js", modelHistory[newIndex]);
+        sandpack.updateFile("/model.js", modelHistory[newIndex]);
       }
     }, [historyIndex, modelHistory, sandpack]);
 
     return (
       <>
         {/* Sandpack UI -------------------------------------------------- */}
-        <SandpackLayout
-            
-        >
+        <SandpackLayout>
           <SandpackPreview
             ref={previewRef}
             style={{ height: "100vh", width: "50%", border: "none" }}
@@ -353,9 +351,13 @@ export default function CADPage() {
             showLineNumbers
             showTabs
             wrapContent
-            
           />
-          
+          <SandpackConsole
+            style={{ height: "100vh", width: "50%" }}
+          />
+          <SandpackFileExplorer
+            style={{ height: "100vh", width: "50%" }}
+          />
           
         </SandpackLayout>
 
@@ -428,30 +430,139 @@ export default function CADPage() {
         theme="auto"
         customSetup={{
           dependencies: {
-            "replicad": "latest", 
-            "replicad-opencascadejs": "latest",
-            "replicad-threejs-helper": "latest",
-            "three": "^0.161.0",
-            "@react-three/fiber": "^8.0.0",
-            "@react-three/drei": "^9.0.0",
+            "replicad": "0.19.0", 
+            "replicad-opencascadejs": "0.19.0",
+            "replicad-threejs-helper": "0.19.0",
+            "three": "^0.155.0",
+            "@react-three/fiber": "^8.13.6",
+            "@react-three/drei": "^9.92.7",
+            "comlink": "^4.3.1",
+            "file-saver": "^2.0.5"
           }
-        
         }}
         files={{
-          "/src/model.js": DEFAULT_CODE,
-          "/src/App.jsx": {
+          "/model.js": DEFAULT_CODE,
+          "/worker.js": {
             code: `
-import { useState, useEffect, useRef } from 'react';
+import opencascade from "replicad-opencascadejs";
+import { setOC } from "replicad";
+import { expose } from "comlink";
+
+// Dynamically import the model
+let modelModule = null;
+
+// This is the logic to load the web assembly code into replicad
+let loaded = false;
+const init = async () => {
+  if (loaded) return Promise.resolve(true);
+
+  console.log("Initializing OpenCascade in worker...");
+  
+  try {
+    const OC = await opencascade();
+    loaded = true;
+    setOC(OC);
+    console.log("OpenCascade initialized successfully in worker");
+    return true;
+  } catch (error) {
+    console.error("Failed to initialize OpenCascade in worker:", error);
+    return false;
+  }
+};
+
+// Start initialization immediately
+const started = init();
+
+async function updateModel(moduleUrl) {
+  await started;
+  
+  // Create a dynamic module from the code
+  try {
+    // Clean up previous model if exists
+    modelModule = null;
+    
+    // Create a blob URL from the code
+    // const blob = new Blob([code], { type: 'application/javascript' });
+    // const url = URL.createObjectURL(blob);
+    
+    // Import the dynamic module
+    modelModule = await import(/* @vite-ignore */ \`\${moduleUrl}?t=\${Date.now()}\`);
+    
+    // Clean up
+    // URL.revokeObjectURL(url);
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating model:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function createMesh() {
+  await started;
+  
+  try {
+    if (!modelModule || !modelModule.default) {
+      throw new Error("No model loaded");
+    }
+    
+    const shape = modelModule.default;
+    
+    // Return the mesh data for three.js
+    return {
+      faces: shape.mesh(),
+      edges: shape.meshEdges(),
+      success: true
+    };
+  } catch (error) {
+    console.error("Error creating mesh:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+async function createSTL() {
+  await started;
+  
+  try {
+    if (!modelModule || !modelModule.default) {
+      throw new Error("No model loaded");
+    }
+    
+    const shape = modelModule.default;
+    
+    // Return the STL blob
+    return {
+      blob: shape.blobSTL(),
+      success: true
+    };
+  } catch (error) {
+    console.error("Error creating STL:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Expose these functions to the main thread via comlink
+expose({ updateModel, createMesh, createSTL });
+`,
+            hidden: false
+          },
+          "/App.jsx": {
+            code: `
+import React, { useState, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { syncFaces, syncLines } from 'replicad-threejs-helper';
-import opencascade from 'replicad-opencascadejs/src/replicad_single.js';
-import opencascadeWasm from 'replicad-opencascadejs/src/replicad_single.wasm?url';
-import { setOC } from 'replicad';
+import { wrap } from 'comlink';
 
-// Dynamic import of the model
-import model from './model.js';
+// Configure Three.js to use Z-up
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+
+// Import our worker (this needs to be a separate import for Vite to work properly)
+import WorkerModule from './worker.js?worker';
+
+// Create a worker instance
+const worker = wrap(new WorkerModule());
 
 function ReplicadMesh({ modelData }) {
   const meshRef = useRef();
@@ -460,16 +571,24 @@ function ReplicadMesh({ modelData }) {
   useEffect(() => {
     if (!modelData || !meshRef.current || !edgesRef.current) return;
 
-    // Update mesh and edges using replicad-threejs-helper
-    syncFaces(meshRef.current, modelData.faces);
-    syncLines(edgesRef.current, modelData.edges);
+    try {
+      // Update mesh and edges using replicad-threejs-helper
+      syncFaces(meshRef.current, modelData.faces);
+      syncLines(edgesRef.current, modelData.edges);
+    } catch (error) {
+      console.error("Error syncing mesh data:", error);
+    }
   }, [modelData]);
+
+  if (!modelData) return null;
 
   return (
     <group>
       <mesh ref={meshRef}>
         <meshStandardMaterial 
           color="#5a8296" 
+          roughness={0.3}
+          metalness={0.2}
           polygonOffset 
           polygonOffsetFactor={2.0} 
           polygonOffsetUnits={1.0} 
@@ -484,65 +603,73 @@ function ReplicadMesh({ modelData }) {
 
 function Scene() {
   const [modelData, setModelData] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-
-  // Initialize OpenCascade
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Process the model when it changes
   useEffect(() => {
-    async function initOpenCascade() {
+    let isMounted = true;
+    
+    async function loadModel() {
+      setLoading(true);
+      setError(null);
+      
       try {
-        const OC = await opencascade({
-          locateFile: () => opencascadeWasm
-        });
+        // Get the model code
+        const modelUrl = new URL('./model.js', import.meta.url).href;
+
         
-        setOC(OC);
-        setLoaded(true);
+        // Update the worker with the new model code
+        const updateResult = await worker.updateModel(modelUrl);
+        
+        if (!updateResult.success) {
+          throw new Error(\`Failed to update model: \${updateResult.error}\`);
+        }
+        
+        // Get the mesh data
+        const meshResult = await worker.createMesh();
+        
+        if (!meshResult.success) {
+          throw new Error(\`Failed to create mesh: \${meshResult.error}\`);
+        }
+        
+        if (isMounted) {
+          setModelData({ faces: meshResult.faces, edges: meshResult.edges });
+          setError(null);
+        }
       } catch (error) {
-        console.error("Failed to initialize OpenCascade:", error);
+        console.error("Error loading model:", error);
+        if (isMounted) {
+          setError(error.message || "Unknown error");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
     
-    initOpenCascade();
-  }, []);
-
-  // Process the model
-  useEffect(() => {
-    if (!loaded) return;
+    loadModel();
     
-    try {
-      const processModel = async () => {
-        // Get the model
-        const shape = model;
-        
-        // Get mesh data
-        const faces = shape.mesh();
-        const edges = shape.meshEdges();
-        
-        setModelData({ faces, edges });
-        
-        // Set up STL export
-        window.exportSTL = () => {
-          try {
-            const stlBlob = shape.blobSTL();
-            return stlBlob;
-          } catch (error) {
-            console.error("Error exporting STL:", error);
-          }
-        };
-      };
-      
-      processModel();
-    } catch (error) {
-      console.error("Error processing model:", error);
-    }
-  }, [loaded]);
-
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+  
   // Listen for export requests
   useEffect(() => {
-    const handleMessage = (event) => {
-      if (event.data.type === 'exportSTL') {
-        const stlBlob = window.exportSTL?.();
-        if (stlBlob) {
-          window.parent.postMessage({ type: 'stlBlob', blob: stlBlob }, '*');
+    const handleMessage = async (event) => {
+      if (event.data?.type === 'exportSTL') {
+        try {
+          const result = await worker.createSTL();
+          
+          if (result.success && result.blob) {
+            window.parent.postMessage({ type: 'stlBlob', blob: result.blob }, '*');
+          } else {
+            console.error("Error exporting STL:", result.error);
+          }
+        } catch (error) {
+          console.error("Failed to export STL:", error);
         }
       }
     };
@@ -551,20 +678,81 @@ function Scene() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Default camera position
-  const defaultCameraPosition = [100, 100, 100];
+  if (loading) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        color: 'white',
+        background: '#1e1e1e',
+        flexDirection: 'column'
+      }}>
+        <div style={{ marginBottom: '10px' }}>Loading...</div>
+        <div style={{ 
+          width: '100px',
+          height: '2px',
+          background: '#333',
+          borderRadius: '2px',
+          overflow: 'hidden',
+        }}>
+          <div style={{ 
+            width: '30%',
+            height: '100%',
+            background: '#5a8296',
+            animation: 'loading 1.5s infinite',
+          }}></div>
+        </div>
+        <style>{
+          \`@keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(300%); }
+          }\`
+        }</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center',
+        color: '#ff5555',
+        background: '#1e1e1e',
+        padding: '20px',
+        textAlign: 'center' 
+      }}>
+        <h3>Error Loading Model</h3>
+        <pre style={{ 
+          maxWidth: '100%', 
+          overflow: 'auto',
+          background: '#2a2a2a',
+          padding: '10px',
+          borderRadius: '4px'
+        }}>{error}</pre>
+      </div>
+    );
+  }
 
   return (
     <Canvas
-      camera={{ position: defaultCameraPosition, fov: 50 }}
+      camera={{ position: [100, 100, 100], fov: 50 }}
       style={{ width: '100%', height: '100%' }}
     >
       <ambientLight intensity={0.5} />
       <pointLight position={[100, 100, 100]} intensity={0.8} />
-      <gridHelper args={[100, 10]} rotation={[Math.PI/2, 0, 0]} />
+      <gridHelper args={[100, 10]} />
       <axesHelper args={[50]} />
       <OrbitControls enableDamping dampingFactor={0.25} />
-      {modelData ? <ReplicadMesh modelData={modelData} /> : null}
+      <Environment preset="city" />
+      <ReplicadMesh modelData={modelData} />
     </Canvas>
   );
 }
@@ -577,22 +765,27 @@ export default function App() {
   );
 }
 `,
-            hidden: false
           },
-          "/src/index.jsx": {
+          "/index.jsx": {
             code: `
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <App />
-);
+// Create root and render app
+const root = document.getElementById('root');
+if (root) {
+  ReactDOM.createRoot(root).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
 `,
             hidden: true
           },
-          "/src/index.css": {
+          "/index.css": {
             code: `
 body {
   margin: 0;
@@ -602,6 +795,9 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #1e1e1e;
+  color: #f5f5f5;
+  overflow: hidden;
 }
 
 html, body, #root {
@@ -627,7 +823,7 @@ canvas {
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/index.jsx"></script>
+    <script type="module" src="/index.jsx"></script>
   </body>
 </html>
 `,
@@ -643,11 +839,17 @@ export default defineConfig({
   assetsInclude: ['**/*.wasm'],
   optimizeDeps: {
     exclude: ['replicad-opencascadejs']
+  },
+  worker: {
+    format: 'es'
   }
 });
 `,
             hidden: true
           },
+        }}
+        options={{
+          externalResources: ["https://cdn.tailwindcss.com"]
         }}
       >
         <Playground />

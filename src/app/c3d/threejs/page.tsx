@@ -78,7 +78,6 @@ const DEFAULT_CODE = `export default function App(): JSX.Element {
 export default function ThreeJSPage() {
   /** This ref is shared with the SandpackPreview so we can screenshot. */
   const previewRef = useRef<SandpackPreviewRef | null>(null);
-  const [codeVisisble, setCodeVisible] = useState(true);
 
   /* ------------------------------------------------------------------
    *  Inner component – lives INSIDE <SandpackProvider>
@@ -89,7 +88,8 @@ export default function ThreeJSPage() {
     const [busy, setBusy] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
-    
+    const [codeVisisble, setCodeVisible] = useState(true);
+
     // Clean up any lingering abort controllers on unmount
     useEffect(() => {
       return () => {
@@ -271,6 +271,8 @@ export default function ThreeJSPage() {
             //     Toggle Code
             //   </button>
             // }
+            showRefreshButton
+            showRestartButton
           />
 
           {codeVisisble && <SandpackCodeEditor
