@@ -34,7 +34,7 @@
     padding: 10px;
     border-radius: 12px;
     border: 2px solid #ccc;
-    /* background-color: #f9f5f2; */
+    background-color: #fff;
     /* color: #ffffff; */
 }
 
@@ -54,6 +54,7 @@
     padding: 5px 10px;
     border-radius: 12px;
     cursor: pointer;
+    color: #000;
 }
 
 .rightButtons{
@@ -72,6 +73,7 @@
     background-color: #fff;
     border: 2px solid #ccc !important;
     transition: all 0.3s ease;
+    color: #000;
 }
 
 .c3dbtn:hover{
