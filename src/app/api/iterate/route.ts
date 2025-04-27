@@ -3,7 +3,12 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { GenResult } from "@/lib/genSchema";
 
-const openai = new OpenAI();
+const openai = new OpenAI(
+  {
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: '/api/v1',
+  }
+);
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -13,24 +18,47 @@ export async function POST(req: Request) {
     prompt,
     screenshotBase64,
     compileErrors,
-    iteration
+    iteration,
+    cadFormat
   }: {
     prompt: string;
     screenshotBase64: string | "";
     compileErrors: string[];
     iteration: number;
+    cadFormat?: boolean;
   } = await req.json();
+
+  const systemPrompt = cadFormat 
+    ? `You are an expert ReplicaCAD component generator.
+       Return ONLY JSON that conforms to the schema. Focus on creating valid ReplicaCAD code.
+       
+       The code should:
+       1. Import needed replicad functions at the top
+       2. Create a 3D CAD model using ReplicaCAD APIs (draw, extrude, revolve, etc)
+       3. Export the final model as default export
+       
+       Use features like:
+       - sketch, extrude, revolve for basic shapes
+       - loft, shell for advanced operations
+       - fillet, chamfer for finishing touches
+       - boolean operations (fuse, cut, intersect)
+       
+       Always write clean, well-commented code with sensible measurements.
+       Return "finished": true once you've fixed all errors and the model is complete.`
+    : `You are an expert React-Three-Fiber component generator.
+       Return ONLY JSON that conforms to the schema.
+       Respond with "finished": true once the task is complete.`;
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     {
       role: "system",
       content: `
-You are an expert React-Three-Fiber generator.
+${systemPrompt}
+
 Return ONLY JSON that conforms to this schema:
 
 ${GenResult.toString()}
 
-Respond with "finished": true once the task is complete.
 Do NOT wrap the JSON in markdown fences.`
     },
     iteration === 0
