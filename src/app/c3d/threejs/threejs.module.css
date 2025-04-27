@@ -83,3 +83,11 @@
     border: 2px solid #000;
     color: white;
 }
+
+.busyButton {
+  background-color: #ff5e5e;
+}
+
+.busyButton:hover {
+  background-color: #ff3333;
+}

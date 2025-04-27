@@ -11,9 +11,7 @@ import {
   useSandpack,
   type SandpackPreviewRef
 } from "@codesandbox/sandpack-react";
-// import { amethyst } from "@codesandbox/sandpack-themes";
-import html2canvas from "html2canvas";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import styles from "./threejs.module.css";
 import { Undo2, Redo2 } from "lucide-react";
 
@@ -86,14 +84,101 @@ export default function ThreeJSPage() {
   const Playground = () => {
     const { sandpack, listen } = useSandpack();
     const [prompt, setPrompt] = useState("");
-    const [busy, setBusy]     = useState(false);
-
+    const [busy, setBusy] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
+    const abortControllerRef = useRef<AbortController | null>(null);
     
+    // Clean up any lingering abort controllers on unmount
+    useEffect(() => {
+      return () => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      };
+    }, []);
+
+    /** Capture the iframe content */
+    const captureIframeContent = async (): Promise<string> => {
+      if (!previewRef.current) return "";
+      
+      try {
+        const client = await previewRef.current.getClient();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const iframe = (client as any).iframe as HTMLIFrameElement | undefined;
+        
+        if (!iframe || !iframe.contentWindow) return "";
+        
+        // Use the iframe's document to create a canvas
+        return new Promise((resolve) => {
+          // Create a message channel for secure communication with the iframe
+          const channel = new MessageChannel();
+          
+          // Set up the listener for the response
+          channel.port1.onmessage = (event) => {
+            resolve(event.data || "");
+            channel.port1.close();
+          };
+          
+          // Inject a script into the iframe that will capture the content
+          const script = iframe.contentDocument?.createElement('script');
+          if (script) {
+            script.textContent = `
+              // Define a function to capture the screen
+              function captureScreen() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const width = document.documentElement.clientWidth || window.innerWidth;
+                const height = document.documentElement.clientHeight || window.innerHeight;
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw the current view to the canvas
+                ctx.drawImage(document, 0, 0, width, height);
+                
+                // Return the data URL
+                return canvas.toDataURL('image/png').split(',')[1];
+              }
+              
+              // Send the captured image back via the message channel
+              window.onmessage = function(event) {
+                if (event.data === 'capture') {
+                  try {
+                    const imageData = captureScreen();
+                    event.ports[0].postMessage(imageData);
+                  } catch (e) {
+                    event.ports[0].postMessage('');
+                  }
+                }
+              };
+            `;
+            iframe.contentDocument?.head.appendChild(script);
+            
+            // Request the screenshot
+            iframe.contentWindow?.postMessage('capture', '*', [channel.port2]);
+          } else {
+            resolve("");
+          }
+        });
+      } catch (error) {
+        console.error("Failed to capture iframe content:", error);
+        return "";
+      }
+    };
 
     /** Main generation loop */
     const run = useCallback(async () => {
+      // If already running, abort the current operation
+      if (busy) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+          setBusy(false);
+          return;
+        }
+      }
 
-        /** Wait for the bundler to emit a single `"done"` message. */
+      /** Wait for the bundler to emit a single `"done"` message. */
       const waitForDone = () =>
         new Promise<void>((resolve) => {
           const stop = listen((msg) => {
@@ -106,52 +191,70 @@ export default function ThreeJSPage() {
 
       if (!prompt.trim()) return;
       setBusy(true);
+      
+      // Create a new AbortController for this operation
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
-      let code = "";
-      for (let i = 0; i < 4; i++) {
-        if (i > 0) {
-          // 1️⃣ inject candidate code and wait for rebuild
-          sandpack.updateFile("/App.tsx", code);
-          await waitForDone();
-        }
-
-        // 2️⃣ take screenshot (after first render)
-        let screenshot = "";
-        if (i > 0 && previewRef.current) {
-          const client      = await previewRef.current.getClient();
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const iframe      = (client as any).iframe as HTMLIFrameElement | undefined;
-          const docBody     = iframe?.contentDocument?.body;
-          if (docBody) {
-            screenshot = await html2canvas(docBody, {
-              useCORS: true, backgroundColor: null
-            }).then((c) => c.toDataURL("image/png").split(",")[1]);
+      try {
+        let code = "";
+        for (let i = 0; i < 4; i++) {
+          // Check if the operation was aborted
+          if (signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
           }
+
+          if (i > 0) {
+            // 1️⃣ inject candidate code and wait for rebuild
+            sandpack.updateFile("/App.tsx", code);
+            await waitForDone();
+          }
+
+          // 2️⃣ take screenshot (after first render)
+          let screenshot = "";
+          if (i > 0) {
+            screenshot = await captureIframeContent();
+          }
+
+          // 3️⃣ collect compile errors
+          const compileErrors = sandpack.error ? [sandpack.error.message] : [];
+
+          // Check again if operation was aborted before making API call
+          if (signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+
+          // 4️⃣ call OpenAI edge route
+          const res = await fetch("/api/iterate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt,
+              screenshotBase64: screenshot,
+              compileErrors,
+              iteration: i
+            }),
+            signal // Pass the abort signal to the fetch call
+          }).then((r) => r.json() as Promise<{ code: string; finished: boolean }>);
+
+          code = res.code;
+          if (res.finished) break;
         }
 
-        // 3️⃣ collect compile errors
-        const compileErrors = sandpack.error ? [sandpack.error.message] : [];
-
-        // 4️⃣ call OpenAI edge route
-        const res = await fetch("/api/iterate", {
-          method : "POST",
-          headers: { "Content-Type": "application/json" },
-          body   : JSON.stringify({
-            prompt,
-            screenshotBase64: screenshot,
-            compileErrors,
-            iteration: i
-          })
-        }).then((r) => r.json() as Promise<{ code: string; finished: boolean }>);
-
-        code = res.code;
-        if (res.finished) break;
+        // final candidate → editor
+        sandpack.updateFile("/App.tsx", code);
+      } catch (err) {
+        // Handle abort error gracefully
+        if (err instanceof DOMException && err.name === "AbortError") {
+          console.log("Operation was aborted");
+        } else {
+          console.error("Error during generation:", err);
+        }
+      } finally {
+        setBusy(false);
+        abortControllerRef.current = null;
       }
-
-      // final candidate → editor
-      sandpack.updateFile("/App.tsx", code);
-      setBusy(false);
-    }, [prompt, sandpack, listen]);
+    }, [prompt, sandpack, listen, busy]);
 
     return (
       <>
@@ -203,11 +306,14 @@ export default function ThreeJSPage() {
                 Learn more about C3D
               </button>
               <button
-                className={styles.inputButton}
-                disabled={busy}
+                className={`${styles.inputButton} ${busy ? styles.busyButton : ''}`}
                 onClick={run}
+                onMouseEnter={() => busy && setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
               >
-                {busy ? "Generating…" : "Submit"}
+                {busy 
+                  ? isHovering ? "Kill" : "Generating…" 
+                  : "Submit"}
               </button>
             </div>
           </div>
@@ -221,14 +327,12 @@ export default function ThreeJSPage() {
     <div className={styles.tt3d}>
       <SandpackProvider
         template="react-ts"
-        // theme={amethyst}
-        theme="light"
+        theme="auto"
         customSetup={{
           dependencies: {
             three: "0.161.0",
             "@react-three/fiber": "latest",
             "@react-three/drei": "latest",
-            html2canvas: "latest",
           }
         }}
         files={{
