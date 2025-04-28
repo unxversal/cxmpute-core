@@ -6,9 +6,12 @@
 .container {
   padding: 2rem;
   min-height: 100vh;
-  /* background: var(--cxmpute-green, transparent); */
+  background: var(--cxmpute-green, transparent);
   box-sizing: border-box;
-  max-width: 100%;            /* never exceed the viewport */
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ---------- Header ---------- */
@@ -42,46 +45,37 @@
   padding: 0;
 }
 
-/* ---------- Two-column grid ---------- */
+/* ---------- Grid layout ---------- */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-@media (max-width: 1024px) {
-  .grid {
-    grid-template-columns: 1fr;   /* collapse to one column */
-  }
-}
-
-/* columns stack their children vertically */
-.leftColumn,
-.rightColumn {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  min-width: 0;
+  margin-top: 2rem;
+  width: 100%;
+  max-width: 700px !important;
+  box-sizing: border-box;
 }
 
 /* ---------- Card-style section base ---------- */
 .hero,
-.details,
-.docs,
-.playground {
+.contentCard {
   background: #fff;
   border: 6px solid #000;
   border-radius: 20px;
-  box-shadow: 12px 12px 0 #000;
-  padding: 40px;
+  box-shadow: 10px 10px 0 #000;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-.hero { text-align: center; }
+.hero { 
+  text-align: center; 
+  padding: 40px;
+}
+
+.contentCard {
+  padding: 0;
+  overflow: hidden;
+}
 
 .title {
   font-size: 2rem;
@@ -130,6 +124,18 @@
 .inputTag    { background: #f3e8ff; color: #7e22ce; }
 .outputTag   { background: #dcfce7; color: #15803d; }
 
+/* ---------- Tab System ---------- */
+.tabBar {
+  display: flex;
+  padding: 1rem;
+  margin-bottom: 0;
+  gap: 1rem;
+}
+
+.tabContent {
+  padding: 2rem;
+}
+
 /* ---------- Markdown helpers ---------- */
 .markdown :is(p, h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote) {
   margin-bottom: 1rem;
@@ -137,11 +143,11 @@
 
 .markdown ul,
 .markdown ol {
-  margin-left: 1.5rem;                 /* indent lists */
+  margin-left: 1.5rem;
 }
 
 .markdown pre {
-  overflow-x: auto;                    /* scroll long code */
+  overflow-x: auto;
   background: #111827;
   color: #f3f4f6;
   padding: 1rem;
@@ -165,6 +171,17 @@
   word-break: break-word;
 }
 
+/* ---------- Playground container ---------- */
+.playgroundContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.runButtonContainer {
+  display: flex;
+  margin: 1rem 0;
+}
+
 /* ---------- Playground controls ---------- */
 .textarea,
 .input {
@@ -177,7 +194,7 @@
   color: #111827;
   background: #f8fafc;
   box-sizing: border-box;
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .textarea {
@@ -193,7 +210,7 @@
 .textarea:focus,
 .input:focus {
   outline: none;
-  border-color: #20a191;              /* cxmpute green */
+  border-color: #20a191;
   box-shadow: 0 0 0 2px rgba(32, 161, 145, 0.2);
 }
 
@@ -203,9 +220,22 @@
   color: #6b7280;
 }
 
+/* ---------- Results Section ---------- */
+.resultsSection {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.resultsSection h3 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
 /* ---------- Result / code block ---------- */
 .pre {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   background: #111827;
   color: #f3f4f6;
   padding: 1rem;
@@ -217,58 +247,14 @@
 }
 
 /* ---------- Media player ---------- */
-.video {
+.video,
+.audio {
+  display: block;
   max-width: 100%;
-  height: auto;
+  margin: 0 auto;
 }
 
-/* ---------- Responsive fine-tuning ---------- */
-@media (max-width: 768px) {
-  .container {
-    padding: 1rem;
-    overflow-x: hidden;               /* remove stray horizontal scroll */
-  }
-
-  .grid   { gap: 1rem; }
-
-  .hero,
-  .details,
-  .docs,
-  .playground {
-    padding: 28px 20px;
-    border-width: 4px;
-    box-shadow: 6px 6px 0 #000;
-  }
-}
-
-@media (max-width: 480px) {
-  .container { padding: 0.75rem; }
-
-  .hero,
-  .details,
-  .docs,
-  .playground {
-    padding: 20px 16px;
-    border-width: 3px;
-    box-shadow: 4px 4px 0 #000;
-  }
-}
-
-/* ---------- Final safeguard ---------- */
-/* make sure nothing can ever push the page wider than the viewport */
-.grid,
-.hero,
-.details,
-.docs,
-.playground,
-.markdown pre,
-.pre {
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-/* identical look as .input – just for a <select> element */
+/* ---------- Select ---------- */
 .select {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -279,11 +265,87 @@
   color: #111827;
   background: #f8fafc;
   box-sizing: border-box;
-  appearance: none;            /* hides default arrow in most browsers */
+  appearance: none;
 }
 
 .select:focus {
   outline: none;
-  border-color: #20a191;       /* cxmpute green */
+  border-color: #20a191;
   box-shadow: 0 0 0 2px rgba(32, 161, 145, 0.2);
+}
+
+/* ---------- Blog link ---------- */
+.blogLink {
+  display: inline-block;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.blogLink:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Responsive adaptations ---------- */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+    overflow-x: hidden;
+  }
+
+  .grid { gap: 1.5rem; }
+
+  .hero,
+  .contentCard {
+    border-width: 4px;
+    box-shadow: 6px 6px 0 #000;
+  }
+  
+  .hero {
+    padding: 28px 20px;
+  }
+
+  .tabContent {
+    padding: 1.5rem 1rem;
+  }
+  
+  .tabBar {
+    flex-direction: column;
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container { padding: 0.75rem; }
+
+  .hero,
+  .contentCard {
+    border-width: 3px;
+    box-shadow: 4px 4px 0 #000;
+  }
+  
+  .hero {
+    padding: 20px 16px;
+  }
+
+  .tabContent {
+    padding: 1rem 0.75rem;
+  }
+  
+  .title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ---------- Final safeguard ---------- */
+.grid,
+.hero,
+.contentCard,
+.markdown pre,
+.pre {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }

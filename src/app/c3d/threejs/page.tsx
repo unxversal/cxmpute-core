@@ -212,7 +212,7 @@ export default function ThreeJSPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              prompt,
+              prompt: `The current page code is ${DEFAULT_CODE}. The user prompt is "${prompt}".`,
               screenshotBase64: screenshot,
               compileErrors,
               iteration: i
@@ -277,6 +277,12 @@ export default function ThreeJSPage() {
           <div className={styles.inputFooter}>
             <div className={styles.leftButtons}>
               <button
+                className={styles.toggleButton}
+                onClick={() => setCodeVisible(!codeVisisble)}
+              >
+                <Code2 size={16} />
+              </button>
+              <button
                 className={styles.undoButton}
                 onClick={() => window.history.back()}
               >
@@ -288,20 +294,15 @@ export default function ThreeJSPage() {
               >
                 <Redo2 size={16} />
               </button>
-              <button
-                className={styles.toggleButton}
-                onClick={() => setCodeVisible(!codeVisisble)}
-              >
-                <Code2 size={16} />
-              </button>
+              
             </div>
 
             <div className={styles.rightButtons}>
               <div
                 className={styles.c3dbtn}
-                onClick={() => window.open("/c3d", "_blank")}
+                onClick={() => window.open("/", "_blank")}
               >
-                <Button text="Learn more about C3D" backgroundColor="#f8cb46" />
+                <Button text="cxmpute.cloud" backgroundColor="var(--cxmpute-purple)" />
               </div>
               <div
                 className={`${styles.inputButton} ${busy ? styles.busyButton : ''}`}

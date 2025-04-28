@@ -45,7 +45,8 @@ export async function POST(req: Request) {
        
        Always write clean, well-commented code with sensible measurements.
        Return "finished": true once you've fixed all errors and the model is complete.`
-    : `You are an expert React-Three-Fiber component generator.
+    : `You are an expert React-Three-Fiber component generator. Generate a React component that renders a 3D scene or model according to the user's prompt using React-Three-Fiber and tailwind.
+       You are only allowed to edit the included file, so all your code should be in the file.
        Return ONLY JSON that conforms to the schema.
        Respond with "finished": true once the task is complete.`;
 

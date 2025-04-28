@@ -10,12 +10,12 @@ import { use, useState } from 'react';
 import { models } from '@/lib/references';
 import Button from '@/components/button/button';
 import styles from './page.module.css';
-// import { size } from 'valibot';
 
 const cxmputeGreen  = '#20a191';
 const cxmputePurple = '#91a8eb';
-const cxmputePink   = '#fe91e8';
+// const cxmputePink   = '#fe91e8';
 const cxmputeOrange = '#ff8c00';
+// const cxmputeGray   = '#6b7280';
 
 // Handy: change the host at build-/run-time → NEXT_PUBLIC_ORCH_BASE_URL
 const BASE_URL = '';
@@ -31,11 +31,11 @@ export default function ModelDetailPage({
 
   if (!model) notFound();
 
-  /* ────────── state for the “Playground” ────────── */
+  /* ────────── state for UI and "Playground" ────────── */
+  const [activeTab, setActiveTab] = useState('docs'); // 'docs', 'description', 'playground'
   const [input,    setInput]   = useState('');
   const [imageUrl, setImage]   = useState('');
   const [voice,    setVoice]   = useState('af_bella');
-  // const [size,     setSize]    = useState('832*480');
   const [loading,  setLoading] = useState(false);
   const [response, setResp]    = useState<any>(null);
   const [blobUrl,  setBlobUrl] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export default function ModelDetailPage({
         method : 'POST',
         headers: {
           'Content-Type' : 'application/json',
-          // ⭐️ DEV ONLY: fake creds so the call doesn’t error out immediately
+          // ⭐️ DEV ONLY: fake creds so the call doesn't error out immediately
           'Authorization': 'Bearer debug-key',
           'X-User-Id'    : 'debug-playground',
         },
@@ -154,221 +154,235 @@ export default function ModelDetailPage({
             </li>
             <li>
               <a href="/dashboard" target="_blank">
-                <Button text="DASHBOARD" backgroundColor={cxmputeGreen} />
+                <Button text="DASHBOARD" backgroundColor= "var(--cxmpute-slate)" />
               </a>
             </li>
             <li>
               <a href="/download" target="_blank">
-                <Button text="BECOME A PROVIDER" backgroundColor={cxmputePink} />
+                <Button text="BECOME A PROVIDER" backgroundColor= "var(--cxmpute-yellow)" />
               </a>
             </li>
           </ul>
         </nav>
       </header>
 
-      {/* ───────────── 2×2 GRID ───────────── */}
       <div className={styles.grid}>
-        {/* left column */}
-        <div className={styles.leftColumn}>
-          {/* ─── HERO ─── */}
-          <section className={styles.hero}>
-            <h1 className={styles.title}>{model.Name}</h1>
+        {/* ───────────── MODEL CARD ───────────── */}
+        <section className={styles.hero}>
+          <h1 className={styles.title}>{model.Name}</h1>
 
-            <div className={styles.meta}>
-              <div className={styles.metaItem}><span>Category:</span> {model.Category}</div>
-              <div className={styles.metaItem}>
-                <span>Creator:</span>{' '}
-                <a href={model.creatorUrl} target="_blank" rel="noopener noreferrer" className={styles.creatorLink}>
-                  {model.Creator}
-                </a>
-              </div>
-
-              {model.contextSize && (
-                <div className={styles.metaItem}>
-                  <span>Context size:</span> {model.contextSize}
-                </div>
-              )}
-              {model.vectorSize && (
-                <div className={styles.metaItem}>
-                  <span>Vector dim:</span> {model.vectorSize}
-                </div>
-              )}
-              {model.outputLength && !model.vectorSize && (
-                <div className={styles.metaItem}>
-                  <span>Output length:</span> {model.outputLength}
-                </div>
-              )}
-            </div>
-
-            {/* Tags */}
-            <div className={styles.tags}>
-              <span className={styles.categoryTag}>{model.Category}</span>
-              {model.InputModalities.map((m, idx) => (
-                <span key={`in-${idx}`} className={styles.inputTag}>{m}</span>
-              ))}
-              {model.OutputModalities.map((m, idx) => (
-                <span key={`out-${idx}`} className={styles.outputTag}>{m}</span>
-              ))}
-            </div>
-          </section>
-
-          {/* ─── DOCS ─── */}
-          <section className={styles.docs}>
-            {/* <h2>Endpoint Documentation</h2> */}
-            <div className={styles.markdown}>
-              <ReactMarkdown>{model.docs}</ReactMarkdown>
-            </div>
-          </section>
-
-          
-        </div>
-
-        {/* right column */}
-        <div className={styles.rightColumn}>
-          
-          {/* ─── DETAILS ─── */}
-          <section className={styles.details}>
-            <div className={styles.markdown}>
-              <ReactMarkdown>{model.description}</ReactMarkdown>
-            </div>
-
-            {model.blogUrl && (
-              <a href={model.blogUrl} target="_blank" rel="noopener noreferrer" className={styles.blogLink}>
-                Read the full blog&nbsp;post →
+          <div className={styles.meta}>
+            <div className={styles.metaItem}><span>Category:</span> {model.Category}</div>
+            <div className={styles.metaItem}>
+              <span>Creator:</span>{' '}
+              <a href={model.creatorUrl} target="_blank" rel="noopener noreferrer" className={styles.creatorLink}>
+                {model.Creator}
               </a>
+            </div>
+
+            {model.contextSize && (
+              <div className={styles.metaItem}>
+                <span>Context size:</span> {model.contextSize}
+              </div>
             )}
-          </section>
+            {model.vectorSize && (
+              <div className={styles.metaItem}>
+                <span>Vector dim:</span> {model.vectorSize}
+              </div>
+            )}
+            {model.outputLength && !model.vectorSize && (
+              <div className={styles.metaItem}>
+                <span>Output length:</span> {model.outputLength}
+              </div>
+            )}
+          </div>
 
-          {/* ─── PLAYGROUND ─── */}
-          <section className={styles.playground}>
-            <h2>Try it!</h2>
+          {/* Tags */}
+          <div className={styles.tags}>
+            <span className={styles.categoryTag}>{model.Category}</span>
+            {model.InputModalities.map((m, idx) => (
+              <span key={`in-${idx}`} className={styles.inputTag}>{m}</span>
+            ))}
+            {model.OutputModalities.map((m, idx) => (
+              <span key={`out-${idx}`} className={styles.outputTag}>{m}</span>
+            ))}
+          </div>
+        </section>
 
-            {/* input controls depend on the category */}
-            {model.Category === 'embeddings' && (
-              <>
-                <textarea
-                  className={styles.textarea}
-                  placeholder="Enter one or more lines of text…"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                />
-                <p className={styles.small}>Tip: multiple lines → multiple embeddings.</p>
-              </>
+        {/* ───────────── CONTENT CARD WITH TABS ───────────── */}
+        <section className={styles.contentCard}>
+          {/* Tab Navigation */}
+          <div className={styles.tabBar}>
+            <div onClick={() => setActiveTab('docs')}>
+              <Button 
+                text="DOCUMENTATION" 
+                backgroundColor={activeTab === 'docs' ? cxmputeGreen : "var(--cxmpute-slate)"} 
+              />
+            </div>
+            <div onClick={() => setActiveTab('description')}>
+              <Button 
+                text="DESCRIPTION" 
+                backgroundColor={activeTab === 'description' ? cxmputeGreen :  "var(--cxmpute-slate)"}
+              />
+            </div>
+            <div onClick={() => setActiveTab('playground')}>
+              <Button 
+                text="TRY IT" 
+                backgroundColor={activeTab === 'playground' ? cxmputeGreen :  "var(--cxmpute-slate)"}
+              />
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className={styles.tabContent}>
+            {/* Documentation Tab */}
+            {activeTab === 'docs' && (
+              <div className={styles.markdown}>
+                <ReactMarkdown>{model.docs}</ReactMarkdown>
+              </div>
             )}
 
-            {['text', 'code', 'math', 'vision'].includes(model.Category) && (
-              <>
-                <textarea
-                  className={styles.textarea}
-                  placeholder="Ask something…"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                />
-                {model.Category === 'vision' && (
+            {/* Description Tab */}
+            {activeTab === 'description' && (
+              <div className={styles.markdown}>
+                <ReactMarkdown>{model.description}</ReactMarkdown>
+                
+                {model.blogUrl && (
+                  <a href={model.blogUrl} target="_blank" rel="noopener noreferrer" className={styles.blogLink}>
+                    Read the full blog&nbsp;post →
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Playground Tab */}
+            {activeTab === 'playground' && (
+              <div className={styles.playgroundContainer}>
+                {/* input controls depend on the category */}
+                {model.Category === 'embeddings' && (
+                  <>
+                    <textarea
+                      className={styles.textarea}
+                      placeholder="Enter one or more lines of text…"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                    />
+                    <p className={styles.small}>Tip: multiple lines → multiple embeddings.</p>
+                  </>
+                )}
+
+                {['text', 'code', 'math', 'vision'].includes(model.Category) && (
+                  <>
+                    <textarea
+                      className={styles.textarea}
+                      placeholder="Ask something…"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                    />
+                    {model.Category === 'vision' && (
+                      <input
+                        className={styles.input}
+                        type="text"
+                        placeholder="Optional image URL"
+                        value={imageUrl}
+                        onChange={(e) => setImage(e.target.value)}
+                      />
+                    )}
+                  </>
+                )}
+
+                {model.Category === 'image' && (
                   <input
                     className={styles.input}
                     type="text"
-                    placeholder="Optional image URL"
-                    value={imageUrl}
-                    onChange={(e) => setImage(e.target.value)}
+                    placeholder="Enter prompt…"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
                   />
                 )}
-              </>
-            )}
 
-            {model.Category === 'image' && (
-              <input
-                className={styles.input}
-                type="text"
-                placeholder="Enter prompt…"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-            )}
-
-            {model.Category === 'video' && (
-              <>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder="Enter prompt…"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                />
-                {/* <input
-                  className={styles.input}
-                  type="text"
-                  placeholder='Size e.g. "832*480"'
-                  value={size}
-                  onChange={(e) => setSize(e.target.value)}
-                /> */}
-              </>
-            )}
-
-            {model.Category === 'audio' && (
-              <>
-              <input
-                className={styles.input}
-                type="text"
-                placeholder="Enter text to speak…"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-              />
-
-              {/* voice selector */}
-              <select
-                className={styles.select}
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-              >
-                {voiceOptions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-                ))}
-              </select>
-              </>
-            )}
-
-            <Button
-              text={loading ? 'Running…' : 'Run'}
-              backgroundColor={cxmputeGreen}
-              disabled={loading || !input.trim()}
-              onClick={handleRun}
-            />
-
-            {/* ── RESULT ── */}
-            {blobUrl !== null && (
-              <>
-                {['image', 'video'].includes(model.Category) && <h3>Generated Media</h3>}
-                {model.Category === 'audio' && <h3>Generated Audio</h3>}
-                {['image', 'video'].includes(model.Category) && (
-                  <video
-                    src={blobUrl}
-                    controls
-                    width={512}
-                    className={styles.video}
-                    onLoadedMetadata={() => {
-                      const video = document.querySelector('video');
-                      if (video) {
-                        video.currentTime = 0;
-                        video.play();
-                      }
-                    }}
+                {model.Category === 'video' && (
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder="Enter prompt…"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
                   />
                 )}
-              </>
-            )}
 
-            {blobUrl && model.Category === 'audio' && (
-              <audio src={blobUrl} controls />
-            )}
+                {model.Category === 'audio' && (
+                  <>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="Enter text to speak…"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                    />
 
-            {response && (
-              <pre className={styles.pre}>{JSON.stringify(response, null, 2)}</pre>
+                    {/* voice selector */}
+                    <select
+                      className={styles.select}
+                      value={voice}
+                      onChange={(e) => setVoice(e.target.value)}
+                    >
+                      {voiceOptions.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                <div className={styles.runButtonContainer}>
+                  <Button
+                    text={loading ? 'Running…' : 'Run'}
+                    backgroundColor={cxmputeGreen}
+                    disabled={loading || !input.trim()}
+                    onClick={handleRun}
+                  />
+                </div>
+
+                {/* Results Section */}
+                {(blobUrl !== null || response) && (
+                  <div className={styles.resultsSection}>
+                    {blobUrl !== null && (
+                      <>
+                        {['image', 'video'].includes(model.Category) && <h3>Generated Media</h3>}
+                        {model.Category === 'audio' && <h3>Generated Audio</h3>}
+                        {['image', 'video'].includes(model.Category) && (
+                          <video
+                            src={blobUrl}
+                            controls
+                            width={512}
+                            className={styles.video}
+                            onLoadedMetadata={() => {
+                              const video = document.querySelector('video');
+                              if (video) {
+                                video.currentTime = 0;
+                                video.play();
+                              }
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+
+                    {blobUrl && model.Category === 'audio' && (
+                      <audio src={blobUrl} controls className={styles.audio} />
+                    )}
+
+                    {response && (
+                      <pre className={styles.pre}>{JSON.stringify(response, null, 2)}</pre>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </div>
   );

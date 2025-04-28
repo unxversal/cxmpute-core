@@ -48,7 +48,7 @@
 }
 
 .leftButtons button{
-    background-color: var(--cxmpute-purple);
+    background-color: var(--cxmpute-green);
     border: none;
     outline: none;
     /* color: #ffffff; */
@@ -74,5 +74,5 @@
 }
 
 .toggleButton{
-    background-color: var(--cxmpute-slate) !important;
+    background-color: var(--cxmpute-purple) !important;
 }
