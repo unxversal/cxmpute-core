@@ -31,6 +31,8 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.backgroundPattern}></div>
+
       <header className={styles.header}>
         <div className={styles.logo}>
           <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70}/>

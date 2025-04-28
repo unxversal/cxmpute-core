@@ -134,6 +134,7 @@ export default function ModelDetailPage({
   return (
     <div className={styles.container}>
       {/* ───────────── HEADER ───────────── */}
+      <div className={styles.backgroundPattern}></div>
       <header className={styles.mainheader}>
         <div className={styles.logo} onClick={() => (window.location.href = '/')}>
           <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70} />

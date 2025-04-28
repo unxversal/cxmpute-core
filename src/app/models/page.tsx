@@ -37,6 +37,8 @@ export default function ModelsPage() {
 
   return (
     <div className={styles.container}>
+      <div className={styles.backgroundPattern}></div>
+
       {/* ─────────────────────────── NAV / HERO ─────────────────────────── */}
       <header className={styles.mainheader}>
         <div className={styles.logo} onClick={() => (window.location.href = '/')}>
