@@ -22,6 +22,7 @@ import {
 
 import { Resource } from "sst";
 import { subjects } from "./subjects";
+import { adminEmails } from "@/lib/privateutils";
 
 THEME_OPENAUTH.favicon = "https://i.postimg.cc/bNLm9f7T/3.png"
 THEME_OPENAUTH.logo = "https://i.postimg.cc/6qhxh1Kv/8.png"
@@ -30,11 +31,7 @@ THEME_OPENAUTH.title = "cxmpute.cloud - login"
 THEME_OPENAUTH.background = 'white'
 THEME_OPENAUTH.primary = 'black'
 
-const adminEmails =[
-  'josibobo2014@gmail.com',
-  'joshuaokolo@college.harvard.edu',
-  'joshua@cxmpute.cloud'
-]
+
 
 /* ——————————————————————————————————— */
 /* Dynamo helpers                                                           */
