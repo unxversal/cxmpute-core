@@ -23,11 +23,12 @@ import {
 import { Resource } from "sst";
 import { subjects } from "./subjects";
 
-THEME_OPENAUTH.favicon = "https://i.postimg.cc/vTSdGKYt/favicon.png"
-THEME_OPENAUTH.logo = "https://i.postimg.cc/W4hD6BK0/blacklxlogo.png"
-THEME_OPENAUTH.title = "Levlex - Log In"
-THEME_OPENAUTH.background = 'black'
-THEME_OPENAUTH.primary = 'white'
+THEME_OPENAUTH.favicon = "https://i.postimg.cc/bNLm9f7T/3.png"
+THEME_OPENAUTH.logo = "https://i.postimg.cc/6qhxh1Kv/8.png"
+// THEME_OPENAUTH.logo = "https://i.postimg.cc/yNdZ0wFw/6.png"
+THEME_OPENAUTH.title = "cxmpute.cloud - login"
+THEME_OPENAUTH.background = 'white'
+THEME_OPENAUTH.primary = 'black'
 
 const adminEmails =[
   'josibobo2014@gmail.com',
@@ -166,6 +167,7 @@ async function sendLoginCode(claims: Record<string, string>, code: string) {
 /* ——————————————————————————————————— */
 
 const app = issuer({
+  theme: THEME_OPENAUTH,
   subjects,
   storage: MemoryStorage(),
 
