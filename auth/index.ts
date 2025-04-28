@@ -142,7 +142,7 @@ async function sendLoginCode(claims: Record<string, string>, code: string) {
   const email = claims.email;
   await ses.send(
     new SendEmailCommand({
-      FromEmailAddress: Resource.AuthEmail.sender,
+      FromEmailAddress: `noreply@${Resource.AuthEmail.sender}`,
       Destination: { ToAddresses: [email] },
       Content: {
         Simple: {
