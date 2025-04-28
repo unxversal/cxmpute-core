@@ -9,6 +9,11 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "AuthEmail": {
+      "configSet": string
+      "sender": string
+      "type": "sst.aws.Email"
+    }
     "CxmputeAuth": {
       "type": "sst.aws.Auth"
       "url": string

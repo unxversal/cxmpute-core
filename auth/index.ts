@@ -1,38 +1,187 @@
-import { handle } from "hono/aws-lambda"
-import { issuer } from "@openauthjs/openauth"
-import { CodeUI } from "@openauthjs/openauth/ui/code"
-import { CodeProvider } from "@openauthjs/openauth/provider/code"
-import { MemoryStorage } from "@openauthjs/openauth/storage/memory"
-import { subjects } from "./subjects"
+import { handle } from "hono/aws-lambda";
+import { issuer } from "@openauthjs/openauth";
+import { CodeProvider } from "@openauthjs/openauth/provider/code";
+import { CodeUI } from "@openauthjs/openauth/ui/code";
+import { MemoryStorage } from "@openauthjs/openauth/storage/memory";
+import { v4 as uuidv4 } from "uuid";
 
-async function getUser(email: string) {
-  // Get user from database and return user ID
-  return "123"
+import {
+  DynamoDBDocumentClient,
+  QueryCommand,
+  PutCommand,
+  ScanCommand,
+} from "@aws-sdk/lib-dynamodb";
+
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+
+import {
+  SESv2Client,
+  SendEmailCommand,
+} from "@aws-sdk/client-sesv2";
+
+import { Resource } from "sst";
+import { subjects } from "./subjects";
+
+/* ——————————————————————————————————— */
+/* Dynamo helpers                                                           */
+/* ——————————————————————————————————— */
+
+const ddbDoc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+const PROVIDER_TABLE = Resource.ProviderTable.name;
+const USER_TABLE     = Resource.UserTable.name;
+
+/**
+ * Find (or create) Provider & User rows for the given e-mail.
+ * - Provider is looked-up via the GSI  “ByEmail”.
+ * - User is scanned by providerId (tiny data-set → acceptable; add GSI if it grows).
+ * Returns a complete subject for OpenAuth.
+ */
+async function ensureUser(email: string): Promise<{
+  userId: string;
+  providerId: string;
+  userAks: string[];
+  providerAk: string;
+  userAk: string;
+  }> {
+  /* ➜ 1. Provider */
+  const provRes = await ddbDoc.send(
+    new QueryCommand({
+      TableName: PROVIDER_TABLE,
+      IndexName: "ByEmail",
+      KeyConditionExpression: "providerEmail = :e",
+      ExpressionAttributeValues: { ":e": email },
+      Limit: 1,
+    }),
+  );
+
+  let providerId: string;
+  let providerAk: string;
+
+  if (provRes.Items?.length) {
+    providerId = provRes.Items[0].providerId as string;
+    providerAk = provRes.Items[0].apiKey     as string;
+  } else {
+    providerId = uuidv4().replace(/-/g, "");
+    providerAk = uuidv4().replace(/-/g, "");
+
+    await ddbDoc.send(
+      new PutCommand({
+        TableName: PROVIDER_TABLE,
+        Item: {
+          providerId,
+          providerEmail: email,
+          apiKey: providerAk,
+        },
+      }),
+    );
+  }
+
+  /* ➜ 2. User */
+  const userScan = await ddbDoc.send(
+    new ScanCommand({
+      TableName: USER_TABLE,
+      FilterExpression: "providerId = :pid",
+      ExpressionAttributeValues: { ":pid": providerId },
+      Limit: 1,
+    }),
+  );
+
+  let userId: string;
+  let userAks: string[];
+  let userAk: string;
+
+  if (userScan.Items?.length) {
+    const u = userScan.Items[0];
+    userId  = u.userId  as string;
+    userAks = (u.userAks as string[]) ?? [];
+    userAk = u.userAk as string;
+  } else {
+    userId  = uuidv4().replace(/-/g, "");
+    userAks = [];
+    userAk  = uuidv4().replace(/-/g, "");
+
+    await ddbDoc.send(
+      new PutCommand({
+        TableName: USER_TABLE,
+        Item: {
+          userId,
+          providerId,
+          userAks,
+          providerAk,
+          userAk,
+        },
+      }),
+    );
+  }
+
+  return { userId, providerId, userAks, providerAk, userAk };
 }
+
+/* ——————————————————————————————————— */
+/* Mailer – uses the linked SES identity                                    */
+/* ——————————————————————————————————— */
+
+const ses = new SESv2Client();
+
+async function sendLoginCode(claims: Record<string, string>, code: string) {
+  console.log("Sending login code to", claims.email);
+  console.log("Code:", code);
+  console.log("Claims:", claims);
+  const email = claims.email;
+  await ses.send(
+    new SendEmailCommand({
+      FromEmailAddress: Resource.AuthEmail.sender,
+      Destination: { ToAddresses: [email] },
+      Content: {
+        Simple: {
+          Subject: { Data: "Your Cxmpute login code" },
+          Body: {
+            Text: {
+              Data: `Here is your one-time code: ${code}\n\n` +
+                    `If you did not request this, simply ignore the email.`,
+            },
+          },
+        },
+      },
+    }),
+  );
+}
+
+/* ——————————————————————————————————— */
+/* OpenAuth issuer                                                          */
+/* ——————————————————————————————————— */
 
 const app = issuer({
   subjects,
   storage: MemoryStorage(),
-  // Remove after setting custom domain
+
+  // dev-only; lock this down in prod
   allow: async () => true,
+
   providers: {
     code: CodeProvider(
       CodeUI({
-        sendCode: async (email, code) => {
-          console.log(email, code)
-        },
+        sendCode: sendLoginCode,
       }),
     ),
   },
+
   success: async (ctx, value) => {
-    if (value.provider === "code") {
-      return ctx.subject("user", {
-        id: await getUser(value.claims.email)
-      })
-    }
-    throw new Error("Invalid provider")
+    if (value.provider !== "code") throw new Error("Invalid provider");
+
+    const { userId, providerId, userAks, providerAk, userAk } =
+      await ensureUser(value.claims.email);
+
+    return ctx.subject("user", {
+      id:          userId,
+      providerId,
+      userAks,
+      providerAk,
+      userAk,
+    });
   },
-})
+});
 
-
-export const handler = handle(app)
+/* Lambda entry-point for SST */
+export const handler = handle(app);

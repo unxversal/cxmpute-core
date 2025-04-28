@@ -160,6 +160,7 @@ export interface RewardEntry {
    */
   export interface UserRecord {
     userId: string;
+    userAk: string;
     userWalletAddress?: string;
     // If you store multiple API keys in an array:
     apiKeys?: ApiKeyInfo[];

@@ -46,6 +46,10 @@ export default $config({
       }
     });
 
+    const authEmail = new sst.aws.Email("AuthEmail", {
+      sender: "cxmpute.cloud",
+    });
+
     // LLM Provision Pool Table
     const llmProvisionPoolTable = new sst.aws.Dynamo("LLMProvisionPoolTable", {
       fields: {
@@ -156,7 +160,7 @@ export default $config({
     const userTable = new sst.aws.Dynamo("UserTable", {
       fields: {
         userId: "string",
-        userWalletAddress: "string",
+        userAk: "string",
         // api key: {key: string, creditLimit: number, creditsLeft: number}[]
         // credits: number
         // rewards: { day: string, amount: number }[]
@@ -164,7 +168,7 @@ export default $config({
       },
       primaryIndex: { hashKey: "userId" },
       globalIndexes: {
-        ByWalletAddress: { hashKey: "userWalletAddress" },
+        ByWalletAddress: { hashKey: "userAk" },
       }
     });
 
@@ -232,8 +236,16 @@ export default $config({
     const graphs = new sst.aws.Bucket("GraphsBucket");
 
     const auth = new sst.aws.Auth("CxmputeAuth", {
-      issuer: "auth/index.handler",
+      issuer: {
+        handler: "auth/index.handler",
+        link: [
+          providerTable,
+          userTable,
+          authEmail,        // <-- makes Resource.AuthEmail.* available
+        ],
+      },
     });
+
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
@@ -257,6 +269,7 @@ export default $config({
         advertisementTable,
         auth,
         graphs,
+        authEmail,
       ]
     });
   },
