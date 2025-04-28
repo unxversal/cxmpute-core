@@ -1,0 +1,90 @@
+/* ─── layout ─── */
+.dashContainer {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* ≤2 cols */
+    gap: 24px;
+  }
+  
+  @media (min-width: 900px) {
+    .grid {
+      grid-template-columns: repeat(2, 1fr); /* never more than 2 */
+    }
+  }
+  
+  .contentCard {
+    padding: 20px;
+    border: 2px solid black;
+    border-radius: 7px;
+    box-shadow: 5px 5px 0 black;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  /* ─── switch buttons ─── */
+  .switchButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  
+  .switchBtn {
+    border: 1px solid black;
+    border-radius: 6px;
+    padding: 4px 10px;
+    background: var(--cxmpute-purple);
+    color: #fff;
+    cursor: pointer;
+  }
+  
+  /* ─── API-key block ─── */
+  .keysBlock h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .keyRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  
+  .keyRow button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  
+  /* create + delete buttons */
+  .addKeyBtn,
+  .trashBtn {
+    border: 1px solid black;
+    border-radius: 6px;
+    padding: 4px 10px;
+    background: var(--cxmpute-green);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  /* provisions list */
+  .provisionRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+  }
+    

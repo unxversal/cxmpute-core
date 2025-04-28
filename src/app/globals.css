@@ -8,6 +8,8 @@
   --cxmpute-slate: #d4d4cb;
   --cxmpute-lightgreen: #97e1bd;
   --cxmpute-lightyellow: #f7e48c;
+  --cxmpute-orange: #f76707;
+  --cxmpute-red: #d64989;
 }
 
 @media (prefers-color-scheme: dark) {
