@@ -1,4 +1,4 @@
-import { object, string, array } from "valibot";
+import { object, string, array, boolean } from "valibot";
 import { createSubjects } from "@openauthjs/openauth/subject";
 
 /** OpenAuth subject schema.  Everything returned in `ctx.subject()` MUST
@@ -10,5 +10,6 @@ export const subjects = createSubjects({
     providerAk:  string(),        // Same AK we stored on the provider
     userAks:     array(string()), // Future per-app AKs (can be empty)
     userAk:  string(),        // User's API key (for this app)
+    admin: boolean(),        // Is this user an admin?
   }),
 });

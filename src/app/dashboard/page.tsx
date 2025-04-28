@@ -1,24 +1,35 @@
-import Button from "@/components/button/button";
-import styles from "./page.module.css";
-import Link from "next/link";
+// app/dashboard/page.tsx
+import { auth, login, logout } from "../actions"; // adjust path if needed
 
-export default function Dashboard() {
+export default async function DashboardPage() {
+  // runs on the server — checks the cookies and (maybe) refreshes tokens
+  const user = await auth();
+
   return (
-    <main className={styles.main}>
-      <div className={styles.docWrapper}>
-        <h1>Cxmpute Dashboard</h1>
-        <p>
-          Hey there! Our dashboard is on its way—designed to give you an intuitive, powerful interface for managing your compute resources and tracking your rewards. While we’re putting the final touches on it, sign up to be the first to know when it goes live and to receive all the latest updates.
-        </p>
-        <p>
-          <a href="https://tally.so/r/w86DQY" target="_blank" rel="noopener noreferrer">
-            <Button text="Notify Me!" backgroundColor="#f8cb46" />
-          </a>
-        </p>
-        <Link href="/">
-          <Button text="Back to Home" backgroundColor="#f8cb46" />
-        </Link>
-      </div>
+    <main className="min-h-screen flex flex-col items-center justify-center gap-6">
+      {/* ────────────────────────────────────────────────── */}
+      {/*  NOT LOGGED-IN  →  show Login button              */}
+      {/*  LOGGED-IN     →  show Logout button             */}
+      {/* ────────────────────────────────────────────────── */}
+      {user ? (
+        <form action={logout}>
+          <button
+            type="submit"
+            className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Log out
+          </button>
+        </form>
+      ) : (
+        <form action={login}>
+          <button
+            type="submit"
+            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+          >
+            Log in
+          </button>
+        </form>
+      )}
     </main>
   );
 }

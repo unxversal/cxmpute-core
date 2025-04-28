@@ -4,6 +4,7 @@ import { CodeProvider } from "@openauthjs/openauth/provider/code";
 import { CodeUI } from "@openauthjs/openauth/ui/code";
 import { MemoryStorage } from "@openauthjs/openauth/storage/memory";
 import { v4 as uuidv4 } from "uuid";
+import { THEME_OPENAUTH } from "@openauthjs/openauth/ui/theme"
 
 import {
   DynamoDBDocumentClient,
@@ -21,6 +22,18 @@ import {
 
 import { Resource } from "sst";
 import { subjects } from "./subjects";
+
+THEME_OPENAUTH.favicon = "https://i.postimg.cc/vTSdGKYt/favicon.png"
+THEME_OPENAUTH.logo = "https://i.postimg.cc/W4hD6BK0/blacklxlogo.png"
+THEME_OPENAUTH.title = "Levlex - Log In"
+THEME_OPENAUTH.background = 'black'
+THEME_OPENAUTH.primary = 'white'
+
+const adminEmails =[
+  'josibobo2014@gmail.com',
+  'joshuaokolo@college.harvard.edu',
+  'joshua@cxmpute.cloud'
+]
 
 /* ——————————————————————————————————— */
 /* Dynamo helpers                                                           */
@@ -179,6 +192,7 @@ const app = issuer({
       userAks,
       providerAk,
       userAk,
+      admin: adminEmails.includes(value.claims.email),
     });
   },
 });

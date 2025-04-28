@@ -148,17 +148,17 @@ export default function ModelDetailPage({
               </Link>
             </li>
             <li>
-              <a href="/docs" target="_blank">
+              <a href="/docs">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
               </a>
             </li>
             <li>
-              <a href="/dashboard" target="_blank">
+              <a href="/dashboard">
                 <Button text="DASHBOARD" backgroundColor= "var(--cxmpute-slate)" />
               </a>
             </li>
             <li>
-              <a href="/download" target="_blank">
+              <a href="/download">
                 <Button text="BECOME A PROVIDER" backgroundColor= "var(--cxmpute-yellow)" />
               </a>
             </li>

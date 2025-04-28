@@ -48,17 +48,17 @@ export default function ModelsPage() {
           <ul>
             
             <li>
-              <a href="/docs" target="_blank">
+              <a href="/docs">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
               </a>
             </li>
             <li>
-              <a href="/dashboard" target="_blank">
+              <a href="/dashboard">
                 <Button text=" DASHBOARD" backgroundColor={cxmputeGreen} />
               </a>
             </li>
             <li>
-              <a href="/download" target="_blank">
+              <a href="/download">
                 <Button text="BECOME A PROVIDER" backgroundColor={cxmputeYellow} />
               </a>
             </li>

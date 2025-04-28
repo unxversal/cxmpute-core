@@ -6,7 +6,7 @@
 .container {
   padding: 2rem;
   min-height: 100vh;
-  background: var(--cxmpute-green, transparent);
+  /* background: var(--cxmpute-green, transparent); */
   box-sizing: border-box;
   max-width: 100%;
   display: flex;
