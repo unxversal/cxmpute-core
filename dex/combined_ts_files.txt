@@ -24,6 +24,12 @@ import { pkMarket, skOrder, skTrade } from "./utils/keys";
 const ddb = new DynamoDBClient({});
 const sqs = new SQSClient({});
 
+// dex/match.ts - Add this to the existing file at the top of your processOrder function
+
+// Fee collection settings
+const PLATFORM_FEE_BPS = parseInt(process.env.PLATFORM_FEE_BPS || "10", 10); // Default 0.1%
+const FEE_RECIPIENT = process.env.FEE_RECIPIENT || "PLATFORM"; // Address to receive fees
+
 /** ── cast Resource to any so TS stops complaining about generated props ── */
 const ORDERS  : string = Resource.OrdersTable.name;
 const TRADES  : string = Resource.TradesTable.name;
@@ -52,6 +58,11 @@ async function processOrder(ord: IncomingOrder) {
   let remaining = taker.qty;
 
   while (remaining > 0) {
+
+    // Inside your match.ts processOrder function, after calculating execQty:
+
+    
+
     /* 1️⃣ fetch best price on opposite side */
     const best = await ddb.send(
       new QueryCommand({
@@ -83,6 +94,25 @@ async function processOrder(ord: IncomingOrder) {
     const execQty = Math.min(remaining, maker.qty - maker.filled);
     remaining -= execQty;
     taker.filled += execQty;
+
+    // Calculate fees
+    const feeRate = PLATFORM_FEE_BPS
+    const feeAmount = execQty * maker.price * (feeRate / 10000); // BPS is 1/100 of 1%
+
+    // Add fee to settlement fills if non-zero
+    if (feeAmount > 0) {
+      fills.push({
+        market: taker.market,
+        price: maker.price,
+        qty: feeAmount,
+        buyer: FEE_RECIPIENT,
+        seller: taker.userId, // Taker pays fee
+        product: taker.product,
+        ts: Date.now(),
+        tradeId: randomUUID() + "-fee",
+        isFee: true, // Mark as fee for settlement logic
+      });
+    }
 
     const tradeId = randomUUID();
     fills.push({
@@ -308,6 +338,9 @@ export interface IncomingOrder {
   product:       Product;
   ts:            number;         // ms epoch
   sig:           string;         // EIP-712 signature
+  expiry:        number;
+  salt:          number;
+  feeRate:       number;
 }
 
 /** Row stored in OrdersTable */
@@ -338,6 +371,7 @@ export interface SettlementFill {
   product:Product;
   ts:     number;
   tradeId:string;
+  isFee?: boolean;
 }
 
 export type TakerState = IncomingOrder & {
@@ -465,10 +499,207 @@ async function broadcastDepth(
   );
 }
 
+=== ./admin/handler.ts ===
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// dex/admin/handler.ts
+import { EventBridgeHandler } from "aws-lambda";
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { SSMClient, PutParameterCommand, GetParameterCommand } from "@aws-sdk/client-ssm";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { Resource } from "sst";
+
+const ddb = new DynamoDBClient({});
+const ssm = new SSMClient({});
+const sqs = new SQSClient({});
+
+// Table names
+const MARKETS = Resource.MarketsTable.name;
+const SETTLEMENT_QUEUE = Resource.SettlementQueue.url;
+
+// SSM parameter paths
+const FEE_PARAM_PATH = "/dex/config/platform-fee-bps";
+const PAUSED_MARKETS_PATH = "/dex/config/paused-markets";
+
+interface AdminEvent {
+  action: "PAUSE_MARKET" | "RESUME_MARKET" | "UPDATE_FEE" | "FORCE_SETTLEMENT";
+  market?: string; // For market-specific actions
+  feeRateBps?: number; // For fee updates
+  data?: Record<string, any>; // For other action-specific data
+  initiator?: string; // Who triggered this
+  timestamp?: string; // When it was triggered
+}
+
+const handler: EventBridgeHandler<string, AdminEvent, void> = async (event) => {
+  const adminEvent = event.detail;
+  console.log("Processing admin event:", adminEvent);
+
+  switch (adminEvent.action) {
+    case "PAUSE_MARKET":
+      await pauseMarket(adminEvent.market!);
+      break;
+    case "RESUME_MARKET":
+      await resumeMarket(adminEvent.market!);
+      break;
+    case "UPDATE_FEE":
+      await updatePlatformFee(adminEvent.feeRateBps!);
+      break;
+    case "FORCE_SETTLEMENT":
+      await forceSettlement(adminEvent.market);
+      break;
+    default:
+      console.error("Unknown admin action:", adminEvent.action);
+  }
+};
+
+export default handler;
+
+/**
+ * Pause trading for a market by adding it to paused-markets SSM parameter
+ */
+async function pauseMarket(market: string) {
+  // Get current paused markets
+  const pausedMarkets = await getPausedMarkets();
+  
+  // Add the market if not already paused
+  if (!pausedMarkets.includes(market)) {
+    pausedMarkets.push(market);
+    
+    // Update the parameter
+    await ssm.send(
+      new PutParameterCommand({
+        Name: PAUSED_MARKETS_PATH,
+        Value: JSON.stringify(pausedMarkets),
+        Type: "String",
+        Overwrite: true,
+      })
+    );
+    
+    console.log(`Market ${market} paused successfully`);
+  }
+  
+  // Update market status in database
+  await ddb.send(
+    new UpdateItemCommand({
+      TableName: MARKETS,
+      Key: marshall({ pk: `MARKET#${market}`, sk: "INFO" }),
+      UpdateExpression: "SET marketStatus = :paused",
+      ExpressionAttributeValues: marshall({ ":paused": "PAUSED" }),
+    })
+  );
+}
+
+/**
+ * Resume trading for a market by removing it from paused-markets SSM parameter
+ */
+async function resumeMarket(market: string) {
+  // Get current paused markets
+  const pausedMarkets = await getPausedMarkets();
+  
+  // Remove the market if it's paused
+  const newPausedMarkets = pausedMarkets.filter(m => m !== market);
+  
+  if (newPausedMarkets.length !== pausedMarkets.length) {
+    // Update the parameter
+    await ssm.send(
+      new PutParameterCommand({
+        Name: PAUSED_MARKETS_PATH,
+        Value: JSON.stringify(newPausedMarkets),
+        Type: "String",
+        Overwrite: true,
+      })
+    );
+    
+    console.log(`Market ${market} resumed successfully`);
+  }
+  
+  // Update market status in database
+  await ddb.send(
+    new UpdateItemCommand({
+      TableName: MARKETS,
+      Key: marshall({ pk: `MARKET#${market}`, sk: "INFO" }),
+      UpdateExpression: "SET marketStatus = :active",
+      ExpressionAttributeValues: marshall({ ":active": "ACTIVE" }),
+    })
+  );
+}
+
+/**
+ * Update the platform fee rate (in basis points)
+ */
+async function updatePlatformFee(feeRateBps: number) {
+  if (feeRateBps < 0 || feeRateBps > 100) {
+    throw new Error("Fee rate must be between 0 and 100 bps");
+  }
+  
+  await ssm.send(
+    new PutParameterCommand({
+      Name: FEE_PARAM_PATH,
+      Value: feeRateBps.toString(),
+      Type: "String",
+      Overwrite: true,
+    })
+  );
+  
+  console.log(`Platform fee updated to ${feeRateBps} bps`);
+}
+
+/**
+ * Force settlement for a specific market or all markets
+ */
+async function forceSettlement(market?: string) {
+  // This is a simple implementation - in production you'd want more safeguards
+  // and possibly get unsettled trades from the database
+  
+  // For demonstration, we'll create a synthetic settlement message
+  await sqs.send(
+    new SendMessageCommand({
+      QueueUrl: SETTLEMENT_QUEUE,
+      MessageBody: JSON.stringify([
+        {
+          market: market || "SYSTEM",
+          type: "FORCE_SETTLE",
+          ts: Date.now(),
+        },
+      ]),
+    })
+  );
+  
+  console.log(`Force settlement initiated for ${market || "all markets"}`);
+}
+
+/**
+ * Helper to get the current list of paused markets
+ */
+async function getPausedMarkets(): Promise<string[]> {
+  try {
+    const paramResult = await ssm.send(
+      new GetParameterCommand({
+        Name: PAUSED_MARKETS_PATH,
+      })
+    );
+    
+    return JSON.parse(paramResult.Parameter?.Value || "[]");
+  } catch (error: any) {
+    if (error.name === "ParameterNotFound") {
+      // Initialize the parameter if it doesn't exist
+      await ssm.send(
+        new PutParameterCommand({
+          Name: PAUSED_MARKETS_PATH,
+          Value: "[]",
+          Type: "String",
+        })
+      );
+      return [];
+    }
+    throw error;
+  }
+}
+
 === ./utils/signature.ts ===
 // dex/utils/signature.ts
 import { TypedDataDomain, TypedDataField, verifyTypedData } from "ethers";
-import { IncomingOrder } from "../types";
+import { IncomingOrder, OrderSide, Product } from "../types";
 
 const DOMAIN: TypedDataDomain = {
   name: "OrderBookDEX",
@@ -488,30 +719,82 @@ const TYPES: Record<string, TypedDataField[]> = {
     { name: "qty",           type: "uint256" },
     { name: "product",       type: "string" },
     { name: "ts",            type: "uint256" },
+    { name: "expiry",        type: "uint256" }, // Optional expiration timestamp
+    { name: "salt",          type: "uint256" }, // Random salt for uniqueness
+    { name: "feeRate",       type: "uint256" }, // User accepted fee rate in bps
   ],
 };
 
 /**
- * Verify EIP-712 signature on an incoming order.
- * Returns recovered address if OK, or throws.
+ * Validate that the order structure is consistent
  */
-export function verifyOrderSignature(
-  order: IncomingOrder
-): string {
+export function validateOrderStructure(order: IncomingOrder): boolean {
+  // Check required fields
+  if (!order.clientOrderId || !order.userId || !order.market || 
+      !order.side || !order.type || order.qty <= 0 || 
+      !order.product || !order.ts || !order.sig) {
+    return false;
+  }
+
+  // Check string enum fields
+  if (!Object.values(OrderSide).includes(order.side as OrderSide)) {
+    return false;
+  }
+  
+  if (!Object.values(Product).includes(order.product as Product)) {
+    return false;
+  }
+
+  // Check order type
+  if (order.type !== "LIMIT" && order.type !== "MARKET") {
+    return false;
+  }
+  
+  // For LIMIT orders, price must be > 0
+  if (order.type === "LIMIT" && (!order.price || order.price <= 0)) {
+    return false;
+  }
+
+  // Market name format
+  if (!/^[A-Z0-9]+-[A-Z0-9]+$/.test(order.market)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Verify EIP-712 signature on an incoming order.
+ * Returns recovered address if OK, or throws with descriptive error.
+ */
+export function verifyOrderSignature(order: IncomingOrder): string {
+  // Validate basic structure first
+  if (!validateOrderStructure(order)) {
+    throw new Error("Invalid order structure");
+  }
+
   const value = {
     clientOrderId: order.clientOrderId,
     userId:        order.userId,
     market:        order.market,
     side:          order.side,
     type:          order.type,
-    price:         BigInt(order.price),
-    qty:           BigInt(order.qty),
+    price:         BigInt(Math.round(order.price * 10**8)),  // Convert to fixed-point
+    qty:           BigInt(Math.round(order.qty * 10**8)),    // Convert to fixed-point
     product:       order.product,
     ts:            BigInt(order.ts),
+    expiry:        BigInt(order.expiry || 0),
+    salt:          BigInt(order.salt || 0),
+    feeRate:       BigInt(order.feeRate || 0),
   };
 
-  const signer = verifyTypedData(DOMAIN, TYPES, value, order.sig);
-  return signer;
+  try {
+    const signer = verifyTypedData(DOMAIN, TYPES, value, order.sig);
+    return signer;
+  } catch (e) {
+    console.error("Signature verification error:", e);
+    throw new Error("Invalid signature");
+  }
 }
 
 === ./utils/keys.ts ===
@@ -526,9 +809,177 @@ export const skOrder = (side: OrderSide, price: number, ts: number, oid: string)
 export const skTrade = (ts: number, tid: string) => `TS#${ts}#${tid}`;
 
 === ./settle.ts ===
+// dex/settle.ts
+import { SQSHandler } from "aws-lambda";
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+import { createWalletClient, http, parseEther } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { SettlementFill } from "./types";
+import { polygonMumbai } from "viem/chains";
 
+// Configure client with your contract and chain
+const ENGINE_ADDRESS = process.env.ENGINE_CONTRACT_ADDRESS;
+const PRIVATE_KEY = process.env.SETTLEMENT_WALLET_KEY;
+
+const ddb = new DynamoDBClient({});
+const TRADES_TABLE = Resource.TradesTable.name;
+
+// Setup wallet from private key stored in environment
+// In production, use AWS Secrets Manager
+const account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
+const wallet = createWalletClient({
+  account,
+  chain: polygonMumbai,
+  transport: http()
+});
+
+export const handler: SQSHandler = async (event) => {
+  const allFills: SettlementFill[] = [];
+  
+  // Collect all fills from queue batch
+  for (const record of event.Records) {
+    const fills = JSON.parse(record.body) as SettlementFill[];
+    allFills.push(...fills);
+  }
+  
+  if (allFills.length === 0) return;
+  
+  try {
+    // Prepare the settlement data for the contract
+    const settlementBatch = allFills.map(fill => ({
+      market: fill.market,
+      price: parseEther(fill.price.toString()),
+      quantity: parseEther(fill.qty.toString()),
+      // check if byyer and seller start with 0x or not
+      // if not, add it
+      buyer: fill.buyer.startsWith("0x") ? fill.buyer : `0x${fill.buyer}`,
+      seller: fill.seller.startsWith("0x") ? fill.seller : `0x${fill.seller}`,
+      tradeId: fill.tradeId.startsWith("0x") ? fill.tradeId : `0x${fill.tradeId}`,
+      timestamp: BigInt(fill.ts)
+    }));
+
+    // Call Engine.settleBatch() on chain
+    const tx = await wallet.writeContract({
+      address: ENGINE_ADDRESS as `0x${string}`,
+      abi: [{
+        name: "settleBatch",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [{
+          name: "fills",
+          type: "tuple[]",
+          components: [
+            { name: "market", type: "string" },
+            { name: "price", type: "uint256" },
+            { name: "quantity", type: "uint256" },
+            { name: "buyer", type: "address" },
+            { name: "seller", type: "address" },
+            { name: "tradeId", type: "bytes32" },
+            { name: "timestamp", type: "uint256" }
+          ]
+        }],
+        outputs: []
+      }],
+      functionName: "settleBatch",
+      args: [settlementBatch]
+    });
+    
+    console.log(`Settlement batch of ${allFills.length} fills sent with tx: ${tx}`);
+    
+    // Mark trades as settled in DB
+    await Promise.all(allFills.map(fill => 
+      ddb.send(new UpdateItemCommand({
+        TableName: TRADES_TABLE,
+        Key: marshall({ 
+          pk: `MARKET#${fill.market}`, 
+          sk: `TS#${fill.ts}#${fill.tradeId}` 
+        }),
+        UpdateExpression: "SET settled = :true, txHash = :tx",
+        ExpressionAttributeValues: marshall({
+          ":true": true,
+          ":tx": tx
+        })
+      }))
+    ));
+  } catch (error) {
+    console.error("Settlement error:", error);
+    // In production, add DLQ and retry logic
+    throw error;
+  }
+};
 
 === ./ws/pnl.ts ===
+// dex/ws/pnl.ts
+import {
+  APIGatewayProxyWebsocketHandlerV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+} from "@aws-sdk/client-apigatewaymanagementapi";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+
+const ddb = new DynamoDBClient({});
+const mgmt = new ApiGatewayManagementApiClient({
+  endpoint: Resource.DexWS.managementEndpoint,
+});
+
+const POSITIONS_TABLE = Resource.PositionsTable.name;
+
+export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  const connId = event.requestContext.connectionId;
+  
+  // Parse user ID from query params or message body
+  const userId = JSON.parse(event.body!)?.userId;
+  if (!userId) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Missing userId" }),
+    } as APIGatewayProxyResultV2;
+  }
+  
+  try {
+    // Query all positions for this user
+    const positions = await ddb.send(
+      new QueryCommand({
+        TableName: POSITIONS_TABLE,
+        KeyConditionExpression: "pk = :pk",
+        ExpressionAttributeValues: {
+          ":pk": { S: `USER#${userId}` },
+        },
+      })
+    );
+    
+    const positionsList = (positions.Items || []).map(item => unmarshall(item));
+    
+    // Send positions data over WebSocket
+    await mgmt.send(
+      new PostToConnectionCommand({
+        ConnectionId: connId,
+        Data: Buffer.from(JSON.stringify({
+          topic: `pnl:${userId}`,
+          data: positionsList,
+        })),
+      })
+    );
+    
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ success: true }),
+    } as APIGatewayProxyResultV2;
+  } catch (error) {
+    console.error("Error fetching PnL data:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Internal server error" }),
+    } as APIGatewayProxyResultV2;
+  }
+};
 
 
 === ./ws/depth.ts ===
@@ -567,7 +1018,119 @@ export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
 
 
 === ./ws/trade.ts ===
+// dex/ws/trade.ts
+import {
+  APIGatewayProxyWebsocketHandlerV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
+import { DynamoDBClient, QueryCommand } from "@aws-sdk/client-dynamodb";
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+} from "@aws-sdk/client-apigatewaymanagementapi";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
 
+const ddb = new DynamoDBClient({});
+const mgmt = new ApiGatewayManagementApiClient({
+  endpoint: Resource.DexWS.managementEndpoint,
+});
+
+const TRADES_TABLE = Resource.TradesTable.name;
+
+/**
+ * WebSocket handler for trade:<market> subscriptions.
+ * Sends recent trade history for the requested market.
+ */
+export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  const connId = event.requestContext.connectionId;
+
+  try {
+    // Parse the market from the message
+    const payload = JSON.parse(event.body || "{}");
+    const market = payload.market;
+    const limit = payload.limit || 50; // Default to last 50 trades
+
+    if (!market) {
+      await mgmt.send(
+        new PostToConnectionCommand({
+          ConnectionId: connId,
+          Data: Buffer.from(
+            JSON.stringify({ error: "Missing market parameter" })
+          ),
+        })
+      );
+      return { statusCode: 400, body: "Bad Request" } as APIGatewayProxyResultV2;
+    }
+
+    // Query recent trades
+    const tradeHistory = await getRecentTrades(market, limit);
+
+    // Send the trade history
+    await mgmt.send(
+      new PostToConnectionCommand({
+        ConnectionId: connId,
+        Data: Buffer.from(
+          JSON.stringify({
+            topic: `trade:${market}`,
+            data: tradeHistory,
+            type: "history",
+          })
+        ),
+      })
+    );
+
+    return { statusCode: 200, body: "Success" } as APIGatewayProxyResultV2;
+  } catch (error) {
+    console.error("Error in trade handler:", error);
+    return {
+      statusCode: 500,
+      body: "Internal Server Error",
+    } as APIGatewayProxyResultV2;
+  }
+};
+
+interface Trade {
+  price: number;
+  qty: number;
+  timestamp: number;
+  id: string;
+  side: "buy" | "sell"; // Trade direction from taker's perspective
+}
+
+/**
+ * Retrieves recent trades for a given market
+ */
+async function getRecentTrades(market: string, limit: number): Promise<Trade[]> {
+  const pk = `MARKET#${market}`;
+  const result = await ddb.send(
+    new QueryCommand({
+      TableName: TRADES_TABLE,
+      KeyConditionExpression: "pk = :pk",
+      ExpressionAttributeValues: {
+        ":pk": { S: pk },
+      },
+      ScanIndexForward: false, // Most recent first
+      Limit: limit,
+    })
+  );
+
+  return (result.Items || []).map((item) => {
+    const trade = unmarshall(item);
+    const tsParts = trade.sk.split("#");
+    const timestamp = parseInt(tsParts[1], 10);
+    const id = tsParts[2];
+
+    return {
+      price: trade.price,
+      qty: trade.qty,
+      timestamp,
+      id,
+      // You may need to determine the taker side from additional data
+      side: "buy", // Default, enhance with actual determination logic if available
+    };
+  });
+}
 
 === ./ws/connect.ts ===
 import {
