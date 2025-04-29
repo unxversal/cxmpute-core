@@ -339,6 +339,11 @@ export default $config({
     });
     tradesTable.subscribe("TradeBroadcast", "dex/tradeBroadcast.handler");
 
+    const connectionsTable = new sst.aws.Dynamo("ConnectionsTable", {
+      fields: { connectionId: "string" },
+      primaryIndex: { hashKey: "connectionId" },
+    });
+
     /* ─────────────────────────────
     *  3. WebSocket API (real-time push)
     * ────────────────────────────*/
@@ -347,7 +352,7 @@ export default $config({
         route: {
           handler: {
             runtime: "nodejs20.x",
-            link: [ordersTable, tradesTable, positionsTable]
+            link: [ordersTable, tradesTable, positionsTable, connectionsTable]
           }
         }
       }
@@ -371,6 +376,8 @@ export default $config({
       schedule: "cron(0 0 * * ? *)", // midnight UTC
       function: "dex/cron/expiry.handler",
     });
+
+    
 
 
     // Link tables to the NextJS app
@@ -402,7 +409,8 @@ export default $config({
         tradesTable, 
         positionsTable, 
         marketsTable,
-        wsApi
+        wsApi,
+        connectionsTable
 
       ]
     });
