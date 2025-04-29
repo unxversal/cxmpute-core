@@ -23,6 +23,12 @@ import { pkMarket, skOrder, skTrade } from "./utils/keys";
 const ddb = new DynamoDBClient({});
 const sqs = new SQSClient({});
 
+// dex/match.ts - Add this to the existing file at the top of your processOrder function
+
+// Fee collection settings
+const PLATFORM_FEE_BPS = parseInt(process.env.PLATFORM_FEE_BPS || "10", 10); // Default 0.1%
+const FEE_RECIPIENT = process.env.FEE_RECIPIENT || "PLATFORM"; // Address to receive fees
+
 /** ── cast Resource to any so TS stops complaining about generated props ── */
 const ORDERS  : string = Resource.OrdersTable.name;
 const TRADES  : string = Resource.TradesTable.name;
@@ -51,6 +57,11 @@ async function processOrder(ord: IncomingOrder) {
   let remaining = taker.qty;
 
   while (remaining > 0) {
+
+    // Inside your match.ts processOrder function, after calculating execQty:
+
+    
+
     /* 1️⃣ fetch best price on opposite side */
     const best = await ddb.send(
       new QueryCommand({
@@ -82,6 +93,25 @@ async function processOrder(ord: IncomingOrder) {
     const execQty = Math.min(remaining, maker.qty - maker.filled);
     remaining -= execQty;
     taker.filled += execQty;
+
+    // Calculate fees
+    const feeRate = PLATFORM_FEE_BPS
+    const feeAmount = execQty * maker.price * (feeRate / 10000); // BPS is 1/100 of 1%
+
+    // Add fee to settlement fills if non-zero
+    if (feeAmount > 0) {
+      fills.push({
+        market: taker.market,
+        price: maker.price,
+        qty: feeAmount,
+        buyer: FEE_RECIPIENT,
+        seller: taker.userId, // Taker pays fee
+        product: taker.product,
+        ts: Date.now(),
+        tradeId: randomUUID() + "-fee",
+        isFee: true, // Mark as fee for settlement logic
+      });
+    }
 
     const tradeId = randomUUID();
     fills.push({

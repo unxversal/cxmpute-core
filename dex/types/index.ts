@@ -64,6 +64,7 @@ export interface SettlementFill {
   product:Product;
   ts:     number;
   tradeId:string;
+  isFee?: boolean;
 }
 
 export type TakerState = IncomingOrder & {
