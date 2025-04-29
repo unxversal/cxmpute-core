@@ -377,8 +377,51 @@ export default $config({
       function: "dex/cron/expiry.handler",
     });
 
-    
+    new sst.aws.Cron("OracleCron", {
+      schedule: "rate(1 minute)",
+      function: "dex/cron/oracle.handler",
+    });    
 
+    
+    // Add this to your sst.config.ts run function
+    const adminBus = new sst.aws.Bus("AdminBus");
+
+    // Create an admin Lambda to process admin events
+    const adminHandler = new sst.aws.Function("AdminHandler", {
+      handler: "dex/admin/handler.default",
+      link: [ordersTable, tradesTable, positionsTable, marketsTable, adminBus],
+    });
+
+    // Subscribe the handler to the bus
+    adminBus.subscribe("AdminEvents", {
+      handler: adminHandler.arn,
+    }, {
+      pattern: {
+        source: ["admin.dex"],
+      }
+    });
+
+
+    // Add this to your sst.config.ts run function
+  const auditStream = new sst.aws.KinesisStream("AuditStream");
+
+  // Add a consumer to export data to S3 (parquet format as mentioned in architecture)
+  auditStream.subscribe("S3Exporter", {
+    handler: "dex/audit/s3Export.handler"
+  });
+
+  new sst.aws.Cron("AuditIndexer", {
+    function: "dex/audit/indexer.handler",
+    schedule: "rate(5 minutes)",
+  });
+  
+
+  // Don't forget to link the stream to the Next.js app and settlement Lambda
+  settlementQueue.subscribe({
+    handler: "dex/settle.handler",
+    link: [tradesTable, auditStream], // Add auditStream here
+    timeout: "60 seconds",
+  });
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
@@ -410,8 +453,8 @@ export default $config({
         positionsTable, 
         marketsTable,
         wsApi,
-        connectionsTable
-
+        connectionsTable,
+        adminBus
       ]
     });
   },
