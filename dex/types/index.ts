@@ -31,6 +31,9 @@ export interface IncomingOrder {
   product:       Product;
   ts:            number;         // ms epoch
   sig:           string;         // EIP-712 signature
+  expiry:        number;
+  salt:          number;
+  feeRate:       number;
 }
 
 /** Row stored in OrdersTable */
