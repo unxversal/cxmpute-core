@@ -1,0 +1,833 @@
+=== ./match.ts ===
+import { SQSHandler } from "aws-lambda";
+import {
+  DynamoDBClient,
+  QueryCommand,
+  TransactWriteItemsCommand,
+} from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { randomUUID } from "crypto";
+import { Resource } from "sst";
+import { verifyOrderSignature } from "./utils/signature";
+
+import {
+  IncomingOrder,
+  OrderRow,
+  OrderSide,
+  OrderStatus,
+  SettlementFill,
+  TakerState,
+} from "./types";
+import { pkMarket, skOrder, skTrade } from "./utils/keys";
+
+const ddb = new DynamoDBClient({});
+const sqs = new SQSClient({});
+
+/** ── cast Resource to any so TS stops complaining about generated props ── */
+const ORDERS  : string = Resource.OrdersTable.name;
+const TRADES  : string = Resource.TradesTable.name;
+const SETTLE_Q: string = Resource.SettlementQueue.url;
+
+export const handler: SQSHandler = async (event) => {
+  for (const rec of event.Records) {
+    const order = JSON.parse(rec.body) as IncomingOrder;
+    const signer = verifyOrderSignature(order);
+    if (signer !== order.userId) throw new Error("invalid signature");
+    await processOrder(order);
+  }
+};
+
+async function processOrder(ord: IncomingOrder) {
+  /** create a mutable copy we can enrich */
+  const taker: TakerState = {
+    ...ord,
+    pk: pkMarket(ord.market),
+    sk: skOrder(ord.side, ord.price, ord.ts, ord.clientOrderId),
+    status: OrderStatus.NEW,
+    filled: 0,
+  };
+
+  const fills: SettlementFill[] = [];
+  let remaining = taker.qty;
+
+  while (remaining > 0) {
+    /* 1️⃣ fetch best price on opposite side */
+    const best = await ddb.send(
+      new QueryCommand({
+        TableName: ORDERS,
+        KeyConditionExpression: "pk = :pk and begins_with(sk, :prefix)",
+        ExpressionAttributeValues: {
+          ":pk": { S: pkMarket(taker.market) },
+          ":prefix": {
+            S: taker.side === OrderSide.BUY ? "SIDE#SELL" : "SIDE#BUY",
+          },
+        },
+        Limit: 1,
+        ScanIndexForward: taker.side === OrderSide.BUY,
+      })
+    );
+    if (!best.Items?.length) break;
+
+    const maker = unmarshall(best.Items[0]) as OrderRow;
+
+    /* 2️⃣ crossing check */
+    const crossable =
+      taker.type === "MARKET" ||
+      (taker.side === OrderSide.BUY
+        ? taker.price >= maker.price
+        : taker.price <= maker.price);
+    if (!crossable) break;
+
+    /* 3️⃣ execute */
+    const execQty = Math.min(remaining, maker.qty - maker.filled);
+    remaining -= execQty;
+    taker.filled += execQty;
+
+    const tradeId = randomUUID();
+    fills.push({
+      market: taker.market,
+      price: maker.price,
+      qty: execQty,
+      buyer: taker.side === OrderSide.BUY ? taker.userId : maker.userId,
+      seller: taker.side === OrderSide.SELL ? taker.userId : maker.userId,
+      product: taker.product,
+      ts: Date.now(),
+      tradeId,
+    });
+
+    /* 4️⃣ Dynamodb transact */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tx: any[] = [];
+
+    // update maker
+    tx.push({
+      Update: {
+        TableName: ORDERS,
+        Key: marshall({ pk: maker.pk, sk: maker.sk }),
+        UpdateExpression:
+          "SET filled = filled + :q, #st = if_not_exists(#st, :d)",
+        ExpressionAttributeNames: { "#st": "status" },
+        ExpressionAttributeValues: marshall({
+          ":q": execQty,
+          ":d": OrderStatus.PARTIAL,
+        }),
+        ConditionExpression: "attribute_exists(pk)",
+      },
+    });
+
+    // put/update taker if still open
+    taker.status =
+      remaining === 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
+
+    if (taker.filled === execQty) {
+      // first loop → Put
+      tx.push({
+        Put: { TableName: ORDERS, Item: marshall(taker) },
+      });
+    } else {
+      // subsequent loops → Update
+      tx.push({
+        Update: {
+          TableName: ORDERS,
+          Key: marshall({ pk: taker.pk, sk: taker.sk }),
+          UpdateExpression: "SET filled = :f, #st = :s",
+          ExpressionAttributeNames: { "#st": "status" },
+          ExpressionAttributeValues: marshall({
+            ":f": taker.filled,
+            ":s": taker.status,
+          }),
+        },
+      });
+    }
+
+    // trade row
+    tx.push({
+      Put: {
+        TableName: TRADES,
+        Item: marshall({
+          pk: pkMarket(taker.market),
+          sk: skTrade(Date.now(), tradeId),
+          price: maker.price,
+          qty: execQty,
+          buyOid: taker.side === OrderSide.BUY ? taker.clientOrderId : maker.clientOrderId,
+          sellOid: taker.side === OrderSide.SELL ? taker.clientOrderId : maker.clientOrderId,
+        }),
+      },
+    });
+
+    await ddb.send(new TransactWriteItemsCommand({ TransactItems: tx }));
+  }
+
+  /* 5️⃣ push fills to SettlementQueue */
+  if (fills.length) {
+    await sqs.send(
+      new SendMessageCommand({
+        QueueUrl: SETTLE_Q,
+        MessageBody: JSON.stringify(fills),
+      })
+    );
+  }
+}
+
+=== ./tradeBroadcast.ts ===
+// dex/tradeBroadcast.ts
+import { DynamoDBStreamHandler } from "aws-lambda";
+import {
+  DynamoDBClient,
+  ScanCommand,
+  DeleteItemCommand,
+  AttributeValue,
+} from "@aws-sdk/client-dynamodb";
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+} from "@aws-sdk/client-apigatewaymanagementapi";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+import { TradeRow } from "./types";
+
+type TradeChange = {
+  market: string;
+  price: number;
+  qty: number;
+  buyOid: string;
+  sellOid: string;
+  ts: number;
+};
+
+const ddb = new DynamoDBClient({});
+const mgmt = new ApiGatewayManagementApiClient({
+  endpoint: Resource.DexWS.managementEndpoint,
+});
+const CONNECTIONS_TABLE = Resource.ConnectionsTable.name;
+
+/**
+ * Triggered by TradesTable DynamoDB Stream on every new trade.
+ */
+export const handler: DynamoDBStreamHandler = async (event) => {
+  const changes: TradeChange[] = [];
+
+  for (const record of event.Records) {
+    const img = record.dynamodb?.NewImage;
+    if (!img) continue;
+    const row = unmarshall(img as Record<string, AttributeValue>) as TradeRow;
+    // extract market from PK: "MARKET#BTC-USDC"
+    const market = row.pk.split("#")[1];
+    const tsPart = row.sk.split("#")[1];
+    changes.push({
+      market,
+      price: row.price,
+      qty: row.qty,
+      buyOid: row.buyOid,
+      sellOid: row.sellOid,
+      ts: parseInt(tsPart, 10),
+    });
+  }
+  if (changes.length === 0) return;
+
+  // broadcast each trade
+  await Promise.all(
+    changes.map((c) => broadcastTrade(c.market, c))
+  );
+};
+
+async function broadcastTrade(market: string, data: TradeChange) {
+  const topic = `trade:${market}`;
+  const payload = JSON.stringify({ topic, data });
+
+  // 1) scan all connections
+  const scanRes = await ddb.send(
+    new ScanCommand({
+      TableName: CONNECTIONS_TABLE,
+      ProjectionExpression: "connectionId",
+    })
+  );
+  const connectionIds =
+    scanRes.Items?.map((i) => unmarshall(i as Record<string, AttributeValue>).connectionId as string) ??
+    [];
+
+  // 2) post to each, cleaning up stale
+  await Promise.all(
+    connectionIds.map(async (connId) => {
+      try {
+        await mgmt.send(
+          new PostToConnectionCommand({
+            ConnectionId: connId,
+            Data: Buffer.from(payload),
+          })
+        );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        if (e.statusCode === 410 || e.code === "GoneException") {
+          await ddb.send(
+            new DeleteItemCommand({
+              TableName: CONNECTIONS_TABLE,
+              Key: { connectionId: { S: connId } },
+            })
+          );
+        } else {
+          console.error("Error broadcasting trade", connId, e);
+        }
+      }
+    })
+  );
+}
+
+=== ./types/index.ts ===
+/** Core enums shared across Lambdas */
+export enum Product {
+  SPOT   = "SPOT",
+  PERP   = "PERP",
+  FUTURE = "FUTURE",
+  OPTION = "OPTION",
+}
+
+export enum OrderSide {
+  BUY  = "BUY",
+  SELL = "SELL",
+}
+
+export enum OrderStatus {
+  NEW      = "NEW",
+  PARTIAL  = "PARTIAL",
+  FILLED   = "FILLED",
+  CXL      = "CXL",
+  EXP      = "EXP",
+}
+
+/** Shape received on /api/order and delivered via SQS */
+export interface IncomingOrder {
+  clientOrderId: string;         // UUID from FE
+  userId:        string;         // Cognito sub or wallet
+  market:        string;         // eg. BTC-USDC
+  side:          OrderSide;
+  type:          "LIMIT" | "MARKET";
+  price:         number;         // 0 for market
+  qty:           number;
+  product:       Product;
+  ts:            number;         // ms epoch
+  sig:           string;         // EIP-712 signature
+}
+
+/** Row stored in OrdersTable */
+export interface OrderRow extends IncomingOrder {
+  pk:     string;
+  sk:     string;
+  status: OrderStatus;
+  filled: number;                // executed qty
+}
+
+/** Row stored in TradesTable */
+export interface TradeRow {
+  pk:     string;   // MARKET#...
+  sk:     string;   // TS#...#TID
+  price:  number;
+  qty:    number;
+  buyOid: string;
+  sellOid:string;
+}
+
+/** Fill pushed to SettlementQueue */
+export interface SettlementFill {
+  market: string;
+  price:  number;
+  qty:    number;
+  buyer:  string;
+  seller: string;
+  product:Product;
+  ts:     number;
+  tradeId:string;
+}
+
+export type TakerState = IncomingOrder & {
+  pk:     string;
+  sk:     string;
+  status: OrderStatus;
+  filled: number;
+};
+
+=== ./depthBroadcast.ts ===
+// dex/depthBroadcast.ts
+import { DynamoDBStreamHandler } from "aws-lambda";
+import {
+  DynamoDBClient,
+  ScanCommand,
+  DeleteItemCommand,
+  AttributeValue,
+} from "@aws-sdk/client-dynamodb";
+import {
+  ApiGatewayManagementApiClient,
+  PostToConnectionCommand,
+} from "@aws-sdk/client-apigatewaymanagementapi";
+import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+import { OrderRow } from "./types";
+
+type DepthChange = { market: string; price: number; side: string; qty: number };
+
+const ddb = new DynamoDBClient({});
+const mgmt = new ApiGatewayManagementApiClient({
+  // cast Resource to any to access dynamic properties
+  endpoint: Resource.DexWS.managementEndpoint,
+});
+
+// Name of the Dynamo table that holds active WS connection IDs
+const CONNECTIONS_TABLE = Resource.ConnectionsTable.name;
+
+/**
+ * Triggered by the OrdersTable DynamoDB stream whenever an order is NEW/PARTIAL/FILLED.
+ * It unpacks the NewImage, groups by market, and pushes depth updates over WS.
+ */
+export const handler: DynamoDBStreamHandler = async (event) => {
+  // 1. Collect all depth changes
+  const changes: DepthChange[] = [];
+  for (const record of event.Records) {
+    const img = record.dynamodb?.NewImage;
+    if (!img) continue;
+    const row = unmarshall(img as Record<string, AttributeValue>) as OrderRow;
+    // include only NEW/PARTIAL/FILLED updates
+    if (
+      row.status === "NEW" ||
+      row.status === "PARTIAL" ||
+      row.status === "FILLED"
+    ) {
+      changes.push({
+        market: row.market,
+        price: row.price,
+        side: row.side,
+        qty: row.qty - (row.filled ?? 0),
+      });
+    }
+  }
+  if (changes.length === 0) return;
+
+  // 2. Group by market
+  const byMarket = changes.reduce<Record<string, DepthChange[]>>(
+    (acc, c) => {
+      (acc[c.market] ??= []).push(c);
+      return acc;
+    },
+    {}
+  );
+
+  // 3. Broadcast each group
+  await Promise.all(
+    Object.entries(byMarket).map(([market, payload]) =>
+      broadcastDepth(market, payload)
+    )
+  );
+};
+
+/** Broadcast a single market’s depth payload to all active connections */
+async function broadcastDepth(
+  market: string,
+  payload: DepthChange[]
+) {
+  const topic = `depth:${market}`;
+  const data = JSON.stringify({ topic, data: payload });
+
+  // 3.a Scan ConnectionsTable for all active connectionIds
+  const scanRes = await ddb.send(
+    new ScanCommand({
+      TableName: CONNECTIONS_TABLE,
+      ProjectionExpression: "connectionId",
+    })
+  );
+  const connectionIds =
+    scanRes.Items?.map((i) => unmarshall(i).connectionId as string) ?? [];
+
+  // 3.b Post to each connection; clean up stale ones
+  await Promise.all(
+    connectionIds.map(async (connId) => {
+      try {
+        await mgmt.send(
+          new PostToConnectionCommand({
+            ConnectionId: connId,
+            Data: Buffer.from(data),
+          })
+        );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        // remove stale connections (410 Gone)
+        if (e.statusCode === 410 || e.code === "GoneException") {
+          await ddb.send(
+            new DeleteItemCommand({
+              TableName: CONNECTIONS_TABLE,
+              Key: marshall({ connectionId: connId }),
+            })
+          );
+        } else {
+          console.error("Error posting to connection", connId, e);
+        }
+      }
+    })
+  );
+}
+
+=== ./utils/signature.ts ===
+// dex/utils/signature.ts
+import { TypedDataDomain, TypedDataField, verifyTypedData } from "ethers";
+import { IncomingOrder } from "../types";
+
+const DOMAIN: TypedDataDomain = {
+  name: "OrderBookDEX",
+  version: "1",
+  chainId: parseInt(process.env.CHAIN_ID ?? "1", 10),
+  verifyingContract: process.env.VERIFYING_CONTRACT!,
+};
+
+const TYPES: Record<string, TypedDataField[]> = {
+  Order: [
+    { name: "clientOrderId", type: "string" },
+    { name: "userId",        type: "string" },
+    { name: "market",        type: "string" },
+    { name: "side",          type: "string" },
+    { name: "type",          type: "string" },
+    { name: "price",         type: "uint256" },
+    { name: "qty",           type: "uint256" },
+    { name: "product",       type: "string" },
+    { name: "ts",            type: "uint256" },
+  ],
+};
+
+/**
+ * Verify EIP-712 signature on an incoming order.
+ * Returns recovered address if OK, or throws.
+ */
+export function verifyOrderSignature(
+  order: IncomingOrder
+): string {
+  const value = {
+    clientOrderId: order.clientOrderId,
+    userId:        order.userId,
+    market:        order.market,
+    side:          order.side,
+    type:          order.type,
+    price:         BigInt(order.price),
+    qty:           BigInt(order.qty),
+    product:       order.product,
+    ts:            BigInt(order.ts),
+  };
+
+  const signer = verifyTypedData(DOMAIN, TYPES, value, order.sig);
+  return signer;
+}
+
+=== ./utils/keys.ts ===
+/** Helper utilities to build Dynamo PK/SK pairs */
+import { OrderSide } from "../types";
+
+export const pkMarket = (market: string) => `MARKET#${market}`;
+
+export const skOrder = (side: OrderSide, price: number, ts: number, oid: string) =>
+  `SIDE#${side}#P=${price.toFixed(2)}#TS=${ts}#OID=${oid}`;
+
+export const skTrade = (ts: number, tid: string) => `TS#${ts}#${tid}`;
+
+=== ./settle.ts ===
+
+
+=== ./ws/pnl.ts ===
+
+
+=== ./ws/depth.ts ===
+
+
+=== ./ws/disconnect.ts ===
+import {
+  APIGatewayProxyWebsocketHandlerV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
+import { DynamoDBClient, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+
+const ddb = new DynamoDBClient({});
+const CONNECTIONS_TABLE = Resource.ConnectionsTable.name;
+
+/**
+ * $disconnect handler for WebSocket API
+ */
+export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  const connId = event.requestContext.connectionId;
+
+  await ddb.send(
+    new DeleteItemCommand({
+      TableName: CONNECTIONS_TABLE,
+      Key: marshall({ connectionId: connId }),
+    })
+  );
+
+  return {
+    statusCode: 200,
+    body: "disconnected",
+  } as APIGatewayProxyResultV2;
+};
+
+
+=== ./ws/trade.ts ===
+
+
+=== ./ws/connect.ts ===
+import {
+  APIGatewayProxyWebsocketHandlerV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import { Resource } from "sst";
+
+const ddb = new DynamoDBClient({});
+const CONNECTIONS_TABLE = Resource.ConnectionsTable.name;
+
+/**
+ * $connect handler for WebSocket API
+ */
+export const handler: APIGatewayProxyWebsocketHandlerV2 = async (event) => {
+  // Now TS knows `connectionId` exists here
+  const connId = event.requestContext.connectionId;
+
+  await ddb.send(
+    new PutItemCommand({
+      TableName: CONNECTIONS_TABLE,
+      Item: marshall({ connectionId: connId }),
+    })
+  );
+
+  return {
+    statusCode: 200,
+    body: "connected",
+  } as APIGatewayProxyResultV2;
+};
+
+
+=== ./cron/oracle.ts ===
+// dex/cron/oracle.ts
+import { Handler } from "aws-lambda";
+import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+import axios from "axios";
+import { Resource } from "sst";
+
+const ddb = new DynamoDBClient({});
+const MARKETS = Resource.MarketsTable.name;
+
+/**
+ * Fetch off-chain price feeds and update MarketsTable.INFO row.
+ */
+export const handler: Handler = async () => {
+  // Example: fetch BTC/USD perp using some API
+  const resp = await axios.get("https://api.example.com/perp-markets");
+  for (const m of resp.data.markets) {
+    const pk = `MARKET#${m.symbol}`;      // e.g. "MARKET#BTC-PERP"
+    const now = Date.now();
+    await ddb.send(
+      new PutItemCommand({
+        TableName: MARKETS,
+        Item: marshall({
+          pk,
+          sk: "INFO",
+          indexPrice: m.price,
+          expiryTs: m.expiry,           // for futures
+          lastUpdated: now,
+        }),
+      })
+    );
+  }
+};
+
+=== ./cron/expiry.ts ===
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// dex/cron/expiry.ts
+import { Handler } from "aws-lambda";
+import {
+  DynamoDBClient,
+  ScanCommand,
+  DeleteItemCommand,
+} from "@aws-sdk/client-dynamodb";
+import { unmarshall, marshall } from "@aws-sdk/util-dynamodb";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { randomUUID } from "crypto";
+import { Resource } from "sst";
+import { Product, SettlementFill } from "../types";
+
+const ddb = new DynamoDBClient({});
+const sqs = new SQSClient({});
+
+/** Table names */
+const MARKETS    = (Resource as any).MarketsTable.name;
+const POSITIONS  = (Resource as any).PositionsTable.name;
+const SETTLE_Q   = (Resource as any).SettlementQueue.url;
+
+/**
+ * Daily expiry: for all markets whose expiryTs ≤ now,
+ *  - settle open positions as final PnL
+ *  - delete position records
+ */
+export const handler: Handler = async () => {
+  const now = Date.now();
+
+  // 1. find expired markets
+  const mktRes = await ddb.send(
+    new ScanCommand({
+      TableName: MARKETS,
+      ProjectionExpression: "pk, sk, indexPrice, expiryTs",
+      FilterExpression: "expiryTs <= :now and sk = :info",
+      ExpressionAttributeValues: {
+        ":now":  { N: now.toString() },
+        ":info": { S: "INFO" },
+      },
+    })
+  );
+  const expired = (mktRes.Items ?? []).map((i) =>
+    unmarshall(i)
+  ) as { pk: string; indexPrice: number; expiryTs: number }[];
+
+  for (const { pk, indexPrice } of expired) {
+    const marketCode = pk.split("#")[1];
+
+    // 2. fetch positions
+    const posRes = await ddb.send(
+      new ScanCommand({
+        TableName: POSITIONS,
+        ProjectionExpression: "pk, sk, size, avgEntry",
+        FilterExpression: "sk = :msk",
+        ExpressionAttributeValues: {
+          ":msk": { S: pk },
+        },
+      })
+    );
+    const users = (posRes.Items ?? []).map((i) => unmarshall(i)) as any[];
+
+    // 3. build final PnL fills
+    const fills: SettlementFill[] = users.map((u) => {
+      const size = u.size as number;
+      const entry = u.avgEntry as number;
+      const pnl = (indexPrice - entry) * size;
+      return {
+        market: marketCode,
+        price: indexPrice,
+        qty: Math.abs(pnl),
+        buyer: pnl >= 0 ? u.pk.split("#")[1] : "SYSTEM",
+        seller: pnl >= 0 ? "SYSTEM" : u.pk.split("#")[1],
+        product: Product.FUTURE,
+        ts: now,
+        tradeId: randomUUID(),
+      };
+    });
+
+    // 4. enqueue fills
+    if (fills.length) {
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: SETTLE_Q,
+          MessageBody: JSON.stringify(fills),
+        })
+      );
+    }
+
+    // 5. delete all expired positions
+    await Promise.all(
+      users.map((u) =>
+        ddb.send(
+          new DeleteItemCommand({
+            TableName: POSITIONS,
+            Key: marshall({ pk: u.pk, sk: u.sk }),
+          })
+        )
+      )
+    );
+  }
+};
+
+=== ./cron/funding.ts ===
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// dex/cron/funding.ts
+import { Handler } from "aws-lambda";
+import {
+  DynamoDBClient,
+  ScanCommand,
+} from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+import { randomUUID } from "crypto";
+import { Resource } from "sst";
+import { Product, SettlementFill } from "../types";
+
+const ddb = new DynamoDBClient({});
+const sqs = new SQSClient({});
+
+/** Table names */
+const MARKETS    = Resource.MarketsTable.name;
+const POSITIONS  = Resource.PositionsTable.name;
+const SETTLE_Q   = Resource.SettlementQueue.url;
+
+/**
+ * Hourly funding: for each perpetual market,
+ *  - read indexPrice
+ *  - for each open position, compute fundingPnl = (indexPrice - avgEntry) * size
+ *  - enqueue a synthetic fill for that PnL
+ */
+export const handler: Handler = async () => {
+  // 1. load all perpetual markets
+  const mktRes = await ddb.send(
+    new ScanCommand({
+      TableName: MARKETS,
+      // INFO rows hold current indexPrice and expiryTs
+      ProjectionExpression: "pk, indexPrice",
+      FilterExpression: "begins_with(sk, :info)",
+      ExpressionAttributeValues: { ":info": { S: "INFO" } },
+    })
+  );
+  const perps = (mktRes.Items ?? [])
+    .map((i) => unmarshall(i))
+    .filter((m: any) => m.pk.endsWith("-PERP")) as { pk: string; indexPrice: number }[];
+
+  for (const { pk, indexPrice } of perps) {
+    // derive market code e.g. "BTC-PERP"
+    const marketCode = pk.split("#")[1];
+
+    // 2. fetch all positions in this market
+    const posRes = await ddb.send(
+      new ScanCommand({
+        TableName: POSITIONS,
+        ProjectionExpression: "pk, sk, size, avgEntry",
+        FilterExpression: "sk = :msk",
+        ExpressionAttributeValues: {
+          ":msk": { S: pk },
+        },
+      })
+    );
+    const users = (posRes.Items ?? []).map((i) => unmarshall(i)) as any[];
+
+    // 3. build fills
+    const fills: SettlementFill[] = users.map((u) => {
+      const size = u.size as number;
+      const entry = u.avgEntry as number;
+      const pnl = (indexPrice - entry) * size;
+      // positive pnl -> user as buyer, negative -> user as seller
+      return {
+        market: marketCode,
+        price: indexPrice,
+        qty: Math.abs(pnl),
+        buyer: pnl >= 0 ? u.pk.split("#")[1] : "SYSTEM",
+        seller: pnl >= 0 ? "SYSTEM" : u.pk.split("#")[1],
+        product: Product.PERP,
+        ts: Date.now(),
+        tradeId: randomUUID(),
+      };
+    });
+
+    // 4. enqueue
+    if (fills.length) {
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: SETTLE_Q,
+          MessageBody: JSON.stringify(fills),
+        })
+      );
+    }
+  }
+};
+

@@ -8,6 +8,7 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { randomUUID } from "crypto";
 import { Resource } from "sst";
+import { verifyOrderSignature } from "./utils/signature";
 
 import {
   IncomingOrder,
@@ -30,6 +31,8 @@ const SETTLE_Q: string = Resource.SettlementQueue.url;
 export const handler: SQSHandler = async (event) => {
   for (const rec of event.Records) {
     const order = JSON.parse(rec.body) as IncomingOrder;
+    const signer = verifyOrderSignature(order);
+    if (signer !== order.userId) throw new Error("invalid signature");
     await processOrder(order);
   }
 };
