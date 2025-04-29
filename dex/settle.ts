@@ -41,9 +41,11 @@ export const handler: SQSHandler = async (event) => {
       market: fill.market,
       price: parseEther(fill.price.toString()),
       quantity: parseEther(fill.qty.toString()),
-      buyer: fill.buyer,
-      seller: fill.seller,
-      tradeId: fill.tradeId,
+      // check if byyer and seller start with 0x or not
+      // if not, add it
+      buyer: fill.buyer.startsWith("0x") ? fill.buyer : `0x${fill.buyer}`,
+      seller: fill.seller.startsWith("0x") ? fill.seller : `0x${fill.seller}`,
+      tradeId: fill.tradeId.startsWith("0x") ? fill.tradeId : `0x${fill.tradeId}`,
       timestamp: BigInt(fill.ts)
     }));
 
