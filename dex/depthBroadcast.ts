@@ -4,6 +4,7 @@ import {
   DynamoDBClient,
   ScanCommand,
   DeleteItemCommand,
+  AttributeValue,
 } from "@aws-sdk/client-dynamodb";
 import {
   ApiGatewayManagementApiClient,
@@ -34,7 +35,7 @@ export const handler: DynamoDBStreamHandler = async (event) => {
   for (const record of event.Records) {
     const img = record.dynamodb?.NewImage;
     if (!img) continue;
-    const row = unmarshall(img) as OrderRow;
+    const row = unmarshall(img as Record<string, AttributeValue>) as OrderRow;
     // include only NEW/PARTIAL/FILLED updates
     if (
       row.status === "NEW" ||
