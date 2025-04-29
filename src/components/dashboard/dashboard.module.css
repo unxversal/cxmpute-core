@@ -1,90 +1,179 @@
-/* ─── layout ─── */
-.dashContainer {
-    width: 100%;
-    max-width: 1000px;
-    margin: 0 auto;
-  }
-  
+/* ───────── base card & container (unchanged) ───────── */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 650px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.contentCard {
+  padding: 20px;
+  width: 100%;
+  border: 2px solid black;
+  border-radius: 7px;
+  box-shadow: 5px 5px 0 black;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ───────── grid (≤2 cols responsive) ───────── */
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 680px) {
   .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* ≤2 cols */
-    gap: 24px;
+    grid-template-columns: repeat(2, 1fr);
   }
-  
-  @media (min-width: 900px) {
-    .grid {
-      grid-template-columns: repeat(2, 1fr); /* never more than 2 */
-    }
-  }
-  
-  .contentCard {
-    padding: 20px;
-    border: 2px solid black;
-    border-radius: 7px;
-    box-shadow: 5px 5px 0 black;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  /* ─── switch buttons ─── */
-  .switchButtons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 12px 0;
-  }
-  
-  .switchBtn {
-    border: 1px solid black;
-    border-radius: 6px;
-    padding: 4px 10px;
-    background: var(--cxmpute-purple);
-    color: #fff;
-    cursor: pointer;
-  }
-  
-  /* ─── API-key block ─── */
-  .keysBlock h3 {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  .keyRow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: monospace;
-    font-size: 0.85rem;
-  }
-  
-  .keyRow button {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-  }
-  
-  /* create + delete buttons */
-  .addKeyBtn,
-  .trashBtn {
-    border: 1px solid black;
-    border-radius: 6px;
-    padding: 4px 10px;
-    background: var(--cxmpute-green);
-    color: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  
-  /* provisions list */
-  .provisionRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.8rem;
-  }
-    
+}
+
+/* ───────── selector buttons ───────── */
+.switchButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.switchBtn {
+  border: 2px solid black;
+  border-radius: 7px;
+  padding: 4px 10px;
+  background: var(--cxmpute-purple, #91a8eb);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 black;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.switchBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.switchBtn:not(:disabled):hover {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 black;
+}
+
+/* ───────── key block ───────── */
+.keysBlock h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.keyRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.masked {
+  -webkit-text-security: disc;
+  text-security: disc;
+  filter: blur(4px);
+  user-select: none;
+}
+
+/* copy / trash / refresh */
+.iconBtn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* ───────── provision rows ───────── */
+.provisionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+/* ───────── create-key box ───────── */
+.createBox {
+  margin-top: 6px;
+  cursor: pointer;
+}
+
+.createBox[open] summary {
+  margin-bottom: 10px;
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.createForm input,
+.createForm select {
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+}
+
+/* ───────── modal confirm ───────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0 0 0 / 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #fff;
+  padding: 20px 24px;
+  border: 2px solid black;
+  border-radius: 8px;
+  box-shadow: 4px 4px 0 black;
+  max-width: 320px;
+}
+
+.modalBtns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.modalBtns button {
+  border: 2px solid black;
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: var(--cxmpute-green, #20a191);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 black;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modalBtns button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 black;
+}

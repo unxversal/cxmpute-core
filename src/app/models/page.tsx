@@ -70,7 +70,7 @@ export default function ModelsPage() {
 
       <div className={styles.hero}>
         <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>Your multi-model, multi-modal inference platform.</h1>
+          <h1 className={styles.heroTitle}>Your multi-model, multi-modal, multi-lingual inference platform.</h1>
           <p className={styles.heroDescription}>
             All your AI models in one API—LLM, TTS, image gen, instantly.
           </p>

@@ -246,6 +246,132 @@ export default $config({
       },
     });
 
+    /* ─────────────────────────────
+    *  1. Core order-book resources
+    * ────────────────────────────*/
+
+    // 1-a. FIFO ingress queue
+    const ordersQueue = new sst.aws.Queue("OrdersQueue", {
+      fifo: { contentBasedDeduplication: true },
+      visibilityTimeout: "30 seconds",
+    });
+
+    // 1-b. Off-chain → on-chain settlement queue
+    const settlementQueue = new sst.aws.Queue("SettlementQueue");
+
+    // 1-c. Dynamo tables
+    const ordersTable = new sst.aws.Dynamo("OrdersTable", {
+      fields: {
+        pk: "string",                 // MARKET#BTC-USDC
+        sk: "string",                 // SIDE#BUY#P=30000#TS=...
+        userId: "string",
+        price: "number",
+        qty: "number",
+        status: "string",             // NEW | PARTIAL | FILLED | CXL | EXP
+        product: "string",            // SPOT | PERP | FUTURE | OPTION
+        market: "string",
+        ts: "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      globalIndexes: {
+        ByUser:    { hashKey: "userId", rangeKey: "sk" },
+        ByStatus:  { hashKey: "status", rangeKey: "pk" },
+      },
+      stream: "new-and-old-images",
+    });
+
+    const tradesTable = new sst.aws.Dynamo("TradesTable", {
+      fields: {
+        pk: "string",                 // MARKET#BTC-USDC
+        sk: "string",                 // TS#...#TID
+        price: "number",
+        qty: "number",
+        buyOid: "string",
+        sellOid: "string",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+    });
+
+    const positionsTable = new sst.aws.Dynamo("PositionsTable", {
+      fields: {
+        pk: "string",                 // USER#<uid>
+        sk: "string",                 // MARKET#BTC-PERP
+        size: "number",
+        avgEntry: "number",
+        realizedPnl: "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+    });
+
+    const marketsTable = new sst.aws.Dynamo("MarketsTable", {
+      fields: {
+        pk: "string",                 // MARKET#BTC-PERP
+        sk: "string",                 // INFO or PRICE#TS
+        indexPrice: "number",
+        expiryTs: "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+    });
+
+    /* ─────────────────────────────
+    *  2. Lambda consumers
+    * ────────────────────────────*/
+
+    // Matcher — deterministic crossing engine
+    ordersQueue.subscribe({
+      handler: "dex/match.handler",
+      link:   [ordersTable, tradesTable, positionsTable, marketsTable, settlementQueue],
+      timeout:"30 seconds",
+    }, {
+      batch:  { size: 10, window: "0 seconds" },
+    });
+
+    // Settlement — batches fills on-chain
+    settlementQueue.subscribe({
+      handler: "dex/settle.handler",
+      link:   [tradesTable],
+      timeout:"60 seconds",
+    });
+
+    // Depth & trade broadcasts (from Dynamo Streams)
+    ordersTable.subscribe("DepthBroadcast", "dex/depthBroadcast.handler", {
+      filters: [ { dynamodb: { NewImage: { status: { S: ["FILLED","PARTIAL"] } } } } ],
+    });
+    tradesTable.subscribe("TradeBroadcast", "dex/tradeBroadcast.handler");
+
+    /* ─────────────────────────────
+    *  3. WebSocket API (real-time push)
+    * ────────────────────────────*/
+    const wsApi = new sst.aws.ApiGatewayWebSocket("DexWS", {
+      transform: {
+        route: {
+          handler: {
+            runtime: "nodejs20.x",
+            link: [ordersTable, tradesTable, positionsTable]
+          }
+        }
+      }
+    });
+
+    wsApi.route("$connect",    "dex/ws/connect.handler");
+    wsApi.route("$disconnect", "dex/ws/disconnect.handler");
+    wsApi.route("depth",       "dex/ws/depth.handler");
+    wsApi.route("trade",       "dex/ws/trade.handler");
+    wsApi.route("pnl",         "dex/ws/pnl.handler");
+
+    /* ─────────────────────────────
+    *  4. Periodic jobs
+    * ────────────────────────────*/
+    new sst.aws.Cron("FundingCron", {
+      schedule: "rate(1 hour)",
+      function: "dex/cron/funding.handler",
+    });
+
+    new sst.aws.Cron("ExpiryCron", {
+      schedule: "cron(0 0 * * ? *)", // midnight UTC
+      function: "dex/cron/expiry.handler",
+    });
+
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
@@ -270,6 +396,14 @@ export default $config({
         auth,
         graphs,
         authEmail,
+        ordersQueue, 
+        settlementQueue,
+        ordersTable, 
+        tradesTable, 
+        positionsTable, 
+        marketsTable,
+        wsApi
+
       ]
     });
   },

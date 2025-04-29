@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import styles from "@/app/dashboard/dashboard.module.css";
+import styles from "./dashboard.module.css";
 
 import Button from "@/components/button/button";
 import Link from "next/link";
@@ -12,9 +12,9 @@ import {
   Server,
   Trash2,
   RefreshCcw,
+  Copy,
 } from "lucide-react";
 
-/* ——— types coming from your OpenAuth subject ——— */
 type Subject = {
   id: string;
   providerId: string;
@@ -33,117 +33,147 @@ type ApiKey = {
 
 type EarningsPoint = { day: string; amount: number };
 
+const ROUTES = [
+  "/chat/completions",
+  "/embeddings",
+  "/image",
+  "/tts",
+  "/video",
+  "/scrape",
+  "/m/caption",
+  "/m/query",
+  "/m/detect",
+  "/m/point",
+];
+
 export default function Dashboard({ subject }: { subject: Subject }) {
-  /* ——— view switcher ——— */
+  /* ——————————————————— view switcher ——————————————————— */
   const [mode, setMode] = useState<"user" | "provider" | "trader">("user");
 
-  /* ——— user data ——— */
+  /* ——————————————————— user state ——————————————————— */
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [credits, setCredits] = useState<number>(0);
   const [rewards, setRewards] = useState<number>(0);
 
-  /* ——— provider data ——— */
+  /* ——————————————————— provider state ——————————————————— */
   const [earnings, setEarnings] = useState<EarningsPoint[]>([]);
   const totalEarnings = useMemo(
-    () => earnings.reduce((sum, e) => sum + e.amount, 0),
+    () => earnings.reduce((s, e) => s + e.amount, 0),
     [earnings],
   );
-
   const [provisions, setProvisions] = useState<
     { provisionId: string; status: string }[]
   >([]);
 
-  /*—————————————————————————————————————————*/
-  /* Fetch helpers                                                               */
-  /*—————————————————————————————————————————*/
-  async function fetchUserData() {
-    const res = await fetch(`/api/user/${subject.id}/summary`);
-        if (res.ok) {
-            const json = await res.json();
-            setApiKeys(json.apiKeys ?? []);
-            setCredits(json.credits ?? 0);
-            setRewards(json.rewards ?? 0);
-        }
-    }
+  /* ——————————————————— modal confirm ——————————————————— */
+  const [confirm, setConfirm] = useState<{
+    msg: string;
+    onYes: () => void;
+  } | null>(null);
 
-    async function fetchProviderData() {
-        const res = await fetch(`/api/providers/${subject.providerId}/earnings`);
-        if (res.ok) {
-            const json = await res.json();
-            setEarnings(json.earnings ?? []);
-        }
-        const p = await fetch(`/api/providers/${subject.providerId}/provisions`);
-        if (p.ok) setProvisions(await p.json());
-    }
-  
+  /* ——————————————————— helpers ——————————————————— */
+  const fetchUserData = async () => {
+    const r = await fetch(`/api/user/${subject.id}/summary`);
+    if (!r.ok) return;
+    const j = await r.json();
+    setApiKeys(j.apiKeys ?? []);
+    setCredits(j.credits ?? 0);
+    setRewards(j.rewards ?? 0);
+  };
+
+  const fetchProviderData = async () => {
+    const r = await fetch(`/api/providers/${subject.providerId}/earnings`);
+    if (r.ok) setEarnings((await r.json()).earnings ?? []);
+    const p = await fetch(`/api/providers/${subject.providerId}/provisions`);
+    if (p.ok) setProvisions(await p.json());
+  };
+
   useEffect(() => {
 
-    async function fetchUserData() {
-        const res = await fetch(`/api/user/${subject.id}/summary`);
-        if (res.ok) {
-            const json = await res.json();
-            setApiKeys(json.apiKeys ?? []);
-            setCredits(json.credits ?? 0);
-            setRewards(json.rewards ?? 0);
-        }
-    }
-
-    async function fetchProviderData() {
-        const res = await fetch(`/api/providers/${subject.providerId}/earnings`);
-        if (res.ok) {
-            const json = await res.json();
-            setEarnings(json.earnings ?? []);
-        }
+    const fetchUserData = async () => {
+        const r = await fetch(`/api/user/${subject.id}/summary`);
+        if (!r.ok) return;
+        const j = await r.json();
+        setApiKeys(j.apiKeys ?? []);
+        setCredits(j.credits ?? 0);
+        setRewards(j.rewards ?? 0);
+      };
+    
+      const fetchProviderData = async () => {
+        const r = await fetch(`/api/providers/${subject.providerId}/earnings`);
+        if (r.ok) setEarnings((await r.json()).earnings ?? []);
         const p = await fetch(`/api/providers/${subject.providerId}/provisions`);
         if (p.ok) setProvisions(await p.json());
-    }
+      };
 
     if (mode === "user") fetchUserData();
     if (mode === "provider") fetchProviderData();
   }, [mode, subject.id, subject.providerId]);
 
-  /*—————————————————————————————————————————*/
-  /* API-key CRUD                                                                 */
-  /*—————————————————————————————————————————*/
-
-  async function createKey() {
-    const body: Partial<ApiKey> = {
-      creditLimit: 10_000,
-      permittedRoutes: ["/chat/completions"],
-    };
-    const res = await fetch(`/api/user/${subject.id}/keys`, {
+  /* ——————————————————— key CRUD ——————————————————— */
+  const createKey = async (form: FormData) => {
+    const creditLimit = Number(form.get("credits") ?? 0);
+    const permittedRoutes = form.getAll("route") as string[];
+    await fetch(`/api/user/${subject.id}/keys`, {
       method: "POST",
-      body: JSON.stringify(body),
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ creditLimit, permittedRoutes }),
     });
-    if (res.ok) fetchUserData();
-  }
-
-  async function deleteKey(k: string) {
-    await fetch(`/api/user/${subject.id}/keys/${k}`, { method: "DELETE" });
     fetchUserData();
-  }
+  };
 
-  async function refreshUserAk() {
-    const res = await fetch(`/api/user/${subject.id}/userAk/refresh`, {
-      method: "POST",
+  const deleteKey = (k: string) =>
+    setConfirm({
+      msg: "Delete this API key?",
+      onYes: async () => {
+        await fetch(`/api/user/${subject.id}/keys/${k}`, { method: "DELETE" });
+        fetchUserData();
+      },
     });
-    if (res.ok) fetchUserData();
-  }
 
-  async function refreshProviderAk() {
-    await fetch(
-      `/api/providers/${subject.providerId}/providerAk/refresh`,
-      { method: "POST" },
-    );
-    fetchProviderData();
-  }
+  const refreshAk = (type: "user" | "provider") =>
+    setConfirm({
+      msg: `Refresh ${type}Ak? Existing calls with the old key will stop working.`,
+      onYes: async () => {
+        const url =
+          type === "user"
+            ? `/api/user/${subject.id}/userAk/refresh`
+            : `/api/providers/${subject.providerId}/providerAk/refresh`;
+        await fetch(url, { method: "POST" });
+        if (type === "user") fetchUserData();
+        else fetchProviderData();
+      },
+    });
 
-  /*—————————————————————————————————————————*/
-  /* Render helpers                                                              */
-  /*—————————————————————————————————————————*/
+  /* ——————————————————— render helpers ——————————————————— */
+  const mask = (k: string) => k.slice(0, 4) + " … " + k.slice(-4);
 
-  const EmptyCard = () => (
+  const KeyRow = ({
+    k,
+    onDelete,
+  }: {
+    k: ApiKey;
+    onDelete?: () => void;
+  }) => (
+    <div className={styles.keyRow}>
+      <span className={styles.masked}>{mask(k.key)}</span>
+      <button
+        className={styles.iconBtn}
+        onClick={() => navigator.clipboard.writeText(k.key)}
+        title="Copy key"
+      >
+        <Copy size={16} />
+      </button>
+      {onDelete && (
+        <button className={styles.iconBtn} onClick={onDelete} title="Delete">
+          <Trash2 size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  /* ——————————————————— UI blocks ——————————————————— */
+  const SelectorCard = (
     <div className={styles.contentCard}>
       <h2>Dashboards</h2>
       <p>Select a view:</p>
@@ -153,48 +183,61 @@ export default function Dashboard({ subject }: { subject: Subject }) {
           onClick={() => setMode("user")}
           disabled={mode === "user"}
         >
-          User&nbsp;dashboard
+          User dashboard
         </button>
         <button
           className={styles.switchBtn}
           onClick={() => setMode("provider")}
           disabled={mode === "provider"}
         >
-          Provider&nbsp;dashboard
+          Provider dashboard
         </button>
         <Link href="/trade">
-          <button className={styles.switchBtn}>Trader&nbsp;dashboard</button>
+          <button className={styles.switchBtn}>Trader dashboard</button>
         </Link>
       </div>
 
       <div className={styles.keysBlock}>
         <h3>
-          <KeyRound size={18} /> Primary keys
+          <KeyRound size={18} /> Primary keys
         </h3>
 
-        <div className={styles.keyRow}>
-          <code>{subject.userAk}</code>
-          <button onClick={refreshUserAk} title="Refresh userAk">
-            <RefreshCcw size={16} />
-          </button>
-        </div>
+        <KeyRow
+          k={{ key: subject.userAk, creditLimit: 0, creditsLeft: 0, permittedRoutes: [] }}
+        />
+        <button
+          className={styles.iconBtn}
+          onClick={() => refreshAk("user")}
+          title="Refresh userAk"
+        >
+          <RefreshCcw size={16} />
+        </button>
 
-        <div className={styles.keyRow}>
-          <code>{subject.providerAk}</code>
-          <button onClick={refreshProviderAk} title="Refresh providerAk">
-            <RefreshCcw size={16} />
-          </button>
-        </div>
+        <KeyRow
+          k={{
+            key: subject.providerAk,
+            creditLimit: 0,
+            creditsLeft: 0,
+            permittedRoutes: [],
+          }}
+        />
+        <button
+          className={styles.iconBtn}
+          onClick={() => refreshAk("provider")}
+          title="Refresh providerAk"
+        >
+          <RefreshCcw size={16} />
+        </button>
       </div>
     </div>
   );
 
-  const UserCards = () => (
+  const UserCards = (
     <>
       {/* Rewards */}
       <div className={styles.contentCard}>
         <h2>
-          <Wallet size={20} /> Rewards
+          <Wallet size={20} /> Rewards
         </h2>
         <p>{rewards.toLocaleString()} CXPT earned</p>
       </div>
@@ -202,50 +245,70 @@ export default function Dashboard({ subject }: { subject: Subject }) {
       {/* Credits */}
       <div className={styles.contentCard}>
         <h2>
-          <BarChart3 size={20} /> Credits
+          <BarChart3 size={20} /> Credits
         </h2>
         <p>{credits.toLocaleString()} remaining</p>
       </div>
 
-      {/* Keys CRUD */}
+      {/* Keys */}
       <div className={styles.contentCard}>
         <h2>
-          <KeyRound size={20} /> API Keys
+          <KeyRound size={20} /> API keys
         </h2>
 
-        {apiKeys.length === 0 && <p>No extra keys.</p>}
-
         {apiKeys.map((k) => (
-          <div key={k.key} className={styles.keyRow}>
-            <code onClick={() => navigator.clipboard.writeText(k.key)}>
-              {k.key}
-            </code>
-            <button
-              title="Delete key"
-              onClick={() => deleteKey(k.key)}
-              className={styles.trashBtn}
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
+          <KeyRow key={k.key} k={k} onDelete={() => deleteKey(k.key)} />
         ))}
 
-        <button onClick={createKey} className={styles.addKeyBtn}>
-          + Create key
-        </button>
+        {/* create-key form */}
+        <details className={styles.createBox}>
+          <summary>+ Create key</summary>
+          <form
+            action={async (formData) => {
+              await createKey(formData);
+            }}
+            className={styles.createForm}
+          >
+            <label>
+              Credit limit&nbsp;
+              <input
+                type="number"
+                name="credits"
+                min={1}
+                defaultValue={1000}
+                required
+              />
+            </label>
+
+            <label>
+              Allowed routes
+              <select name="route" multiple size={4}>
+                {ROUTES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button type="submit" className={styles.switchBtn}>
+              Create
+            </button>
+          </form>
+        </details>
       </div>
     </>
   );
 
-  const ProviderCards = () => (
+  const ProviderCards = (
     <>
       {/* Earnings */}
       <div className={styles.contentCard}>
         <h2>
-          <Wallet size={20} /> Total earnings
+          <Wallet size={20} /> Total earnings
         </h2>
         <p>{totalEarnings.toLocaleString()} CXPT</p>
-        {/* simple sparkline */}
+
         <svg width="100%" height="60" viewBox="0 0 120 60">
           <polyline
             fill="none"
@@ -253,7 +316,7 @@ export default function Dashboard({ subject }: { subject: Subject }) {
             strokeWidth="2"
             points={earnings
               .map((e, i) => {
-                const x = (i / (earnings.length - 1)) * 120;
+                const x = (i / Math.max(earnings.length - 1, 1)) * 120;
                 const max = Math.max(...earnings.map((d) => d.amount), 1);
                 const y = 60 - (e.amount / max) * 50 - 5;
                 return `${x},${y}`;
@@ -266,44 +329,122 @@ export default function Dashboard({ subject }: { subject: Subject }) {
       {/* Provisions */}
       <div className={styles.contentCard}>
         <h2>
-          <Server size={20} /> Provisions
+          <Server size={20} /> Provisions
         </h2>
-
-        {provisions.length === 0 && <p>No active provisions</p>}
 
         {provisions.map((p) => (
           <div key={p.provisionId} className={styles.provisionRow}>
             <span>{p.provisionId}</span>
             <em>{p.status}</em>
             <button
-              onClick={async () => {
-                await fetch(
-                  `/api/providers/${subject.providerId}/provisions/${p.provisionId}`,
-                  { method: "DELETE" },
-                );
-                fetchProviderData();
-              }}
+              className={styles.iconBtn}
+              onClick={() =>
+                setConfirm({
+                  msg: "Delete this provision?",
+                  onYes: async () => {
+                    await fetch(
+                      `/api/providers/${subject.providerId}/provisions/${p.provisionId}`,
+                      { method: "DELETE" },
+                    );
+                    fetchProviderData();
+                  },
+                })
+              }
             >
               <Trash2 size={14} />
             </button>
           </div>
         ))}
+
+        {provisions.length === 0 && <p>No active provisions.</p>}
       </div>
     </>
   );
 
-  /*—————————————————————————————————————————*/
-  /* JSX                                                                         */
-  /*—————————————————————————————————————————*/
+  /* ——————————————————— JSX ——————————————————— */
   return (
-    <div className={styles.dashContainer}>
-      <div className={styles.grid}>
-        {/* first card always */}
-        <EmptyCard />
-
-        {mode === "user" && <UserCards />}
-        {mode === "provider" && <ProviderCards />}
+    <div className={styles.container}>
+      {/* original header + docs link */}
+      <div className={styles.header}>
+        <h1>Welcome to Cxmpute.cloud!</h1>
+        <p>Read more about getting started:</p>
+        <Link href="/docs">
+          <Button text="Documentation" backgroundColor="var(--cxmpute-purple)" />
+        </Link>
       </div>
+
+      {/* selector card (first, outside grid) */}
+      {SelectorCard}
+
+      {/* grid cards */}
+      <div className={styles.grid}>
+        {mode === "user" && UserCards}
+        {mode === "provider" && ProviderCards}
+
+        {/* original “promo” cards always stay */}
+        <div className={styles.contentCard}>
+          <h2>Large-Language / Vision-Language Models</h2>
+          <p>Explore open-source LLMs & VLMs available for inference.</p>
+          <Link href="/models">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+        <div className={styles.contentCard}>
+          <h2>Generate Embeddings</h2>
+          <p>Open-source embedding models for vector search & RAG.</p>
+          <Link href="/models">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+        <div className={styles.contentCard}>
+          <h2>SOTA Text-to-Speech</h2>
+          <p>High-fidelity TTS via Kokoro 82 M.</p>
+          <Link href="/models/kokoro-82m">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+        <div className={styles.contentCard}>
+          <h2>Generate Images & Video</h2>
+          <p>Text-to-image / video inference endpoints.</p>
+          <Link href="/models">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+        <div className={styles.contentCard}>
+          <h2>Computer Vision APIs</h2>
+          <p>OCR, caption, point & detect objects.</p>
+          <Link href="/docs/computer-vision">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+        <div className={styles.contentCard}>
+          <h2>Web Scraping</h2>
+          <p>Bypass rate-limits with our global node network.</p>
+          <Link href="/docs/scraping">
+            <Button text="Explore" backgroundColor="var(--cxmpute-green)" />
+          </Link>
+        </div>
+      </div>
+
+      {/* trivial modal confirm */}
+      {confirm && (
+        <div className={styles.backdrop}>
+          <div className={styles.modal}>
+            <p>{confirm.msg}</p>
+            <div className={styles.modalBtns}>
+              <button
+                onClick={() => {
+                  confirm.onYes();
+                  setConfirm(null);
+                }}
+              >
+                Yes
+              </button>
+              <button onClick={() => setConfirm(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
