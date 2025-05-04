@@ -339,6 +339,55 @@ export default $config({
       cors: { allowMethods: ["GET", "PUT"] },
     });
 
+    /* ─── SNS topic for real‑time fan‑out ─────────────────────────────── */
+    const marketUpdatesTopic = new sst.aws.SnsTopic("MarketUpdatesTopic");
+
+    /* ─── SQS FIFO order queues ──────────────────────────────────────── */
+    const marketOrdersQueue  = new sst.aws.Queue("MarketOrdersQueue",  {
+      fifo: { contentBasedDeduplication: true },
+      visibilityTimeout: "30 seconds",
+    });
+    const optionsOrdersQueue = new sst.aws.Queue("OptionsOrdersQueue", {
+      fifo: { contentBasedDeduplication: true },
+      visibilityTimeout: "30 seconds",
+    });
+    const perpsOrdersQueue   = new sst.aws.Queue("PerpsOrdersQueue",   {
+      fifo: { contentBasedDeduplication: true },
+      visibilityTimeout: "30 seconds",
+    });
+    const futuresOrdersQueue = new sst.aws.Queue("FuturesOrdersQueue", {
+      fifo: { contentBasedDeduplication: true },
+      visibilityTimeout: "30 seconds",
+    });
+
+    /* ─── Dynamo Stream → router Fn → SQS ─────────────────────────────── */
+    ordersTable.subscribe("OrdersStreamRouter",{
+      handler: "src/streams/ordersStreamRouter.handler",
+      link: [
+        marketOrdersQueue,
+        optionsOrdersQueue,
+        perpsOrdersQueue,
+        futuresOrdersQueue,
+      ],
+    });
+
+    /* ─── Matcher subscribers (one per queue) ─────────────────────────── */
+    marketOrdersQueue.subscribe({
+      handler: "src/matchers/market.handler",
+      link: [
+        ordersTable,
+        tradesTable,
+        positionsTable,
+        statsIntradayTable,
+        statsLifetimeTable,
+        marketsTable,
+        wsConnectionsTable,
+        marketUpdatesTopic,
+      ],
+      timeout: "60 seconds",
+    }, {
+      batch: { size: 10, window: "5 seconds" },
+    });
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
