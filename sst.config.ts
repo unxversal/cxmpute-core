@@ -261,6 +261,19 @@ export default $config({
       stream: "new-and-old-images",
     });
 
+    const tradersTable = new sst.aws.Dynamo("TradersTable", {
+      fields: {
+        traderId: "string",          // UUID w/o hyphens
+        traderAk: "string",          // short public auth key
+        // wallet:   "string",          // EOA if you sign challenges
+        // status:   "string",          // ACTIVE / SUSPENDED …
+      },
+      primaryIndex: { hashKey: "traderId" },
+      globalIndexes: {
+        ByAk: { hashKey: "traderAk" },
+      },
+    });    
+
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
         pk:       "string",
@@ -449,7 +462,7 @@ export default $config({
     /** lifecycle + one custom “subscribe” route */
     wsApi.route("$connect",    { 
       handler: "dex/ws/connect.handler",
-      link: [wsConnectionsTable],
+      link: [wsConnectionsTable, tradersTable],
     });
     wsApi.route("$disconnect", {
       handler: "dex/ws/disconnect.handler",
@@ -502,7 +515,12 @@ export default $config({
         wsConnectionsTable,
         dataLakeBucket,
         wsApi,
-        marketUpdatesTopic
+        marketUpdatesTopic,
+        tradersTable,
+        marketOrdersQueue,
+        optionsOrdersQueue,
+        perpsOrdersQueue,
+        futuresOrdersQueue,
       ]
     });
   },
