@@ -247,112 +247,96 @@ export default $config({
     });
 
     // ──────────────────────────────────────────────────────────────
-    // DEX ‑ DynamoDB tables
-    // ──────────────────────────────────────────────────────────────
-
-    // All Order types (market/limit/option/perp/future)
+    /* ─── DEX DynamoDB tables ──────────────────────────────────────────────── */
     const ordersTable = new sst.aws.Dynamo("OrdersTable", {
       fields: {
-        pk:        "string",   // MARKET#<symbol>
-        sk:        "string",   // TS#<uuid>
+        pk:        "string",          // MARKET#BTC-PERP
+        sk:        "string",          // TS#<uuid>
         traderId:  "string",
-        createdAt: "number",
-        expireAt:  "number",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByTrader: { hashKey: "traderId", rangeKey: "createdAt" },
+        ByTrader: { hashKey: "traderId", rangeKey: "pk" }
       },
-      ttl:   "expireAt",
       stream: "new-and-old-images",
     });
 
-    // Raw trade fills (mirrors Orders PK/SK for easy joins)
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
-        pk:        "string",   // MARKET#<symbol>
-        sk:        "string",   // TS#<uuid>
-        traderId:  "string",
-        createdAt: "number",
+        pk:       "string",
+        sk:       "string",
+        traderId: "string",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByTrader: { hashKey: "traderId", rangeKey: "createdAt" },
+        ByTrader: { hashKey: "traderId", rangeKey: "pk" }
       },
-      stream: "keys-only",     // feed → Firehose → S3 lake
+      stream: "new-and-old-images",
     });
 
-    // Net position snapshot per trader × market
     const positionsTable = new sst.aws.Dynamo("PositionsTable", {
       fields: {
-        pk: "string",          // TRADER#<uuid>
-        sk: "string",          // MARKET#<symbol>
+        pk: "string",       // TRADER#uuid
+        sk: "string",       // MARKET#BTC-PERP
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
-    // Market metadata & status
     const marketsTable = new sst.aws.Dynamo("MarketsTable", {
       fields: {
-        pk:     "string",      // MARKET#<symbol>
-        sk:     "string",      // "META"
-        status: "string",      // active | paused | expired
+        pk:     "string",   // MARKET#BTC-PERP
+        sk:     "string",   // META
+        status: "string",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByStatus: { hashKey: "status" },
+        ByStatus: { hashKey: "status", rangeKey: "pk" },
       },
     });
 
-    // Oracle snapshots
     const pricesTable = new sst.aws.Dynamo("PricesTable", {
       fields: {
-        pk:        "string",   // ASSET#<symbol>
-        sk:        "string",   // TS#<iso>
-        expireAt:  "number",
+        pk: "string",   // ASSET#BTC
+        sk: "string",   // TS#ISO
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
-      ttl: "expireAt",
+      ttl: "expireAt",                 // optional 7‑day TTL
     });
 
-    // 1‑min (or 5 s) hot stats
     const statsIntradayTable = new sst.aws.Dynamo("StatsIntradayTable", {
       fields: {
-        pk:        "string",   // MARKET#<symbol>
-        sk:        "string",   // 2025‑05‑03T17:05
-        expireAt:  "number",
+        pk:      "string",
+        sk:      "string",
+        expireAt:"number",             // 48 h TTL
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       ttl: "expireAt",
     });
 
-    // 24 h aggregates (warm tier)
     const statsDailyTable = new sst.aws.Dynamo("StatsDailyTable", {
-      fields: {
-        pk: "string",          // MARKET#<symbol>
-        sk: "string",          // 2025‑05‑03
-      },
+      fields: { pk: "string", sk: "string" },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
-    // WebSocket connection registry
-    const wsConnectionsTable = new sst.aws.Dynamo("WsConnectionsTable", {
+    const statsLifetimeTable = new sst.aws.Dynamo("StatsLifetimeTable", {
+      fields: { pk: "string", sk: "string" },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+    });
+
+    const wsConnectionsTable = new sst.aws.Dynamo("WSConnectionsTable", {
       fields: {
-        pk:       "string",    // WS#<connectionId>
-        sk:       "string",    // "META"
-        expireAt: "number",
+        pk:       "string",            // WS#<connId>
+        sk:       "string",            // META
+        expireAt: "number",            // 24 h TTL
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       ttl: "expireAt",
     });
 
-    // Trader profile (lightweight — extend as needed)
-    const tradersTable = new sst.aws.Dynamo("TradersTable", {
-      fields: {
-        traderId:  "string",
-        createdAt: "number",
-      },
-      primaryIndex: { hashKey: "traderId" },
+    /* ─── S3 lake for cold trade/metrics history ───────────────────────────── */
+    const dataLakeBucket = new sst.aws.Bucket("DexDataLakeBucket", {
+      versioning: true,
+      cors: { allowMethods: ["GET", "PUT"] },
     });
 
 
@@ -379,15 +363,16 @@ export default $config({
         auth,
         graphs,
         authEmail,
+        tradesTable,
         positionsTable,
+        ordersTable,
         marketsTable,
         pricesTable,
         statsIntradayTable,
         statsDailyTable,
+        statsLifetimeTable,
         wsConnectionsTable,
-        tradersTable,
-        tradesTable,
-        ordersTable,
+        dataLakeBucket,
       ]
     });
   },

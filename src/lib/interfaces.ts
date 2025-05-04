@@ -262,145 +262,134 @@ export interface RewardEntry {
     content?: string;          // e.g., S3 url
   }
   
-/* ------------------------------------------------------------------
-   UUID is always 32 hex chars (no hyphens)
------------------------------------------------------------------- */
+/* UUID without hyphens */
 export type UUID = string;
 
-/* ------------------------------------------------------------------
-   Enumerations
------------------------------------------------------------------- */
-export type OrderSide   = "buy" | "sell";
-export type OrderStatus = "open" | "filled" | "cancelled" | "expired";
-export type OrderType   = "market" | "limit" | "option" | "perp" | "future";
-export type MarketStatus = "active" | "paused" | "expired";
-export type OptionType  = "call" | "put";
+/* ── Orders ──────────────────────────────────────────────────────────── */
+export type OrderSide = "BUY" | "SELL";
+export type OrderStatus = "OPEN" | "PARTIAL" | "FILLED" | "CANCELLED" | "EXPIRED";
 
-/* ------------------------------------------------------------------
-   Orders (discriminated union)
------------------------------------------------------------------- */
 interface BaseOrder {
-  id: UUID;                // same as <uuid> in SK
+  orderId: UUID;
   traderId: UUID;
-  marketId: string;        // eg. BTC‑PERP
+  market: string;          // eg. BTC-PERP
   side: OrderSide;
   qty: number;
   filledQty: number;
+  createdAt: number;       // ms epoch
   status: OrderStatus;
-  createdAt: number;       // epoch ms
+  feeBps: 50;              // flat 0.5 %
 }
 
+/* Discriminated union */
 export interface MarketOrder extends BaseOrder {
-  orderType: "market";
+  orderType: "MARKET";
 }
 
 export interface LimitOrder extends BaseOrder {
-  orderType: "limit";
+  orderType: "LIMIT";
   price: number;
-}
-
-export interface OptionOrder extends BaseOrder {
-  orderType: "option";
-  price:   number;
-  strike:  number;
-  expiry:  number;         // epoch ms
-  optionType: OptionType;
 }
 
 export interface PerpOrder extends BaseOrder {
-  orderType: "perp";
-  leverage: number;        // positive int
+  orderType: "PERP";
+  price: number;
 }
 
 export interface FutureOrder extends BaseOrder {
-  orderType: "future";
-  price:  number;
-  expiry: number;          // epoch ms
-}
-
-export type Order = MarketOrder | LimitOrder | OptionOrder | PerpOrder | FutureOrder;
-
-/* ------------------------------------------------------------------
-   Trade fill
------------------------------------------------------------------- */
-export interface Trade {
-  id: UUID;                // SK uuid
-  orderId: UUID;
-  traderId: UUID;
-  marketId: string;
-  side: OrderSide;
-  qty: number;
+  orderType: "FUTURE";
   price: number;
-  fee: number;             // 0.005 * qty * price
-  createdAt: number;
+  expiryTs: number;
 }
 
-/* ------------------------------------------------------------------
-   Net position snapshot
------------------------------------------------------------------- */
-export interface Position {
-  traderId: UUID;          // PK
-  marketId: string;        // SK
+export interface OptionOrder extends BaseOrder {
+  orderType: "OPTION";
+  price: number;           // premium
+  strike: number;
+  expiryTs: number;
+  optionType: "CALL" | "PUT";
+}
+
+export type Order =
+  | MarketOrder
+  | LimitOrder
+  | PerpOrder
+  | FutureOrder
+  | OptionOrder;
+
+/* ── Trades ──────────────────────────────────────────────────────────── */
+export interface Trade {
+  tradeId: UUID;
+  takerOrderId: UUID;
+  makerOrderId: UUID;
+  market: string;
+  price: number;
   qty: number;
+  timestamp: number;
+  side: OrderSide;         // from taker perspective
+  takerFee: number;
+  makerFee: number;
+}
+
+/* ── Positions ───────────────────────────────────────────────────────── */
+export interface Position {
+  traderId: UUID;
+  market: string;
+  size: number;            // signed qty
   avgEntryPrice: number;
-  realisedPnl: number;
-  unrealisedPnl: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
   updatedAt: number;
 }
 
-/* ------------------------------------------------------------------
-   Market metadata
------------------------------------------------------------------- */
+/* ── Markets metadata ───────────────────────────────────────────────── */
 export interface MarketMeta {
-  id: string;              // BTC‑PERP, ETH‑JUN25‑C‑4500, etc.
-  baseAsset: string;       // BTC, ETH …
-  quoteAsset: "USDC";
-  contractType: OrderType; // limit/option/perp/future
+  symbol: string;                          // BTC‑PERP
+  type: "SPOT" | "PERP" | "FUTURE" | "OPTION";
+  status: "ACTIVE" | "PAUSED" | "DELISTED";
   tickSize: number;
   lotSize: number;
-  fundingInterval?: number;                // perps
-  option?: { expiry: number; strike: number; optionType: OptionType };
-  future?: { expiry: number };
-  status: MarketStatus;
+  fundingIntervalSec?: number;
+  expiryTs?: number;
   createdAt: number;
 }
 
-/* ------------------------------------------------------------------
-   Oracle price snapshot
------------------------------------------------------------------- */
+/* ── Oracle price snapshots ─────────────────────────────────────────── */
 export interface PriceSnapshot {
-  asset: string;           // BTC, ETH, …
-  timestamp: number;       // epoch ms
+  asset: string;            // BTC
+  timestamp: number;
   price: number;
 }
 
-/* ------------------------------------------------------------------
-   Stats rows
------------------------------------------------------------------- */
-export interface StatsIntraday {
-  marketId: string;        // PK
-  bucketIso: string;       // SK minute ISO
+/* ── Metrics rows ───────────────────────────────────────────────────── */
+export interface StatsIntradayRow {
+  market: string;
+  bucketTs: number;         // minute ISO ts
   volume: number;
-  trades: number;
   openInterest: number;
+  fees: number;
+  depth1bp: number;
+  depth5bp: number;
   fundingRate?: number;
-  feeCollected: number;
+  impliedVol?: number;
 }
 
-export interface StatsDaily {
-  marketId: string;
-  dateIso: string;
+export interface StatsDailyRow extends Omit<StatsIntradayRow, "bucketTs"> {
+  day: string;              // YYYY‑MM‑DD
+}
+
+export interface StatsLifetimeRow {
+  key: "GLOBAL";
   volume: number;
-  trades: number;
-  feeCollected: number;
+  fees: number;
+  traders: number;
+  markets: number;
 }
 
-/* ------------------------------------------------------------------
-   WS connection registry row
------------------------------------------------------------------- */
-export interface WsConnection {
-  connectionId: string;    // PK (sans “WS#”)
-  traderId?: UUID;         // optional bind
-  createdAt: number;
-  expireAt: number;
+/* ── WebSocket connection registry ─────────────────────────────────── */
+export interface WSConnection {
+  connectionId: string;
+  traderId?: UUID;
+  market?: string;
+  expiresAt: number;
 }
