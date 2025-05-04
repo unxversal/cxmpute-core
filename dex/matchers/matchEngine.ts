@@ -11,6 +11,8 @@ import {
   UUID,
 } from "../../src/lib/interfaces";
 import { Resource } from "sst";
+import { vault } from "../chain/vaultHelper";
+import { getSynthAddr } from "./marketRegistry";
 
 const ddb = new DynamoDBClient({});
 
@@ -89,6 +91,17 @@ export async function matchOrder(taker: Order) {
     // Fees
     const takerFee = (fillQty * fillPx * FEE_BPS) / 10_000;
     const makerFee = (fillQty * fillPx * FEE_BPS) / 10_000;
+
+    const synthAddr = await getSynthAddr(taker.market);
+
+    if (taker.side === "BUY") {
+      // taker receives synth, pays USDC  (simplified view)
+      await vault.mintSynth(synthAddr, taker.traderId, fillQty);
+      await vault.burnSynth(synthAddr, maker.traderId, fillQty);
+    } else {
+      await vault.mintSynth(synthAddr, maker.traderId, fillQty);
+      await vault.burnSynth(synthAddr, taker.traderId, fillQty);
+    }
 
     const trade: Trade = {
       tradeId: crypto.randomUUID().replace(/-/g, ""),

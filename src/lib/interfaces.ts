@@ -346,13 +346,14 @@ export interface Position {
 
 /* ── Markets metadata ───────────────────────────────────────────────── */
 export interface MarketMeta {
-  symbol: string;                          // BTC‑PERP
-  type: "SPOT" | "PERP" | "FUTURE" | "OPTION";
+  symbol: string;           // BTC‑PERP
+  type:   "SPOT" | "PERP" | "FUTURE" | "OPTION";
   status: "ACTIVE" | "PAUSED" | "DELISTED";
   tickSize: number;
-  lotSize: number;
+  lotSize:  number;
   fundingIntervalSec?: number;
   expiryTs?: number;
+  synth: string;            // **NEW** – ERC‑20 address for this market
   createdAt: number;
 }
 
