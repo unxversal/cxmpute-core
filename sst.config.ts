@@ -362,7 +362,7 @@ export default $config({
 
     /* ─── Dynamo Stream → router Fn → SQS ─────────────────────────────── */
     ordersTable.subscribe("OrdersStreamRouter",{
-      handler: "src/streams/ordersStreamRouter.handler",
+      handler: "dex/streams/ordersStreamRouter.handler",
       link: [
         marketOrdersQueue,
         optionsOrdersQueue,
@@ -374,6 +374,57 @@ export default $config({
     /* ─── Matcher subscribers (one per queue) ─────────────────────────── */
     marketOrdersQueue.subscribe({
       handler: "src/matchers/market.handler",
+      link: [
+        ordersTable,
+        tradesTable,
+        positionsTable,
+        statsIntradayTable,
+        statsLifetimeTable,
+        marketsTable,
+        wsConnectionsTable,
+        marketUpdatesTopic,
+      ],
+      timeout: "60 seconds",
+    }, {
+      batch: { size: 10, window: "5 seconds" },
+    });
+
+    optionsOrdersQueue.subscribe({
+      handler: "src/matchers/options.handler",
+      link: [
+        ordersTable,
+        tradesTable,
+        positionsTable,
+        statsIntradayTable,
+        statsLifetimeTable,
+        marketsTable,
+        wsConnectionsTable,
+        marketUpdatesTopic,
+      ],
+      timeout: "60 seconds",
+    }, {
+      batch: { size: 10, window: "5 seconds" },
+    });
+
+    perpsOrdersQueue.subscribe({
+      handler: "src/matchers/perps.handler",
+      link: [
+        ordersTable,
+        tradesTable,
+        positionsTable,
+        statsIntradayTable,
+        statsLifetimeTable,
+        marketsTable,
+        wsConnectionsTable,
+        marketUpdatesTopic,
+      ],
+      timeout: "60 seconds",
+    }, {
+      batch: { size: 10, window: "5 seconds" },
+    });
+
+    futuresOrdersQueue.subscribe({
+      handler: "src/matchers/futures.handler",
       link: [
         ordersTable,
         tradesTable,
