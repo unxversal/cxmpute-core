@@ -253,10 +253,12 @@ export default $config({
         pk:        "string",          // MARKET#BTC-PERP
         sk:        "string",          // TS#<uuid>
         traderId:  "string",
+        orderId:  "string",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByTrader: { hashKey: "traderId", rangeKey: "pk" }
+        ByTrader: { hashKey: "traderId", rangeKey: "pk" },
+        ByOrderId:  { hashKey: "orderId" }
       },
       stream: "new-and-old-images",
     });
