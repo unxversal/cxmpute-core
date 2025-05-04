@@ -472,6 +472,7 @@ export default $config({
       domain: {
         name: "cxmpute.cloud",
         redirects: ["www." + "cxmpute.cloud"],
+        aliases: ["trade.cxmpute.cloud"],
       },
       link: [
         providerTable,
