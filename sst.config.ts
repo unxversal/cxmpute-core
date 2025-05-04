@@ -373,7 +373,7 @@ export default $config({
 
     /* ─── Matcher subscribers (one per queue) ─────────────────────────── */
     marketOrdersQueue.subscribe({
-      handler: "src/matchers/market.handler",
+      handler: "dex/matchers/market.handler",
       link: [
         ordersTable,
         tradesTable,
@@ -390,7 +390,7 @@ export default $config({
     });
 
     optionsOrdersQueue.subscribe({
-      handler: "src/matchers/options.handler",
+      handler: "dex/matchers/options.handler",
       link: [
         ordersTable,
         tradesTable,
@@ -407,7 +407,7 @@ export default $config({
     });
 
     perpsOrdersQueue.subscribe({
-      handler: "src/matchers/perps.handler",
+      handler: "dex/matchers/perps.handler",
       link: [
         ordersTable,
         tradesTable,
@@ -424,7 +424,7 @@ export default $config({
     });
 
     futuresOrdersQueue.subscribe({
-      handler: "src/matchers/futures.handler",
+      handler: "dex/matchers/futures.handler",
       link: [
         ordersTable,
         tradesTable,

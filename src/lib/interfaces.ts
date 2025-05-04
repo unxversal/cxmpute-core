@@ -393,3 +393,15 @@ export interface WSConnection {
   market?: string;
   expiresAt: number;
 }
+
+/* ── Queue payloads ──────────────────────────────────────────────── */
+export interface OrderQueueMessage {
+  /** UUID of the order being processed */
+  orderId: UUID;
+  /** Market symbol, eg. "BTC-PERP" */
+  market: string;
+  /** Discriminated order payload (copied from Orders table) */
+  order: Order;
+}
+
+export type MatcherBatch = OrderQueueMessage[];
