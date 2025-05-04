@@ -277,6 +277,17 @@ export default $config({
         ByAk: { hashKey: "traderAk" },
       },
     });    
+    
+    const balancesTable = new sst.aws.Dynamo("BalancesTable", {
+      fields: {
+        traderId: "string",          // PK
+        asset: "string",             // "USDC" | "CXPT"
+        balance: "number",           // integer base‑units
+        pending: "number",           // locked for open orders
+      },
+      primaryIndex: { hashKey: "traderId", rangeKey: "asset" },
+    });
+    
 
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
@@ -608,6 +619,7 @@ export default $config({
         optionsOrdersQueue,
         perpsOrdersQueue,
         futuresOrdersQueue,
+        balancesTable
       ]
     });
   },

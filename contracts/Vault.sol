@@ -1,96 +1,104 @@
-// SPDX‑License‑Identifier: MIT
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./SynthERC20.sol";
 import "./CXPTToken.sol";
 
 /**
- * Holds 100 % USDC collateral and issues transferable *shares*.
- * Shares == claim on 1 USDC each (scales with decimals of USDC).
- *
- * Upgradeable via UUPS pattern.
+ * Holds 100 % USDC collateral.
+ *  – tracks user shares internally 1 : 1 with USDC for simplicity
+ *  – can mint / burn Synths on behalf of the off‑chain matcher
+ *  – can mint CXPT on withdrawal (governance / fee‑rebate token)
  */
-contract Vault is
-    Initializable,
-    UUPSUpgradeable,
-    OwnableUpgradeable,
-    ReentrancyGuardUpgradeable
-{
-    /* ------------------------------------------------------------ */
-    /*                            State                             */
-    /* ------------------------------------------------------------ */
+contract Vault is AccessControl, ReentrancyGuard {
+    /* ─── config ───────────────────────────────────────────── */
+    bytes32 public constant CORE_ROLE   = keccak256("CORE_ROLE"); // SST matcher
+    bytes32 public constant ADMIN_ROLE  = keccak256("ADMIN_ROLE");
 
-    IERC20Upgradeable public usdc;          // immutable after init
-    CXPTToken public cxpt;                  // immutable after init
+    IERC20  public immutable usdc;
+    CXPTToken public immutable cxpt;
 
-    mapping(address => uint256) public shares; // user → shares
-    uint256 public totalShares;
+    /* user ⇒ shares (1 share = 1 USDC) */
+    mapping(address => uint256) public shares;
 
-    /* ------------------------------------------------------------ */
-    /*                       Initialisation                         */
-    /* ------------------------------------------------------------ */
+    /* whitelist of valid Synth tokens */
+    mapping(address => bool) public isSynth;
 
-    function initialize(address _usdc, address _cxpt) external initializer {
-        __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
+    /* ─── events off‑chain core will listen to ─────────────── */
+    event Deposited(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount, bool asCxpt);
+    event SynthMinted(address indexed synth, address indexed to, uint256 amount);
+    event SynthBurned(address indexed synth, address indexed from, uint256 amount);
 
-        usdc = IERC20Upgradeable(_usdc);
+    constructor(
+        address _usdc,
+        address _cxpt,
+        address core
+    ) {
+        usdc = IERC20(_usdc);
         cxpt = CXPTToken(_cxpt);
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(CORE_ROLE, core);               // Lambda‑signing key
     }
 
-    /* Only owner (DAO upgrade executor) can upgrade */
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    /* ADMIN registers each new Synth once – called from SynthFactory */
+    function registerSynth(address synth) external onlyRole(ADMIN_ROLE) {
+        isSynth[synth] = true;
+    }
 
-    /* ------------------------------------------------------------ */
-    /*                       Core functions                         */
-    /* ------------------------------------------------------------ */
+    /* ───────────────────────────────────────────────────────── */
 
-    /**
-     * @dev Deposit USDC. Caller must `approve()` first.
-     * Shares minted == amount (1 : 1). No fees.
-     */
-    function deposit(uint256 amount) external nonReentrant {
-        require(amount > 0, "zero deposit");
-        usdc.transferFrom(msg.sender, address(this), amount);
+    function deposit(uint256 amt) external nonReentrant {
+        require(amt > 0, "zero");
+        require(
+            usdc.transferFrom(msg.sender, address(this), amt),
+            "transferFrom failed"
+        );
+        shares[msg.sender] += amt;
 
-        shares[msg.sender] += amount;
-        totalShares += amount;
+        emit Deposited(msg.sender, amt);
     }
 
     /**
-     * @dev Withdraw underlying. If `asCxpt` true,
-     *      CXPT is minted 1 : 1 and sent; USDC stays in vault.
+     * asCxpt = false  → transfer out USDC  
+     * asCxpt = true   → *keep* USDC inside vault and mint CXPT 1 : 1
      */
-    function withdraw(uint256 shareAmount, bool asCxpt) external nonReentrant {
-        require(shareAmount > 0, "zero withdraw");
-        require(shares[msg.sender] >= shareAmount, "insufficient shares");
-
-        shares[msg.sender] -= shareAmount;
-        totalShares -= shareAmount;
+    function withdraw(uint256 amt, bool asCxpt) external nonReentrant {
+        require(amt > 0 && shares[msg.sender] >= amt, "balance");
+        shares[msg.sender] -= amt;
 
         if (asCxpt) {
-            cxpt.mint(msg.sender, shareAmount);
+            cxpt.mint(msg.sender, amt);
         } else {
-            usdc.transfer(msg.sender, shareAmount);
+            require(usdc.transfer(msg.sender, amt), "USDC transfer failed");
         }
+
+        emit Withdrawn(msg.sender, amt, asCxpt);
     }
 
-    /* ------------------------------------------------------------ */
-    /*                    Admin / rescue hooks                      */
-    /* ------------------------------------------------------------ */
+    /* ─── called per‑trade by the matcher Lambda (CORE_ROLE) ── */
 
-    function rescueTokens(
-        address token,
+    function mintSynth(
+        address synth,
         address to,
-        uint256 amount
-    ) external onlyOwner {
-        require(token != address(usdc), "no USDC rescue");
-        IERC20Upgradeable(token).transfer(to, amount);
+        uint256 amt
+    ) external onlyRole(CORE_ROLE) {
+        require(isSynth[synth], "unknown synth");
+        SynthERC20(synth).mint(to, amt);
+        emit SynthMinted(synth, to, amt);
+    }
+
+    function burnSynth(
+        address synth,
+        address from,
+        uint256 amt
+    ) external onlyRole(CORE_ROLE) {
+        require(isSynth[synth], "unknown synth");
+        SynthERC20(synth).burnFromVault(from, amt);
+        emit SynthBurned(synth, from, amt);
     }
 }

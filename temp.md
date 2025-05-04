@@ -39,4 +39,4 @@ wss://dex-ws.cxmpute.cloud          ──►  SUBSCRIBE  market.BTC-PERP
 
 In short, the WebSocket layer is the **real‑time nerve system** of the DEX:
 matchers publish → SNS → `fanOut` Lambda → targeted socket pushes.
-Traders get order fills and market moves the moment they happen, without hammering your REST API.
+Traders get order fills and market moves the moment they happen, without hammering your REST API.d
