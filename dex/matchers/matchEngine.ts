@@ -39,7 +39,7 @@ export async function loadOpenOrders(
 ): Promise<Order[]> {
   const resp = await ddb.send(
     new QueryCommand({
-      TableName: process.env.ORDERS_TABLE!,
+      TableName: Resource.OrdersTable.name,
       KeyConditionExpression: "pk = :pk",
       FilterExpression: "#s = :open AND #side = :side",
       ExpressionAttributeNames: {
@@ -108,7 +108,7 @@ export async function matchOrder(taker: Order) {
       // 1️⃣  update maker order
       {
         Update: {
-          TableName: process.env.ORDERS_TABLE!,
+          TableName: Resource.OrdersTable.name,
           Key: marshall({ pk: pk.market(maker.market), sk: maker.sk }),
           UpdateExpression:
             "SET filledQty = filledQty + :f, #s = if_not_exists(#s,:open)",
@@ -123,7 +123,7 @@ export async function matchOrder(taker: Order) {
       // 2️⃣  update taker order
       {
         Update: {
-          TableName: process.env.ORDERS_TABLE!,
+          TableName: Resource.OrdersTable.name,
           Key: marshall({ pk: pk.market(taker.market), sk: taker.sk }),
           UpdateExpression:
             "SET filledQty = filledQty + :f, #s = :status, updatedAt = :now",
@@ -143,7 +143,7 @@ export async function matchOrder(taker: Order) {
       // 3️⃣  put Trade row
       {
         Put: {
-          TableName: process.env.TRADES_TABLE!,
+          TableName: Resource.TradesTable.name,
           Item: marshall({
             pk: pk.market(trade.market),
             sk: `TS#${trade.tradeId}`,
