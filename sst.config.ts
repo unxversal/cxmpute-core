@@ -484,6 +484,89 @@ export default $config({
       ],
     });
 
+
+    /* ─── Scheduled jobs (EventBridge Cron) ─────────────────────────── */
+
+    /* 1) Oracle pull – every minute */
+    new sst.aws.Cron("OracleFetchCron", {
+      schedule: "rate(1 minute)",                       // EventBridge min = 1 min
+      function: {
+        handler: "dex/cron/oracle.handler",
+        timeout: "60 seconds",
+        memory: "256 MB",
+        link: [pricesTable, marketsTable],              // read markets, write prices
+      },
+    });
+
+    /* 2) Funding tick – every hour */
+    new sst.aws.Cron("FundingCron", {
+      schedule: "rate(1 hour)",
+      function: {
+        handler: "dex/cron/funding.handler",
+        timeout: "120 seconds",
+        memory: "512 MB",
+        link: [
+          marketsTable,
+          positionsTable,
+          tradesTable,
+          statsIntradayTable,
+          statsLifetimeTable,
+          wsApi,
+          marketUpdatesTopic,
+        ],
+      },
+    });
+
+    /* 3) Option expiry – hourly sweep */
+    new sst.aws.Cron("OptionExpiryCron", {
+      schedule: "rate(1 hour)",
+      function: {
+        handler: "dex/cron/optionExpiry.handler",
+        timeout: "120 seconds",
+        link: [
+          ordersTable,
+          positionsTable,
+          tradesTable,
+          marketsTable,
+          wsApi,
+          marketUpdatesTopic,
+        ],
+      },
+    });
+
+    /* 4) Future expiry – hourly sweep */
+    new sst.aws.Cron("FutureExpiryCron", {
+      schedule: "rate(1 hour)",
+      function: {
+        handler: "dex/cron/futureExpiry.handler",
+        timeout: "120 seconds",
+        link: [
+          ordersTable,
+          positionsTable,
+          tradesTable,
+          marketsTable,
+          wsApi,
+          marketUpdatesTopic,
+        ],
+      },
+    });
+
+    /* 5) Daily metrics roll‑up – midnight UTC */
+    new sst.aws.Cron("MetricsRollupCron", {
+      schedule: "cron(0 0 * * ? *)",                   // 00:00 UTC daily
+      function: {
+        handler: "dex/cron/metricsRollup.handler",
+        timeout: "300 seconds",
+        memory: "1024 MB",
+        link: [
+          statsIntradayTable,
+          statsDailyTable,
+          dataLakeBucket,
+          marketsTable,
+        ],
+      },
+    });
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {
