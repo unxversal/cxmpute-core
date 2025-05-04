@@ -101,4 +101,10 @@ contract Vault is AccessControl, ReentrancyGuard {
         SynthERC20(synth).burnFromVault(from, amt);
         emit SynthBurned(synth, from, amt);
     }
+
+    function withdrawFees(address to, uint256 amt) external onlyRole(ADMIN_ROLE) {
+        require(usdc.balanceOf(address(this)) >= amt, "insufficient");
+        require(usdc.transfer(to, amt), "transfer failed");
+    }
+
 }
