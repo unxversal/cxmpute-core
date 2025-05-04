@@ -440,6 +440,33 @@ export default $config({
       batch: { size: 10, window: "5 seconds" },
     });
 
+    /* ───  WebSocket API  ─────────────────────────────────────────────── */
+    const wsApi = new sst.aws.ApiGatewayWebSocket("DexWsApi", {
+      //  wss://dex‑ws.$stage.cxmpute.cloud         ← example custom domain
+      domain: $interpolate`dex.${$app.stage}.cxmpute.cloud`,
+    });
+
+    /** lifecycle + one custom “subscribe” route */
+    wsApi.route("$connect",    { 
+      handler: "dex/ws/connect.handler",
+      link: [wsConnectionsTable],
+    });
+    wsApi.route("$disconnect", {
+      handler: "dex/ws/disconnect.handler",
+      link: [wsConnectionsTable],
+    });
+    wsApi.route("$default",    "dex/ws/default.handler");   // echoes errors
+    wsApi.route("subscribe",   "dex/ws/subscribe.handler");
+
+    /* Fan‑out every matcher → SNS → Lambda → postToConnection */
+    marketUpdatesTopic.subscribe("WsFanOut", {
+      handler: "dex/ws/fanOut.handler",
+      link: [
+        wsApi,                //  injects WS_API_URL  &  WS_API_ID env vars
+        wsConnectionsTable,   //  CRUD connections & channel filters
+      ],
+    });
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {
@@ -473,6 +500,8 @@ export default $config({
         statsLifetimeTable,
         wsConnectionsTable,
         dataLakeBucket,
+        wsApi,
+        marketUpdatesTopic
       ]
     });
   },
