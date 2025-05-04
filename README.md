@@ -1,177 +1,150 @@
-### 0.  Guiding idea  
-All *complex* math and matching lives **off-chain in serverless Lambdas**; the chain is only a custody & settlement root-of-truth.  
-Everything is wire-framed with SST components so you can `sst dev` the whole stack locally.
+
+## 1  On-chain layer  (settlement & collateral)
+
+| Contract | Purpose | Notes |
+|---|---|---|
+| **Vault (upgradeable)** | Holds 100 % USDC collateral, tracks user balances in shares. | One deposit/withdraw entry-point. |
+| **CXPT ERC-20** | Governance / fee-rebate token. | Minted 1 : 1 in Vault when a user chooses `withdraw(asCxpt = true)`. |
+| **SynthERC20 (per asset)** | Off-chain order book trades these 1 : 1-backed tokens. | Deterministic `create2`; no factory contract needed. |
+| **Order-hashing lib (EIP-712)** | Typed-data domain for off-chain signatures. | Enables cancel-by-sig, self-trade-prevent, MM bots. |
+
+> **No on-chain matching.**  
+> Latency target < 100 ms + fully-paid orders → off-chain order book + on-chain net settlement.
 
 ---
 
-## 1.  Bird’s-eye diagram
+## 2  Off-chain core  (Next.js `route.ts` + SST constructs)
+
+### REST / HTTP routes
+
+| Route | Description |
+|---|---|
+| `POST /orders` | Create market / limit / option / perp / future.<br>Body = typed DTO + EIP-712 signature. |
+| `DELETE /orders/:id` | Cancel single or bulk (filter). |
+| `GET /orders` | Paginated query. |
+| `GET /positions` | Live positions & PnL. |
+| `POST /admin/markets` | Create / pause / delete market (Cognito group-gated). |
+| `POST /vault/withdraw` | Withdraw USDC or CXPT. |
+
+All deployed as **Lambda@Edge** via `sst.Api` for cold-start < 100 ms.
+
+### WebSocket channels  (`sst.ApiGatewayWebSocket`)
+
+| Channel | Message types | Emitted by |
+|---|---|---|
+| `market.<symbol>` | `depth`, `trade`, `markPrice`, `fundingRate` | Matcher Lambda |
+| `trader.<uuid>` | `orderUpdate`, `positionUpdate`, `liquidationAlert` | Matcher Lambda |
+| `admin.<market>` | `stateChange` | Admin Lambdas |
+
+**Broadcast fan-out**
 
 ```
-┌────────────────┐      REST / WebSocket      ┌──────────────────────┐
-│  React  (FE)   │◄──────────────────────────►│  Next.js API routes  │──┐
-└────────────────┘                             └─────────┬────────────┘  │
-                                                        SQS (FIFO)       │
-                                             OrdersQueue ────────► Match λ│
-                                                                        │ │
-                                DynamoDB (Orders, Trades, Positions, Markets)
-                              Stream        │          │          │       │
-                                ▼           ▼          ▼          ▼       │
-                        depth λ → WS   pnl λ → DB   expiry λ   oracle λ   │
-                                                                        ▼ │
-                                                          SettlementQueue │
-                                                                        ▼ │
-                                                      Settlement λ (viem) │
-                                                                        ▼ │
-                                                        Engine + Vault  ◄─┘
-                                                         (Solidity)
+matcher → SNS Topic “MarketUpdates” → Fan-out Lambda → postToConnection (batch)
 ```
 
-* **Front-end**: Next.js app router, React, TanStack Query, listens on WebSocket topics (`depth:BTC-USDC`, `trade:*`, `pnl:<uid>`).  
-* **Next.js backend**: normal `/app/api/*.ts` routes compiled by **`sst.aws.Nextjs`** → Lambda@Edge.  
-* **OrdersQueue (SQS FIFO)**: enforces price-time priority, eliminates duplicates.  
-* **Match Lambda**: single source of truth for crossing; uses Dynamo conditional writes.  
-* **Dynamo tables**:  
-  * `Orders` — open status rows  
-  * `Trades` — immutable fills  
-  * `Positions` — net positions & PnL per user / product  
-  * `Markets` — metadata, index prices, expiries  
-* **Streams & fan-out**: Dynamo Streams trigger tiny Lambdas that push updates to WebSocket or run accounting.  
-* **Settlement path**: match λ writes fill to **SettlementQueue** → settlement λ batches `Engine.settleBatch()` txs; **Vault** moves USDC.  
-* **Side cars**:  
-  * **Cron** (`sst.aws.Cron`) for funding & expiry.  
-  * **Bus** (EventBridge) for admin ops (`market.pause`).  
-  * **KinesisStream** for on-chain event indexing → S3 parquet.
+Uses SST’s **`SnsTopic`** and **`ApiGatewayWebSocket`** constructs—no extra infra.
 
 ---
 
-## 2.  Placing an order (all products share steps ❶-❹)
+## 3  Data & state
 
-| # | Component | What happens |
-|---|-----------|--------------|
-| ❶ Browser | Builds EIP-712 order struct, signs it, `POST /api/order`. |
-| ❷ API route | – Validates JWT & nonce<br>– *Optional* pre-check `sharesOf()` on Vault<br>– `SendMessage` into **OrdersQueue** with `MessageGroupId = market`, `DedupId = hash`. |
-| ❸ SQS FIFO | Guarantees arrival order within a market. |
-| ❹ **Match λ** | Pops 1-10 msgs → loops:<br>• scans opposite side in `Orders`<br>• conditional `transactWrite` to insert `Trades` & update rows<br>• puts remaining qty back if needed<br>• pushes fills to **SettlementQueue**. |
-| ❺ Dynamo Stream | Triggers:<br>a) `depthBroadcast.handler` → WS<br>b) `pnl.handler` (spot) → `Positions` |
-| ❻ Settlement λ | Every ≤30 s or 500 fills—calls Solidity `Engine.settleBatch`. |
-| ❼ Engine contract | Verifies EIP-712 digest list, moves USDC in **Vault** with a single `transferFrom` per fill, emits `Fill` event. |
+| Table (DynamoDB) | PK | SK | TTL / GSIs | Purpose |
+|---|---|---|---|---|
+| **Orders** | `MARKET#BTC-PERP` | `TS#<uuid>` | GSI `TRADER#uuid` | One table for all order types (`orderType` attr). |
+| **Trades** | `MARKET#BTC-PERP` | `TS#<uuid>` | GSI `TRADER#uuid` <br>**Stream → Firehose** | Raw fills; stream feeds cold archive. |
+| **Positions** | `TRADER#uuid` | `MARKET#BTC-PERP` | – | Net position snapshot, updated atomically. |
+| **Markets** | `MARKET#BTC-PERP` | `META` | GSI `status` | Tick size, expiryTs, funding params… |
+| **Prices** | `ASSET#BTC` | `TS#<iso>` | TTL 7 d | Oracle snapshots for TWAP / funding. |
+| **StatsIntraday** | `MARKET#BTC-PERP` | `2025-05-01T14:30` | TTL 48 h | 1-min (or 5 s) buckets for dashboards. |
+| **StatsDaily** | `MARKET#BTC-PERP` | `2025-05-01` | none | 24 h aggregates, retained 3–12 mo. |
+| **WSConnections** | `WS#<connId>` | `META` | TTL 24 h | Connection registry for push. |
 
----
+**Cold history lake**
 
-### Product-specific tweaks
-
-| Product | Matcher logic | Settlement λ logic | Periodic jobs |
-|---------|---------------|--------------------|---------------|
-| **Spot (Market/Limit)** | Nothing special. | Settle each fill immediately. | — |
-| **Perpetual** | Same as spot. | Settle notional USDC; positions stay in `Positions`. | Hourly `fundingCron` adjusts PnL via synthetic fill. |
-| **Futures** | Same as spot. | Settle notional; leave open until expiry date in `Markets`. | `expiryCron` enqueues `FUTURE_SETTLE`, Engine nets PnL at index price. |
-| **Options** | Stores `premium` & greeks on put order; crossing swaps premium USDC. | Immediate premium transfer; collateral stays locked in Vault. | `expiryCron` exercises ITM → Vault pays intrinsic. |
-
----
-
-## 3.  DynamoDB schema cheat-sheet
-
-| Table | PK / SK pattern | GSI examples |
-|-------|-----------------|--------------|
-| `Orders` | `MARKET#BTC-USDC` / `SIDE#BUY#P=30000#TS=...#OID` | `UserOrdersGSI (PK=USER#xyz)` |
-| `Trades` | `MARKET#BTC-USDC` / `TS#...#TID` | `UserTradesGSI` |
-| `Positions` | `USER#xyz` / `MARKET#BTC-PERP` | — |
-| `Markets` | `MARKET#BTC-PERP` / `INFO` | `ExpiryIndex (expiryTimestamp)` |
-
-All writes are done with **conditional expressions** (`attribute_not_exists`) to ensure idempotence.
-
----
-
-## 4.  On-chain contracts (Solidity)
-
-| Contract | What it does | Gas footprint |
-|----------|--------------|---------------|
-| **Vault** (`ERC-4626`-lite) | Single-token custody (USDC). Mint “shares”, burn on withdraw. | ~40 k per deposit |
-| **Engine** | `settleBatch(Fill[] calldata)`<br>• loops over fills, verifies EIP-712 digest, moves funds<br>• emits `Fill(bytes32 id)` | 5–7 k per fill (plus loop) |
-| **MarketRegistry** | Immutable metadata (base, quote, kind, expiry). | view-only |
-| **WithdrawalQueue** | Two-tx withdraw (request → settle) to avoid MEV. | ~25 k |
-
-*A single signer wallet (kept in AWS Secrets Manager) is whitelisted in Engine and used by Settlement λ.*
-
----
-
-## 5.  Real-time UX channels
-
-| Feed | Source | Transport |
-|------|--------|-----------|
-| Depth snapshot & deltas | `depthBroadcast.handler` | `ApiGatewayWebSocket broadcast("depth:<market>", json)` |
-| Trades ticker | `tradeBroadcast.handler` (triggered by stream) | WS `trade:<market>` |
-| User fills / PnL | `pnl.handler` writes `Positions`; same Lambda pushes WS `pnl:<uid>` |
-| Admin events (halt, change leverage) | EventBridge | WS `alert:*` |
-
-Front-end subscribes once on connect; updates redraw React charts in <100 ms p95.
-
----
-
-## 6.  Infrastructure blocks (SST)
-
-```ts
-// Orders FIFO queue
-const ordersQ = new sst.aws.Queue("OrdersQueue", {
-  fifo: { contentBasedDeduplication: true },
-  visibilityTimeout: "30 seconds",
-});
-
-// Core tables
-const ordersTbl = new sst.aws.Dynamo("Orders", {...});
-const tradesTbl = new sst.aws.Dynamo("Trades", {...});
-const posTbl    = new sst.aws.Dynamo("Positions", {...});
-const mktTbl    = new sst.aws.Dynamo("Markets", {...});
-
-// Matcher
-ordersQ.subscribe({
-  handler: "src/match.handler",
-  batch: { size: 10, window: "0 seconds" },
-  link: [ordersTbl, tradesTbl, posTbl, mktTbl],
-});
-
-// Settlement
-const settleQ = new sst.aws.Queue("SettlementQueue");
-settleQ.subscribe({
-  handler: "src/settle.handler",
-  link: [tradesTbl],
-  timeout: "60 seconds",
-});
-
-// Next.js app + WebSocket + auth pool
-new sst.aws.Nextjs("Web", { link: [ordersQ, ordersTbl, posTbl, settleQ] });
-new sst.aws.ApiGatewayWebSocket("WS", {...});
-new sst.aws.CognitoUserPool("Pool");
+```
+Dynamo Streams (Trades) → Kinesis Firehose → S3 parquet:
+  s3://dex-analytics/raw/YYYY/MM/DD/...
 ```
 
----
-
-## 7.  Cash-settled multi-pair model
-
-* All books quote **native prices** (\, ETH/BTC = 0.058) ✔.  
-* Every fill’s notional is converted to USD using oracle prices; **USDC** is the only asset that ever leaves the Vault.  
-* Roadmap:  
-  * enable multi-token custody by upgrading Vault, or  
-  * auto-swap USDC → asset via Uniswap in Settlement λ.
+Athena / Glue / Redash query the lake on demand.
 
 ---
 
-## 8.  Ops & security quick list
+## 4  Event & compute flows
 
-* **IAM least-privilege**: match λ cannot talk to chain; settle λ cannot access SQS.  
-* **VPC endpoints** for Dynamo/SQS/Secrets-Mgr (no public egress).  
-* **SQS DLQs** + CloudWatch alarm for poison pills.  
-* **Chaos Lambda** cron randomly kills 1 % of matches in dev to prove idempotence.  
-* **Audit pipeline**: Kinesis → S3 parquet → Athena diff vs chain events nightly.
+### 4.1  Order ingress ➜ matcher
+
+1. **API Lambda** validates & `putItem` Order (`condition attribute_not_exists`).
+2. **DDB Stream → EventBridge Pipe → SQS FIFO** keyed by market type.
+3. **Matcher Lambda / ECS Fargate**  
+   *micro-batch 10-50 orders*  
+   - Updates in-memory book, finds matches.  
+   - `TransactWriteItems`: update Orders, insert Trades, update Positions, update **StatsIntraday** (`ADD volume, trades …`).  
+   - Publishes WS payload to SNS.  
+
+### 4.2  Metrics flow
+
+| Step | Component | Action |
+|---|---|---|
+| **A (Real-time)** | Matcher write | In same transaction, `ADD` to **StatsIntraday** (minute bucket). |
+| **B (Archive)** | Streams → Firehose | Each Trade stream record lands in S3 parquet. |
+| **C (Roll-up)** | Cron `0 0 * * ? *` | 1. Scan yesterday’s minute rows → aggregate.<br>2. `putItem` → **StatsDaily**.<br>3. Push aggregate JSON to Firehose `daily/` in S3.<br>4. Intraday rows auto-expire after 48 h via TTL. |
+
+### 4.3  Scheduled jobs
+
+| Job | Interval | Logic |
+|---|---|---|
+| Funding tick | 1 h per perp | `fundingRate = mark - index`; insert Trade. |
+| Option expiry | per contract | Cash-settle ITM -> USDC. |
+| Future expiry | per contract | Cash-settle at index. |
+| Oracle fetch | 30 s | Chainlink / Pyth → **Prices**. |
 
 ---
 
-### TL;DR
+## 5  Metrics & observability
 
-1. **Next.js API routes** act as thin HTTP façades; they *only* enqueue or query Dynamo.  
-2. **SQS FIFO → Match Lambda → Dynamo conditional writes** = deterministic, horizontally scalable orderbook.  
-3. **Settlement Lambda** is the *only* thing allowed to hit Ethereum, batching hundreds of fills into one cheap tx.  
-4. All pairs (even ETH/BTC) are **synthetic** and *cash-settled* in USDC until you add a multi-asset Vault.  
-5. Every state change (orders, fills, depth, PnL) is streamed to the front-end in real-time via API-GW WebSockets.
+### Storage tiers
 
-Plug this into SST, push to AWS, and you have a production-grade hybrid order-book DEX with zero servers to babysit. Let me know which file you want to implement first and we’ll code it line-by-line.
+| Tier | Resolution | Retention | Store | Query path |
+|---|---|---|---|---|
+| **Hot** | 1 min (or 5 s) | 48 h | `StatsIntraday` | REST dashboards (`<15 ms`). |
+| **Warm** | 1 day | 3–12 mo | `StatsDaily` | Leaderboards, 30-d charts. |
+| **Cold** | per Trade / delta | years | S3 parquet | Athena / Glue / BI tools. |
+
+### Key trading metrics (all updated into Stats* tables)
+
+- 24 h volume (USDC / CXPT) - Open interest & Δ% - Depth@1 bp / 5 bp  
+- Funding rate (perps) - Implied vol (options) - Protocol fees - Trader realised / unrealised PnL  
+- Infra SLOs (order-→-fill p95 latency)
+
+---
+
+## 6  Security, fees, admin quirks
+
+- **Flat 0.5 % fee** deducted in matcher transaction (maker & taker).
+- **Idempotency** header on every order/cancel.
+- **Admin auth** via SST `Auth` / Cognito groups; Lambdas verify JWT.
+- **Circuit breaker**: `Markets.status = PAUSED` checked in API & matcher.
+- **Rate-limits**: CloudFront WAF token-bucket keyed by IP + API-key.
+
+---
+
+## 7  Biggest deltas vs the very first draft
+
+| Area | First draft | Final architecture |
+|---|---|---|
+| Metrics storage | Single 24 h table | **StatsIntraday + StatsDaily + S3 lake** three-tier design. |
+| Cold archive | – | Trades stream → Firehose → S3 parquet. |
+| Cost profile | All Dynamo forever | Hot/warm in Dynamo, cheap S3 for deep history. |
+| Fan-out | “Better approach?” | SNS Topic → Fan-out Lambda → WebSocket. |
+
+---
+
+## 8  Next concrete steps
+
+1. **Define TypeScript interfaces** (`Order`, `Trade`, …) with discriminated `orderType`.  
+2. **Prototype in-memory matcher** (single-process) to prove `TransactWriteItems` pattern.  
+3. Deploy **Vault + CXPT** contracts on testnet; wire deposit / withdraw.  
+4. Ship **Oracle cron** + `Prices` table early to unblock funding math.  
+5. Stand up **WebSocket fan-out** path (SNS → Lambda → `postToConnection`) before front-end integration.  
+6. Implement **roll-up Lambda** (scan minute rows → daily row → push to Firehose).

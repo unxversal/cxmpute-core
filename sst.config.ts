@@ -246,182 +246,115 @@ export default $config({
       },
     });
 
-    /* ─────────────────────────────
-    *  1. Core order-book resources
-    * ────────────────────────────*/
+    // ──────────────────────────────────────────────────────────────
+    // DEX ‑ DynamoDB tables
+    // ──────────────────────────────────────────────────────────────
 
-    // 1-a. FIFO ingress queue
-    const ordersQueue = new sst.aws.Queue("OrdersQueue", {
-      fifo: { contentBasedDeduplication: true },
-      visibilityTimeout: "30 seconds",
-    });
-
-    // 1-b. Off-chain → on-chain settlement queue
-    const settlementQueue = new sst.aws.Queue("SettlementQueue");
-
-    // 1-c. Dynamo tables
+    // All Order types (market/limit/option/perp/future)
     const ordersTable = new sst.aws.Dynamo("OrdersTable", {
       fields: {
-        pk: "string",                 // MARKET#BTC-USDC
-        sk: "string",                 // SIDE#BUY#P=30000#TS=...
-        userId: "string",
-        price: "number",
-        qty: "number",
-        status: "string",             // NEW | PARTIAL | FILLED | CXL | EXP
-        product: "string",            // SPOT | PERP | FUTURE | OPTION
-        market: "string",
-        ts: "number",
+        pk:        "string",   // MARKET#<symbol>
+        sk:        "string",   // TS#<uuid>
+        traderId:  "string",
+        createdAt: "number",
+        expireAt:  "number",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByUser:    { hashKey: "userId", rangeKey: "sk" },
-        ByStatus:  { hashKey: "status", rangeKey: "pk" },
+        ByTrader: { hashKey: "traderId", rangeKey: "createdAt" },
       },
+      ttl:   "expireAt",
       stream: "new-and-old-images",
     });
 
+    // Raw trade fills (mirrors Orders PK/SK for easy joins)
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
-        pk: "string",                 // MARKET#BTC-USDC
-        sk: "string",                 // TS#...#TID
-        price: "number",
-        qty: "number",
-        buyOid: "string",
-        sellOid: "string",
+        pk:        "string",   // MARKET#<symbol>
+        sk:        "string",   // TS#<uuid>
+        traderId:  "string",
+        createdAt: "number",
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      globalIndexes: {
+        ByTrader: { hashKey: "traderId", rangeKey: "createdAt" },
+      },
+      stream: "keys-only",     // feed → Firehose → S3 lake
     });
 
+    // Net position snapshot per trader × market
     const positionsTable = new sst.aws.Dynamo("PositionsTable", {
       fields: {
-        pk: "string",                 // USER#<uid>
-        sk: "string",                 // MARKET#BTC-PERP
-        size: "number",
-        avgEntry: "number",
-        realizedPnl: "number",
+        pk: "string",          // TRADER#<uuid>
+        sk: "string",          // MARKET#<symbol>
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
+    // Market metadata & status
     const marketsTable = new sst.aws.Dynamo("MarketsTable", {
       fields: {
-        pk: "string",                 // MARKET#BTC-PERP
-        sk: "string",                 // INFO or PRICE#TS
-        indexPrice: "number",
-        expiryTs: "number",
+        pk:     "string",      // MARKET#<symbol>
+        sk:     "string",      // "META"
+        status: "string",      // active | paused | expired
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      globalIndexes: {
+        ByStatus: { hashKey: "status" },
+      },
+    });
+
+    // Oracle snapshots
+    const pricesTable = new sst.aws.Dynamo("PricesTable", {
+      fields: {
+        pk:        "string",   // ASSET#<symbol>
+        sk:        "string",   // TS#<iso>
+        expireAt:  "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      ttl: "expireAt",
+    });
+
+    // 1‑min (or 5 s) hot stats
+    const statsIntradayTable = new sst.aws.Dynamo("StatsIntradayTable", {
+      fields: {
+        pk:        "string",   // MARKET#<symbol>
+        sk:        "string",   // 2025‑05‑03T17:05
+        expireAt:  "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      ttl: "expireAt",
+    });
+
+    // 24 h aggregates (warm tier)
+    const statsDailyTable = new sst.aws.Dynamo("StatsDailyTable", {
+      fields: {
+        pk: "string",          // MARKET#<symbol>
+        sk: "string",          // 2025‑05‑03
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
-    /* ─────────────────────────────
-    *  2. Lambda consumers
-    * ────────────────────────────*/
-
-    // Matcher — deterministic crossing engine
-    ordersQueue.subscribe({
-      handler: "dex/match.handler",
-      link:   [ordersTable, tradesTable, positionsTable, marketsTable, settlementQueue],
-      timeout:"30 seconds",
-    }, {
-      batch:  { size: 10, window: "0 seconds" },
+    // WebSocket connection registry
+    const wsConnectionsTable = new sst.aws.Dynamo("WsConnectionsTable", {
+      fields: {
+        pk:       "string",    // WS#<connectionId>
+        sk:       "string",    // "META"
+        expireAt: "number",
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      ttl: "expireAt",
     });
 
-    // Settlement — batches fills on-chain
-    settlementQueue.subscribe({
-      handler: "dex/settle.handler",
-      link:   [tradesTable],
-      timeout:"60 seconds",
+    // Trader profile (lightweight — extend as needed)
+    const tradersTable = new sst.aws.Dynamo("TradersTable", {
+      fields: {
+        traderId:  "string",
+        createdAt: "number",
+      },
+      primaryIndex: { hashKey: "traderId" },
     });
 
-    // Depth & trade broadcasts (from Dynamo Streams)
-    ordersTable.subscribe("DepthBroadcast", "dex/depthBroadcast.handler", {
-      filters: [ { dynamodb: { NewImage: { status: { S: ["FILLED","PARTIAL"] } } } } ],
-    });
-    tradesTable.subscribe("TradeBroadcast", "dex/tradeBroadcast.handler");
-
-    const connectionsTable = new sst.aws.Dynamo("ConnectionsTable", {
-      fields: { connectionId: "string" },
-      primaryIndex: { hashKey: "connectionId" },
-    });
-
-    /* ─────────────────────────────
-    *  3. WebSocket API (real-time push)
-    * ────────────────────────────*/
-    const wsApi = new sst.aws.ApiGatewayWebSocket("DexWS", {
-      transform: {
-        route: {
-          handler: {
-            runtime: "nodejs20.x",
-            link: [ordersTable, tradesTable, positionsTable, connectionsTable]
-          }
-        }
-      }
-    });
-
-    wsApi.route("$connect",    "dex/ws/connect.handler");
-    wsApi.route("$disconnect", "dex/ws/disconnect.handler");
-    wsApi.route("depth",       "dex/ws/depth.handler");
-    wsApi.route("trade",       "dex/ws/trade.handler");
-    wsApi.route("pnl",         "dex/ws/pnl.handler");
-
-    /* ─────────────────────────────
-    *  4. Periodic jobs
-    * ────────────────────────────*/
-    new sst.aws.Cron("FundingCron", {
-      schedule: "rate(1 hour)",
-      function: "dex/cron/funding.handler",
-    });
-
-    new sst.aws.Cron("ExpiryCron", {
-      schedule: "cron(0 0 * * ? *)", // midnight UTC
-      function: "dex/cron/expiry.handler",
-    });
-
-    new sst.aws.Cron("OracleCron", {
-      schedule: "rate(1 minute)",
-      function: "dex/cron/oracle.handler",
-    });    
-
-    
-    // Add this to your sst.config.ts run function
-    const adminBus = new sst.aws.Bus("AdminBus");
-
-    // Create an admin Lambda to process admin events
-    const adminHandler = new sst.aws.Function("AdminHandler", {
-      handler: "dex/admin/handler.default",
-      link: [ordersTable, tradesTable, positionsTable, marketsTable, adminBus],
-    });
-
-    // Subscribe the handler to the bus
-    adminBus.subscribe("AdminEvents", {
-      handler: adminHandler.arn,
-    }, {
-      pattern: {
-        source: ["admin.dex"],
-      }
-    });
-
-
-    // Add this to your sst.config.ts run function
-  const auditStream = new sst.aws.KinesisStream("AuditStream");
-
-  // Add a consumer to export data to S3 (parquet format as mentioned in architecture)
-  auditStream.subscribe("S3Exporter", {
-    handler: "dex/audit/s3Export.handler"
-  });
-
-  new sst.aws.Cron("AuditIndexer", {
-    function: "dex/audit/indexer.handler",
-    schedule: "rate(5 minutes)",
-  });
-  
-
-  // Don't forget to link the stream to the Next.js app and settlement Lambda
-  settlementQueue.subscribe({
-    handler: "dex/settle.handler",
-    link: [tradesTable, auditStream], // Add auditStream here
-    timeout: "60 seconds",
-  });
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
@@ -446,15 +379,15 @@ export default $config({
         auth,
         graphs,
         authEmail,
-        ordersQueue, 
-        settlementQueue,
-        ordersTable, 
-        tradesTable, 
-        positionsTable, 
+        positionsTable,
         marketsTable,
-        wsApi,
-        connectionsTable,
-        adminBus
+        pricesTable,
+        statsIntradayTable,
+        statsDailyTable,
+        wsConnectionsTable,
+        tradersTable,
+        tradesTable,
+        ordersTable,
       ]
     });
   },
