@@ -267,6 +267,8 @@ export default $config({
         traderAk: "string",          // short public auth key
         // wallet:   "string",          // EOA if you sign challenges
         // status:   "string",          // ACTIVE / SUSPENDED …
+        // rewards:  { day: string, amount: number }[] // rewards over the past 30 days
+        // totalRewards: number
       },
       primaryIndex: { hashKey: "traderId" },
       globalIndexes: {
