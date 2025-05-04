@@ -2,6 +2,7 @@ import { SNSHandler, SNSEvent } from "aws-lambda";
 import {
   DynamoDBClient,
   ScanCommand,
+  DeleteItemCommand
 } from "@aws-sdk/client-dynamodb";
 import {
   ApiGatewayManagementApiClient,
@@ -52,13 +53,19 @@ export const handler: SNSHandler = async (ev: SNSEvent) => {
             Data: Buffer.from(JSON.stringify(payload)),
           })
         );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         if (err.statusCode === 410) {
           /* stale → purge */
-          await ddb.deleteItem({
-            TableName: Resource.WSConnectionsTable.name,
-            Key: { pk: { S: `WS#${connectionId}` }, sk: { S: "META" } },
-          });
+          await ddb.send(
+            new DeleteItemCommand({
+              TableName: Resource.WSConnectionsTable.name,
+              Key: {
+                pk: { S: `WS#${connectionId}` },
+                sk: { S: "META" },
+              },
+            })
+          );
         }
       }
     })
