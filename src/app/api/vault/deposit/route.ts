@@ -1,7 +1,3 @@
-/* runtime‑hints so Next.js keeps this lambda in Node */
-export const runtime = "nodejs";      // ← SST Nextjs edge‑λ
-export const dynamic = "force-dynamic";
-
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import {

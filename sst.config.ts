@@ -578,6 +578,16 @@ export default $config({
       },
     });
 
+    new sst.aws.Function("VaultEventsListener", {
+      handler: "dex/chain/vaultEvents.handler",
+      timeout: "15 minutes",
+      memory: "128 MB",
+      environment: {
+        PEAQ_WSS_URL: "wss://peaq-rpc.publicnode.com",
+        VAULT_ADDR:   "<deployed‑addr>",
+      },
+    });    
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {
