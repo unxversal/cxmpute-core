@@ -408,3 +408,5 @@ export interface OrderQueueMessage {
 }
 
 export type MatcherBatch = OrderQueueMessage[];
+
+export type TradingMode = "REAL" | "PAPER";
