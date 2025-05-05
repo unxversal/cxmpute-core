@@ -247,130 +247,145 @@ export default $config({
     });
 
     // ──────────────────────────────────────────────────────────────
-    /* ─── DEX DynamoDB tables ──────────────────────────────────────────────── */
+    /* ─── DEX DynamoDB tables (UPDATED FOR PAPER TRADING) ─────── */
+
     const ordersTable = new sst.aws.Dynamo("OrdersTable", {
       fields: {
-        pk:        "string",          // MARKET#BTC-PERP
-        sk:        "string",          // TS#<uuid>
-        traderId:  "string",
-        orderId:  "string",
+        pk:        "string",          // NEW: MARKET#<symbol>#<mode> (e.g., MARKET#BTC-PERP#PAPER)
+        sk:        "string",          // Keep: TS#<uuid>
+        traderId:  "string",          // Attribute
+        orderId:   "string",          // Attribute & GSI Key
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByTrader: { hashKey: "traderId", rangeKey: "pk" },
+        // NEW: GSI to query orders by trader and optionally filter by market/mode via SK (pk)
+        ByTraderMode: { hashKey: "traderId", rangeKey: "pk" },
+        // Keep: GSI to fetch/cancel specific orders
         ByOrderId:  { hashKey: "orderId" }
       },
-      stream: "new-and-old-images",
+      stream: "new-and-old-images", // Keep stream for order processing
     });
 
+    // Unchanged Traders Table (holds user identity, not mode-specific state)
     const tradersTable = new sst.aws.Dynamo("TradersTable", {
       fields: {
-        traderId: "string",          // UUID w/o hyphens
-        traderAk: "string",          // short public auth key
-        // wallet:   "string",          // EOA if you sign challenges
-        // status:   "string",          // ACTIVE / SUSPENDED …
-        // rewards:  { day: string, amount: number }[] // rewards over the past 30 days
-        // totalRewards: number
+        traderId: "string",
+        traderAk: "string",
       },
       primaryIndex: { hashKey: "traderId" },
       globalIndexes: {
         ByAk: { hashKey: "traderAk" },
       },
-    });    
-    
+    });
+
     const balancesTable = new sst.aws.Dynamo("BalancesTable", {
       fields: {
-        traderId: "string",          // PK
-        asset: "string",             // "USDC" | "CXPT"
-        balance: "number",           // integer base‑units
-        pending: "number",           // locked for open orders
+        pk: "string",          // NEW: TRADER#<traderId>#<mode> (e.g., TRADER#uuid123#PAPER)
+        sk: "string",          // NEW: ASSET#<asset> (e.g., ASSET#USDC)
+        // Attributes: balance, pending remain as attributes
+        balance: "number",
+        pending: "number",
       },
-      primaryIndex: { hashKey: "traderId", rangeKey: "asset" },
+      // NEW Primary Index using mode-partitioned keys
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
-    
 
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
-        pk:       "string",
-        sk:       "string",
-        traderId: "string",
+        pk:       "string",          // NEW: MARKET#<symbol>#<mode>
+        sk:       "string",          // Keep: TS#<tradeId>
+        traderId: "string",          // Attribute (used for GSI)
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByTrader: { hashKey: "traderId", rangeKey: "pk" }
+        // NEW: GSI to query trades by trader and optionally filter by market/mode via SK (pk)
+        ByTraderMode: { hashKey: "traderId", rangeKey: "pk" }
       },
-      stream: "new-and-old-images",
+      stream: "new-and-old-images", // Keep stream for S3 archiving
     });
 
     const positionsTable = new sst.aws.Dynamo("PositionsTable", {
       fields: {
-        pk: "string",       // TRADER#uuid
-        sk: "string",       // MARKET#BTC-PERP
+        pk: "string",       // NEW: TRADER#<traderId>#<mode>
+        sk: "string",       // Keep: MARKET#<symbol>
+        // Attributes: size, avgEntryPrice, pnl etc. remain attributes
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
     const marketsTable = new sst.aws.Dynamo("MarketsTable", {
       fields: {
-        pk:     "string",   // MARKET#BTC-PERP
-        sk:     "string",   // META
-        status: "string",
+        pk:     "string",   // NEW: MARKET#<symbol>#<mode>
+        sk:     "string",   // Keep: META
+        status: "string",   // Attribute & GSI Key
+        // Attributes: type, tickSize, synth etc. remain attributes
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        ByStatus: { hashKey: "status", rangeKey: "pk" },
+        // NEW: GSI to query markets by status and filter by mode via SK (pk)
+        ByStatusMode: { hashKey: "status", rangeKey: "pk" },
       },
     });
 
+    // Unchanged Prices Table (paper uses real prices)
     const pricesTable = new sst.aws.Dynamo("PricesTable", {
       fields: {
         pk: "string",   // ASSET#BTC
         sk: "string",   // TS#ISO
+        // Attributes: price, expireAt
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
-      ttl: "expireAt",                 // optional 7‑day TTL
+      ttl: "expireAt",
     });
 
     const statsIntradayTable = new sst.aws.Dynamo("StatsIntradayTable", {
       fields: {
-        pk:      "string",
-        sk:      "string",
-        expireAt:"number",             // 48 h TTL
+        pk:      "string", // NEW: MARKET#<symbol>#<mode>
+        sk:      "string", // Keep: TS#<minute_epoch_ms>
+        expireAt:"number", // Keep TTL
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       ttl: "expireAt",
     });
 
     const statsDailyTable = new sst.aws.Dynamo("StatsDailyTable", {
-      fields: { pk: "string", sk: "string" },
+      fields: {
+        pk: "string", // NEW: MARKET#<symbol>#<mode>
+        sk: "string", // Keep: YYYY-MM-DD
+      },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
     const statsLifetimeTable = new sst.aws.Dynamo("StatsLifetimeTable", {
-      fields: { pk: "string", sk: "string" },
+      fields: {
+        pk: "string", // NEW: KEY#GLOBAL#<mode>
+        sk: "string", // Keep: META
+      },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
     });
 
     const wsConnectionsTable = new sst.aws.Dynamo("WSConnectionsTable", {
       fields: {
-        pk:       "string",            // WS#<connId>
-        sk:       "string",            // META
-        expireAt: "number",            // 24 h TTL
+        pk:       "string",            // Keep: WS#<connId>
+        sk:       "string",            // Keep: META
+        expireAt: "number",            // Keep TTL
+        channelMode: "string",         // NEW: "REAL" or "PAPER" (nullable if not subscribed)
+        // Attributes: traderId, channel etc. remain attributes
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       ttl: "expireAt",
     });
 
-    /* ─── S3 lake for cold trade/metrics history ───────────────────────────── */
-    const dataLakeBucket = new sst.aws.Bucket("DexDataLakeBucket", {
+    /* ─── S3 lake for cold trade/metrics history ──────────────────────── */
+    const dataLakeBucket = new sst.aws.Bucket("DexDataLakeBucket", { // Unchanged
       versioning: true,
       cors: { allowMethods: ["GET", "PUT"] },
     });
 
     /* ─── SNS topic for real‑time fan‑out ─────────────────────────────── */
-    const marketUpdatesTopic = new sst.aws.SnsTopic("MarketUpdatesTopic");
+    const marketUpdatesTopic = new sst.aws.SnsTopic("MarketUpdatesTopic"); // Unchanged
 
-    /* ─── SQS FIFO order queues ──────────────────────────────────────── */
+    /* ─── SQS FIFO order queues (Reused for both modes) ─────────────── */
     const marketOrdersQueue  = new sst.aws.Queue("MarketOrdersQueue",  {
       fifo: { contentBasedDeduplication: true },
       visibilityTimeout: "30 seconds",
@@ -388,9 +403,9 @@ export default $config({
       visibilityTimeout: "30 seconds",
     });
 
-    /* ─── Dynamo Stream → router Fn → SQS ─────────────────────────────── */
+    /* ─── Dynamo Stream → router Fn → SQS (Router needs updated logic) ─ */
     ordersTable.subscribe("OrdersStreamRouter",{
-      handler: "dex/streams/ordersStreamRouter.handler",
+      handler: "dex/streams/ordersStreamRouter.handler", // Needs update to parse mode from pk
       link: [
         marketOrdersQueue,
         optionsOrdersQueue,
@@ -399,23 +414,23 @@ export default $config({
       ],
     });
 
-    /* ─── Matcher subscribers (one per queue) ─────────────────────────── */
+    /* ─── Matcher subscribers (Matchers need updated logic for mode) ─── */
+    // Links remain the same, but handlers need mode awareness
     marketOrdersQueue.subscribe({
       handler: "dex/matchers/market.handler",
       link: [
         ordersTable,
         tradesTable,
         positionsTable,
+        balancesTable, // ADDED: Needed for direct paper balance updates
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
-        wsConnectionsTable,
+        // wsConnectionsTable, // Not directly needed by matcher? Fanout handles WS
         marketUpdatesTopic,
       ],
       timeout: "60 seconds",
-    }, {
-      batch: { size: 10, window: "5 seconds" },
-    });
+    }, { batch: { size: 10, window: "5 seconds" } });
 
     optionsOrdersQueue.subscribe({
       handler: "dex/matchers/options.handler",
@@ -423,16 +438,14 @@ export default $config({
         ordersTable,
         tradesTable,
         positionsTable,
+        balancesTable, // ADDED
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
-        wsConnectionsTable,
         marketUpdatesTopic,
       ],
       timeout: "60 seconds",
-    }, {
-      batch: { size: 10, window: "5 seconds" },
-    });
+    }, { batch: { size: 10, window: "5 seconds" } });
 
     perpsOrdersQueue.subscribe({
       handler: "dex/matchers/perps.handler",
@@ -440,16 +453,14 @@ export default $config({
         ordersTable,
         tradesTable,
         positionsTable,
+        balancesTable, // ADDED
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
-        wsConnectionsTable,
         marketUpdatesTopic,
       ],
       timeout: "60 seconds",
-    }, {
-      batch: { size: 10, window: "5 seconds" },
-    });
+    }, { batch: { size: 10, window: "5 seconds" } });
 
     futuresOrdersQueue.subscribe({
       handler: "dex/matchers/futures.handler",
@@ -457,158 +468,189 @@ export default $config({
         ordersTable,
         tradesTable,
         positionsTable,
+        balancesTable, // ADDED
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
-        wsConnectionsTable,
         marketUpdatesTopic,
       ],
       timeout: "60 seconds",
-    }, {
-      batch: { size: 10, window: "5 seconds" },
-    });
+    }, { batch: { size: 10, window: "5 seconds" } });
 
     /* ───  WebSocket API  ─────────────────────────────────────────────── */
     const wsApi = new sst.aws.ApiGatewayWebSocket("DexWsApi", {
-      //  wss://dex‑ws.$stage.cxmpute.cloud         ← example custom domain
       domain: $interpolate`dex.${$app.stage}.cxmpute.cloud`,
     });
 
-    /** lifecycle + one custom “subscribe” route */
-    wsApi.route("$connect",    { 
+    wsApi.route("$connect",    {
       handler: "dex/ws/connect.handler",
-      link: [wsConnectionsTable, tradersTable],
+      link: [wsConnectionsTable, tradersTable], // Connect needs tradersTable to verify Ak
     });
     wsApi.route("$disconnect", {
       handler: "dex/ws/disconnect.handler",
       link: [wsConnectionsTable],
     });
-    wsApi.route("$default",    "dex/ws/default.handler");   // echoes errors
-    wsApi.route("subscribe",   "dex/ws/subscribe.handler");
+    wsApi.route("$default",    "dex/ws/default.handler");
+    // Subscribe needs logic update for mode-aware channels
+    wsApi.route("subscribe",   {
+        handler: "dex/ws/subscribe.handler",
+        link: [wsConnectionsTable] // Needs to write channelMode
+    });
 
-    /* Fan‑out every matcher → SNS → Lambda → postToConnection */
+    /* Fan‑out needs logic update for mode-aware channels */
     marketUpdatesTopic.subscribe("WsFanOut", {
       handler: "dex/ws/fanOut.handler",
       link: [
-        wsApi,                //  injects WS_API_URL  &  WS_API_ID env vars
-        wsConnectionsTable,   //  CRUD connections & channel filters
+        wsApi,
+        wsConnectionsTable, // Needs to read channel/channelMode for filtering
       ],
     });
 
+    /* ─── Scheduled jobs (Cron Jobs need mode awareness) ───────────── */
 
-    /* ─── Scheduled jobs (EventBridge Cron) ─────────────────────────── */
-
-    /* 1) Oracle pull – every minute */
+    /* 1) Oracle pull – Unchanged, uses real prices */
     new sst.aws.Cron("OracleFetchCron", {
-      schedule: "rate(1 minute)",                       // EventBridge min = 1 min
+      schedule: "rate(1 minute)",
       function: {
         handler: "dex/cron/oracle.handler",
         timeout: "60 seconds",
         memory: "256 MB",
-        link: [pricesTable, marketsTable],              // read markets, write prices
+        link: [pricesTable, marketsTable], // Reads market definitions (now includes mode)
       },
     });
 
-    /* 2) Funding tick – every hour */
+    /* 2) Funding tick – Needs mode logic */
     new sst.aws.Cron("FundingCron", {
       schedule: "rate(1 hour)",
       function: {
-        handler: "dex/cron/funding.handler",
+        handler: "dex/cron/funding.handler", // Needs update
         timeout: "120 seconds",
         memory: "512 MB",
         link: [
           marketsTable,
           positionsTable,
-          tradesTable,
+          balancesTable, // ADDED: For paper balance adjustments
+          tradesTable, // For mark price source
           statsIntradayTable,
           statsLifetimeTable,
-          wsApi,
+          pricesTable, // For index price source
+          // wsApi, // Not directly needed, pushes to SNS
           marketUpdatesTopic,
         ],
+        // Environment vars for Vault/CORE_PK needed only if mode is REAL
+        environment: {
+          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
+          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...", // Provide default or fetch dynamically
+          CORE_PK:      $app.secrets.CORE_PK,
+        },
       },
     });
 
-    /* 3) Option expiry – hourly sweep */
+    /* 3) Option expiry – Needs mode logic */
     new sst.aws.Cron("OptionExpiryCron", {
       schedule: "rate(1 hour)",
       function: {
-        handler: "dex/cron/optionExpiry.handler",
+        handler: "dex/cron/optionExpiry.handler", // Needs update
         timeout: "120 seconds",
         link: [
           ordersTable,
           positionsTable,
+          balancesTable, // ADDED
           tradesTable,
           marketsTable,
-          wsApi,
+          pricesTable, // ADDED: For settlement price source
+          // wsApi,
           marketUpdatesTopic,
         ],
+        // Environment vars for Vault/CORE_PK needed only if mode is REAL
+         environment: {
+          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
+          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
+          CORE_PK:      $app.secrets.CORE_PK,
+        },
       },
     });
 
-    /* 4) Future expiry – hourly sweep */
+    /* 4) Future expiry – Needs mode logic */
     new sst.aws.Cron("FutureExpiryCron", {
       schedule: "rate(1 hour)",
       function: {
-        handler: "dex/cron/futureExpiry.handler",
+        handler: "dex/cron/futureExpiry.handler", // Needs update
         timeout: "120 seconds",
         link: [
           ordersTable,
           positionsTable,
+          balancesTable, // ADDED
           tradesTable,
           marketsTable,
-          wsApi,
+          pricesTable, // ADDED: For settlement price source
+          // wsApi,
           marketUpdatesTopic,
         ],
+         // Environment vars for Vault/CORE_PK needed only if mode is REAL
+         environment: {
+          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
+          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
+          CORE_PK:      $app.secrets.CORE_PK,
+        },
       },
     });
 
-    /* 5) Daily metrics roll‑up – midnight UTC */
+    /* 5) Daily metrics roll‑up – Needs mode logic */
     new sst.aws.Cron("MetricsRollupCron", {
-      schedule: "cron(0 0 * * ? *)",                   // 00:00 UTC daily
+      schedule: "cron(0 0 * * ? *)",
       function: {
-        handler: "dex/cron/metricsRollup.handler",
+        handler: "dex/cron/metricsRollup.handler", // Needs update
         timeout: "300 seconds",
         memory: "1024 MB",
         link: [
           statsIntradayTable,
           statsDailyTable,
           dataLakeBucket,
-          marketsTable,
+          marketsTable, // To know which markets existed
         ],
       },
     });
 
+    /* VaultEventsListener only cares about REAL mode balances */
     new sst.aws.Function("VaultEventsListener", {
       handler: "dex/chain/vaultEvents.handler",
       timeout: "15 minutes",
       memory: "128 MB",
+      link: [balancesTable], // Needs to update REAL balances
+      // Environment vars remain the same
       environment: {
-        PEAQ_WSS_URL: "wss://peaq-rpc.publicnode.com",
-        VAULT_ADDR:   "<deployed‑addr>",
+        PEAQ_WSS_URL: $env.PEAQ_WSS_URL ?? "wss://peaq-rpc.publicnode.com",
+        VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
+        CHAIN_ID:     $env.CHAIN_ID ?? "3338",
       },
-    });    
+    });
 
+    /* PerpDailySettleCron - Needs mode logic */
     new sst.aws.Cron("PerpDailySettleCron", {
-      /* 00:05 UTC every day (gives oracle job 5 min to finish) */
       schedule: "cron(5 0 * * ? *)",
       function: {
-        handler: "dex/cron/perpsDailySettle.handler",
+        handler: "dex/cron/perpsDailySettle.handler", // Needs update
         timeout: "300 seconds",
-        /* give the Lambda access to the same env & tables as the matcher */
-        environment: {
-          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
-          CHAIN_ID:     "3338",
-          VAULT_ADDR:   Resource.Vault.addr,   // ← exported by `link`
-          CORE_PK:      $app.secrets.CORE_PK,  // SST secret
-        },
         link: [
           positionsTable,
-          balancesTable,
-          pricesTable,
-          statsIntradayTable,
+          balancesTable, // Needed for both REAL and PAPER balance updates
+          pricesTable, // Needed for PnL calculation
+          // statsIntradayTable, // Not directly needed for settlement?
         ],
+        // Environment vars for Vault/CORE_PK only needed for REAL mode (if settlement involves on-chain transfers, which it doesn't seem to here, only balance updates)
+        // Keep them linked for consistency if other CRONs need them
+        environment: {
+          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
+          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
+          CORE_PK:      $app.secrets.CORE_PK,
+        },
       },
-    });    
+    });
 
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
