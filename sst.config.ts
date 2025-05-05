@@ -588,6 +588,28 @@ export default $config({
       },
     });    
 
+    new sst.aws.Cron("PerpDailySettleCron", {
+      /* 00:05 UTC every day (gives oracle job 5 min to finish) */
+      schedule: "cron(5 0 * * ? *)",
+      function: {
+        handler: "dex/cron/perpsDailySettle.handler",
+        timeout: "300 seconds",
+        /* give the Lambda access to the same env & tables as the matcher */
+        environment: {
+          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     "3338",
+          VAULT_ADDR:   Resource.Vault.addr,   // ← exported by `link`
+          CORE_PK:      $app.secrets.CORE_PK,  // SST secret
+        },
+        link: [
+          positionsTable,
+          balancesTable,
+          pricesTable,
+          statsIntradayTable,
+        ],
+      },
+    });    
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {

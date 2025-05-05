@@ -15,7 +15,6 @@ const minuteBucket = Math.floor(now / 60_000) * 60_000;
 
 /* helpers */
 const pkMarket = (m: string) => `MARKET#${m}`;
-const pkTrader = (t: string) => `TRADER#${t}`;
 
 /** clamp helper */
 const clamp = (val: number, min: number, max: number) =>
