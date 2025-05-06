@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
         { symbol, mode, synthAddr, txHash, status: "PAUSED" }, // Return relevant info
         { status: 201 }
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   } catch (err: any) {
     if (err?.name === "ConditionalCheckFailedException") {
         return NextResponse.json({ error: `market ${err.message?.includes('pk') ? 'already exists' : 'creation conflict'}` }, { status: 409 });

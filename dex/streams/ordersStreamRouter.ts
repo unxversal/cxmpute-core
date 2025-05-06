@@ -1,50 +1,98 @@
-import { DynamoDBStreamEvent, DynamoDBStreamHandler } from "aws-lambda";
+// dex/streams/ordersStreamRouter.ts
+import { DynamoDBStreamHandler, DynamoDBStreamEvent } from "aws-lambda";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
-import type { Order, OrderQueueMessage } from "../../src/lib/interfaces";
-import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { Resource } from "sst";
+import type { Order, OrderQueueMessage, TradingMode } from "../../src/lib/interfaces"; // Import TradingMode
 
 const sqs = new SQSClient({});
 
-/** Map orderType → FIFO queue URL (injected by SST’s `link` helper) */
-const QUEUE_URL_BY_TYPE: Record<Order["orderType"], string> = {
-  MARKET:  process.env.MARKET_ORDERS_QUEUE_URL!,
-  LIMIT:   process.env.MARKET_ORDERS_QUEUE_URL!,     // handled by same matcher
-  PERP:    process.env.PERPS_ORDERS_QUEUE_URL!,
-  FUTURE:  process.env.FUTURES_ORDERS_QUEUE_URL!,
-  OPTION:  process.env.OPTIONS_ORDERS_QUEUE_URL!,
+// Map order types to their respective queue URLs (fetched from SST Resources)
+const queueUrls = {
+  MARKET: Resource.MarketOrdersQueue.url,
+  LIMIT: Resource.MarketOrdersQueue.url, // Market and Limit use the same queue/matcher
+  OPTION: Resource.OptionsOrdersQueue.url,
+  PERP: Resource.PerpsOrdersQueue.url,
+  FUTURE: Resource.FuturesOrdersQueue.url,
 };
 
-export const handler: DynamoDBStreamHandler = async (event: DynamoDBStreamEvent) => {
-  const sendPromises = event.Records.flatMap((rec) => {
-    if (rec.eventName !== "INSERT" || !rec.dynamodb?.NewImage) return [];
+/**
+ * Parses the mode ("REAL" or "PAPER") from the DynamoDB PK.
+ * PK format: MARKET#<symbol>#<mode>
+ */
+const parseModeFromPk = (pk: string): TradingMode | null => {
+  const parts = pk.split("#");
+  if (parts.length === 3 && parts[0] === "MARKET") {
+    const mode = parts[2].toUpperCase();
+    if (mode === "REAL" || mode === "PAPER") {
+      return mode as TradingMode;
+    }
+  }
+  console.error(`Could not parse mode from PK: ${pk}`);
+  return null;
+};
 
-    /** Order row *exactly* as persisted in Orders table */
-    const order = unmarshall(rec.dynamodb.NewImage as Record<string, AttributeValue>) as unknown as Order;
-    const queueUrl = QUEUE_URL_BY_TYPE[order.orderType];
 
-    if (!queueUrl) {
-      console.error(`Unknown orderType '${order.orderType}' for order ${order.orderId}`);
-      return [];
+export const handler: DynamoDBStreamHandler = async (
+  event: DynamoDBStreamEvent
+) => {
+  for (const record of event.Records) {
+    // Only process new order insertions
+    if (record.eventName !== "INSERT" || !record.dynamodb?.NewImage) {
+      continue;
     }
 
-    const payload: OrderQueueMessage = {
-      orderId: order.orderId,
-      market: order.market,
-      order,
-    };
+    try {
+      // Unmarshall the full order item from the stream
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newImage = unmarshall(record.dynamodb.NewImage as any) as Order & { pk: string; sk: string};
 
-    return sqs.send(
-      new SendMessageCommand({
-        QueueUrl: queueUrl,
-        MessageBody: JSON.stringify(payload),
-        /** group = market ensures price‑time priority inside a market */
-        MessageGroupId: order.market,
-        /** deduplicationId = orderId avoids duplicate enqueue */
-        MessageDeduplicationId: order.orderId,
-      }),
-    );
-  });
+      // --- Paper Trading: Parse Mode ---
+      const mode = parseModeFromPk(newImage.pk);
+      if (!mode) {
+          console.error(`Skipping record - failed to parse mode for orderId: ${newImage.orderId}, pk: ${newImage.pk}`);
+          continue; // Skip processing if mode cannot be determined
+      }
+      // --- End Paper Trading ---
 
-  await Promise.all(sendPromises);
+      const orderType = newImage.orderType;
+
+      // Determine the target queue based on order type
+
+      const targetQueueUrl = queueUrls[orderType];
+
+      if (!targetQueueUrl) {
+        console.warn(`No queue configured for order type: ${orderType}`);
+        continue; // Skip if no queue is mapped
+      }
+
+      // Prepare the message for the SQS queue
+      const messagePayload: OrderQueueMessage = {
+        orderId: newImage.orderId,
+        market: newImage.market,
+        order: newImage, // Pass the full unmarshalled order item
+        mode: mode,      // Include the parsed mode
+      };
+
+      // Send the message to the specific SQS queue
+      await sqs.send(
+        new SendMessageCommand({
+          QueueUrl: targetQueueUrl,
+          MessageBody: JSON.stringify(messagePayload),
+          // FIFO specific properties: MessageGroupId determines the partition (matching engine)
+          // Use the market symbol and mode to ensure orders for the same market/mode are processed sequentially.
+          MessageGroupId: `${newImage.market}-${mode}`,
+          // MessageDeduplicationId can be based on orderId for idempotency
+          MessageDeduplicationId: newImage.orderId,
+        })
+      );
+
+      // console.log(`Order ${newImage.orderId} (${mode}) routed to queue for ${orderType}`);
+
+    } catch (error) {
+      console.error("Error processing DynamoDB stream record:", error);
+      console.error("Failed record:", JSON.stringify(record, null, 2));
+      // Consider sending failed records to a Dead Letter Queue (DLQ) configured on the Lambda
+    }
+  }
 };

@@ -403,8 +403,10 @@ export interface OrderQueueMessage {
   orderId: UUID;
   /** Market symbol, eg. "BTC-PERP" */
   market: string;
-  /** Discriminated order payload (copied from Orders table) */
-  order: Order;
+  /** Discriminated order payload (copied from Orders table item) */
+  order: Order & { pk: string; sk: string }; // Include pk/sk as they are needed by matcher sometimes
+  /** NEW: Trading mode for this order */
+  mode: TradingMode;
 }
 
 export type MatcherBatch = OrderQueueMessage[];
