@@ -344,24 +344,34 @@ export async function matchOrder(taker: OrderWithKeys, mode: TradingMode): Promi
         const statsIntradayTtl = Math.floor((matchTimestamp + 48 * 3_600_000) / 1_000);
         transactionItems.push({
             Update: {
-                TableName: STATS_INTRADAY_TABLE, Key: marshall({ pk: statsIntradayPk, sk: statsIntradaySk }),
-                UpdateExpression: `ADD volume :vol, fees :fees, trades :one SET expireAt = if_not_exists(expireAt, :ttl)`,
+                TableName: STATS_INTRADAY_TABLE,
+                Key: marshall({ pk: statsIntradayPk, sk: statsIntradaySk }),
+                UpdateExpression: `
+                    ADD volume :vol, fees :fees, trades :one  # ADD 'trades :one' HERE
+                    SET expireAt = if_not_exists(expireAt, :ttl)
+                `,
                 ExpressionAttributeValues: marshall({
-                    ":vol": tradeValue, ":fees": takerFee + makerFee, ":one": 1, ":ttl": statsIntradayTtl,
+                    ":vol": tradeValue,
+                    ":fees": trade.takerFee + trade.makerFee,
+                    ":one": 1, // Increment trade count by 1
+                    ":ttl": statsIntradayTtl,
                 }),
             },
         });
 
-        // 6️⃣ Update StatsLifetime Table
-        transactionItems.push({
-            Update: {
-                TableName: STATS_LIFETIME_TABLE, Key: marshall({ pk: pk.globalMode(mode), sk: "META" }),
-                UpdateExpression: "ADD volume :vol, fees :fees, trades :one",
-                ExpressionAttributeValues: marshall({
-                    ":vol": tradeValue, ":fees": takerFee + makerFee, ":one": 1,
-                }),
-            },
-        });
+        // --- 6️⃣ Update StatsLifetime Table ---
+         transactionItems.push({
+             Update: {
+                 TableName: STATS_LIFETIME_TABLE,
+                 Key: marshall({ pk: pk.globalMode(mode), sk: "META" }),
+                 UpdateExpression: "ADD volume :vol, fees :fees, trades :one", // ADD 'trades :one' HERE
+                 ExpressionAttributeValues: marshall({
+                     ":vol": tradeValue,
+                     ":fees": trade.takerFee + trade.makerFee,
+                     ":one": 1, // Increment trade count by 1
+                 }),
+             },
+         });
 
         remainingQty -= fillQty; // Decrease remaining taker qty
 

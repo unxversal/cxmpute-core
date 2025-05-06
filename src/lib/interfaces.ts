@@ -375,6 +375,7 @@ export interface StatsIntradayRow {
   depth5bp: number;
   fundingRate?: number;
   impliedVol?: number;
+  trades?: number;
 }
 
 export interface StatsDailyRow extends Omit<StatsIntradayRow, "bucketTs"> {
