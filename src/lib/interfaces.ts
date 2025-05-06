@@ -412,3 +412,11 @@ export interface OrderQueueMessage {
 export type MatcherBatch = OrderQueueMessage[];
 
 export type TradingMode = "REAL" | "PAPER";
+
+// Define Balance type if needed
+export interface Balance {
+    pk: string; // TRADER#<id>#<mode>
+    sk: string; // ASSET#<asset>
+    balance: number;
+    pending: number;
+}
