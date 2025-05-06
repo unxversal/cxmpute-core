@@ -1,28 +1,65 @@
-// dex/lib/marketRegistry.ts
-import {
-  DynamoDBClient,
-  GetItemCommand,
-} from "@aws-sdk/client-dynamodb";
-import { unmarshall } from "@aws-sdk/util-dynamodb";
+// dex/matchers/marketRegistry.ts (Example Implementation)
+import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { Resource } from "sst";
+import type { MarketMeta, TradingMode } from "../../src/lib/interfaces";
 
 const ddb = new DynamoDBClient({});
-const cache = new Map<string, string>();
+const MARKETS_TABLE = Resource.MarketsTable.name;
 
-export async function getSynthAddr(market: string): Promise<string> {
-  if (cache.has(market)) return cache.get(market)!;
+// Cache market details to reduce DynamoDB calls (optional but recommended)
+const marketCache = new Map<string, MarketMeta | null>(); // Key: <symbol>#<mode>
 
-  const { Item } = await ddb.send(
-    new GetItemCommand({
-      TableName: Resource.MarketsTable.name,
-      Key: { pk: { S: `MARKET#${market}` }, sk: { S: "META" } },
-      ProjectionExpression: "synth",
-    })
-  );
+/**
+ * Helper: derive PK for Markets table
+ */
+const pkMarketMode = (symbol: string, mode: TradingMode) =>
+  `MARKET#${symbol}#${mode.toUpperCase()}`;
 
-  if (!Item) throw new Error(`unknown market ${market}`);
 
-  const { synth } = unmarshall(Item) as { synth: string };
-  cache.set(market, synth);
-  return synth;
+/**
+ * Fetches market metadata from DynamoDB (with caching).
+ */
+export async function getMarketDetails(symbol: string, mode: TradingMode): Promise<MarketMeta | null> {
+    const cacheKey = `${symbol}#${mode}`;
+    if (marketCache.has(cacheKey)) {
+        return marketCache.get(cacheKey) ?? null;
+    }
+
+    const pk = pkMarketMode(symbol, mode);
+    try {
+        const { Item } = await ddb.send(new GetItemCommand({
+            TableName: MARKETS_TABLE,
+            Key: marshall({ pk: pk, sk: "META" })
+        }));
+
+        if (!Item) {
+            console.warn(`Market details not found for ${pk}`);
+            marketCache.set(cacheKey, null); // Cache the miss
+            return null;
+        }
+
+        const marketMeta = unmarshall(Item) as MarketMeta;
+        marketCache.set(cacheKey, marketMeta);
+        return marketMeta;
+
+    } catch (error) {
+        console.error(`Error fetching market details for ${pk}:`, error);
+        return null; // Return null on error
+    }
+}
+
+/**
+ * Gets the Synth address for a REAL market. Returns null otherwise.
+ */
+export async function getSynthAddr(symbol: string): Promise<string | null> {
+    const details = await getMarketDetails(symbol, "REAL"); // Only REAL markets have synths
+    // The 'synth' attribute should exist on the MarketMeta interface
+    return details?.synth ?? null;
+}
+
+// Add other helper functions as needed, e.g., getting tickSize, lotSize, etc.
+export async function getTickSize(symbol: string, mode: TradingMode): Promise<number | null> {
+     const details = await getMarketDetails(symbol, mode);
+     return details?.tickSize ?? null;
 }
