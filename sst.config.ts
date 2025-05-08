@@ -14,9 +14,12 @@ export default $config({
   async run() {
 
     // --- Define Secrets ---
-    const paperPointsLimitOrder = new sst.Secret("PaperPointsLimitOrder"); // Default 1 point
-    const paperPointsUsdcVolume = new sst.Secret("PaperPointsUsdcVolume"); // Default 0.01 points per $1 volume
-    const paperPointsUsdcPnl = new sst.Secret("PaperPointsUsdcPnl"); // Default 0.05 points per $1 profit
+    const paperPointsLimitOrder = new sst.Secret("PaperPointsLimitOrder"); 
+    const paperPointsUsdcVolume = new sst.Secret("PaperPointsUsdcVolume"); 
+    const paperPointsUsdcPnl = new sst.Secret("PaperPointsUsdcPnl"); 
+
+    const coreWalletPk = new sst.Secret("CoreWalletPk");
+    const coreVaultAddress = new sst.Secret("CoreVaultAddress");
 
     // Provider Table
     const providerTable = new sst.aws.Dynamo("ProviderTable", {
@@ -541,13 +544,13 @@ export default $config({
           pricesTable, // For index price source
           // wsApi, // Not directly needed, pushes to SNS
           marketUpdatesTopic,
+          coreVaultAddress,
+          coreWalletPk,
         ],
         // Environment vars for Vault/CORE_PK needed only if mode is REAL
         environment: {
-          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
-          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
-          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...", // Provide default or fetch dynamically
-          CORE_PK:      $app.secrets.CORE_PK,
+          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     "3338",
         },
       },
     });
@@ -567,13 +570,13 @@ export default $config({
           pricesTable, // ADDED: For settlement price source
           // wsApi,
           marketUpdatesTopic,
+          coreVaultAddress,
+          coreWalletPk,
         ],
         // Environment vars for Vault/CORE_PK needed only if mode is REAL
          environment: {
-          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
-          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
-          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
-          CORE_PK:      $app.secrets.CORE_PK,
+          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     "3338",
         },
       },
     });
@@ -593,13 +596,13 @@ export default $config({
           pricesTable, // ADDED: For settlement price source
           // wsApi,
           marketUpdatesTopic,
+          coreVaultAddress,
+          coreWalletPk,
         ],
          // Environment vars for Vault/CORE_PK needed only if mode is REAL
          environment: {
-          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
-          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
-          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
-          CORE_PK:      $app.secrets.CORE_PK,
+          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     "3338",
         },
       },
     });
@@ -630,15 +633,15 @@ export default $config({
           positionsTable,
           balancesTable, // Needed for both REAL and PAPER balance updates
           pricesTable, // Needed for PnL calculation
+          coreVaultAddress,
+          coreWalletPk
           // statsIntradayTable, // Not directly needed for settlement?
         ],
         // Environment vars for Vault/CORE_PK only needed for REAL mode (if settlement involves on-chain transfers, which it doesn't seem to here, only balance updates)
         // Keep them linked for consistency if other CRONs need them
         environment: {
-          PEAQ_RPC_URL: $env.PEAQ_RPC_URL ?? "https://peaq.api.onfinality.io/public",
-          CHAIN_ID:     $env.CHAIN_ID ?? "3338",
-          VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
-          CORE_PK:      $app.secrets.CORE_PK,
+          PEAQ_RPC_URL: "https://peaq.api.onfinality.io/public",
+          CHAIN_ID:     "3338",
         },
       },
     });

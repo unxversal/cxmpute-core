@@ -1,6 +1,9 @@
 // dex/onchain/vaultHelper.ts
 import { ethers } from "ethers";
-const { PEAQ_RPC_URL, VAULT_ADDR, CORE_PK, CHAIN_ID = "3338" } = process.env;
+import { Resource } from "sst";
+const { PEAQ_RPC_URL, CHAIN_ID = "3338" } = process.env;
+const VAULT_ADDR = Resource.CoreVaultAddress.value;
+const CORE_PK = Resource.CoreWalletPk.value;
 const abi = [
   "function mintSynth(address synth,address to,uint256 amt)",
   "function burnSynth(address synth,address from,uint256 amt)",

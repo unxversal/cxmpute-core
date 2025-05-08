@@ -25,7 +25,6 @@ type MarketMetaWithOptions = MarketMeta & { pk: string; sk: string; strike: numb
 type PositionWithKeys = Position & { pk: string; sk: string };
 
 const ddb = new DynamoDBClient({});
-const sns = new SNSClient({}); // Initialize SNS if needed for notifications
 
 // Table Names from SST Resources (Ignoring TS errors for Resource as requested)
 const MARKETS_TABLE = Resource.MarketsTable.name;
