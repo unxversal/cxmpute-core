@@ -13,7 +13,6 @@ import type {
   MarketOrder,
   OptionOrder,
   Order,
-  OrderStatus,
   TradingMode,
 } from "@/lib/interfaces";
 import { Resource } from "sst";
@@ -21,7 +20,6 @@ import { Resource } from "sst";
 /* --- constants ---------------------------------------------------- */
 const ORDERS_TABLE = Resource.OrdersTable.name;
 const TRADERS_TABLE = Resource.TradersTable.name; // Added Traders table name
-const FEE_BPS = 50; // 0.5 %
 
 const ddb = new DynamoDBClient({});
 
