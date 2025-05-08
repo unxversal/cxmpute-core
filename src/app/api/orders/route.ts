@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
           filledQty: 0,
           createdAt: now,
           status: "OPEN",
-          feeBps: 50,
+          feeBps: 100,
         } as MarketOrder;
         break;
       case "LIMIT":
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
           filledQty: 0,
           createdAt: now,
           status: "OPEN",
-          feeBps: 50,
+          feeBps: 100,
         } as LimitOrder;
         break;
       case "OPTION":
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           filledQty: 0,
           createdAt: now,
           status: "OPEN",
-          feeBps: 50,
+          feeBps: 100,
         } as OptionOrder;
         break;
       // Add cases for other order types

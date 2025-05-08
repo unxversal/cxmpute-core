@@ -11,3 +11,25 @@ REPORT_GAS=true npx hardhat test
 npx hardhat node
 npx hardhat ignition deploy ./ignition/modules/Lock.ts
 ```
+
+
+# Run the Deployment Script
+
+## To Agung Testnet:
+
+```shell
+npx hardhat run scripts/deploy.ts --network agung
+```
+
+## To Peaq Mainnet (USE WITH EXTREME CAUTION)
+
+```shell
+npx hardhat run scripts/deploy.ts --network peaq
+```
+
+## To Local Hardhat Network (for quick tests)
+
+```shell
+npx hardhat node # Start a local node in one terminal
+npx hardhat run scripts/deploy.ts --network localhost # Run script in another terminal
+```

@@ -27,7 +27,7 @@ import { Resource } from "sst"; // Assuming SST Resources are globally available
 // Ignore TS errors for Resource properties as requested
 const ORDERS_TABLE = Resource.OrdersTable.name;
 const TRADERS_TABLE = Resource.TradersTable.name;
-const FEE_BPS = 50; // 0.5%
+const FEE_BPS = 100; // 0.5%
 
 // --- DynamoDB Client ---
 const ddb = new DynamoDBClient({});

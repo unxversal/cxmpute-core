@@ -278,7 +278,7 @@ interface BaseOrder {
   filledQty: number;
   createdAt: number;       // ms epoch
   status: OrderStatus;
-  feeBps: 50;              // flat 0.5 %
+  feeBps: 100;              // flat 0.5 %
   sk: string;              // Dynamo sort‑key "TS#<epoch>"
   price?: number;          // optional → undefined for pure MARKET orders
 }

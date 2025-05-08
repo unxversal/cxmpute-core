@@ -620,20 +620,6 @@ export default $config({
       },
     });
 
-    /* VaultEventsListener only cares about REAL mode balances */
-    new sst.aws.Function("VaultEventsListener", {
-      handler: "dex/chain/vaultEvents.handler",
-      timeout: "15 minutes",
-      memory: "128 MB",
-      link: [balancesTable], // Needs to update REAL balances
-      // Environment vars remain the same
-      environment: {
-        PEAQ_WSS_URL: $env.PEAQ_WSS_URL ?? "wss://peaq-rpc.publicnode.com",
-        VAULT_ADDR:   $env.VAULT_ADDR ?? "0x...",
-        CHAIN_ID:     $env.CHAIN_ID ?? "3338",
-      },
-    });
-
     /* PerpDailySettleCron - Needs mode logic */
     new sst.aws.Cron("PerpDailySettleCron", {
       schedule: "cron(5 0 * * ? *)",
