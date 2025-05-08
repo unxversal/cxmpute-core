@@ -421,3 +421,43 @@ export interface Balance {
     balance: number;
     pending: number;
 }
+
+// --- NEW Interfaces for TraderRecord and PaperPoints ---
+
+/** Structure for storing paper trading points */
+export interface PaperPoints {
+  totalPoints: number; // Current accumulated points for the epoch
+  epoch: number;       // Current reward epoch (e.g., increments monthly)
+}
+
+/** Represents a record in the Traders DynamoDB table */
+export interface TraderRecord {
+  /** Primary Key: Composite key including trader ID and mode. Example: TRADER#uuid123abc#PAPER */
+  pk: string;
+  /** Sort Key: Often a static value for metadata. Example: META */
+  sk: string;
+  /** The unique identifier for the trader */
+  traderId: UUID;
+  /** The trading mode (REAL or PAPER) associated with this specific record/PK */
+  mode: TradingMode;
+  /** Optional: Trader's email address */
+  email?: string;
+  /** Optional: Trader's wallet address */
+  walletAddress?: string;
+  /** Optional: Paper trading points, only present for PAPER mode traders */
+  paperPoints?: PaperPoints;
+  /** Optional: API Keys associated with the trader */
+  apiKeys?: ApiKeyInfo[];
+  /** Optional: Credits balance */
+  credits?: number;
+   /** Optional: Historical rewards entries */
+  rewards?: RewardEntry[];
+  /** Optional: Total accumulated rewards */
+  totalRewards?: number;
+  /** Optional: User Access Key */
+  userAk?: string;
+   /** Optional: Status like ACTIVE/SUSPENDED if stored here */
+  status?: "ACTIVE" | "SUSPENDED";
+  // Add any other relevant trader attributes here (e.g., createdAt, lastLoginAt)
+  createdAt?: number;
+}

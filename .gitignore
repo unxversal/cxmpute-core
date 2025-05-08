@@ -46,3 +46,6 @@ next-env.d.ts
 # open-next
 .open-next
 src/lib/privateutils.ts
+dex/dexfiles.txt
+.gitignore
+src/srcfiles.txt

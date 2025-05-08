@@ -13,6 +13,11 @@ export default $config({
   },
   async run() {
 
+    // --- Define Secrets ---
+    const paperPointsLimitOrder = new sst.Secret("PaperPointsLimitOrder"); // Default 1 point
+    const paperPointsUsdcVolume = new sst.Secret("PaperPointsUsdcVolume"); // Default 0.01 points per $1 volume
+    const paperPointsUsdcPnl = new sst.Secret("PaperPointsUsdcPnl"); // Default 0.05 points per $1 profit
+
     // Provider Table
     const providerTable = new sst.aws.Dynamo("ProviderTable", {
       fields: {
@@ -693,7 +698,10 @@ export default $config({
         optionsOrdersQueue,
         perpsOrdersQueue,
         futuresOrdersQueue,
-        balancesTable
+        balancesTable,
+        paperPointsLimitOrder,
+        paperPointsUsdcPnl,
+        paperPointsUsdcVolume
       ]
     });
   },
