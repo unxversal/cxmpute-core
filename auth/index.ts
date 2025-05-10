@@ -22,7 +22,7 @@ import {
 
 import { Resource } from "sst";
 import { subjects } from "./subjects";
-import { adminEmails } from "@/lib/privateutils";
+import { ADMIN_EMAILS } from "@/lib/privateutils";
 
 THEME_OPENAUTH.favicon = "https://i.postimg.cc/bNLm9f7T/3.png"
 THEME_OPENAUTH.logo = "https://i.postimg.cc/6qhxh1Kv/8.png"
@@ -191,7 +191,8 @@ const app = issuer({
       userAks,
       providerAk,
       userAk,
-      admin: adminEmails.includes(value.claims.email),
+      admin: ADMIN_EMAILS.includes(value.claims.email),
+      email: value.claims.email,
     });
   },
 });

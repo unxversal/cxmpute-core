@@ -11,5 +11,6 @@ export const subjects = createSubjects({
     userAks:     array(string()), // Future per-app AKs (can be empty)
     userAk:  string(),        // User's API key (for this app)
     admin: boolean(),        // Is this user an admin?
+    email: string(),
   }),
 });

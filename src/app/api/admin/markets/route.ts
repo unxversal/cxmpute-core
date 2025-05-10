@@ -74,7 +74,7 @@ const pkMarketMode = (market: string, mode: TradingMode) =>
 
 /* ——————————————————————— POST = create market ————————————————————————— */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin(req); // throws if not admin
+  const admin = await requireAdmin(); // throws if not admin
 
   try {
     const body = (await req.json()) as Partial<ExtendedMarketMeta> & { mode: TradingMode };
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
         optionType,
         synth: synthAddr, // Will be null for PAPER mode
         createdAt: Date.now(),
-        createdBy: admin.email, // Or admin ID
+        createdBy: admin.properties.email, // Or admin ID
         mode: mode, // Store mode explicitly as an attribute too
     };
 
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
 
 /* ——————————————————————— PATCH = pause / unpause —————————————————————— */
 export async function PATCH(req: NextRequest) {
-  await requireAdmin(req);
+  await requireAdmin();
 
   const { symbol, action, mode } = (await req.json()) as {
     symbol: string;
@@ -245,7 +245,7 @@ export async function PATCH(req: NextRequest) {
 // Note: Delisting usually means setting status=DELISTED, not physically deleting.
 // Actual deletion might orphan data unless carefully managed.
 export async function DELETE(req: NextRequest) {
-  await requireAdmin(req);
+  await requireAdmin();
 
   const { symbol, mode } = (await req.json()) as {
       symbol: string;

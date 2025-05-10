@@ -25,7 +25,7 @@ const LIFETIME = Resource.StatsLifetimeTable.name;
 
 /* ───────────────────────────────────────────────────────── */
 export async function POST(req: NextRequest) {
-  await requireAdmin(req);
+  await requireAdmin();
 
   const { to, amt } = await req.json() as { to: string; amt: string };
   if (!ethers.isAddress(to) || !amt)
