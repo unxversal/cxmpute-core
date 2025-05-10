@@ -8,7 +8,7 @@ import type { Trade, TradingMode } from "../../src/lib/interfaces";
 import { pk as pkHelper } from "../matchers/matchEngine"; // Use PK helpers
 
 // --- Configuration ---
-const CMC_API_KEY = process.env.CMC_API_KEY; // Access via SST Secret/Env Var
+const CMC_API_KEY = Resource.CmcApiKey.value; // Access via SST Secret/Env Var
 const CMC_BASE_URL = "https://pro-api.coinmarketcap.com"; // Use Pro URL
 const CMC_QUOTES_ENDPOINT = "/v1/cryptocurrency/quotes/latest";
 

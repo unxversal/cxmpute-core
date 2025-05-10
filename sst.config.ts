@@ -21,6 +21,8 @@ export default $config({
     const coreWalletPk = new sst.Secret("CoreWalletPk");
     const coreVaultAddress = new sst.Secret("CoreVaultAddress");
 
+    const cmcApiKey = new sst.Secret("CmcApiKey");
+
     // Provider Table
     const providerTable = new sst.aws.Dynamo("ProviderTable", {
       fields: {
@@ -690,7 +692,8 @@ export default $config({
         balancesTable,
         paperPointsLimitOrder,
         paperPointsUsdcPnl,
-        paperPointsUsdcVolume
+        paperPointsUsdcVolume,
+        cmcApiKey,
       ]
     });
   },

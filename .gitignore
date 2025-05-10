@@ -51,3 +51,4 @@ dex/dexfiles.txt
 src/srcfiles.txt
 
 contracts/node_modules
+contracts/all_code.txt
