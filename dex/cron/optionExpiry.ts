@@ -1,280 +1,300 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // dex/cron/optionExpiry.ts
 import {
-  DynamoDBClient,
-  QueryCommand,
-  UpdateItemCommand,
-  ScanCommand, // Note: Scan can be inefficient. Consider a GSI on expiryTs and status if Markets table is large.
-  ScanCommandInput,
-} from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { Resource } from "sst";
-import { vault } from "../chain/vaultHelper"; // On-chain helper for REAL mode
-import {
+    DynamoDBClient,
+    QueryCommand,
+    QueryCommandInput,
+    UpdateItemCommand,
+    ScanCommand,
+    ScanCommandInput,
+  } from "@aws-sdk/client-dynamodb";
+  import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+  import { Resource } from "sst";
+  import {
     MarketMeta,
     Position,
     TradingMode,
     PriceSnapshot,
-    // Balance // Not needed for direct updates here
-} from "../../src/lib/interfaces"; // Ensure types are defined
-import { SNSClient } from "@aws-sdk/client-sns"; // If expiry notifications are needed
-import { pk } from "../matchers/matchEngine"; // Use centralized PK helpers
-
-// Internal types including DynamoDB keys
-type MarketMetaWithOptions = MarketMeta & { pk: string; sk: string; strike: number; optionType: "CALL" | "PUT"; };
-type PositionWithKeys = Position & { pk: string; sk: string };
-
-const ddb = new DynamoDBClient({});
-
-// Table Names from SST Resources (Ignoring TS errors for Resource as requested)
-const MARKETS_TABLE = Resource.MarketsTable.name;
-const POSITIONS_TABLE = Resource.PositionsTable.name;
-const BALANCES_TABLE = Resource.BalancesTable.name;
-const PRICES_TABLE = Resource.PricesTable.name;
-// const MARKET_UPDATES_TOPIC_ARN = Resource.MarketUpdatesTopic.arn; // Uncomment if using SNS
-
-/** Fetch most recent oracle price for the underlying asset for settlement */
-async function getSettlementPrice(asset: string): Promise<number | null> {
-    // Same implementation as in futureExpiry.ts
+  } from "../../src/lib/interfaces";
+  import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+  import { pk as pkHelper } from "../matchers/matchEngine";
+  
+  // Internal types including DynamoDB keys
+  type MarketMetaWithOptions = MarketMeta & {
+    pk: string;
+    sk: string;
+    strike?: number;
+    optionType?: "CALL" | "PUT";
+  };
+  type PositionWithKeys = Position & { pk: string; sk: string };
+  
+  const ddb = new DynamoDBClient({});
+  const sns = new SNSClient({});
+  
+  const MARKETS_TABLE = Resource.MarketsTable.name;
+  const POSITIONS_TABLE = Resource.PositionsTable.name;
+  const BALANCES_TABLE = Resource.BalancesTable.name;
+  const PRICES_TABLE = Resource.PricesTable.name;
+  const MARKET_UPDATES_TOPIC_ARN = Resource.MarketUpdatesTopic.arn;
+  
+  const USDC_DECIMALS_FACTOR = 1_000_000; // Assuming 6 decimals for USDC
+  
+  /** Fetch most recent oracle price for the underlying asset for settlement */
+  async function getSettlementPrice(asset: string): Promise<number | null> {
     try {
-        const { Items } = await ddb.send(
-            new QueryCommand({
-                TableName: PRICES_TABLE,
-                KeyConditionExpression: "pk = :pk",
-                ExpressionAttributeValues: marshall({ ":pk": pk.asset(asset) }),
-                ScanIndexForward: false, // Newest first
-                Limit: 1,
-            })
-        );
-        if (!Items?.[0]) {
-            console.warn(`No oracle price found for option settlement of asset: ${asset}`);
-            return null;
-        }
-        const priceData = unmarshall(Items[0]) as PriceSnapshot;
-        return priceData.price;
-    } catch (error) {
-        console.error(`Error fetching settlement price for ${asset}:`, error);
+      const { Items } = await ddb.send(
+        new QueryCommand({
+          TableName: PRICES_TABLE,
+          KeyConditionExpression: "pk = :pk",
+          ExpressionAttributeValues: marshall({ ":pk": pkHelper.asset(asset) }),
+          ScanIndexForward: false, // Newest first
+          Limit: 1,
+        })
+      );
+      if (!Items?.[0]) {
+        console.warn(`[OptionExpiry] No oracle price found for settlement of asset: ${asset}`);
         return null;
-    }
-}
-
-
-export const handler = async (): Promise<void> => {
-    const now = Date.now();
-    console.log(`Option Expiry CRON starting at ${new Date(now).toISOString()}`);
-
-    // 1️⃣ Find ACTIVE Option markets whose expiry timestamp has passed
-    let expiredOptionMarkets: MarketMetaWithOptions[] = [];
-    let lastEvaluatedKey: Record<string, any> | undefined = undefined;
-
-    try {
-        // Scan approach
-        do {
-            const scanParams: ScanCommandInput = {
-                TableName: MARKETS_TABLE,
-                FilterExpression: "#t = :option AND #s = :active AND expiryTs < :now",
-                ExpressionAttributeNames: { "#t": "type", "#s": "status" },
-                ExpressionAttributeValues: marshall({
-                    ":option": "OPTION",
-                    ":active": "ACTIVE",
-                    ":now": now,
-                }),
-                ExclusiveStartKey: lastEvaluatedKey,
-            };
-
-            const { Items, LastEvaluatedKey } = await ddb.send(new ScanCommand(scanParams));
-
-            if (Items) {
-                expiredOptionMarkets = expiredOptionMarkets.concat(
-                    Items.map(item => unmarshall(item) as MarketMetaWithOptions) // Cast includes option specifics
-                );
-            }
-            lastEvaluatedKey = LastEvaluatedKey;
-
-        } while (lastEvaluatedKey);
-
-        console.log(`Found ${expiredOptionMarkets.length} expired OPTION markets.`);
-
+      }
+      const priceData = unmarshall(Items[0]) as PriceSnapshot;
+      return priceData.price;
     } catch (error) {
-        console.error("Error scanning for expired OPTION markets:", error);
-        return; // Stop execution if markets can't be fetched
+      console.error(`[OptionExpiry] Error fetching settlement price for ${asset}:`, error);
+      return null;
     }
-
-    // Process each expired market
+  }
+  
+  /** Publish market state update via SNS */
+  async function publishMarketStateUpdate(
+    marketSymbol: string,
+    mode: TradingMode,
+    newStatus: "DELISTED" | "EXPIRED"
+  ) {
+    try {
+      await sns.send(new PublishCommand({
+        TopicArn: MARKET_UPDATES_TOPIC_ARN,
+        Message: JSON.stringify({
+          type: "marketStateUpdate",
+          market: marketSymbol,
+          mode: mode,
+          status: newStatus,
+          timestamp: Date.now(),
+        }),
+      }));
+    } catch (error) {
+      console.error(`[OptionExpiry] Failed to publish market state update for ${marketSymbol} (${mode}):`, error);
+    }
+  }
+  
+  export const handler = async (): Promise<void> => {
+    const now = Date.now();
+    console.log(`[OptionExpiry] CRON starting at ${new Date(now).toISOString()}`);
+  
+    let expiredOptionMarkets: MarketMetaWithOptions[] = [];
+    let lastEvaluatedKeyMarkets: Record<string, any> | undefined = undefined;
+  
+    try {
+      do {
+        const queryParams: QueryCommandInput = {
+          TableName: MARKETS_TABLE,
+          IndexName: "ByStatusMode",
+          KeyConditionExpression: "#s = :active",
+          FilterExpression: "#t = :option AND expiryTs < :now",
+          ExpressionAttributeNames: { "#s": "status", "#t": "type" },
+          ExpressionAttributeValues: marshall({
+            ":active": "ACTIVE",
+            ":option": "OPTION",
+            ":now": now,
+          }),
+          ExclusiveStartKey: lastEvaluatedKeyMarkets,
+        };
+        const { Items, LastEvaluatedKey } = await ddb.send(new QueryCommand(queryParams));
+        if (Items) {
+          expiredOptionMarkets = expiredOptionMarkets.concat(
+            Items.map((item) => unmarshall(item) as MarketMetaWithOptions)
+          );
+        }
+        lastEvaluatedKeyMarkets = LastEvaluatedKey;
+      } while (lastEvaluatedKeyMarkets);
+  
+      console.log(`[OptionExpiry] Found ${expiredOptionMarkets.length} expired OPTION markets.`);
+    } catch (error) {
+      console.error("[OptionExpiry] Error scanning for expired OPTION markets:", error);
+      return;
+    }
+  
     for (const market of expiredOptionMarkets) {
-        const pkParts = market.pk?.split('#');
-        if (!pkParts || pkParts.length !== 3 || !market.pk || !market.strike || !market.optionType) {
-            console.error(`Invalid PK format or missing option details for expired market: ${market.pk}`);
-            continue;
+      if (!market.pk || !market.symbol || market.strike === undefined || !market.optionType) {
+        console.warn(`[OptionExpiry] Skipping market with invalid/missing option data:`, market);
+        continue;
+      }
+      const pkParts = market.pk.split("#");
+      if (pkParts.length !== 3) {
+        console.warn(`[OptionExpiry] Skipping market with invalid PK format: ${market.pk}`);
+        continue;
+      }
+      const mode = pkParts[2] as TradingMode;
+      const underlyingAsset = market.symbol.split("-")[0];
+  
+      console.log(`[OptionExpiry] Processing expiry for: ${market.symbol} (${mode})`);
+  
+      const settlementPx = await getSettlementPrice(underlyingAsset);
+      if (settlementPx === null) {
+        console.error(
+          `[OptionExpiry]  CRITICAL: Cannot settle ${market.symbol} (${mode}) - failed to get settlement price for ${underlyingAsset}. Skipping settlement for this market.`
+        );
+        continue;
+      }
+      console.log(`[OptionExpiry]  Settlement Price for ${underlyingAsset}: ${settlementPx}`);
+  
+      let intrinsicValue = 0;
+      if (market.optionType === "CALL") {
+        intrinsicValue = Math.max(0, settlementPx - market.strike);
+      } else { // PUT
+        intrinsicValue = Math.max(0, market.strike - settlementPx);
+      }
+      const isITM = intrinsicValue > 0;
+  
+      console.log(
+        `[OptionExpiry]  Market: ${market.symbol}, Strike: ${market.strike}, Type: ${market.optionType}, Intrinsic Value: ${intrinsicValue.toFixed(
+          6
+        )}, ITM: ${isITM}`
+      );
+  
+      let positionsToExpire: PositionWithKeys[] = [];
+      let lastPositionKey: Record<string, any> | undefined = undefined;
+      const marketFilterSk = `MARKET#${market.symbol}`;
+  
+      try {
+        do {
+          const scanParams: ScanCommandInput = {
+            TableName: POSITIONS_TABLE,
+            FilterExpression: "sk = :marketSK AND begins_with(pk, :traderModePrefix) AND size <> :zero",
+            ExpressionAttributeValues: marshall({
+              ":marketSK": marketFilterSk,
+              ":traderModePrefix": `TRADER#`,
+              ":zero": 0,
+            }),
+            ExclusiveStartKey: lastPositionKey,
+          };
+          const { Items, LastEvaluatedKey } = await ddb.send(new ScanCommand(scanParams));
+          if (Items) {
+            const currentModeSuffix = `#${mode}`;
+            positionsToExpire = positionsToExpire.concat(
+              Items.map((item) => unmarshall(item) as PositionWithKeys)
+                   .filter(pos => pos.pk?.endsWith(currentModeSuffix))
+            );
+          }
+          lastPositionKey = LastEvaluatedKey;
+        } while (lastPositionKey);
+        console.log(`[OptionExpiry]  Found ${positionsToExpire.length} positions to expire/settle for ${market.symbol} (${mode}).`);
+      } catch (error) {
+        console.error(
+          `[OptionExpiry]  Error scanning positions for expiry of ${market.symbol} (${mode}):`,
+          error
+        );
+        continue;
+      }
+  
+      const settlementPromises: Promise<any>[] = [];
+  
+      for (const pos of positionsToExpire) {
+        if (!pos.pk || pos.size === 0) continue;
+  
+        const traderId = pos.pk.split("#")[1];
+        const isLong = pos.size > 0;
+        let payoutUsdcValue = 0;
+  
+        if (isITM) {
+          payoutUsdcValue = Math.abs(pos.size) * intrinsicValue;
+          const balanceChangeUsdcValue = isLong ? payoutUsdcValue : -payoutUsdcValue;
+          const balanceChangeBaseUnits = BigInt(Math.round(balanceChangeUsdcValue * USDC_DECIMALS_FACTOR));
+  
+          if (balanceChangeBaseUnits !== BigInt(0)) {
+              console.log(
+                  `[OptionExpiry]    Trader ${traderId}: Size ${pos.size}. Payout (USDC Value) ${balanceChangeUsdcValue.toFixed(6)}, Balance Change (Base Units) ${balanceChangeBaseUnits}`
+              );
+              const balancePk = pos.pk;
+              const balanceSk = pkHelper.asset("USDC");
+              const balanceUpdatePromise = ddb.send(
+                  new UpdateItemCommand({
+                  TableName: BALANCES_TABLE,
+                  Key: marshall({ pk: balancePk, sk: balanceSk }),
+                  UpdateExpression: "ADD balance :payout",
+                  ExpressionAttributeValues: marshall({ ":payout": balanceChangeBaseUnits }),
+                  })
+              ).catch((err) => {
+                  console.error(
+                  `[OptionExpiry]    Failed balance update for ${traderId} (${market.symbol}, ${mode}):`,
+                  err
+                  );
+              });
+              settlementPromises.push(balanceUpdatePromise);
+          }
+        } else {
+          console.log(`[OptionExpiry]    Trader ${traderId}: Size ${pos.size}, OTM/ATM - No intrinsic value payout.`);
         }
-        const marketSymbol = pkParts[1]; // e.g., BTC-30000-CALL-29DEC23
-        const mode = pkParts[2] as TradingMode;
-        const underlyingAsset = marketSymbol.split("-")[0]; // e.g., BTC
-
-        console.log(`Processing expiry for: ${marketSymbol} (${mode})`);
-
-        // 2️⃣ Get Settlement Price for the underlying asset
-        const settlementPx = await getSettlementPrice(underlyingAsset);
-
-        if (settlementPx === null) {
-            console.error(`  CRITICAL: Cannot settle ${marketSymbol} (${mode}) - failed to get settlement price for ${underlyingAsset}. Skipping settlement.`);
-            continue; // Skip this market
+  
+        const realizedPnlChangeUsdcValue = isLong ? payoutUsdcValue : -payoutUsdcValue;
+        const realizedPnlChangeBaseUnits = BigInt(Math.round(realizedPnlChangeUsdcValue * USDC_DECIMALS_FACTOR));
+  
+        const positionUpdatePromise = ddb.send(
+          new UpdateItemCommand({
+            TableName: POSITIONS_TABLE,
+            Key: marshall({ pk: pos.pk, sk: pos.sk }),
+            UpdateExpression: `SET size = :zero, avgEntryPrice = :zero, #updAt = :now ADD realizedPnl :rPnl`,
+            ExpressionAttributeNames: { "#updAt": "updatedAt" },
+            ExpressionAttributeValues: marshall({
+              ":zero": 0,
+              ":now": now,
+              ":rPnl": realizedPnlChangeBaseUnits,
+            }),
+          })
+        ).catch((err) => {
+          console.error(
+            `[OptionExpiry]    Failed position update for ${traderId} (${market.symbol}, ${mode}):`,
+            err
+          );
+        });
+        settlementPromises.push(positionUpdatePromise);
+  
+      } // End position settlement loop
+  
+      if (settlementPromises.length > 0) {
+          await Promise.allSettled(settlementPromises);
+           console.log(`[OptionExpiry]  Processed ${settlementPromises.length} DB updates for ${market.symbol} (${mode}).`);
+      }
+  
+      const finalMarketStatus = "DELISTED";
+      try {
+        console.log(`[OptionExpiry]  Marking market ${market.symbol} (${mode}) as ${finalMarketStatus}.`);
+        await ddb.send(
+          new UpdateItemCommand({
+            TableName: MARKETS_TABLE,
+            Key: marshall({ pk: market.pk, sk: market.sk }),
+            UpdateExpression: "SET #s = :newStatus, #updAt = :now",
+            ConditionExpression: "#s = :active",
+            ExpressionAttributeNames: { "#s": "status", "#updAt": "updatedAt" },
+            ExpressionAttributeValues: marshall({
+              ":newStatus": finalMarketStatus,
+              ":active": "ACTIVE",
+              ":now": now,
+            }),
+          })
+        );
+        await publishMarketStateUpdate(market.symbol, mode, finalMarketStatus);
+      } catch (error: any) {
+        if (error.name !== "ConditionalCheckFailedException") {
+          console.error(
+            `[OptionExpiry]  Error marking market ${market.symbol} (${mode}) as ${finalMarketStatus}:`,
+            error
+          );
+        } else {
+          console.log(
+            `[OptionExpiry]  Market ${market.symbol} (${mode}) was likely already marked ${finalMarketStatus}.`
+          );
         }
-        console.log(`  Settlement Price for ${underlyingAsset}: ${settlementPx}`);
-
-        // 3️⃣ Determine Intrinsic Value
-        let intrinsicValue = 0;
-        if (market.optionType === "CALL") {
-            intrinsicValue = Math.max(settlementPx - market.strike, 0);
-        } else { // PUT
-            intrinsicValue = Math.max(market.strike - settlementPx, 0);
-        }
-        const isITM = intrinsicValue > 0; // Check if In-The-Money
-
-        console.log(`  Strike: ${market.strike}, Type: ${market.optionType}, Intrinsic Value: ${intrinsicValue.toFixed(6)}, ITM: ${isITM}`);
-
-        // Convert intrinsic value to base units (e.g., 6 decimals for USDC payout)
-        const intrinsicValueBaseUnits = BigInt(Math.round(intrinsicValue * 1_000_000));
-
-
-        // 4️⃣ Load all open positions for this market/mode
-        let positionsToExpire: PositionWithKeys[] = [];
-        let lastPositionKey: Record<string, any> | undefined = undefined;
-        const marketFilterSk = `MARKET#${marketSymbol}`;
-
-        try {
-            // Scan positions table filtering by market SK and mode prefix
-             do {
-                 const scanParamsSimplified: ScanCommandInput = {
-                    TableName: POSITIONS_TABLE,
-                    FilterExpression: "sk = :sk AND size <> :zero",
-                     ExpressionAttributeValues: marshall({":sk": marketFilterSk, ":zero": BigInt(0)}), // Use BigInt if size is BigInt
-                    ExclusiveStartKey: lastPositionKey,
-                 }
-                const { Items, LastEvaluatedKey } = await ddb.send(new ScanCommand(scanParamsSimplified));
-
-                if (Items) {
-                    const modePrefix = `TRADER#`;
-                    const modeSuffix = `#${mode}`;
-                    positionsToExpire = positionsToExpire.concat(
-                        Items.map(item => unmarshall(item) as PositionWithKeys)
-                             .filter(pos => pos.pk?.startsWith(modePrefix) && pos.pk?.endsWith(modeSuffix))
-                    );
-                }
-                lastPositionKey = LastEvaluatedKey;
-            } while (lastPositionKey);
-
-             console.log(`  Found ${positionsToExpire.length} positions to expire/settle.`);
-
-        } catch (error) {
-            console.error(`  Error scanning positions for expiry of ${marketSymbol} (${mode}):`, error);
-            continue; // Skip settlement for this market on error
-        }
-
-        // 5️⃣ Expire/Settle each position
-        const settlementPromises: Promise<any>[] = [];
-
-        for (const pos of positionsToExpire) {
-            if (!pos.pk || pos.size === 0 || pos.size === 0) continue;
-
-            const traderId = pos.pk.split('#')[1];
-            const isLong = pos.size > 0 || pos.size > BigInt(0); // Check if position is long
-
-            let payoutBaseUnits = BigInt(0); // Payout amount for this position
-
-            // --- Calculate Payout (only if ITM) ---
-            if (isITM) {
-                // Payout = abs(Position Size) * Intrinsic Value (in base units)
-                const absSize = BigInt(isLong ? pos.size : -pos.size); // Absolute size as BigInt
-                payoutBaseUnits = absSize * intrinsicValueBaseUnits / BigInt(1_000_000); // Divide by USDC decimals factor if size is not already in base units reflecting contracts
-                 // Assuming pos.size represents number of contracts, and payout is per contract value
-                 payoutBaseUnits = absSize * intrinsicValueBaseUnits;
-
-                 console.log(`    Trader ${traderId}: Size ${pos.size}, ITM Payout ${payoutBaseUnits} base units`);
-
-                // --- Prepare Balance Update (Credit Longs, Debit Shorts) ---
-                const balancePk = pos.pk; // TRADER#<id>#<mode>
-                const balanceSk = `ASSET#USDC`;
-                const balanceChange = isLong ? payoutBaseUnits : -payoutBaseUnits; // Credit longs, debit shorts
-
-                const balanceUpdatePromise = ddb.send(new UpdateItemCommand({
-                    TableName: BALANCES_TABLE,
-                    Key: marshall({ pk: balancePk, sk: balanceSk }),
-                    UpdateExpression: "ADD balance :payout",
-                    ExpressionAttributeValues: marshall({ ":payout": balanceChange }),
-                })).catch(err => {
-                    console.error(`    Failed balance update for ${traderId} during option settlement (${mode}):`, err);
-                });
-                settlementPromises.push(balanceUpdatePromise);
-            } else {
-                // OTM/ATM - No payout
-                 console.log(`    Trader ${traderId}: Size ${pos.size}, OTM/ATM - No Payout.`);
-            }
-
-
-            // --- Prepare Position Update (Zero out position) ---
-            // Realized PnL for options is complex (premium paid/received vs intrinsic value).
-            // Simplification: We don't track premium here, just zero out the position.
-            // A separate process or the trade execution itself should handle premium PnL.
-            const positionUpdatePromise = ddb.send(new UpdateItemCommand({
-                TableName: POSITIONS_TABLE,
-                Key: marshall({ pk: pos.pk, sk: pos.sk }),
-                UpdateExpression: `SET size = :zero, avgEntryPrice = :zero, #updAt = :now`,
-                // Optionally add payout to realizedPnl if needed: ADD realizedPnl :payoutEffect (where payoutEffect = isLong ? payout : -payout)
-                ExpressionAttributeNames: { '#updAt': 'updatedAt' },
-                ExpressionAttributeValues: marshall({
-                    ":zero": BigInt(0), // Use BigInt if size is BigInt
-                    ":now": now,
-                }),
-            })).catch(err => {
-                 console.error(`    Failed position update for ${traderId} during option expiry (${mode}):`, err);
-            });
-            settlementPromises.push(positionUpdatePromise);
-
-
-            // --- Conditional On-Chain Synth Burn (REAL mode only) ---
-            // Burn the synthetic tokens representing the expired option contracts (both ITM and OTM)
-            if (mode === "REAL" && market.synth) {
-                const burnAmount = BigInt(isLong ? pos.size : -pos.size); // Absolute size as BigInt
-
-                if (burnAmount > BigInt(0)) {
-                    const vaultPromise = vault.burnSynth(market.synth, traderId, burnAmount)
-                        .catch(err => {
-                            console.error(`    CRITICAL: FAILED vault.burnSynth for ${traderId}, amt: ${burnAmount}, synth: ${market.synth} during option expiry (${mode}):`, err);
-                        });
-                    settlementPromises.push(vaultPromise);
-                }
-            }
-            // --- End Conditional On-Chain ---
-
-        } // End position settlement loop
-
-        // Wait for all updates for this market to settle
-        await Promise.allSettled(settlementPromises);
-
-
-        // 6️⃣ Mark Market as DELISTED
-        try {
-            console.log(`  Marking market ${marketSymbol} (${mode}) as DELISTED.`);
-            await ddb.send(new UpdateItemCommand({
-                TableName: MARKETS_TABLE,
-                Key: marshall({ pk: market.pk, sk: market.sk }),
-                UpdateExpression: "SET #s = :delisted, #updAt = :now",
-                ConditionExpression: "#s = :active",
-                ExpressionAttributeNames: { "#s": "status", "#updAt": "updatedAt" },
-                ExpressionAttributeValues: marshall({
-                    ":delisted": "DELISTED", ":active": "ACTIVE", ":now": now,
-                }),
-            }));
-        } catch (error: any) {
-             if (error.name !== 'ConditionalCheckFailedException') {
-                console.error(`  Error marking market ${marketSymbol} (${mode}) as DELISTED:`, error);
-             } else {
-                 console.log(`  Market ${marketSymbol} (${mode}) was likely already marked DELISTED.`);
-             }
-        }
-
+      }
     } // End market loop
-
-    console.log(`Option Expiry CRON finished at ${new Date().toISOString()}`);
-};
+  
+    console.log(`[OptionExpiry] CRON finished at ${new Date().toISOString()}`);
+  };

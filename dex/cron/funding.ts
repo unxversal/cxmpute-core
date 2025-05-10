@@ -1,303 +1,355 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // dex/cron/funding.ts
 import {
-  DynamoDBClient,
-  QueryCommand,
-  QueryCommandInput,
-  ScanCommand, // Can be inefficient, consider GSI if Positions table grows large
-  UpdateItemCommand,
-  ScanCommandInput, // Correct import for ScanCommand input type
-} from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import { Resource } from "sst";
-import { vault } from "../chain/vaultHelper"; // On-chain helper for REAL mode
-import {
+    DynamoDBClient,
+    QueryCommand,
+    QueryCommandInput,
+    ScanCommand,
+    UpdateItemCommand,
+    ScanCommandInput,
+  } from "@aws-sdk/client-dynamodb";
+  import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+  import { Resource } from "sst";
+  import {
     MarketMeta,
     Position,
     TradingMode,
     PriceSnapshot,
-    Trade, // Using Trade type for mark price source
-   // Removed unused Balance import
-} from "../../src/lib/interfaces"; // Ensure types are defined
-import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
-import { pk } from "../matchers/matchEngine"; // Use centralized PK helpers
-
-// Internal types including DynamoDB keys
-type MarketMetaWithKeys = MarketMeta & { pk: string; sk: string };
-type PositionWithKeys = Position & { pk: string; sk: string };
-
-
-const ddb = new DynamoDBClient({});
-const sns = new SNSClient({});
-
-// Table Names from SST Resources (Ignoring TS errors for Resource as requested)
-const MARKETS_TABLE = Resource.MarketsTable.name;
-const POSITIONS_TABLE = Resource.PositionsTable.name;
-const BALANCES_TABLE = Resource.BalancesTable.name;
-const PRICES_TABLE = Resource.PricesTable.name;
-const TRADES_TABLE = Resource.TradesTable.name;
-const STATS_INTRADAY_TABLE = Resource.StatsIntradayTable.name;
-const MARKET_UPDATES_TOPIC_ARN = Resource.MarketUpdatesTopic.arn;
-
-
-/** Clamp helper */
-const clamp = (val: number, min: number, max: number): number =>
-  Math.max(min, Math.min(val, max));
-
-/** Fetch most recent oracle price for the underlying asset */
-async function getIndexPrice(asset: string): Promise<number | null> {
+    Trade,
+  } from "../../src/lib/interfaces";
+  import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+  import { pk as pkHelper } from "../matchers/matchEngine"; // Use PK helpers from matchEngine
+  
+  // --- Constants ---
+  const MARKETS_TABLE = Resource.MarketsTable.name;
+  const POSITIONS_TABLE = Resource.PositionsTable.name;
+  const BALANCES_TABLE = Resource.BalancesTable.name;
+  const PRICES_TABLE = Resource.PricesTable.name;
+  const TRADES_TABLE = Resource.TradesTable.name;
+  const STATS_INTRADAY_TABLE = Resource.StatsIntradayTable.name;
+  const MARKET_UPDATES_TOPIC_ARN = Resource.MarketUpdatesTopic.arn;
+  
+  const USDC_DECIMALS_FACTOR = 1_000_000; // Assuming 6 decimals for USDC
+  
+  const ddb = new DynamoDBClient({});
+  const sns = new SNSClient({});
+  
+  /** Clamp helper */
+  const clamp = (val: number, min: number, max: number): number =>
+    Math.max(min, Math.min(val, max));
+  
+  /** Fetch most recent oracle price for the underlying asset */
+  async function getIndexPrice(asset: string): Promise<number | null> {
     try {
-        const { Items } = await ddb.send(
-            new QueryCommand({
-                TableName: PRICES_TABLE,
-                KeyConditionExpression: "pk = :pk",
-                ExpressionAttributeValues: marshall({ ":pk": pk.asset(asset) }),
-                ScanIndexForward: false, // Newest first
-                Limit: 1,
-            })
-        );
-        if (!Items?.[0]) {
-            console.warn(`No oracle price found for asset: ${asset}`);
-            return null;
-        }
-        const priceData = unmarshall(Items[0]) as PriceSnapshot;
-        return priceData.price;
-    } catch (error) {
-        console.error(`Error fetching index price for ${asset}:`, error);
+      const { Items } = await ddb.send(
+        new QueryCommand({
+          TableName: PRICES_TABLE,
+          KeyConditionExpression: "pk = :pk",
+          ExpressionAttributeValues: marshall({ ":pk": pkHelper.asset(asset) }),
+          ScanIndexForward: false, // Newest first
+          Limit: 1,
+        })
+      );
+      if (!Items?.[0]) {
+        console.warn(`[Funding] No oracle price found for asset: ${asset}`);
         return null;
+      }
+      const priceData = unmarshall(Items[0]) as PriceSnapshot;
+      return priceData.price;
+    } catch (error) {
+      console.error(`[Funding] Error fetching index price for ${asset}:`, error);
+      return null;
     }
-}
-
-/** Fetch most recent trade price for the perp market (mark price source) */
-async function getMarkPrice(marketSymbol: string, mode: TradingMode): Promise<number | null> {
-    const marketModePk = pk.marketMode(marketSymbol, mode);
+  }
+  
+  /** Fetch most recent trade price for the perp market (mark price source) */
+  async function getMarkPrice(
+    marketSymbol: string,
+    mode: TradingMode
+  ): Promise<number | null> {
+    const marketModePk = pkHelper.marketMode(marketSymbol, mode);
     try {
-        const { Items } = await ddb.send(
-            new QueryCommand({
-                TableName: TRADES_TABLE,
-                KeyConditionExpression: "pk = :pk",
-                ExpressionAttributeValues: marshall({ ":pk": marketModePk }),
-                ScanIndexForward: false, // Newest first
-                Limit: 1,
-            })
+      const { Items } = await ddb.send(
+        new QueryCommand({
+          TableName: TRADES_TABLE,
+          KeyConditionExpression: "pk = :pk",
+          ExpressionAttributeValues: marshall({ ":pk": marketModePk }),
+          ScanIndexForward: false, // Newest first
+          Limit: 1,
+        })
+      );
+      if (!Items?.[0]) {
+        console.warn(
+          `[Funding] No trades found for mark price source: ${marketModePk}. Funding may be inaccurate.`
         );
-        if (!Items?.[0]) {
-            console.warn(`No trades found for mark price source: ${marketModePk}. Funding may be inaccurate.`);
-            return null;
-        }
-        const tradeData = unmarshall(Items[0]) as Trade;
-        return tradeData.price;
-    } catch (error) {
-        console.error(`Error fetching mark price for ${marketModePk}:`, error);
         return null;
-    }
-}
-
-/** Publish funding rate update via SNS */
-async function publishFundingUpdate(marketSymbol: string, mode: TradingMode, fundingRate: number, markPx: number | null) {
-    try {
-        await sns.send(new PublishCommand({
-            TopicArn: MARKET_UPDATES_TOPIC_ARN,
-            Message: JSON.stringify({
-                type: "fundingRateUpdate",
-                market: marketSymbol,
-                mode: mode,
-                fundingRate: fundingRate,
-                markPrice: markPx,
-                timestamp: Date.now(),
-            }),
-        }));
+      }
+      const tradeData = unmarshall(Items[0]) as Trade;
+      return tradeData.price;
     } catch (error) {
-        console.error(`Failed to publish funding update for ${marketSymbol} (${mode}):`, error);
+      console.error(
+        `[Funding] Error fetching mark price for ${marketModePk}:`,
+        error
+      );
+      return null;
     }
-}
-
-
-export const handler = async (): Promise<void> => {
+  }
+  
+  /** Publish funding rate update via SNS */
+  async function publishFundingUpdate(
+    marketSymbol: string,
+    mode: TradingMode,
+    fundingRate: number,
+    markPx: number | null
+  ) {
+    try {
+      await sns.send(
+        new PublishCommand({
+          TopicArn: MARKET_UPDATES_TOPIC_ARN,
+          Message: JSON.stringify({
+            type: "fundingRateUpdate",
+            market: marketSymbol,
+            mode: mode,
+            fundingRate: fundingRate,
+            markPrice: markPx, // Can be null if mark price fetch failed
+            timestamp: Date.now(),
+          }),
+        })
+      );
+    } catch (error) {
+      console.error(
+        `[Funding] Failed to publish funding update for ${marketSymbol} (${mode}):`,
+        error
+      );
+    }
+  }
+  
+  export const handler = async (): Promise<void> => {
     const now = Date.now();
-    console.log(`Funding CRON starting at ${new Date(now).toISOString()}`);
-
-    // 1️⃣ Load ACTIVE PERP markets for both REAL and PAPER modes
-    let activePerpMarkets: MarketMetaWithKeys[] = []; // Use type with keys
-    let lastEvaluatedKey: Record<string, any> | undefined = undefined;
-
+    console.log(`[Funding] CRON starting at ${new Date(now).toISOString()}`);
+  
+    let activePerpMarkets: (MarketMeta & { pk: string; sk: string })[] = [];
+    let lastEvaluatedKeyMarkets: Record<string, any> | undefined = undefined;
+  
     try {
-        do {
-            const queryParams: QueryCommandInput = {
-                TableName: MARKETS_TABLE,
-                IndexName: "ByStatusMode",
-                KeyConditionExpression: "#s = :active",
-                FilterExpression: "#t = :perp",
-                ExpressionAttributeNames: { "#s": "status", "#t": "type" },
-                ExpressionAttributeValues: marshall({ ":active": "ACTIVE", ":perp": "PERP" }),
-                ExclusiveStartKey: lastEvaluatedKey,
-            };
-
-            const { Items, LastEvaluatedKey } = await ddb.send(new QueryCommand(queryParams));
-
-            if (Items) {
-                activePerpMarkets = activePerpMarkets.concat(
-                    Items.map(item => unmarshall(item) as MarketMetaWithKeys) // Cast to type with keys
-                );
-            }
-            lastEvaluatedKey = LastEvaluatedKey;
-
-        } while (lastEvaluatedKey);
-
-        console.log(`Found ${activePerpMarkets.length} active PERP markets.`);
-
+      do {
+        const queryParams: QueryCommandInput = {
+          TableName: MARKETS_TABLE,
+          IndexName: "ByStatusMode", // GSI: PK=status, SK=pk (MARKET#symbol#mode)
+          KeyConditionExpression: "#s = :active",
+          FilterExpression: "#t = :perp", // Only process PERP type markets
+          ExpressionAttributeNames: { "#s": "status", "#t": "type" },
+          ExpressionAttributeValues: marshall({
+            ":active": "ACTIVE",
+            ":perp": "PERP",
+          }),
+          ExclusiveStartKey: lastEvaluatedKeyMarkets,
+        };
+  
+        const { Items, LastEvaluatedKey } = await ddb.send(
+          new QueryCommand(queryParams)
+        );
+        if (Items) {
+          activePerpMarkets = activePerpMarkets.concat(
+            Items.map((item) => unmarshall(item) as (MarketMeta & { pk: string; sk: string }))
+          );
+        }
+        lastEvaluatedKeyMarkets = LastEvaluatedKey;
+      } while (lastEvaluatedKeyMarkets);
+  
+      console.log(`[Funding] Found ${activePerpMarkets.length} active PERP markets.`);
     } catch (error) {
-        console.error("Error fetching active PERP markets:", error);
-        return;
+      console.error("[Funding] Error fetching active PERP markets:", error);
+      return;
     }
-
-
-    // Process each market individually
-    for (const market of activePerpMarkets) { // market is type MarketMetaWithKeys
-        const pkParts = market.pk?.split('#'); // Access pk safely
-        if (!pkParts || pkParts.length !== 3 || !market.pk) { // Add null check for market.pk
-            console.error(`Invalid PK format for market: ${market.pk}`);
-            continue;
-        }
-        const marketSymbol = pkParts[1];
-        const mode = pkParts[2] as TradingMode;
-        const underlyingAsset = marketSymbol.split("-")[0];
-
-        console.log(`Processing funding for: ${marketSymbol} (${mode})`);
-
-        // 2️⃣ Get Prices
-        const [indexPx, markPx] = await Promise.all([
-            getIndexPrice(underlyingAsset),
-            getMarkPrice(marketSymbol, mode),
-        ]);
-
-        if (indexPx === null || markPx === null) {
-            console.warn(`Skipping funding for ${marketSymbol} (${mode}) due to missing price(s). Index: ${indexPx}, Mark: ${markPx}`);
-            continue;
-        }
-
-        // 3️⃣ Calculate Funding Rate
-        const maxHourlyRate = 0.000375;
-        const premium = (markPx - indexPx) / indexPx;
-        const hourlyRate = clamp(premium, -maxHourlyRate, maxHourlyRate);
-        const fundingIntervalSecs = market.fundingIntervalSec ?? 3600;
-        const fundingPeriodSecs = 3600;
-        const fundingRate = +(hourlyRate * (fundingIntervalSecs / fundingPeriodSecs)).toFixed(8);
-
-        console.log(`  Symbol: ${marketSymbol}, Mode: ${mode}, Index: ${indexPx}, Mark: ${markPx}, Rate: ${fundingRate}`);
-
-        await publishFundingUpdate(marketSymbol, mode, fundingRate, markPx);
-
-        // 4️⃣ Iterate through open positions for this market/mode
-        let positions: PositionWithKeys[] = []; // Use type with keys
-        let lastPositionKey: Record<string, any> | undefined = undefined;
-        const marketFilterSk = `MARKET#${marketSymbol}`;
-
-        try {
-            do {
-                 // Simplified scan, filtering in code:
-                 const scanParamsSimplified: ScanCommandInput = {
-                    TableName: POSITIONS_TABLE,
-                    FilterExpression: "sk = :sk AND size <> :zero",
-                     ExpressionAttributeValues: marshall({":sk": marketFilterSk, ":zero": BigInt(0)}), // Use BigInt(0) for comparison if size is BigInt
-                    ExclusiveStartKey: lastPositionKey,
-                 }
-
-                const { Items, LastEvaluatedKey } = await ddb.send(new ScanCommand(scanParamsSimplified));
-                if (Items) {
-                    const modePrefix = `TRADER#`;
-                    const modeSuffix = `#${mode}`;
-                    positions = positions.concat(
-                        Items.map(item => unmarshall(item) as PositionWithKeys) // Cast to type with keys
-                             .filter(pos => pos.pk?.startsWith(modePrefix) && pos.pk?.endsWith(modeSuffix)) // Access pk safely
-                    );
-                }
-                lastPositionKey = LastEvaluatedKey;
-            } while (lastPositionKey);
-
-             console.log(`  Found ${positions.length} open positions.`);
-
-        } catch (error) {
-            console.error(`  Error scanning positions for ${marketSymbol} (${mode}):`, error);
-            continue;
-        }
-
-        // 5️⃣ Apply Funding Payments
-        const updatePromises: Promise<any>[] = [];
-
-        for (const pos of positions) { // pos is type PositionWithKeys
-            // Access pk safely, check size type matches :zero comparison type (number or BigInt)
-             if (!pos.pk || pos.size === 0 || pos.size === 0) continue;
-
-            const paymentValue = pos.size * markPx * fundingRate;
-            const paymentAmount = Math.round(paymentValue * 1e6) / 1e6;
-            const paymentAmountBaseUnits = BigInt(Math.round(paymentAmount * 1_000_000)); // Convert to 6-decimal integer
-
-            if (paymentAmountBaseUnits === BigInt(0)) continue; // Use BigInt comparison
-
-            const traderId = pos.pk.split('#')[1]; // Access pk safely
-            const balancePk = pos.pk; // Access pk safely
-            const balanceSk = `ASSET#USDC`;
-
-            console.log(`    Trader ${traderId}: Size ${pos.size}, Payment ${paymentAmount} USDC (${paymentAmountBaseUnits} base units)`);
-
-            // --- Prepare Balance Update ---
-            const balanceUpdatePromise = ddb.send(new UpdateItemCommand({
-                TableName: BALANCES_TABLE,
-                Key: marshall({ pk: balancePk, sk: balanceSk }),
-                UpdateExpression: "ADD balance :p",
-                ExpressionAttributeValues: marshall({ ":p": -paymentAmountBaseUnits }), // Negated BigInt
-            })).catch(err => {
-                 console.error(`    Failed balance update for ${traderId} (${mode}):`, err);
-            });
-            updatePromises.push(balanceUpdatePromise);
-
-            // --- Conditional On-Chain Synth Transfer (REAL mode only) ---
-            if (mode === "REAL" && market.synth) {
-                 const synthTransferAmount = paymentAmountBaseUnits > BigInt(0) ? paymentAmountBaseUnits : -paymentAmountBaseUnits; // Absolute value as BigInt
-
-                 let vaultPromise: Promise<any>;
-                 if (paymentAmountBaseUnits > BigInt(0)) { // Longs pay shorts
-                     if (pos.size > 0 || pos.size > BigInt(0)) { // Payer (LONG) -> Burn
-                         vaultPromise = vault.burnSynth(market.synth, traderId, synthTransferAmount);
-                     } else { // Receiver (SHORT) -> Mint
-                         vaultPromise = vault.mintSynth(market.synth, traderId, synthTransferAmount);
-                     }
-                 } else { // Shorts pay longs
-                     if (pos.size < 0 || pos.size < BigInt(0)) { // Payer (SHORT) -> Burn
-                         vaultPromise = vault.burnSynth(market.synth, traderId, synthTransferAmount);
-                     } else { // Receiver (LONG) -> Mint
-                         vaultPromise = vault.mintSynth(market.synth, traderId, synthTransferAmount);
-                     }
-                 }
-                  updatePromises.push(vaultPromise.catch(err => {
-                      console.error(`    FAILED vault call for ${traderId}, amt: ${synthTransferAmount}, synth: ${market.synth} (${mode}):`, err);
-                  }));
-            }
-             // --- End Conditional On-Chain ---
-        } // End position loop
-
-        await Promise.allSettled(updatePromises);
-
-        // 6️⃣ Update StatsIntraday bucket with the calculated rate
-        try {
-            const minuteBucketMs = Math.floor(now / 60_000) * 60_000;
-            const statsPk = pk.marketMode(marketSymbol, mode);
-            const statsSk = `TS#${minuteBucketMs}`;
-            const statsTtl = Math.floor((now + 48 * 3_600_000) / 1_000);
-
-            await ddb.send(new UpdateItemCommand({
-                TableName: STATS_INTRADAY_TABLE,
-                Key: marshall({ pk: statsPk, sk: statsSk }),
-                UpdateExpression: "SET fundingRate = :fr, markPrice = :mp, expireAt = if_not_exists(expireAt, :ttl)",
-                ExpressionAttributeValues: marshall({
-                    ":fr": fundingRate, ":mp": markPx, ":ttl": statsTtl
-                 }, { removeUndefinedValues: true }),
-            }));
-        } catch (error) {
-             console.error(`  Error updating intraday stats for ${marketSymbol} (${mode}):`, error);
-        }
+  
+    for (const market of activePerpMarkets) {
+      if (!market.pk || !market.symbol) {
+          console.warn(`[Funding] Skipping market with invalid data:`, market);
+          continue;
+      }
+      const pkParts = market.pk.split("#");
+      if (pkParts.length !== 3) {
+          console.warn(`[Funding] Skipping market with invalid PK format: ${market.pk}`);
+          continue;
+      }
+      // const marketSymbol = pkParts[1]; // Already have market.symbol
+      const mode = pkParts[2] as TradingMode;
+      const underlyingAsset = market.symbol.split("-")[0]; // e.g., BTC from BTC-PERP
+  
+      console.log(`[Funding] Processing funding for: ${market.symbol} (${mode})`);
+  
+      const [indexPx, markPx] = await Promise.all([
+        getIndexPrice(underlyingAsset),
+        getMarkPrice(market.symbol, mode),
+      ]);
+  
+      if (indexPx === null || markPx === null) {
+        console.warn(
+          `[Funding] Skipping funding for ${market.symbol} (${mode}) due to missing price(s). Index: ${indexPx}, Mark: ${markPx}`
+        );
+        await publishFundingUpdate(market.symbol, mode, 0, markPx); // Publish 0 rate if prices missing
+        continue;
+      }
+  
+      // Default funding interval to 1 hour (3600 seconds) if not specified
+      const fundingIntervalSecs = market.fundingIntervalSec ?? 3600;
+      const fundingPeriodSecs = 3600; // Standard hourly funding period
+      const maxHourlyRate = 0.000375; // Use market-specific or default max rate (0.0375% per hour)
+  
+      const premium = (markPx - indexPx) / indexPx;
+      // Clamp premium to avoid excessively large funding rates if maxHourlyRate directly applies to premium
+      // Or, clamp the calculated hourlyRate. Let's clamp the hourly rate.
+      const hourlyRateRaw = premium / (fundingIntervalSecs / fundingPeriodSecs); // premium per funding period -> hourly
+      const hourlyRateClamped = clamp(hourlyRateRaw, -maxHourlyRate, maxHourlyRate);
+      
+      // Funding rate for the interval
+      const fundingRate = +(hourlyRateClamped * (fundingIntervalSecs / fundingPeriodSecs)).toFixed(8);
+  
+  
+      console.log(
+        `[Funding]  Symbol: ${market.symbol}, Mode: ${mode}, Index: ${indexPx.toFixed(4)}, Mark: ${markPx.toFixed(4)}, Premium: ${premium.toFixed(6)}, Raw Hourly: ${hourlyRateRaw.toFixed(6)}, Clamped Hourly: ${hourlyRateClamped.toFixed(6)}, Rate: ${fundingRate}`
+      );
+  
+      await publishFundingUpdate(market.symbol, mode, fundingRate, markPx);
+  
+      // Update StatsIntradayTable with the calculated funding rate
+      try {
+        const minuteBucketMs = Math.floor(now / 60_000) * 60_000;
+        const statsPk = pkHelper.marketMode(market.symbol, mode);
+        const statsSk = `TS#${minuteBucketMs}`;
+        const statsTtl = Math.floor((now + 48 * 3_600_000) / 1_000); // 48h TTL
+  
+        await ddb.send(
+          new UpdateItemCommand({
+            TableName: STATS_INTRADAY_TABLE,
+            Key: marshall({ pk: statsPk, sk: statsSk }),
+            UpdateExpression:
+              "SET fundingRate = :fr, markPrice = :mp, expireAt = if_not_exists(expireAt, :ttl)",
+            ExpressionAttributeValues: marshall(
+              {
+                ":fr": fundingRate,
+                ":mp": markPx,
+                ":ttl": statsTtl,
+              },
+              { removeUndefinedValues: true }
+            ),
+          })
+        );
+      } catch (error) {
+        console.error(
+          `[Funding] Error updating intraday stats for ${market.symbol} (${mode}):`,
+          error
+        );
+      }
+  
+      // If funding rate is zero, no payments to process
+      if (fundingRate === 0) {
+          console.log(`[Funding]  Zero funding rate for ${market.symbol} (${mode}). No payments to process.`);
+          continue;
+      }
+  
+      // Load all open positions for this market and mode
+      let positionsToFund: (Position & { pk: string; sk: string })[] = [];
+      let lastPositionKey: Record<string, any> | undefined = undefined;
+      const marketFilterSk = `MARKET#${market.symbol}`;
+  
+      try {
+        do {
+          const scanParams: ScanCommandInput = {
+            TableName: POSITIONS_TABLE,
+            // Filter by SK (market) and PK prefix (trader ID + mode)
+            // This is less efficient than a GSI but works for smaller tables or if GSI isn't ideal.
+            // A GSI on `sk` (market) and filtering on `pk` prefix would be better.
+            // Or, if `market` is an attribute, GSI on market+mode, then filter positions.
+            FilterExpression: "sk = :marketSK AND begins_with(pk, :traderModePrefix) AND size <> :zero",
+            ExpressionAttributeValues: marshall({
+              ":marketSK": marketFilterSk,
+              ":traderModePrefix": `TRADER#`, // Will be further filtered in code by mode
+              ":zero": 0, // Assuming size is a number, not BigInt, in DDB for this table based on current code
+            }),
+            ExclusiveStartKey: lastPositionKey,
+          };
+          const { Items, LastEvaluatedKey } = await ddb.send(
+            new ScanCommand(scanParams)
+          );
+  
+          if (Items) {
+            const currentModePrefix = `TRADER#`; // General prefix
+            const currentModeSuffix = `#${mode}`; // Mode-specific suffix
+            positionsToFund = positionsToFund.concat(
+              Items.map((item) => unmarshall(item) as (Position & { pk: string; sk: string }))
+                   .filter(pos => pos.pk?.startsWith(currentModePrefix) && pos.pk?.endsWith(currentModeSuffix))
+            );
+          }
+          lastPositionKey = LastEvaluatedKey;
+        } while (lastPositionKey);
+        console.log(`[Funding]  Found ${positionsToFund.length} open positions for ${market.symbol} (${mode}).`);
+      } catch (error) {
+        console.error(
+          `[Funding] Error scanning positions for ${market.symbol} (${mode}):`,
+          error
+        );
+        continue; // Skip to next market if positions can't be loaded
+      }
+  
+      const updatePromises: Promise<any>[] = [];
+  
+      for (const pos of positionsToFund) {
+        if (!pos.pk || pos.size === 0) continue; // Should be filtered by scan, but double check
+  
+        // Funding payment is based on position size, mark price, and funding rate.
+        // Payment = Position Size * Mark Price * Funding Rate
+        // If positive, longs pay shorts. If negative, shorts pay longs.
+        const paymentValue = pos.size * markPx * fundingRate; // This is in USDC value
+        
+        // Amount to transfer (positive means shorts receive from longs, negative means longs receive from shorts)
+        // The actual balance change for the trader is -paymentValue.
+        const balanceChangeUsdcValue = -paymentValue; 
+        const balanceChangeBaseUnits = BigInt(Math.round(balanceChangeUsdcValue * USDC_DECIMALS_FACTOR));
+  
+        if (balanceChangeBaseUnits === BigInt(0)) continue;
+  
+        const traderId = pos.pk.split("#")[1]; // Extract traderId from `TRADER#<id>#<mode>`
+  
+        console.log(
+          `[Funding]    Trader ${traderId}: Size ${pos.size}, Payment (USDC Value) ${(-paymentValue).toFixed(6)}, Balance Change (Base Units) ${balanceChangeBaseUnits}`
+        );
+  
+        // Update BalancesTable for USDC (for both REAL and PAPER modes)
+        const balancePk = pos.pk; // This is already TRADER#<id>#<mode>
+        const balanceSk = pkHelper.asset("USDC");
+  
+        const balanceUpdatePromise = ddb
+          .send(
+            new UpdateItemCommand({
+              TableName: BALANCES_TABLE,
+              Key: marshall({ pk: balancePk, sk: balanceSk }),
+              UpdateExpression: "ADD balance :payment", // Add (can be negative)
+              ExpressionAttributeValues: marshall({
+                ":payment": balanceChangeBaseUnits,
+              }),
+            })
+          )
+          .catch((err) => {
+            console.error(
+              `[Funding]    Failed balance update for ${traderId} (${market.symbol}, ${mode}):`,
+              err
+            );
+            // Decide on error handling: retry, DLQ, or just log
+          });
+        updatePromises.push(balanceUpdatePromise);
+  
+        // Note: No direct on-chain synth mint/burn for individual funding payments here.
+        // The app (this cron) is responsible for updating the BalancesTable.
+        // The custodial gateway will handle actual on-chain USDC movements at an aggregate level if needed.
+      } // End position loop
+  
+      if (updatePromises.length > 0) {
+          await Promise.allSettled(updatePromises);
+          console.log(`[Funding]  Processed ${updatePromises.length} balance updates for ${market.symbol} (${mode}).`);
+      }
     } // End market loop
-
-    console.log(`Funding CRON finished at ${new Date().toISOString()}`);
-};
+  
+    console.log(`[Funding] CRON finished at ${new Date().toISOString()}`);
+  };
