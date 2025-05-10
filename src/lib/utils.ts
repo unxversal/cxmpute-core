@@ -8,10 +8,14 @@ import {
   GetCommand,
   PutCommand,
   DeleteCommand,
+  GetItemCommand
 } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
-import { ApiKeyInfo, ProviderRecord } from "@/lib/interfaces";
+import { ApiKeyInfo, ProviderRecord, TraderRecord } from "@/lib/interfaces";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
+const ddb = new DynamoDBClient({});
+const TRADERS_TABLE_NAME = Resource.TradersTable.name;
 /** 
  * Export a single docClient or separate clients if needed 
  */
@@ -1547,4 +1551,47 @@ export async function updateVideoServiceMetadata(serviceName: string, serviceUrl
   } catch (err) {
     console.error("Error updating /video service metadata:", err);
   }
+}
+
+
+/**
+ * Fetches the linked on-chain wallet address for a given trader ID.
+ * Assumes the TradersTable stores the walletAddress.
+ *
+ * @param internalDEXTraderId - The unique identifier for the trader (e.g., userId from UserTable).
+ * @returns The linked wallet address as a string, or null if not found or not linked.
+ */
+export async function getLinkedWalletForTrader(internalDEXTraderId: string): Promise<string | null> {
+    if (!internalDEXTraderId) {
+        console.warn("[getLinkedWalletForTrader] internalDEXTraderId is missing.");
+        return null;
+    }
+
+    try {
+        console.log(`[getLinkedWalletForTrader] Fetching wallet for traderId: ${internalDEXTraderId}`);
+        const { Item } = await ddb.send(
+            new GetItemCommand({
+                TableName: TRADERS_TABLE_NAME,
+                Key: marshall({ traderId: internalDEXTraderId }), // PK is just traderId
+                ProjectionExpression: "walletAddress", // Only fetch the walletAddress
+            })
+        );
+
+        if (Item) {
+            const traderData = unmarshall(Item) as Partial<Pick<TraderRecord, "walletAddress">>;
+            if (traderData.walletAddress && ethers.isAddress(traderData.walletAddress)) {
+                console.log(`[getLinkedWalletForTrader] Found wallet: ${traderData.walletAddress} for traderId: ${internalDEXTraderId}`);
+                return traderData.walletAddress;
+            } else {
+                console.warn(`[getLinkedWalletForTrader] walletAddress attribute missing or invalid for traderId: ${internalDEXTraderId}. Found:`, traderData.walletAddress);
+                return null;
+            }
+        } else {
+            console.warn(`[getLinkedWalletForTrader] No record found in TradersTable for traderId: ${internalDEXTraderId}`);
+            return null;
+        }
+    } catch (error) {
+        console.error(`[getLinkedWalletForTrader] Error fetching wallet for traderId ${internalDEXTraderId}:`, error);
+        return null; // Or throw, depending on desired error handling
+    }
 }
