@@ -1,0 +1,116 @@
+/* src/components/trade/RecentTrades/RecentTrades.module.css */
+.recentTradesContainer {
+  display: flex;
+  flex-direction: column;
+  background-color: #171b26; /* Dark background for the panel */
+  color: #d1d4dc;
+  padding: 12px 16px;
+  border-radius: 6px; /* Optional: if it's a standalone card */
+  /* If part of a larger panel, border/padding might be handled by parent */
+  height: 100%; /* Make it fill parent if needed */
+  min-height: 200px; /* Ensure a minimum height */
+  overflow: hidden; /* Prevent content from overflowing container itself */
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c0c5ce;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2f3b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tableWrapper {
+  flex-grow: 1; /* Allows table to take available space */
+  overflow-y: auto; /* Enable vertical scrolling for the table body */
+  /* Custom scrollbar for dark theme */
+  scrollbar-width: thin;
+  scrollbar-color: #4a5265 #2a2f3b;
+}
+.tableWrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.tableWrapper::-webkit-scrollbar-track {
+  background: #2a2f3b;
+  border-radius: 3px;
+}
+.tableWrapper::-webkit-scrollbar-thumb {
+  background-color: #4a5265;
+  border-radius: 3px;
+}
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #5a6378;
+}
+
+
+.tradesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem; /* Smaller font for dense info */
+}
+
+.tradesTable th,
+.tradesTable td {
+  padding: 5px 8px; /* Compact padding */
+  text-align: right; /* Right-align numbers */
+  white-space: nowrap;
+}
+
+.tradesTable th {
+  color: #8690a2;
+  font-weight: 500;
+  text-transform: capitalize;
+  position: sticky; /* Make headers sticky within scrollable wrapper */
+  top: 0;
+  background-color: #171b26; /* Match container background */
+  z-index: 1;
+}
+.tradesTable th:first-child,
+.tradesTable td:first-child {
+  text-align: left;
+}
+
+
+.tradeRow:hover {
+    background-color: rgba(42, 47, 59, 0.5); /* Subtle hover on rows */
+}
+
+.priceHeader, .quantityHeader, .timeHeader {
+    padding-bottom: 8px; /* Space below header text */
+}
+
+
+.priceUp {
+  color: #00c78b; /* Green for price up / taker buy */
+}
+
+.priceDown {
+  color: #ff5a5a; /* Red for price down / taker sell */
+}
+
+.priceNeutral {
+  color: #c0c5ce; /* Neutral color */
+}
+
+.quantityCell {
+  color: #c0c5ce;
+}
+
+.timeCell {
+  color: #8690a2; /* Muted time color */
+  text-align: left; /* Time often left-aligned */
+}
+
+.statusMessage {
+    text-align: center;
+    padding: 20px;
+    color: #6b778c;
+    font-style: italic;
+}
+
+.statusMessage td { /* Ensure it spans correctly */
+    text-align: center !important;
+}
