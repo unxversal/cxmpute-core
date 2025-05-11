@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     if (!authenticatedTraderId) {
       throw new Error("Trader ID not found in authenticated subject.");
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (authError: any) {
     if (authError instanceof NextResponse) return authError; // Auth error already a NextResponse
     console.error("GET /api/balances - Authentication Error:", authError.message);
