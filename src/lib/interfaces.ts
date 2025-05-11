@@ -355,6 +355,7 @@ export interface MarketMeta {
   expiryTs?: number;
   synth: string;            // **NEW** – ERC‑20 address for this market
   createdAt: number;
+  mode: TradingMode;
 }
 
 /* ── Oracle price snapshots ─────────────────────────────────────────── */

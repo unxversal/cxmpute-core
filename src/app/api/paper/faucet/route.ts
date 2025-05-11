@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
     // --- Authentication ---
     // requireAuth should verify the request signature/token and return the traderId
     // or throw an error if authentication fails.
-    const authResult = await requireAuth(req); // Modify based on your auth implementation
+    const authResult = await requireAuth(); // Modify based on your auth implementation
     // Assuming requireAuth returns an object with the traderId or similar identifier
-    authenticatedTraderId = authResult.traderId; // Adjust based on your auth return value
+    authenticatedTraderId = authResult.properties.traderId; // Adjust based on your auth return value
     if (!authenticatedTraderId) {
         throw new Error("Authentication failed or traderId not returned.");
     }
