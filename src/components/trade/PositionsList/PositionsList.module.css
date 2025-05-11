@@ -1,0 +1,86 @@
+/* src/components/trade/PositionsList/PositionsList.module.css */
+.positionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background-color: #171b26;
+  color: #d1d4dc;
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2a2f3b;
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c0c5ce;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.marketCell {
+  font-weight: 500;
+}
+
+.longSize,
+.longSizeModal {
+  color: var(--cxmpute-green, #00c78b);
+  font-weight: 600;
+}
+
+.shortSize,
+.shortSizeModal {
+  color: var(--cxmpute-red, #ff5a5a);
+  font-weight: 600;
+}
+
+.neutralSize {
+    color: #8690a2; /* Muted for zero size if shown */
+}
+
+.pnlPositive {
+  color: var(--cxmpute-green, #00c78b);
+}
+.pnlNegative {
+  color: var(--cxmpute-red, #ff5a5a);
+}
+.pnlNeutral {
+  color: #c0c5ce; /* Or your default text color for PnL */
+}
+
+
+.closeButton {
+  padding: 0.25em 0.5em !important;
+  /* Further customize if Button component's 'sm' is not small enough */
+}
+.closeButton svg {
+  margin-right: 4px !important; /* Adjust icon spacing if needed */
+}
+
+.modalFooter {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.highlightedRow td { /* Example for highlighting a row */
+    background-color: rgba(145, 168, 235, 0.08) !important; /* Subtle purple highlight */
+}
+
+/* Ensure DataTable styles are respected, or override here if needed */
+/* For example, if DataTable's td padding is too much for this dense view: */
+/* .positionsContainer :global(table td),
+.positionsContainer :global(table th) {
+  padding: 6px 10px; 
+} */
