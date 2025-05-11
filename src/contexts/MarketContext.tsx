@@ -54,7 +54,7 @@ export const MarketProvider = ({ children }: { children: ReactNode }) => {
             params.append("nextToken", nextToken);
           }
 
-          const response = await fetch(`/api/public/markets?${params.toString()}`);
+          const response = await fetch(`/api/markets?${params.toString()}`);
           if (!response.ok) {
             const errorData = await response.json();
             throw new Error( errorData.error || `Failed to fetch ${status} markets for ${mode} mode`);
