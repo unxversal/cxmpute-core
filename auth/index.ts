@@ -190,7 +190,7 @@ async function sendLoginCode(claims: Record<string, string>, code: string) {
       Destination: { ToAddresses: [email] },
       Content: {
         Simple: {
-          Subject: { Data: "Your Cxmpute login code" },
+          Subject: { Data: "Your cxmpute.cloud login code" },
           Body: {
             Text: {
               Data: `Here is your one-time code: ${code}\n\n` +

@@ -18,6 +18,9 @@ export interface AuthenticatedUserSubject {
     admin: boolean;
     // Add email if it's part of the subject properties and you need it directly
     email: string; // Or get it via another way if not directly in subject
+    traderId: string;
+    traderAk: string;
+    walletAddress?: string;
   };
 }
 

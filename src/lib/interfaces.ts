@@ -461,3 +461,107 @@ export interface TraderRecord {
   // Add any other relevant trader attributes here (e.g., createdAt, lastLoginAt)
   createdAt?: number;
 }
+
+// --- WebSocket Message Payloads (examples, align with your fanOut.ts output) ---
+export interface WsDepthUpdate {
+  type: "depth"; // Custom type client-side if fanOut sends raw depth
+  market: string;
+  mode: TradingMode;
+  bids: [number, number][]; // [price, quantity]
+  asks: [number, number][];
+  ts?: number; // Server timestamp of the update
+}
+
+export interface WsTrade {
+  type: "trade";
+  market: string;
+  mode: TradingMode;
+  tradeId: UUID;
+  price: number;
+  qty: number;
+  side: 'BUY' | 'SELL'; // Taker's side
+  timestamp: number; // Trade execution timestamp
+}
+
+export interface WsMarkPriceUpdate {
+    type: "markPrice";
+    market: string;
+    mode: TradingMode;
+    price: number;
+    timestamp: number;
+}
+
+export interface WsFundingRateUpdate {
+    type: "fundingRateUpdate"; // Matches SNS payload type from funding.ts
+    market: string;
+    mode: TradingMode;
+    fundingRate: number;
+    markPrice?: number; // Optional, as it's also on WsMarkPriceUpdate
+    timestamp: number;
+    // nextFundingTime?: number; // if you send this
+}
+
+export interface WsOrderUpdate {
+  type: "orderUpdate"; // Matches SNS payload type from matchers
+  market: string;
+  orderId: UUID;
+  mode: TradingMode;
+  status: OrderStatus;
+  filledQty?: number;
+  avgFillPrice?: number;
+  // Other relevant order fields that might be broadcasted
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+export interface WsPositionUpdate {
+  type: "positionUpdate"; // Matches SNS payload type
+  market: string;
+  mode: TradingMode;
+  traderId?: UUID; // Often implicit if on trader.<uuid> channel
+  size: number;
+  avgEntryPrice: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  updatedAt: number;
+  markPrice?: number; // Current mark price used for unrealized PnL
+  liquidationPrice?: number; // If applicable
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+export interface WsBalanceUpdate {
+  type: "balanceUpdate"; // Needs to be emitted by vault deposit/withdraw listeners
+  mode: TradingMode;
+  traderId?: UUID;
+  asset: string; // e.g., "USDC", "CXPT"
+  balance: string; // String to handle large numbers, parse to BigInt/Number as needed
+  pending?: string;
+  timestamp: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
+}
+
+export interface WsLiquidationAlert {
+    type: "liquidationAlert";
+    market: string;
+    mode: TradingMode;
+    traderId?: UUID;
+    message: string;
+    timestamp: number;
+}
+
+// --- State structures for the context ---
+export interface WsMarketDataState {
+  depth: WsDepthUpdate | null;
+  lastTrade: WsTrade | null;
+  markPrice: WsMarkPriceUpdate | null;
+  fundingRate: WsFundingRateUpdate | null;
+}
+
+export interface WsTraderDataState {
+  lastOrderUpdate: WsOrderUpdate | null; // Could be an array/map if multiple updates are needed
+  lastPositionUpdate: WsPositionUpdate | null; // Or a map by market
+  balances: Record<string, WsBalanceUpdate>; // Map asset symbol to balance update
+  lastLiquidationAlert: WsLiquidationAlert | null;
+}
