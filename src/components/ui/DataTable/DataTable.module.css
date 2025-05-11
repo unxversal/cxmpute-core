@@ -1,0 +1,185 @@
+/* src/components/ui/DataTable/DataTable.module.css */
+.dataTableWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; /* Space between filter/table and pagination */
+}
+
+.globalFilterContainer {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background-color: #2a2f3b; /* Dark background for filter bar */
+  border-radius: 6px;
+  border: 1px solid #3e4556;
+  margin-bottom: 0.5rem; /* Add some space below the filter */
+}
+
+.filterIcon {
+  color: #8a91a0;
+  margin-right: 8px;
+}
+
+.globalFilterInput {
+  flex-grow: 1;
+  padding: 8px 10px;
+  border: 1px solid #3e4556;
+  background-color: #1e222d; /* Dark input background */
+  color: #d1d4dc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.globalFilterInput:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 2px rgba(145, 168, 235, 0.3);
+}
+
+.clearFilterButton {
+  background: none;
+  border: none;
+  color: #8a91a0;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clearFilterButton:hover {
+  color: #d1d4dc;
+}
+
+
+.dataTableContainer {
+  overflow-x: auto;
+  border: 1px solid #3e4556;
+  border-radius: 6px;
+  background-color: #1e222d;
+}
+
+.dataTable {
+  width: 100%;
+  min-width: 600px; /* Ensure table has a min width for smaller viewports before scroll */
+  border-collapse: collapse;
+  color: #d1d4dc;
+  font-size: 0.875rem;
+}
+
+.th,
+.td {
+  padding: 10px 14px; /* Increased padding */
+  text-align: left;
+  border-bottom: 1px solid #3e4556;
+  vertical-align: middle; /* Align content vertically */
+}
+
+.th {
+  background-color: #2a2f3b;
+  color: #e0e0e0;
+  font-weight: 600;
+  white-space: nowrap; /* Prevent header text from wrapping */
+  position: sticky; /* Make headers sticky if container scrolls */
+  top: 0;
+  z-index: 1;
+}
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none; /* Prevent text selection on click */
+}
+.sortableHeader:hover {
+  background-color: #333a4c;
+}
+.sortIcon {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+
+.tr:last-child .td {
+  border-bottom: none;
+}
+
+.tr:hover:not(.skeletonRow) { /* Don't apply hover to skeleton rows */
+  background-color: #252a36;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+.clickableRow:focus-visible { /* Use focus-visible for better accessibility */
+    outline: 2px solid var(--cxmpute-purple, #91a8eb);
+    outline-offset: -1px; /* Outline inside the cell */
+    background-color: #2c3240; /* Highlight focused row */
+}
+
+
+.emptyState,
+.errorState {
+  text-align: center;
+  padding: 30px 20px; /* More padding for these states */
+  color: #8a91a0;
+  font-style: italic;
+}
+
+.errorState {
+  color: #ff6b6b;
+}
+
+.loadingMoreSpinner {
+  display: flex;
+  justify-content: center;
+  padding: 15px;
+  background-color: #1e222d; /* Match table bg */
+}
+
+/* Pagination */
+.paginationControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0;
+  gap: 8px;
+  user-select: none;
+}
+
+.paginationButton {
+  padding: 6px 12px;
+  border: 1px solid #3e4556;
+  background-color: #2a2f3b;
+  color: #d1d4dc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: #333a4c;
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.activePage {
+  background-color: var(--cxmpute-purple, #91a8eb);
+  color: #131722; /* Dark text on active page button */
+  border-color: var(--cxmpute-purple, #91a8eb);
+  font-weight: bold;
+}
+.activePage:hover {
+  background-color: #7a99e0; /* Slightly darker purple on hover */
+}
+
+.paginationInfo {
+  font-size: 0.875rem;
+  color: #8a91a0;
+  margin-left: 16px;
+}
+
+.skeletonRow .td { /* For skeleton rows */
+    padding-top: 15px; /* Adjust padding for skeleton */
+    padding-bottom: 15px;
+}
