@@ -1,0 +1,89 @@
+/* src/components/trade/ModeSwitcher/ModeSwitcher.module.css */
+/* Existing styles from previous response ... */
+.modeSwitcherContainer {
+  display: flex;
+  align-items: center;
+  background-color: #2a2f3b; /* Dark background for the container */
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid #3e4556;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.modeButton {
+  flex: 1; /* Each button takes equal space */
+  padding: 8px 16px;
+  border: none;
+  background-color: transparent;
+  color: #8a91a0; /* Muted color for inactive buttons */
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-radius: 6px; /* Inner button radius */
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modeButton:disabled {
+  cursor: default;
+  /* The .active class will provide the visual cue for active state */
+   opacity: 1; /* Keep full opacity as active state is distinct */
+}
+
+.modeButton:not(:disabled):hover {
+  background-color: #333a4c; /* Hover effect for inactive buttons */
+  color: #d1d4dc;
+}
+
+.modeButton.active {
+  color: #ffffff; /* Bright text for active button */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Subtle shadow for active button */
+}
+
+.modeButton.realMode.active {
+  background-color: var(--cxmpute-red, #d64989); /* Distinct color for REAL active */
+}
+.modeButton.realMode.active:hover { /* Prevent hover style on active button */
+    background-color: var(--cxmpute-red, #d64989);
+}
+
+
+.modeButton.paperMode.active {
+  background-color: var(--cxmpute-green, #20a191); /* Distinct color for PAPER active */
+}
+.modeButton.paperMode.active:hover { /* Prevent hover style on active button */
+    background-color: var(--cxmpute-green, #20a191);
+}
+
+
+/* Focus states for accessibility */
+.modeButton:focus-visible {
+  outline: 2px solid var(--cxmpute-purple, #91a8eb);
+  outline-offset: 2px;
+  z-index: 1; /* Ensure focus ring is visible */
+}
+
+/* New styles for confirmation modal content */
+.confirmModalBody p {
+  margin-bottom: 10px;
+  line-height: 1.6;
+  color: #c0c5ce; /* Slightly softer text for modal body */
+}
+
+.confirmModalBody p:first-child {
+  margin-top: 0;
+}
+
+.confirmModalBody strong {
+  color: var(--cxmpute-red, #ef4444); /* Highlight "REAL" */
+}
+
+.confirmModalFooter {
+  display: flex;
+  justify-content: flex-end; /* Standard modal footer alignment */
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #333a4c;
+}
