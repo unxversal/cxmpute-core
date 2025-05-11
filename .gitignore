@@ -52,3 +52,5 @@ src/srcfiles.txt
 
 contracts/node_modules
 contracts/all_code.txt
+all_code.txt
+.gitignore
