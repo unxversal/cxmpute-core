@@ -1,0 +1,176 @@
+/* src/components/trade/MarketInfoBar/MarketInfoBar.module.css */
+.infoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background-color: #171b26;
+  border-bottom: 1px solid #2a2f3b;
+  color: #d1d4dc;
+  flex-wrap: wrap;
+  gap: 15px 20px;
+}
+
+.marketTitleSection {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.marketSymbolDisplay {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.priceDisplay {
+  font-size: 1.3rem;
+  font-weight: 700;
+  transition: color 0.2s ease;
+  min-width: 80px;
+  text-align: left;
+}
+.priceNeutral { /* Added for default/no-change state */
+  color: #e0e0e0; 
+}
+.priceUp {
+  color: #00c78b; /* Brighter Green */
+}
+.priceDown {
+  color: #ff5a5a; /* Brighter Red */
+}
+
+.change24h {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-width: 70px; /* Space for skeleton or value */
+}
+.change24hSkeleton > div { /* Target SkeletonLoader's inner div */
+    height: 18px !important;
+    background-color: #252a36 !important;
+}
+
+
+.infoGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  flex-grow: 1;
+  justify-content: flex-end;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 90px;
+}
+
+.label {
+  font-size: 0.7rem;
+  color: #8690a2;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.label svg {
+  opacity: 0.6;
+}
+
+.value {
+  font-size: 0.9rem; /* Adjusted */
+  font-weight: 500;
+  color: #d0d4db;
+  min-height: 18px;
+}
+.value .skeletonLoader > div, /* Targeting skeleton direct child of value */
+.infoItem .label > div { /* Targeting skeleton direct child of label */
+    height: 1em !important;
+    background-color: #252a36 !important;
+    margin-bottom: 0;
+}
+.infoItem .label > div {
+    margin-bottom: 3px; /* Restore margin for label skeleton */
+}
+
+
+.skeletonTitle > div {
+  background-color: #333a4c !important;
+  height: 24px !important;
+  width: 150px !important; /* Give it a specific width */
+}
+
+.priceUpStrong { /* For positive funding rates */
+    color: #00c78b;
+}
+.priceDownStrong { /* For negative funding rates */
+    color: #ff5a5a;
+}
+
+
+@media (max-width: 900px) {
+  .infoBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .marketTitleSection {
+      width: 100%;
+      justify-content: space-between;
+      margin-bottom: 8px;
+  }
+  .infoGrid {
+    width: 100%;
+    justify-content: space-around;
+    gap: 10px 15px;
+  }
+  .infoItem {
+    min-width: calc(33% - 15px);
+    align-items: center;
+  }
+  .infoItem .label, .infoItem .value {
+      width: 100%;
+      text-align: center;
+  }
+  .infoItem .label {
+      justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+    .infoItem {
+        min-width: calc(50% - 10px);
+    }
+}
+
+@media (max-width: 400px) {
+    .infoBar {
+        padding: 8px 10px;
+    }
+    .marketSymbolDisplay { font-size: 1.1rem; }
+    .priceDisplay { font-size: 1.15rem; }
+    .change24h { font-size: 0.75rem; }
+    .label { font-size: 0.65rem; }
+    .value { font-size: 0.8rem; }
+
+    .infoItem {
+        min-width: 100%;
+        align-items: flex-start;
+    }
+    .infoItem .label, .infoItem .value {
+      text-align: left;
+    }
+    .infoItem .label {
+      justify-content: flex-start;
+    }
+}
