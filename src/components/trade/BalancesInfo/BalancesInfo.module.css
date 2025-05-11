@@ -1,0 +1,113 @@
+/* src/components/trade/BalancesInfo/BalancesInfo.module.css */
+.balancesContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #171b26; /* Dark panel background */
+  color: #d1d4dc;
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  height: 100%; /* Allow it to fill parent height */
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2a2f3b;
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c0c5ce;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.header svg {
+    color: var(--cxmpute-purple, #91a8eb);
+}
+
+.globalError {
+    font-size: 0.8rem;
+    color: var(--cxmpute-red, #d64989);
+    padding: 8px;
+    background-color: rgba(214, 73, 137, 0.1);
+    border: 1px solid var(--cxmpute-red, #d64989);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.balancesList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.balanceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0; /* Vertical padding */
+  font-size: 0.875rem;
+}
+
+.assetLabel {
+  color: #8690a2; /* Muted label color */
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.assetLabel svg {
+    opacity: 0.8;
+}
+
+.assetAmount {
+  color: #e0e0e0; /* Brighter amount color */
+  font-weight: 600;
+  font-family: monospace; /* Good for numbers */
+}
+
+.pendingAmount {
+  font-size: 0.75rem;
+  color: #6b778c;
+  margin-left: 6px;
+}
+.errorText {
+    color: var(--cxmpute-red, #d64989);
+    font-style: italic;
+    font-size: 0.8rem;
+}
+
+
+.paperSection {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #2a2f3b; /* Dashed separator for paper section */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.paperSection .balanceRow {
+    padding-bottom: 0; /* Reduce padding for points row */
+}
+
+
+.actions {
+  margin-top: auto; /* Push actions to the bottom if container has extra space */
+  padding-top: 16px;
+  border-top: 1px solid #2a2f3b;
+  display: flex;
+  gap: 10px;
+  justify-content: space-around; /* Distribute buttons */
+  flex-wrap: wrap; /* Allow buttons to wrap on smaller widths */
+}
+
+.actions > * { /* Target direct children of actions for flex-basis */
+    flex-basis: calc(50% - 5px); /* Aim for two buttons per row, accounting for gap */
+    min-width: 120px; /* Ensure buttons don't get too squished */
+}

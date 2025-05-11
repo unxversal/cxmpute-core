@@ -1,0 +1,123 @@
+/* src/components/trade/OpenOrdersList/OpenOrdersList.module.css */
+.openOrdersContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background-color: #171b26; /* Dark panel background */
+  color: #d1d4dc;
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  height: 100%; /* Fill parent */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #2a2f3b;
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c0c5ce;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filterButton,
+.filterButtonActive {
+  /* Uses Button component styles, can add specific overrides here */
+}
+.filterButtonActive {
+  background-color: var(--cxmpute-purple, #91a8eb) !important;
+  color: #131722 !important;
+}
+.filterButtonActive svg,
+.filterButtonActive:hover svg {
+    color: #131722 !important;
+}
+
+
+.marketCell {
+  font-weight: 500;
+}
+
+.buySide {
+  color: var(--cxmpute-green, #00c78b);
+  font-weight: 600;
+}
+
+.sellSide {
+  color: var(--cxmpute-red, #ff5a5a);
+  font-weight: 600;
+}
+
+.filledCell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align numbers to the right */
+    line-height: 1.2;
+}
+.filledPercentage {
+    font-size: 0.7rem;
+    color: #8690a2;
+}
+
+
+.statusCell {
+    font-weight: 500;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    text-align: center;
+    display: inline-block; /* To allow padding and centering */
+    min-width: 60px;
+    text-transform: capitalize;
+}
+.open {
+    background-color: rgba(66, 153, 225, 0.2); /* Blue-ish */
+    color: #63b3ed;
+}
+.partial {
+    background-color: rgba(236, 201, 75, 0.2); /* Yellow-ish */
+    color: #ecc94b;
+}
+/* Other statuses like FILLED, CANCELLED won't appear in "OpenOrdersList"
+   but good to have if this component is reused or adapted. */
+.filled {
+    background-color: rgba(72, 187, 120, 0.2); /* Green-ish */
+    color: #48bb78;
+}
+.cancelled {
+    background-color: rgba(113, 128, 150, 0.2); /* Gray-ish */
+    color: #a0aec0;
+}
+.expired {
+    background-color: rgba(160, 174, 192, 0.2); /* Darker Gray-ish */
+    color: #a0aec0;
+}
+
+
+.cancelButton {
+  padding: 0.25em 0.5em !important; /* Smaller padding for action buttons */
+}
+.cancelButton svg {
+    margin: 0 !important; /* Remove margin if Button adds it by default */
+}
+
+.modalFooter { /* For the Cancel All confirmation modal */
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+}
