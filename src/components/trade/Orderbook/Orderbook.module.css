@@ -78,13 +78,6 @@
 .column::-webkit-scrollbar-thumb:hover {
   background-color: #5a6378;
 }
-/* Specific styling for asks to be on top */
-.asksColumn {
-  /* Order for flex display can be set if parent is row, but here it's column */
-}
-.bidsColumn {
-  /* order: 3; */
-}
 
 
 .orderTable {
@@ -192,9 +185,8 @@
   background-color: #1c202c;
   flex-shrink: 0; /* Prevent spread from shrinking */
 }
-.spreadValue {
-  /* color: #e0e0e0; */
-}
+
+
 .spreadPercentage {
   margin-left: 5px;
   font-size: 0.7rem;
