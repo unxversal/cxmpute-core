@@ -474,15 +474,49 @@ export interface WsDepthUpdate {
 }
 
 export interface WsTrade {
-  type: "trade";
+  type: "trade"; // This will be "trade" when coming from matcher, not "orderUpdate"
   market: string;
   mode: TradingMode;
   tradeId: UUID;
   price: number;
   qty: number;
-  side: 'BUY' | 'SELL'; // Taker's side
+  side: OrderSide; // Taker's side
   timestamp: number; // Trade execution timestamp
+  prevPrice?: number; // Optional: Price of the trade immediately preceding this one for this market
 }
+
+export interface WsFundingRateUpdate { // This type matches your existing funding.ts SNS payload
+    type: "fundingRateUpdate";
+    market: string;
+    mode: TradingMode;
+    fundingRate: number;
+    markPrice?: number; // Mark price at the time of funding calculation
+    timestamp: number;
+    nextFundingTime?: number; // If you send this
+}
+
+export interface WsMarketSummaryUpdate {
+  type: "marketSummaryUpdate"; // New type for this specific message
+  market: string; // e.g., BTC-PERP
+  mode: TradingMode; // REAL or PAPER
+  markPrice: number | null;
+  indexPrice: number | null;
+  openInterest: number | string; // e.g., 12345.67 or "N/A"
+  volume24h: number | string;    // e.g., 1234567.89 or "N/A" (in quote currency)
+  change24h: number | null;      // e.g., 0.05 for +5%, -0.02 for -2%, or null
+  fundingRate?: number | null;    // Current hourly or 8-hourly funding rate (for PERPs)
+  timestamp: number;             // Epoch ms when this summary was generated
+}
+
+// In WsMarketDataState for WebSocketContext
+export interface WsMarketDataState {
+  depth: WsDepthUpdate | null;
+  lastTrade: WsTrade | null;
+  markPrice: WsMarkPriceUpdate | null; // Can be updated by 'markPrice' type or 'fundingRateUpdate' or 'marketSummaryUpdate'
+  fundingRate: WsFundingRateUpdate | null; // Can be updated by 'fundingRateUpdate' or 'marketSummaryUpdate'
+  summary: WsMarketSummaryUpdate | null; // For OI, Volume, Change, Index
+}
+
 
 export interface WsMarkPriceUpdate {
     type: "markPrice";
@@ -490,16 +524,6 @@ export interface WsMarkPriceUpdate {
     mode: TradingMode;
     price: number;
     timestamp: number;
-}
-
-export interface WsFundingRateUpdate {
-    type: "fundingRateUpdate"; // Matches SNS payload type from funding.ts
-    market: string;
-    mode: TradingMode;
-    fundingRate: number;
-    markPrice?: number; // Optional, as it's also on WsMarkPriceUpdate
-    timestamp: number;
-    // nextFundingTime?: number; // if you send this
 }
 
 export interface WsOrderUpdate {
@@ -550,14 +574,6 @@ export interface WsLiquidationAlert {
     traderId?: UUID;
     message: string;
     timestamp: number;
-}
-
-// --- State structures for the context ---
-export interface WsMarketDataState {
-  depth: WsDepthUpdate | null;
-  lastTrade: WsTrade | null;
-  markPrice: WsMarkPriceUpdate | null;
-  fundingRate: WsFundingRateUpdate | null;
 }
 
 export interface WsTraderDataState {

@@ -628,6 +628,25 @@ export default $config({
       },
     });
 
+     /* ─── New Market Summary Cron Job ────────────────────────────────── */
+     new sst.aws.Cron("MarketSummaryCron", {
+      schedule: "rate(1 minute)", // Adjust schedule as needed (e.g., "rate(1 minute)")
+      job: {
+        handler: "dex/cron/marketSummary.handler",
+        timeout: "50 seconds", // Should be less than schedule rate
+        memory: "512 MB",      // Adjust based on how many markets you have
+        link: [
+          marketsTable,
+          positionsTable,
+          tradesTable,
+          pricesTable,
+          statsIntradayTable,
+          marketUpdatesTopic, // To publish the summary
+        ],
+        // No specific environment variables needed unless your pkHelper depends on them
+      },
+    });
+
     /* PerpDailySettleCron - Needs mode logic */
     new sst.aws.Cron("PerpDailySettleCron", {
       schedule: "cron(5 0 * * ? *)",
