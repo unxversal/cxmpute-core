@@ -245,11 +245,24 @@ export default $config({
 
     const graphs = new sst.aws.Bucket("GraphsBucket");
 
+    // Unchanged Traders Table (holds user identity, not mode-specific state)
+    const tradersTable = new sst.aws.Dynamo("TradersTable", {
+      fields: {
+        traderId: "string",
+        traderAk: "string",
+      },
+      primaryIndex: { hashKey: "traderId" },
+      globalIndexes: {
+        ByAk: { hashKey: "traderAk" },
+      },
+    });
+
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: {
         handler: "auth/index.handler",
         link: [
           providerTable,
+          tradersTable,
           userTable,
           authEmail,        // <-- makes Resource.AuthEmail.* available
         ],
@@ -276,17 +289,7 @@ export default $config({
       stream: "new-and-old-images", // Keep stream for order processing
     });
 
-    // Unchanged Traders Table (holds user identity, not mode-specific state)
-    const tradersTable = new sst.aws.Dynamo("TradersTable", {
-      fields: {
-        traderId: "string",
-        traderAk: "string",
-      },
-      primaryIndex: { hashKey: "traderId" },
-      globalIndexes: {
-        ByAk: { hashKey: "traderAk" },
-      },
-    });
+    
 
     const balancesTable = new sst.aws.Dynamo("BalancesTable", {
       fields: {
