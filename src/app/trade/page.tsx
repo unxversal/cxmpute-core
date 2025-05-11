@@ -8,6 +8,7 @@ import { WebSocketProvider } from "@/contexts/WebsocketContext";
 import { AccountProvider } from "@/contexts/AccountContext";
 import TradeDashboard from "@/components/trade/TradeDashboard"; // This component will be built next
 import styles from "./trade.module.css"; // Create this file
+import { WalletProvider } from "@/contexts/WalletContext";
 
 export default async function TradePage() {
   const userSubject = await auth(); // Fetches user subject on the server
@@ -24,14 +25,16 @@ export default async function TradePage() {
     <AuthProvider user={userSubject}>
       <TradingModeProvider initialMode="PAPER"> {/* Default to PAPER mode */}
         <MarketProvider>
-          <WebSocketProvider>
-            <AccountProvider>
-              <main className={styles.tradePageMain}>
-                {/* TradeDashboard will be a client component */}
-                <TradeDashboard />
-              </main>
-            </AccountProvider>
-          </WebSocketProvider>
+          <WalletProvider>
+            <WebSocketProvider>
+              <AccountProvider>
+                <main className={styles.tradePageMain}>
+                  {/* TradeDashboard will be a client component */}
+                  <TradeDashboard />
+                </main>
+              </AccountProvider>
+            </WebSocketProvider>
+          </WalletProvider>
         </MarketProvider>
       </TradingModeProvider>
     </AuthProvider>
