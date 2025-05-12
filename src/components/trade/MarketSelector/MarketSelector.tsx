@@ -5,21 +5,19 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import styles from './MarketSelector.module.css';
 import { useMarketContext } from '@/contexts/MarketContext';
 import { useTradingMode } from '@/contexts/TradingModeContext';
-import { ChevronDown, Search, XCircle } from 'lucide-react'; // Lucide icons
+import { ChevronDown, Search, XCircle, Layers } from 'lucide-react'; // Added Layers icon
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
-// Optional: If you want to show live prices in the dropdown, you might need WebSocketContext
-// import { useWebSocket } from '@/contexts/WebSocketContext';
+import Tooltip from '@/components/ui/Tooltip/Tooltip';
 
 const MarketSelector: React.FC = () => {
   const {
-    availableMarkets,
-    selectedMarket,
-    setSelectedMarketBySymbol,
-    isLoadingMarkets,
-    marketError,
+    availableUnderlyings,
+    selectedUnderlying,
+    selectUnderlyingBySymbol,
+    isLoadingUnderlyings,
+    errorUnderlyings,
   } = useMarketContext();
   const { currentMode } = useTradingMode();
-  // const { marketData } = useWebSocket(); // If showing live prices
 
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,72 +36,85 @@ const MarketSelector: React.FC = () => {
     };
   }, [wrapperRef]);
 
-  const filteredMarkets = useMemo(() => {
-    if (!searchTerm) return availableMarkets;
+  const filteredUnderlyings = useMemo(() => {
+    if (!searchTerm) return availableUnderlyings;
     const lowerSearchTerm = searchTerm.toLowerCase();
-    return availableMarkets.filter(
-      (market) =>
-        market.symbol.toLowerCase().includes(lowerSearchTerm) ||
-        market.type.toLowerCase().includes(lowerSearchTerm)
-        // Add more fields to search if needed (e.g., underlying asset)
+    return availableUnderlyings.filter(
+      (underlying) =>
+        underlying.symbol.toLowerCase().includes(lowerSearchTerm) ||
+        underlying.baseAsset.toLowerCase().includes(lowerSearchTerm) ||
+        underlying.quoteAsset.toLowerCase().includes(lowerSearchTerm)
     );
-  }, [availableMarkets, searchTerm]);
+  }, [availableUnderlyings, searchTerm]);
 
-  const handleMarketSelect = (marketSymbol: string) => {
-    setSelectedMarketBySymbol(marketSymbol);
+  const handleUnderlyingSelect = (underlyingSymbol: string) => {
+    selectUnderlyingBySymbol(underlyingSymbol);
     setIsOpen(false);
-    setSearchTerm(''); // Reset search term on selection
+    setSearchTerm('');
   };
+  
+  // Displaying some metric for the selected underlying SPOT market (e.g. last price from WebSocket)
+  // This is more complex as WebSocketContext.marketSpecificData is for the *activeInstrumentSymbol*
+  // For now, we will not display live price in the selector button itself for simplicity.
+  // The MarketInfoBar will show price for the activeInstrumentSymbol or selectedUnderlying's spot.
+  // const displayPriceForSelectedUnderlying = useMemo(() => {
+  //   if (selectedUnderlying && activeInstrumentSymbol === selectedUnderlying.symbol && wsMarketData.lastTrade) {
+  //       return formatPrice(wsMarketData.lastTrade.price, selectedUnderlying.tickSizeSpot);
+  //   }
+  //   return null;
+  // }, [selectedUnderlying, activeInstrumentSymbol, wsMarketData.lastTrade]);
 
-//   const getMarketDisplayPrice = (marketSymbol: string): string | null => {
-//     // Placeholder: If you integrate live prices from WebSocketContext's marketData
-//     // you could fetch it here. For now, we'll skip this for simplicity in the dropdown.
-//     // const currentMarketData = marketData[marketSymbol]; // Hypothetical structure
-//     // return currentMarketData?.markPrice?.price?.toFixed(market.tickSize.toString().split('.')[1]?.length || 2) || null;
-//     return null;
-//   };
 
-  if (isLoadingMarkets) {
+  if (isLoadingUnderlyings && availableUnderlyings.length === 0) {
     return (
-      <div className={`${styles.marketSelector} ${styles.loadingState}`}>
+      <div className={`${styles.marketSelectorButton} ${styles.loadingState}`}>
         <LoadingSpinner size={20} color="#8a91a0" />
         <span>Loading Markets...</span>
       </div>
     );
   }
 
-  if (marketError) {
-    return <div className={`${styles.marketSelector} ${styles.errorState}`}>Error: {marketError}</div>;
+  if (errorUnderlyings) {
+    return <div className={`${styles.marketSelectorButton} ${styles.errorState}`} title={errorUnderlyings}>
+        <Layers size={20} className={styles.mainIconError}/> Error Loading
+    </div>;
   }
+  
+  if (!selectedUnderlying && availableUnderlyings.length > 0) {
+      // This case should ideally be handled by MarketContext auto-selecting the first underlying
+      // If still null here, it means no underlyings were found or an issue occurred.
+  }
+
 
   return (
     <div className={styles.marketSelectorWrapper} ref={wrapperRef}>
-      <button
-        className={styles.marketSelectorButton}
-        onClick={() => setIsOpen(!isOpen)}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-      >
-        <div className={styles.selectedMarketInfo}>
-          {selectedMarket ? (
-            <>
-              <span className={styles.selectedMarketSymbol}>{selectedMarket.symbol}</span>
-              <span className={`${styles.marketModeTag} ${styles[currentMode.toLowerCase()]}`}>
-                {currentMode}
-              </span>
-              {/* Optional: Display selected market's live price here */}
-              {/* {getMarketDisplayPrice(selectedMarket.symbol) && (
-                <span className={styles.selectedMarketPrice}>
-                  {getMarketDisplayPrice(selectedMarket.symbol)}
-                </span>
-              )} */}
-            </>
-          ) : (
-            <span>Select Market</span>
-          )}
-        </div>
-        <ChevronDown size={20} className={`${styles.chevron} ${isOpen ? styles.open : ''}`} />
-      </button>
+      <Tooltip content={`Current Underlying: ${selectedUnderlying?.symbol || 'None'} (${currentMode})`} position="bottom">
+        <button
+          className={styles.marketSelectorButton}
+          onClick={() => setIsOpen(!isOpen)}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+          aria-label={`Select trading pair, current pair is ${selectedUnderlying?.symbol || 'not selected'}`}
+        >
+          <div className={styles.selectedMarketInfo}>
+            <Layers size={20} className={styles.mainIcon}/>
+            {selectedUnderlying ? (
+              <>
+                <span className={styles.selectedMarketSymbol}>{selectedUnderlying.symbol}</span>
+                {/* <span className={`${styles.marketModeTag} ${styles[currentMode.toLowerCase()]}`}>
+                  {currentMode}
+                </span> */}
+                {/* {displayPriceForSelectedUnderlying && (
+                    <span className={styles.selectedMarketPrice}>{displayPriceForSelectedUnderlying}</span>
+                )} */}
+              </>
+            ) : (
+              <span>Select Pair</span>
+            )}
+          </div>
+          <ChevronDown size={20} className={`${styles.chevron} ${isOpen ? styles.open : ''}`} />
+        </button>
+      </Tooltip>
 
       {isOpen && (
         <div className={styles.dropdown} role="listbox">
@@ -111,11 +122,12 @@ const MarketSelector: React.FC = () => {
             <Search size={18} className={styles.searchIcon} />
             <input
               type="text"
-              placeholder="Search markets (e.g., BTC, PERP)"
+              placeholder="Search pairs (e.g., BTC/USDC)"
               className={styles.searchInput}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoFocus
+              aria-label="Search trading pairs"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className={styles.clearSearchButton} aria-label="Clear search">
@@ -124,33 +136,35 @@ const MarketSelector: React.FC = () => {
             )}
           </div>
           <ul className={styles.marketList}>
-            {filteredMarkets.length > 0 ? (
-              filteredMarkets.map((market) => (
+            {isLoadingUnderlyings && filteredUnderlyings.length === 0 && (
+                <li className={styles.loadingListItem}><LoadingSpinner size={16} /> Searching...</li>
+            )}
+            {!isLoadingUnderlyings && filteredUnderlyings.length > 0 ? (
+              filteredUnderlyings.map((underlying) => (
                 <li
-                  key={market.symbol + market.mode} // Ensure unique key if symbols can repeat across modes (though our PK structure prevents this)
+                  key={underlying.symbol}
                   className={`${styles.marketItem} ${
-                    selectedMarket?.symbol === market.symbol ? styles.selected : ''
-                  } ${market.status === 'PAUSED' ? styles.paused : ''}`}
-                  onClick={() => handleMarketSelect(market.symbol)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleMarketSelect(market.symbol)}}
+                    selectedUnderlying?.symbol === underlying.symbol ? styles.selected : ''
+                  } ${underlying.status === 'PAUSED' ? styles.paused : ''}`}
+                  onClick={() => underlying.status !== 'PAUSED' && handleUnderlyingSelect(underlying.symbol)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (underlying.status !== 'PAUSED') handleUnderlyingSelect(underlying.symbol); }}}
                   role="option"
-                  aria-selected={selectedMarket?.symbol === market.symbol}
-                  tabIndex={0}
+                  aria-selected={selectedUnderlying?.symbol === underlying.symbol}
+                  aria-disabled={underlying.status === 'PAUSED'}
+                  tabIndex={underlying.status === 'PAUSED' ? -1 : 0}
                 >
-                  <span className={styles.itemSymbol}>{market.symbol}</span>
-                  <div className={styles.itemDetails}>
-                    <span className={styles.itemType}>{market.type}</span>
-                    {/* {getMarketDisplayPrice(market.symbol) && (
-                       <span className={styles.itemPrice}>{getMarketDisplayPrice(market.symbol)}</span>
-                    )} */}
-                    {market.status === 'PAUSED' && (
+                  <div className={styles.itemMainInfo}>
+                    <span className={styles.itemSymbol}>{underlying.symbol}</span>
+                    {underlying.status === 'PAUSED' && (
                       <span className={styles.statusTagPaused}>PAUSED</span>
                     )}
                   </div>
+                  {/* Optional: Display brief stats for the underlying spot market if available */}
+                  {/* <span className={styles.itemSpotPrice}>Spot: {fetchSpotPriceFor(underlying.symbol)}</span> */}
                 </li>
               ))
             ) : (
-              <li className={styles.noResults}>No markets found.</li>
+              !isLoadingUnderlyings && <li className={styles.noResults}>No underlying pairs found.</li>
             )}
           </ul>
         </div>

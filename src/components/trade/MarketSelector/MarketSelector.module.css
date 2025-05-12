@@ -1,8 +1,9 @@
 /* src/components/trade/MarketSelector/MarketSelector.module.css */
 .marketSelectorWrapper {
   position: relative;
-  min-width: 220px; /* Adjust as needed */
-  font-family: inherit; /* Assuming a global dark theme font is set */
+  min-width: 180px; /* Can be wider if needed */
+  font-family: inherit;
+  z-index: 50; /* Ensure dropdown is above most elements but below modals */
 }
 
 .marketSelectorButton {
@@ -10,10 +11,10 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 10px 14px;
-  background-color: #2a2f3b; /* Dark button background */
-  color: #d1d4dc; /* Light text */
-  border: 1px solid #3e4556; /* Subtle border */
+  padding: 8px 12px; /* Slightly more compact */
+  background-color: #232731; /* Darker than panel for contrast */
+  color: #d1d4dc;
+  border: 1px solid #3e4556;
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
@@ -22,12 +23,23 @@
 
 .marketSelectorButton:hover,
 .marketSelectorButton:focus-visible {
-  background-color: #333a4c;
+  background-color: #2a2f3b;
   border-color: #4a5265;
   outline: none;
 }
 .marketSelectorButton:focus-visible {
-    box-shadow: 0 0 0 2px var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 2px var(--cxmpute-purple, #91a8eb);
+}
+.marketSelectorButton.loadingState,
+.marketSelectorButton.errorState {
+    cursor: default;
+    gap: 8px;
+}
+.marketSelectorButton.errorState {
+    color: var(--cxmpute-red, #d64989);
+}
+.marketSelectorButton.errorState .mainIconError {
+    color: var(--cxmpute-red, #d64989);
 }
 
 
@@ -35,21 +47,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  overflow: hidden; /* Prevent long symbols from breaking layout */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mainIcon {
+    color: var(--cxmpute-purple, #91a8eb);
+    flex-shrink: 0;
 }
 
 .selectedMarketSymbol {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem; /* Slightly adjusted */
   color: #e0e0e0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
+/* marketModeTag was removed from button display, but kept here if you re-add it */
 .marketModeTag {
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.65rem; /* Smaller */
   font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
+  flex-shrink: 0;
 }
 .paper {
   background-color: var(--cxmpute-green, #20a191);
@@ -60,14 +84,10 @@
   color: #fff;
 }
 
-.selectedMarketPrice {
-  font-size: 0.9rem;
-  color: #8a91a0; /* Muted price color */
-}
-
 .chevron {
   color: #8a91a0;
   transition: transform 0.2s ease-in-out;
+  flex-shrink: 0;
 }
 .chevron.open {
   transform: rotate(180deg);
@@ -75,66 +95,72 @@
 
 .dropdown {
   position: absolute;
-  top: calc(100% + 6px); /* Position below the button with a small gap */
+  top: calc(100% + 4px); /* Slightly smaller gap */
   left: 0;
   width: 100%;
-  min-width: 280px; /* Ensure dropdown has enough width */
-  max-height: 350px; /* Limit height and make scrollable */
+  min-width: 250px; /* Dropdown can be wider than button */
+  max-height: 300px; /* Limit height */
   overflow-y: auto;
-  background-color: #232731; /* Slightly darker dropdown background */
+  background-color: #1e222d; /* Darker dropdown background */
   border: 1px solid #3e4556;
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1010; /* Ensure dropdown is above other elements */
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4); /* More pronounced shadow */
   color: #d1d4dc;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5265 #2a2f3b;
 }
+.dropdown::-webkit-scrollbar { width: 6px; }
+.dropdown::-webkit-scrollbar-track { background: #2a2f3b; border-radius: 3px; }
+.dropdown::-webkit-scrollbar-thumb { background-color: #4a5265; border-radius: 3px; }
+.dropdown::-webkit-scrollbar-thumb:hover { background-color: #5a6378; }
 
 .searchContainer {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px; /* Compact search */
   border-bottom: 1px solid #3e4556;
-  background-color: #2a2f3b; /* Match button bg */
-  position: sticky; /* Keep search bar visible on scroll */
+  background-color: #232731;
+  position: sticky;
   top: 0;
-  z-index: 1; /* Above list items */
+  z-index: 1;
 }
 
 .searchIcon {
   color: #8a91a0;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .searchInput {
   flex-grow: 1;
-  padding: 8px 10px;
+  padding: 7px 9px; /* Compact */
   border: 1px solid #3e4556;
-  background-color: #1e222d;
+  background-color: #171b26; /* Even darker input */
   color: #d1d4dc;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 .searchInput:focus {
   outline: none;
   border-color: var(--cxmpute-purple, #91a8eb);
-  box-shadow: 0 0 0 2px rgba(145, 168, 235, 0.2);
+  box-shadow: 0 0 0 1px var(--cxmpute-purple, #91a8eb); /* Subtle focus */
 }
 
 .clearSearchButton {
-    background: none;
-    border: none;
-    color: #8a91a0;
-    cursor: pointer;
-    margin-left: 8px;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  background: none;
+  border: none;
+  color: #8a91a0;
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .clearSearchButton:hover {
-    color: #d1d4dc;
+  color: #d1d4dc;
 }
-
 
 .marketList {
   list-style: none;
@@ -146,10 +172,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
+  padding: 9px 12px; /* Compact */
   cursor: pointer;
   transition: background-color 0.15s ease-in-out;
-  border-bottom: 1px solid #2a2f3b; /* Separator between items */
+  border-bottom: 1px solid #2a2f3b;
+  font-size: 0.85rem;
 }
 .marketItem:last-child {
   border-bottom: none;
@@ -161,67 +188,54 @@
   outline: none;
 }
 .marketItem.selected {
-  background-color: var(--cxmpute-purple-transparent, rgba(145, 168, 235, 0.15));
-  font-weight: 600;
+  background-color: rgba(145, 168, 235, 0.2); /* More distinct selected state */
+  /* color: var(--cxmpute-purple, #91a8eb); */
+}
+.marketItem.selected .itemSymbol {
+    font-weight: 700;
+    color: var(--cxmpute-purple, #91a8eb);
 }
 
 .marketItem.paused {
-  opacity: 0.6;
-  cursor: not-allowed; /* Indicate paused markets are not selectable if desired */
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent !important; /* Ensure no hover on paused */
 }
 .marketItem.paused:hover {
-  background-color: transparent; /* No hover effect for paused items */
+  background-color: transparent;
 }
 
-
+.itemMainInfo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .itemSymbol {
   font-weight: 500;
-}
-
-.itemDetails {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.itemType {
-  color: #8a91a0;
-  text-transform: uppercase;
-}
-
-.itemPrice {
-  color: #a0aec0;
+  color: #e0e0e0;
 }
 
 .statusTagPaused {
-  background-color: #555; /* Dark gray for paused */
-  color: #bbb;
-  padding: 2px 5px;
+  background-color: #4a5265;
+  color: #a0aec0;
+  padding: 2px 6px;
   border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
-.noResults {
-  padding: 15px 14px;
+.noResults,
+.loadingListItem {
+  padding: 15px 12px;
   text-align: center;
   color: #8a91a0;
   font-style: italic;
+  font-size: 0.8rem;
 }
-
-.loadingState,
-.errorState {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  background-color: #2a2f3b;
-  color: #8a91a0;
-  border: 1px solid #3e4556;
-  border-radius: 6px;
-  font-size: 0.9rem;
-}
-.errorState {
-    color: var(--cxmpute-red, #d64989);
+.loadingListItem {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 }
