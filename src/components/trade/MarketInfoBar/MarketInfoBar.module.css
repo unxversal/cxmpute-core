@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background-color: #171b26;
+  background-color: #171b26; 
   border-bottom: 1px solid #2a2f3b;
   color: #d1d4dc;
   flex-wrap: wrap;
@@ -13,45 +13,53 @@
 
 .marketTitleSection {
   display: flex;
-  align-items: baseline;
+  align-items: center; /* Align items vertically in the baseline */
   gap: 10px;
   flex-shrink: 0;
 }
+.mainIcon {
+    color: var(--cxmpute-purple, #91a8eb);
+    margin-right: 4px; /* Space between icon and symbol */
+}
 
 .marketSymbolDisplay {
-  font-size: 1.25rem;
+  font-size: 1.15rem; /* Slightly smaller to accommodate icon */
   font-weight: 600;
   color: #e0e0e0;
   margin: 0;
   white-space: nowrap;
+  cursor: default; /* If it's just display */
 }
 
 .priceDisplay {
-  font-size: 1.3rem;
+  font-size: 1.25rem; /* Adjusted */
   font-weight: 700;
   transition: color 0.2s ease;
-  min-width: 80px;
+  min-width: 70px; /* Space for price or skeleton */
   text-align: left;
 }
-.priceNeutral { /* Added for default/no-change state */
-  color: #e0e0e0; 
+.priceNeutral { 
+  color: #c0c5ce; /* Softer neutral color */
 }
 .priceUp {
-  color: #00c78b; /* Brighter Green */
+  color: #00c78b; 
 }
 .priceDown {
-  color: #ff5a5a; /* Brighter Red */
+  color: #ff5a5a;
 }
 
 .change24h {
   display: flex;
   align-items: center;
-  font-size: 0.85rem;
+  font-size: 0.8rem; /* Adjusted */
   font-weight: 500;
-  min-width: 70px; /* Space for skeleton or value */
+  min-width: 60px; 
 }
-.change24hSkeleton > div { /* Target SkeletonLoader's inner div */
-    height: 18px !important;
+.change24h svg {
+    margin-right: 3px; /* Smaller gap for icon */
+}
+.change24hSkeleton > div { 
+    height: 16px !important; /* Adjusted skeleton height */
     background-color: #252a36 !important;
 }
 
@@ -59,23 +67,23 @@
 .infoGrid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 10px 20px; /* row-gap column-gap */
   align-items: center;
   flex-grow: 1;
-  justify-content: flex-end;
+  justify-content: flex-end; /* Align items to the end of the container */
 }
 
 .infoItem {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  min-width: 90px;
+  min-width: 80px; /* Ensure items have some base width */
 }
 
 .label {
-  font-size: 0.7rem;
+  font-size: 0.65rem; /* Smaller labels */
   color: #8690a2;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   display: flex;
@@ -88,55 +96,68 @@
 }
 
 .value {
-  font-size: 0.9rem; /* Adjusted */
+  font-size: 0.85rem; /* Adjusted value font size */
   font-weight: 500;
   color: #d0d4db;
-  min-height: 18px;
+  min-height: 16px; /* For skeleton alignment */
+  font-family: monospace; /* Good for numbers */
 }
-.value .skeletonLoader > div, /* Targeting skeleton direct child of value */
-.infoItem .label > div { /* Targeting skeleton direct child of label */
+.value .skeletonLoader > div, 
+.infoItem .label > .skeletonLoader > div { /* Targeting skeleton direct child */
     height: 1em !important;
     background-color: #252a36 !important;
     margin-bottom: 0;
 }
-.infoItem .label > div {
-    margin-bottom: 3px; /* Restore margin for label skeleton */
+.infoItem .label > .skeletonLoader > div {
+    margin-bottom: 2px;
 }
 
 
 .skeletonTitle > div {
   background-color: #333a4c !important;
   height: 24px !important;
-  width: 150px !important; /* Give it a specific width */
+  width: 130px !important;
 }
 
-.priceUpStrong { /* For positive funding rates */
+.priceUpStrong { 
     color: #00c78b;
 }
-.priceDownStrong { /* For negative funding rates */
+.priceDownStrong {
     color: #ff5a5a;
 }
 
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) { /* Adjust breakpoint for better wrapping */
+  .infoGrid {
+    justify-content: flex-start; /* Start aligning from left when wrapping */
+  }
+  .infoItem {
+    min-width: 100px; /* Slightly more space for items */
+  }
+}
+
+
+@media (max-width: 768px) {
   .infoBar {
     flex-direction: column;
-    align-items: stretch;
+    align-items: stretch; 
     gap: 12px;
   }
   .marketTitleSection {
       width: 100%;
       justify-content: space-between;
       margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2a2f3b;
   }
   .infoGrid {
     width: 100%;
-    justify-content: space-around;
-    gap: 10px 15px;
+    justify-content: space-between; 
+    gap: 8px 12px; /* Tighter gaps on mobile */
   }
   .infoItem {
-    min-width: calc(33% - 15px);
-    align-items: center;
+    min-width: calc(33% - 10px); 
+    align-items: center; 
   }
   .infoItem .label, .infoItem .value {
       width: 100%;
@@ -147,30 +168,18 @@
   }
 }
 
-@media (max-width: 600px) {
-    .infoItem {
-        min-width: calc(50% - 10px);
-    }
+@media (max-width: 480px) {
+    .infoBar { padding: 8px 12px; }
+    .marketSymbolDisplay { font-size: 1.05rem; }
+    .priceDisplay { font-size: 1.1rem; }
+    .change24h { font-size: 0.7rem; }
+    .label { font-size: 0.6rem; }
+    .value { font-size: 0.75rem; }
+    .infoItem { min-width: calc(50% - 8px); } /* Two items per row */
 }
 
-@media (max-width: 400px) {
-    .infoBar {
-        padding: 8px 10px;
-    }
-    .marketSymbolDisplay { font-size: 1.1rem; }
-    .priceDisplay { font-size: 1.15rem; }
-    .change24h { font-size: 0.75rem; }
-    .label { font-size: 0.65rem; }
-    .value { font-size: 0.8rem; }
-
-    .infoItem {
-        min-width: 100%;
-        align-items: flex-start;
-    }
-    .infoItem .label, .infoItem .value {
-      text-align: left;
-    }
-    .infoItem .label {
-      justify-content: flex-start;
-    }
+@media (max-width: 360px) {
+    .infoItem { min-width: 100%; } /* One item per row */
+    .infoItem .label, .infoItem .value { text-align: left; }
+    .infoItem .label { justify-content: flex-start; }
 }
