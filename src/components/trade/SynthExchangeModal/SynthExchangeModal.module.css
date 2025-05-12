@@ -1,0 +1,126 @@
+/* src/components/trade/SynthExchangeModal/SynthExchangeModal.module.css */
+.exchangeForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldGroup label {
+  font-size: 0.875rem;
+  color: #a0aec0; /* Lighter label color */
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.assetInputWrapper {
+  display: flex;
+  gap: 8px;
+  align-items: stretch; /* Make select and input same height */
+}
+
+.assetSelect {
+  flex-basis: 45%; /* Adjust basis for select */
+  padding: 10px 12px;
+  background-color: #2a2f3b; /* Darker select background */
+  border: 1px solid #3e4556;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  height: 42px; /* Match input field height */
+}
+.assetSelect:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 2px rgba(145, 168, 235, 0.2);
+}
+
+.amountInput {
+  flex-grow: 1; /* Take remaining space */
+  padding: 10px 12px;
+  background-color: #232731;
+  border: 1px solid #3e4556;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font-size: 0.9rem;
+  height: 42px; /* Match select height */
+}
+.amountInput:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 2px rgba(145, 168, 235, 0.2);
+}
+.amountInput::placeholder {
+  color: #50586a;
+}
+.amountInput[type="number"]::-webkit-outer-spin-button,
+.amountInput[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.amountInput[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.readOnlyAmount {
+    background-color: #2a2f3b; /* Slightly different for read-only */
+    cursor: not-allowed;
+    color: #8690a2;
+}
+
+
+.balanceInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #8690a2;
+  margin-top: 4px;
+}
+.maxButton {
+    padding: 2px 6px !important;
+    font-size: 0.7rem !important;
+    color: var(--cxmpute-purple, #91a8eb) !important;
+    border-color: transparent !important;
+}
+.maxButton:hover {
+    background-color: rgba(145, 168, 235, 0.1) !important;
+}
+
+
+.swapButtonContainer {
+  display: flex;
+  justify-content: center;
+  margin: -8px 0; /* Pull closer to fields */
+}
+.swapButtonContainer button { /* Targeting our UI Button via its class */
+    padding: 6px !important; /* Make swap icon button smaller */
+    border-radius: 50% !important;
+    min-width: auto !important;
+}
+.swapButtonContainer button svg {
+    margin: 0 !important; /* Remove default icon margin if Button adds it */
+}
+
+.indicativePrice {
+    font-size: 0.8rem;
+    color: #8690a2;
+    text-align: center;
+    margin-top: -8px;
+    padding-bottom: 8px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px; /* More space before actions */
+  padding-top: 16px;
+  border-top: 1px solid #2a2f3b;
+}
