@@ -13,27 +13,27 @@ import React, {
 import { Resource } from "sst";
 import { useAuth } from "./AuthContext";
 import { useTradingMode } from "./TradingModeContext";
-import { useMarketContext } from "./MarketContext";
+import { useMarketContext } from "./MarketContext"; // For activeInstrumentSymbol
 
 import type {
   WsDepthUpdate,
   WsTrade,
   WsMarkPriceUpdate,
   WsFundingRateUpdate,
-  WsMarketSummaryUpdate, // Added
+  WsMarketSummaryUpdate,
   WsOrderUpdate,
   WsPositionUpdate,
   WsBalanceUpdate,
   WsLiquidationAlert,
-  WsMarketDataState, // This will now include 'summary'
+  WsMarketDataState,
   WsTraderDataState,
-} from "@/lib/interfaces"; // Adjust path as needed
+} from "@/lib/interfaces";
 
-type WebSocketStatus = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "ERROR";
+type WebSocketStatus = "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "ERROR" | "IDLE"; // Added IDLE
 
 interface WebSocketContextType {
   connectionStatus: WebSocketStatus;
-  marketData: WsMarketDataState;
+  marketSpecificData: WsMarketDataState; // Renamed for clarity
   traderData: WsTraderDataState;
   lastError: string | null;
   connect: () => void;
@@ -46,12 +46,12 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
 
 const WS_API_URL = Resource.DexWsApi.url;
 
-const initialMarketDataState: WsMarketDataState = {
+const initialMarketSpecificDataState: WsMarketDataState = {
   depth: null,
   lastTrade: null,
   markPrice: null,
   fundingRate: null,
-  summary: null, // Initialize summary
+  summary: null,
 };
 
 const initialTraderDataState: WsTraderDataState = {
@@ -64,62 +64,69 @@ const initialTraderDataState: WsTraderDataState = {
 export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
   const { currentMode } = useTradingMode();
-  const { selectedMarket } = useMarketContext();
+  // Key change: Now using activeInstrumentSymbol from MarketContext
+  const { activeInstrumentSymbol } = useMarketContext();
 
   const socketRef = useRef<WebSocket | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<WebSocketStatus>("CLOSED");
+  const [connectionStatus, setConnectionStatus] = useState<WebSocketStatus>("IDLE");
   const [lastError, setLastError] = useState<string | null>(null);
 
-  const [marketData, setMarketData] = useState<WsMarketDataState>(initialMarketDataState);
+  // Renamed for clarity, as this data is specific to `activeInstrumentSymbol`
+  const [marketSpecificData, setMarketSpecificData] = useState<WsMarketDataState>(initialMarketSpecificDataState);
   const [traderData, setTraderData] = useState<WsTraderDataState>(initialTraderDataState);
 
-  const [currentMarketChannel, setCurrentMarketChannel] = useState<string | null>(null);
-  const [currentTraderChannel, setCurrentTraderChannel] = useState<string | null>(null);
+  const [currentMarketChannelSub, setCurrentMarketChannelSub] = useState<string | null>(null);
+  const [currentTraderChannelSub, setCurrentTraderChannelSub] = useState<string | null>(null);
 
   const sendMessageToServer = useCallback((payload: object) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify(payload));
     } else {
-      console.warn("WebSocket not open. Cannot send message:", payload);
+      console.warn("WebSocket not open when trying to send message:", payload);
     }
   }, []);
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
-      console.log("WebSocket: Disconnecting...");
-      setConnectionStatus("CLOSING");
-      socketRef.current.onclose = () => {}; // Clear previous onclose before closing
-      socketRef.current.close();
-      socketRef.current = null; // Ensure ref is cleared immediately
+      console.log("WebSocket: Disconnecting initiated...");
+      socketRef.current.onclose = null; // Deregister onclose before calling close
+      socketRef.current.onerror = null; // Deregister onerror
+      socketRef.current.onmessage = null; // Deregister onmessage
+      socketRef.current.onopen = null; // Deregister onopen
+      if (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING) {
+        socketRef.current.close(1000, "User disconnected");
+      }
+      socketRef.current = null;
     }
-     // Reset states regardless of socketRef.current state to ensure clean UI
     setConnectionStatus("CLOSED");
-    setCurrentMarketChannel(null);
-    setCurrentTraderChannel(null);
-    setMarketData(initialMarketDataState); // Reset market data on disconnect
-    setTraderData(initialTraderDataState); // Reset trader data on disconnect
+    setCurrentMarketChannelSub(null);
+    setCurrentTraderChannelSub(null);
+    setMarketSpecificData(initialMarketSpecificDataState);
+    setTraderData(initialTraderDataState);
+    setLastError(null);
+     console.log("WebSocket: State reset after disconnect.");
   }, []);
 
 
   const connect = useCallback(() => {
     if (!isAuthenticated || !user?.properties.traderAk) {
-      console.log("WebSocket: Not connecting, user not authenticated or traderAk missing.");
-      if (socketRef.current?.readyState === WebSocket.OPEN || socketRef.current?.readyState === WebSocket.CONNECTING) {
-        disconnect();
+      console.log("WebSocket: Connect called but user not authenticated or traderAk missing. Current status:", connectionStatus);
+      if (connectionStatus !== "IDLE" && connectionStatus !== "CLOSED" && connectionStatus !== "ERROR") {
+         disconnect(); // Ensure clean state if called while in a transient state
       }
+      setConnectionStatus("IDLE"); // Set to IDLE if cannot connect
       return;
     }
-    // Prevent multiple connection attempts if already connecting or open
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
-      console.log("WebSocket: Already connected or connecting.");
+      console.log("WebSocket: Already connected or connecting. Status:", connectionStatus);
       return;
     }
 
+    console.log(`WebSocket: Attempting to connect with traderAk...`);
     setConnectionStatus("CONNECTING");
     setLastError(null);
-    setMarketData(initialMarketDataState); // Reset data on new connection attempt
+    setMarketSpecificData(initialMarketSpecificDataState);
     setTraderData(initialTraderDataState);
-    console.log(`WebSocket: Connecting to ${WS_API_URL} with traderAk...`);
 
     const connectUrl = `${WS_API_URL}?traderAk=${user.properties.traderAk}`;
     const ws = new WebSocket(connectUrl);
@@ -128,82 +135,87 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     ws.onopen = () => {
       console.log("WebSocket: Connection OPEN");
       setConnectionStatus("OPEN");
-      // Initial subscriptions are handled by useEffect hooks below
     };
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data as string);
-        // console.log("WebSocket: Message received", message);
+        // console.log("WebSocket: Message received", message.type, message.market);
+
+        // Filter messages to ensure they match the current active instrument symbol and mode
+        // For trader-specific messages, we only check the mode.
+        const isForCurrentMarket = activeInstrumentSymbol && message.market === activeInstrumentSymbol && message.mode === currentMode;
+        // const isForCurrentTrader = user?.properties.traderId && message.traderId === user.properties.traderId && message.mode === currentMode;
+        const isGlobalMarketState = message.type === "marketStateUpdate" && message.market === activeInstrumentSymbol && message.mode === currentMode;
+
 
         switch (message.type) {
-          // Market Data
           case "depth":
-             setMarketData(prev => ({ ...prev, depth: message as WsDepthUpdate }));
-             break;
-          case "trade": // WsTrade now potentially includes prevPrice
-             setMarketData(prev => ({ ...prev, lastTrade: message as WsTrade }));
-             break;
+          case "trade":
           case "markPrice":
-             setMarketData(prev => ({ ...prev, markPrice: message as WsMarkPriceUpdate }));
-             break;
           case "fundingRateUpdate":
-             setMarketData(prev => ({
-                ...prev,
-                fundingRate: message as WsFundingRateUpdate,
-                ...(message.markPrice && { // If funding update also provides mark price
-                    markPrice: {
-                        type: "markPrice",
-                        market: message.market,
-                        mode: message.mode,
-                        price: message.markPrice,
-                        timestamp: message.timestamp
+          case "marketSummaryUpdate":
+            if (isForCurrentMarket) {
+              setMarketSpecificData(prev => {
+                const updated = { ...prev };
+                if (message.type === "depth") updated.depth = message as WsDepthUpdate;
+                if (message.type === "trade") updated.lastTrade = message as WsTrade;
+                if (message.type === "markPrice") updated.markPrice = message as WsMarkPriceUpdate;
+                if (message.type === "fundingRateUpdate") {
+                    updated.fundingRate = message as WsFundingRateUpdate;
+                    if (message.markPrice && (!updated.markPrice || message.timestamp >= updated.markPrice.timestamp)) {
+                        updated.markPrice = { type: "markPrice", market: message.market, mode: message.mode, price: message.markPrice, timestamp: message.timestamp };
                     }
-                })
-             }));
-             break;
-          case "marketSummaryUpdate": // Handle the new summary update
-             setMarketData(prev => ({
-                ...prev,
-                summary: message as WsMarketSummaryUpdate,
-                // Also update markPrice and fundingRate if summary contains them and is newer
-                ...(message.markPrice !== null && (!prev.markPrice || message.timestamp >= prev.markPrice.timestamp) && {
-                    markPrice: { type: "markPrice", market: message.market, mode: message.mode, price: message.markPrice, timestamp: message.timestamp }
-                }),
-                ...(message.fundingRate !== null && (!prev.fundingRate || message.timestamp >= prev.fundingRate.timestamp) && {
-                    fundingRate: { type: "fundingRateUpdate", market: message.market, mode: message.mode, fundingRate: message.fundingRate, timestamp: message.timestamp }
-                })
-             }));
-             break;
-
-          // Trader Data
-          case "orderUpdate":
-            setTraderData(prev => ({ ...prev, lastOrderUpdate: message as WsOrderUpdate }));
+                }
+                if (message.type === "marketSummaryUpdate") {
+                    updated.summary = message as WsMarketSummaryUpdate;
+                     if (message.markPrice !== null && message.markPrice !== undefined && (!updated.markPrice || message.timestamp >= updated.markPrice.timestamp)) {
+                        updated.markPrice = { type: "markPrice", market: message.market, mode: message.mode, price: message.markPrice, timestamp: message.timestamp };
+                    }
+                    if (message.fundingRate !== null && message.fundingRate !== undefined && (!updated.fundingRate || message.timestamp >= updated.fundingRate.timestamp)) {
+                        updated.fundingRate = { type: "fundingRateUpdate", market: message.market, mode: message.mode, fundingRate: message.fundingRate, timestamp: message.timestamp };
+                    }
+                }
+                return updated;
+              });
+            }
             break;
+
+          case "orderUpdate":
           case "positionUpdate":
-            setTraderData(prev => ({ ...prev, lastPositionUpdate: message as WsPositionUpdate }));
+          case "liquidationAlert":
+             // These are trader-specific but might also contain a market.
+             // We generally want all trader updates regardless of the *activeInstrumentSymbol*
+             // as they might pertain to other markets the user is involved in.
+             // The check for `message.mode === currentMode` is important.
+            if (message.mode === currentMode) {
+                 if (message.type === "orderUpdate") setTraderData(prev => ({ ...prev, lastOrderUpdate: message as WsOrderUpdate }));
+                 if (message.type === "positionUpdate") setTraderData(prev => ({ ...prev, lastPositionUpdate: message as WsPositionUpdate }));
+                 if (message.type === "liquidationAlert") setTraderData(prev => ({ ...prev, lastLiquidationAlert: message as WsLiquidationAlert }));
+            }
             break;
           case "balanceUpdate": {
-            const balanceMsg = message as WsBalanceUpdate;
-            setTraderData(prev => ({
-                ...prev,
-                balances: {
-                    ...prev.balances,
-                    [balanceMsg.asset]: balanceMsg,
-                }
-            }));
+            // Balance updates are per-asset and per-mode for the trader.
+            if (message.mode === currentMode) {
+                const balanceMsg = message as WsBalanceUpdate;
+                setTraderData(prev => ({
+                    ...prev,
+                    balances: { ...prev.balances, [balanceMsg.asset]: balanceMsg }
+                }));
+            }
             break;
           }
-          case "liquidationAlert":
-            setTraderData(prev => ({ ...prev, lastLiquidationAlert: message as WsLiquidationAlert }));
-            break;
-          case "marketStateUpdate": // e.g. market paused/resumed
-            console.log("WebSocket: Market State Update received", message);
-            // This could trigger a refresh of available markets in MarketContext
-            // or update UI elements directly if they depend on market status.
+          case "marketStateUpdate": // e.g. market paused/resumed by admin
+            if (isGlobalMarketState) {
+                console.log("WebSocket: Market State Update received for active market", message);
+                // The MarketContext might listen for this type of event and refresh its `availableUnderlyings`
+                // or specific instrument details if a market becomes PAUSED.
+                // For now, just logging. Or WebSocketContext could re-expose this message.
+            }
             break;
           default:
-            console.warn("WebSocket: Received unhandled message type:", message.type, message);
+            // console.warn("WebSocket: Received unhandled or filtered message type:", message.type, message);
+            break;
         }
       } catch (error) {
         console.error("WebSocket: Error parsing message data", error, event.data);
@@ -211,89 +223,89 @@ export const WebSocketProvider = ({ children }: { children: ReactNode }) => {
     };
 
     ws.onerror = (errorEvent) => {
-      console.error("WebSocket: Error", errorEvent);
-      setLastError("WebSocket connection error occurred.");
-      setConnectionStatus("ERROR");
+      console.error("WebSocket: Connection Error", errorEvent);
+      setLastError("WebSocket connection error.");
+      // Don't call disconnect() here directly, onclose will handle state transition
+      // setConnectionStatus("ERROR"); // onclose will set to CLOSED or ERROR if it was abrupt
     };
 
     ws.onclose = (closeEvent) => {
-      console.log("WebSocket: Connection CLOSED", closeEvent.code, closeEvent.reason);
+      console.log("WebSocket: Connection CLOSED. Code:", closeEvent.code, "Reason:", closeEvent.reason, "Was clean:", closeEvent.wasClean);
       // Check if the socket that closed is the current active socket
-      // This prevents an old socket's onclose from resetting a newer connection's state.
       if (socketRef.current === ws) {
-        disconnect(); // Use the disconnect function to ensure clean state reset
+        // If it wasn't a clean disconnect initiated by our app, consider it an error.
+        if (!closeEvent.wasClean && connectionStatus !== "CLOSING") {
+            setLastError(closeEvent.reason || "WebSocket connection closed unexpectedly.");
+            setConnectionStatus("ERROR");
+        } else {
+            setConnectionStatus("CLOSED");
+        }
+        // Call disconnect to clean up state, but it won't try to close again if ref is null
+        socketRef.current = null; // Critical: ensure ref is null before calling disconnect to prevent re-close
+        disconnect(); // Centralized state cleanup
       }
     };
-  }, [isAuthenticated, user?.properties.traderAk, disconnect]); // Added disconnect
+  }, [isAuthenticated, user?.properties.traderAk, disconnect, activeInstrumentSymbol, currentMode, connectionStatus]);
 
-  // Effect to connect/disconnect based on authentication
   useEffect(() => {
-    if (isAuthenticated && user?.properties.traderAk) {
+    if (isAuthenticated && user?.properties.traderAk && connectionStatus === "IDLE") {
       connect();
-    } else {
+    } else if ((!isAuthenticated || !user?.properties.traderAk) && connectionStatus !== "CLOSED" && connectionStatus !== "IDLE") {
       disconnect();
     }
-    // Cleanup on unmount
     return () => {
-      disconnect();
+        // Ensure disconnection on component unmount only if connected/connecting
+      if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+         disconnect();
+      }
     };
-  }, [isAuthenticated, user?.properties.traderAk, connect, disconnect]);
+  }, [isAuthenticated, user?.properties.traderAk, connect, disconnect, connectionStatus]);
 
-
-  // Effect to subscribe/unsubscribe to market channel
+  // Effect to (re)subscribe to market channel when activeInstrumentSymbol or mode changes
   useEffect(() => {
-    if (connectionStatus === "OPEN" && selectedMarket && currentMode) {
-      const newMarketChannel = `market.${selectedMarket.symbol}.${currentMode}`;
-      if (newMarketChannel !== currentMarketChannel) {
-        if (currentMarketChannel) {
-          // Optional: send unsubscribe for the old channel if your backend supports it
-          // sendMessageToServer({ action: "unsubscribe", channel: currentMarketChannel });
+    if (connectionStatus === "OPEN" && activeInstrumentSymbol && currentMode) {
+      const newMarketChannel = `market.${activeInstrumentSymbol}.${currentMode}`;
+      if (newMarketChannel !== currentMarketChannelSub) {
+        if (currentMarketChannelSub) {
+          // Optional: sendMessageToServer({ action: "unsubscribe", channel: currentMarketChannelSub });
         }
         console.log(`WebSocket: Subscribing to market channel: ${newMarketChannel}`);
         sendMessageToServer({ action: "subscribe", channel: newMarketChannel });
-        setCurrentMarketChannel(newMarketChannel);
-        // Reset specific market data when changing markets to avoid showing stale data
-        setMarketData(prev => ({
-            ...initialMarketDataState, // Reset all market-specific fields
-            summary: prev.summary?.market === newMarketChannel.split('.')[1] && prev.summary?.mode === currentMode ? prev.summary : null // Keep summary if it matches new market, else clear
-        }));
+        setCurrentMarketChannelSub(newMarketChannel);
+        // Reset market-specific data for the new instrument
+        setMarketSpecificData(initialMarketSpecificDataState);
       }
-    } else if (currentMarketChannel && (connectionStatus !== "OPEN" || !selectedMarket || !currentMode)) {
-      // Connection closed or no market/mode selected, clear subscription and data
-      // Optional: send unsubscribe
-      // sendMessageToServer({ action: "unsubscribe", channel: currentMarketChannel });
-      setCurrentMarketChannel(null);
-      setMarketData(initialMarketDataState); // Reset all market data
+    } else if (currentMarketChannelSub && (connectionStatus !== "OPEN" || !activeInstrumentSymbol || !currentMode)) {
+      // Unsubscribe or clear state if no longer relevant
+      // Optional: sendMessageToServer({ action: "unsubscribe", channel: currentMarketChannelSub });
+      setCurrentMarketChannelSub(null);
+      setMarketSpecificData(initialMarketSpecificDataState);
     }
-  }, [connectionStatus, selectedMarket, currentMode, sendMessageToServer, currentMarketChannel]);
+  }, [connectionStatus, activeInstrumentSymbol, currentMode, sendMessageToServer, currentMarketChannelSub]);
 
-  // Effect to subscribe/unsubscribe to trader channel
+  // Effect to (re)subscribe to trader channel when user or mode changes
   useEffect(() => {
     if (connectionStatus === "OPEN" && user?.properties.traderId && currentMode) {
       const newTraderChannel = `trader.${user.properties.traderId}.${currentMode}`;
-      if (newTraderChannel !== currentTraderChannel) {
-        if (currentTraderChannel) {
-           // Optional: send unsubscribe for the old channel
-           // sendMessageToServer({ action: "unsubscribe", channel: currentTraderChannel });
+      if (newTraderChannel !== currentTraderChannelSub) {
+        if (currentTraderChannelSub) {
+           // Optional: sendMessageToServer({ action: "unsubscribe", channel: currentTraderChannelSub });
         }
         console.log(`WebSocket: Subscribing to trader channel: ${newTraderChannel}`);
         sendMessageToServer({ action: "subscribe", channel: newTraderChannel });
-        setCurrentTraderChannel(newTraderChannel);
-        // No need to reset traderData usually, as it's user-specific, not market-specific
+        setCurrentTraderChannelSub(newTraderChannel);
+        // Trader data is generally persistent across market changes but might reset on mode change for some parts
       }
-    } else if (currentTraderChannel && (connectionStatus !== "OPEN" || !user?.properties.traderId || !currentMode)) {
-      // Optional: send unsubscribe
-      // sendMessageToServer({ action: "unsubscribe", channel: currentTraderChannel });
-      setCurrentTraderChannel(null);
-      // Optionally clear trader data on full disconnect or if user logs out.
-      // setTraderData(initialTraderDataState); // This might be too aggressive if user just switches mode
+    } else if (currentTraderChannelSub && (connectionStatus !== "OPEN" || !user?.properties.traderId || !currentMode)) {
+      // Optional: sendMessageToServer({ action: "unsubscribe", channel: currentTraderChannelSub });
+      setCurrentTraderChannelSub(null);
+      // setTraderData(initialTraderDataState); // Consider if trader data should clear here
     }
-  }, [connectionStatus, user?.properties.traderId, currentMode, sendMessageToServer, currentTraderChannel]);
-
+  }, [connectionStatus, user?.properties.traderId, currentMode, sendMessageToServer, currentTraderChannelSub]);
 
   const contextValue = {
     connectionStatus,
-    marketData,
+    marketSpecificData, // Use new name
     traderData,
     lastError,
     connect,
