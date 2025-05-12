@@ -732,6 +732,49 @@ export default $config({
       },
     });
 
+    /* ─── New CRON Job for Daily-to-Weekly Kline Rollup ─────────────────── */
+    new sst.aws.Cron("DailyToWeeklyKlineCron", {
+      // Example: Run every Monday at 00:05 UTC 
+      // (adjust timing, ensure it runs after all daily klines for Sunday are likely complete)
+      schedule: "cron(5 0 ? * MON *)", 
+      job: {
+        handler: "dex/aggregators/dailyToWeeklyKlineCron.handler",
+        timeout: "10 minutes", // Might process many markets, give it ample time
+        memory: "512 MB",      // Adjust based on number of markets
+        link: [
+          klinesTable,    // Read daily klines, Write weekly klines
+          marketsTable,   // To get the list of active instrument symbols
+        ],
+        environment: {
+            // Optional: Pass the target interval string if the lambda is generic
+            TARGET_INTERVAL: "1w",
+            SOURCE_INTERVAL: "1d",
+            DAYS_TO_AGGREGATE: "7",
+        }
+      },
+    });
+
+    /* ─── New CRON Job for Daily-to-Monthly Kline Rollup ────────────────── */
+    new sst.aws.Cron("DailyToMonthlyKlineCron", {
+      // Example: Run on the 1st day of every month at 01:05 UTC
+      // (adjust timing, ensure it runs after all daily klines for the previous month are complete)
+      schedule: "cron(5 1 1 * ? *)", 
+      job: {
+        handler: "dex/aggregators/dailyToMonthlyKlineCron.handler",
+        timeout: "20 minutes", // Processing a whole month of daily data for all markets can take time
+        memory: "1024 MB",     // Potentially more memory needed
+        link: [
+          klinesTable,    // Read daily klines, Write monthly klines
+          marketsTable,   // To get the list of active instrument symbols
+        ],
+        environment: {
+            TARGET_INTERVAL: "1M",
+            SOURCE_INTERVAL: "1d",
+            // DAYS_TO_AGGREGATE is not fixed for month, logic will handle it
+        }
+      },
+    });
+
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeSite", {
       domain: {
