@@ -21,7 +21,7 @@ import type {
 import { useMarketContext } from "./MarketContext";
 
 // --- Local Type Definitions for Order Entry ---
-export type OrderEntryOrderType = "MARKET" | "LIMIT" | "OPTION" | "FUTURE" | "PERP";
+export type OrderEntryOrderType = "MARKET" | "LIMIT" | "OPTION" | "FUTURE" | "PERP" | "SPOT";
 export type OrderEntryOrderSide = "BUY" | "SELL";
 export type FormOptionType = "CALL" | "PUT"; // Renamed from OptionType to avoid conflict if imported
 
