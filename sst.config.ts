@@ -418,6 +418,17 @@ export default $config({
       ttl: "expireAt",
     });
 
+    const klinesTable = new sst.aws.Dynamo("KlinesTable", {
+      fields: {
+        pk: "string", // MARKET#[instrumentSymbol]#<mode>
+        sk: "string", // INTERVAL#[interval_str]#TS#<start_timestamp_seconds>
+        // No other fields needed for indexing schema, others are just attributes
+      },
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      // No GSIs needed if queries are always by market and then time range for a specific interval.
+      // If you need to query, e.g., all "1h" klines across all markets, a GSI would be needed.
+    });
+
     /* ─── S3 lake for cold trade/metrics history ──────────────────────── */
     const dataLakeBucket = new sst.aws.Bucket("DexDataLakeBucket", { // Unchanged
       versioning: true,
@@ -444,6 +455,28 @@ export default $config({
       fifo: { contentBasedDeduplication: true },
       visibilityTimeout: "30 seconds",
     });
+
+    const klineAggregationQueue = new sst.aws.Queue("KlineAggregationQueue", {
+      // fifo: true, // Consider FIFO if strict order of trades for kline building is critical
+      // visibilityTimeout: "60 seconds", // Needs to be longer than klineAggregator Lambda timeout
+    });
+
+    tradesTable.subscribe("TradesStreamRouterForAggregators", { // Or add to existing router
+      handler: "dex/streams/tradesStreamRouter.handler", // A new router or modify existing
+      link: [
+          // ... existing links like dataLakeBucket for archiving ...
+          klineAggregationQueue, // NEW: Link queue for kline aggregation
+      ],
+    });
+
+    klineAggregationQueue.subscribe({
+      handler: "dex/aggregators/klineAggregator.handler",
+      link: [klinesTable], // Needs access to write to KlinesTable
+      timeout: "55 seconds", // Adjust as needed
+      memory: "512 MB", // Adjust based on batch size & complexity
+      // Optional: environment variables for supported intervals, default values etc.
+    });
+  
 
     /* ─── Dynamo Stream → router Fn → SQS (Router needs updated logic) ─ */
     ordersTable.subscribe("OrdersStreamRouter",{
@@ -745,7 +778,8 @@ export default $config({
         paperPointsUsdcPnl,
         paperPointsUsdcVolume,
         cmcApiKey,
-        coreFactoryAddress
+        coreFactoryAddress,
+        klinesTable
       ]
     });
   },

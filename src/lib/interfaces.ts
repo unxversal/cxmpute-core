@@ -553,6 +553,23 @@ export interface PerpInstrumentApiResponse {
   nextToken: string | null;
 }
 
+export interface Kline {
+  pk: string;                 // MARKET#[instrumentSymbol]#<mode>
+  sk: string;                 // INTERVAL#[interval_str]#TS#<start_timestamp_seconds>
+  marketSymbol: string;       // e.g., BTC/USDC-OPT-241231-30K-C
+  mode: TradingMode;
+  interval: string;           // "1m", "5m", "1h", "1d" etc.
+  time: number;               // Kline period start timestamp (UNIX seconds)
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volumeBase: number;         // Volume in base asset units
+  volumeQuote: number;        // Volume in quote asset units (USDC)
+  tradeCount: number;
+  updatedAt: number;          // Timestamp of last update to this kline
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // End of interfaces.ts
 // ─────────────────────────────────────────────────────────────────────────────
