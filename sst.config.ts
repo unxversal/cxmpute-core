@@ -20,6 +20,7 @@ export default $config({
 
     const coreWalletPk = new sst.Secret("CoreWalletPk");
     const coreVaultAddress = new sst.Secret("CoreVaultAddress");
+    const coreFactoryAddress = new sst.Secret("CoreFactoryAddress");
 
     const cmcApiKey = new sst.Secret("CmcApiKey");
 
@@ -327,17 +328,45 @@ export default $config({
     });
 
     const marketsTable = new sst.aws.Dynamo("MarketsTable", {
+      // These are the attributes forming the PRIMARY KEY of the table itself.
       fields: {
-        pk:     "string",   // NEW: MARKET#<symbol>#<mode>
-        sk:     "string",   // Keep: META
-        status: "string",   // Attribute & GSI Key
-        // Attributes: type, tickSize, synth etc. remain attributes
+        pk: "string", // Primary Key: e.g., MARKET#[FullSymbolOrBasePair]#<mode>
+        sk: "string", // Sort Key: e.g., META
+        
+        // Attributes that will be used as HASH or RANGE keys in GSIs MUST exist in your items.
+        // You don't *have* to list every GSI key attribute in `fields` here if they aren't
+        // part of the main table's primary key, but it can be good for clarity.
+        // SST primarily uses `fields` to define the schema for the main table's keys.
+        // For GSIs, the critical part is the `globalIndexes` definition.
+        
+        // Let's list attributes that will form parts of our GSI keys for clarity,
+        // even if not strictly required by SST `fields` if not part of table PK/SK.
+        status: "string",               // Used as GSI PK in ByStatusMode
+        underlyingPairSymbol: "string", // Will be part of the constructed GSI PK for InstrumentsByUnderlying
+        // The actual GSI keys `gsi1pk` and `gsi1sk` will be attributes you create in your items.
+        gsi1pk: "string", // Attribute that will hold the HASH KEY value for InstrumentsByUnderlying GSI
+        gsi1sk: "string", // Attribute that will hold the RANGE KEY value for InstrumentsByUnderlying GSI
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       globalIndexes: {
-        // NEW: GSI to query markets by status and filter by mode via SK (pk)
-        ByStatusMode: { hashKey: "status", rangeKey: "pk" },
+        // Existing GSI: For admin to view markets by status and mode
+        ByStatusMode: { 
+          hashKey: "status",    // Uses the 'status' attribute as its hash key
+          rangeKey: "pk"        // Uses the main table's 'pk' attribute as its range key
+                                // (projection includes all attributes by default)
+        },
+        
+        // NEW GSI: To find all derivative instruments for a given underlying pair, mode, type, and status.
+        // Your application logic will CONSTRUCT and STORE `gsi1pk` and `gsi1sk` attributes in each relevant item.
+        InstrumentsByUnderlying: { 
+          hashKey: "gsi1pk",  // This GSI uses the attribute named 'gsi1pk' as its hash key.
+          rangeKey: "gsi1sk", // This GSI uses the attribute named 'gsi1sk' as its range key.
+          // By default, SST projects all attributes. If you need to optimize, specify `projectedAttributes`.
+          // Example: projectedAttributes: ["symbol", "type", "expiryTs", "strikePrice", "optionType", "tickSize", "lotSize"]
+        }
       },
+      // All other attributes of MarketMeta (baseAsset, quoteAsset, allowsOptions, defaultTickSize, etc.)
+      // will be stored in the items but don't need to be in `fields` unless they are part of a key.
     });
 
     // Unchanged Prices Table (paper uses real prices)
@@ -716,6 +745,7 @@ export default $config({
         paperPointsUsdcPnl,
         paperPointsUsdcVolume,
         cmcApiKey,
+        coreFactoryAddress
       ]
     });
   },

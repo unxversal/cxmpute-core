@@ -8,12 +8,10 @@ import { marshall } from "@aws-sdk/util-dynamodb";
 import { requireAdmin } from "@/lib/auth";
 import { Resource } from "sst";
 
-const {
-  VAULT_ADDR,
-  PEAQ_RPC_URL,
-  CHAIN_ID = "3338",
-  ADMIN_PK,
-} = process.env;
+const VAULT_ADDR = Resource.CoreVaultAddress.value
+const ADMIN_PK = Resource.CoreWalletPk.value
+const PEAQ_RPC_URL = "https://peaq.api.onfinality.io/public"
+const CHAIN_ID = "3338"
 
 const vaultAbi = ["function withdrawFees(address to,uint256 amt)"];
 

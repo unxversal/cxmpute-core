@@ -1,5 +1,5 @@
+// src/app/api/admin/markets/route.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* app/api/admin/markets/route.ts */
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import {
@@ -7,279 +7,369 @@ import {
   PutItemCommand,
   UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
-import { requireAdmin } from "@/lib/auth"; // ← your auth helper
-import type { TradingMode, MarketMeta } from "@/lib/interfaces"; // Ensure TradingMode is defined
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { requireAdmin } from "@/lib/auth";
+import type { TradingMode, UnderlyingPairMeta, InstrumentMarketMeta } from "@/lib/interfaces";
 import { Resource } from "sst";
 
-/* ─── env & contracts (Ensure these are correctly set via SST Secrets/Env) ── */
-const {
-  FACTORY_ADDR,
-  VAULT_ADDR,
-  PEAQ_RPC_URL,
-  CHAIN_ID = "3338", // Default to peaq mainnet
-  ADMIN_PK,          // Ensure this is securely managed (SST Secret)
-} = process.env;
-
-interface ExtendedMarketMeta extends MarketMeta {
-  strike?: number;
-  optionType?: "CALL" | "PUT";
-}
-
-// Basic validation for required environment variables
-if (!ADMIN_PK || !PEAQ_RPC_URL || (!FACTORY_ADDR && !VAULT_ADDR)) {
-    console.error("Admin Market Route Error: Missing critical environment variables (ADMIN_PK, PEAQ_RPC_URL, FACTORY_ADDR/VAULT_ADDR)");
-    // Avoid throwing here during module load, handle in requests instead or log prominently
-}
-
-
-const factoryAbi = [
-  "event SynthCreated(address indexed synth,string name,string symbol)",
-  "function createSynth(string name,string symbol) returns (address)",
-];
-const vaultAbi = ["function registerSynth(address synth)"];
-
-// Initialize provider and signer only if needed and env vars are present
-const getSigner = () => {
-    if (!ADMIN_PK || !PEAQ_RPC_URL) return null;
-    try {
-        const provider = new ethers.JsonRpcProvider(PEAQ_RPC_URL!, CHAIN_ID ? +CHAIN_ID : undefined);
-        return new ethers.Wallet(ADMIN_PK!, provider);
-    } catch (e) {
-        console.error("Failed to initialize admin signer:", e);
-        return null;
-    }
-};
-
-const getFactory = (signer: ethers.Wallet | null) => {
-    if (!signer || !FACTORY_ADDR) return null;
-    return new ethers.Contract(FACTORY_ADDR, factoryAbi, signer);
-};
-
-const getVault = (signer: ethers.Wallet | null) => {
-    if (!signer || !VAULT_ADDR) return null;
-    return new ethers.Contract(VAULT_ADDR, vaultAbi, signer);
-};
-
-
 const ddb = new DynamoDBClient({});
-const MARKETS_TABLE = Resource.MarketsTable.name;
+const MARKETS_TABLE_NAME = Resource.MarketsTable.name;
 
-/**
- * Helper: derive PK for Markets table
- * NEW: Incorporates trading mode.
- */
-const pkMarketMode = (market: string, mode: TradingMode) =>
-  `MARKET#${market}#${mode.toUpperCase()}`;
+const FACTORY_ADDR = Resource.CoreFactoryAddress.value
+const VAULT_ADDR = Resource.CoreVaultAddress.value
+const ADMIN_PK = Resource.CoreWalletPk.value
+const PEAQ_RPC_URL = "https://peaq.api.onfinality.io/public"
+const CHAIN_ID = "3338"
 
-/* ——————————————————————— POST = create market ————————————————————————— */
+// ABI for SynthFactory
+const factoryAbi = [
+  "event SynthCreated(address indexed synthContract, string name, string symbol)",
+  "function createSynth(string calldata name, string calldata symbol) external returns (address synthContract)",
+  // It's good if Factory can report if a synth symbol is already created
+  "function getSynthBySymbol(string calldata symbol) external view returns (address synthContract)"
+];
+
+// ABI for Vault (relevant part)
+const vaultAbi = [
+  "function registerSynth(address synthContract) external",
+  "function isRegisteredSynth(address synthContract) external view returns (bool)" // To check if already registered
+];
+
+const getSigner = () => {
+  if (!ADMIN_PK || !PEAQ_RPC_URL || !CHAIN_ID) {
+    console.warn("Admin Market Route: ADMIN_PK, PEAQ_RPC_URL, or CHAIN_ID not set. On-chain operations will be skipped for REAL mode.");
+    return null;
+  }
+  try {
+    const provider = new ethers.JsonRpcProvider(PEAQ_RPC_URL, parseInt(CHAIN_ID));
+    return new ethers.Wallet(ADMIN_PK, provider);
+  } catch (e) {
+    console.error("Failed to initialize admin signer:", e);
+    return null;
+  }
+};
+
+// Helper to generate PK for underlying pair definitions
+const pkUnderlyingPairKey = (baseAsset: string, quoteAsset: string, mode: TradingMode) =>
+  `MARKET#${baseAsset.toUpperCase()}/${quoteAsset.toUpperCase()}#${mode.toUpperCase()}`;
+
+
+// --- POST: Create or Update an Underlying Pair Definition ---
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin(); // throws if not admin
+  // const adminUser = await requireAdmin(); // Ensure admin is authenticated
 
   try {
-    const body = (await req.json()) as Partial<ExtendedMarketMeta> & { mode: TradingMode };
-
-    // --- Paper Trading Validation ---
-    if (!body.mode || (body.mode !== "REAL" && body.mode !== "PAPER")) {
-        return NextResponse.json(
-            { error: "invalid or missing 'mode' (REAL or PAPER)" },
-            { status: 400 }
-        );
-    }
-    const mode = body.mode;
-    // --- End Paper Trading Validation ---
-
-    const {
-      symbol,
-      type,
-      tickSize,
-      lotSize,
-      fundingIntervalSec, // optional
-      expiryTs,           // optional (future / option)
-      strike,             // optional (option)
-      optionType          // optional (option)
-    } = body;
-
-
-    if (!symbol || !type || tickSize === undefined || lotSize === undefined)
-      return NextResponse.json({ error: "invalid market payload" }, { status: 400 });
-
-    let synthAddr: string | null = null; // Synth address only relevant for REAL mode
-    let txHash: string | null = null;    // Transaction hash only for REAL mode
-
-    // --- Conditional Blockchain Interaction ---
-    if (mode === "REAL") {
-        const signer = getSigner();
-        const factory = getFactory(signer);
-        const vault = getVault(signer);
-
-        if (!signer || !factory || !vault || !FACTORY_ADDR || !VAULT_ADDR) {
-            console.error("Admin Create Market Error: Missing signer/contracts for REAL mode interaction.");
-            return NextResponse.json({ error: "server configuration error for REAL mode" }, { status: 500 });
-        }
-
-        /* 1️⃣ Deploy synth via Factory (deterministic CREATE2) */
-        const asset = symbol.split("-")[0]; // e.g., "SOL"
-        const synthName = `Synthetic ${asset}`;
-        const synthSymbol = `s${asset.toUpperCase()}`; // Convention: sBTC, sETH
-
-        console.log(`Creating REAL Synth: ${synthName} (${synthSymbol})`);
-        const tx = await factory.createSynth(synthName, synthSymbol);
-        txHash = tx.hash;
-        console.log(`Tx submitted: ${txHash}, waiting for confirmation...`);
-        const rcpt = await tx.wait(1); // Wait for 1 confirmation
-
-        // Find the SynthCreated event log to get the deployed address
-        const createdEvent = rcpt.logs
-            ?.map((l: any) => { try { return factory.interface.parseLog(l); } catch { return null; } })
-            .find((l: any) => l?.name === "SynthCreated");
-
-        if (!createdEvent?.args?.synth) {
-            console.error("Failed to find SynthCreated event in transaction receipt", rcpt);
-            throw new Error("Synth creation failed: could not parse synth address from logs.");
-        }
-        synthAddr = createdEvent.args.synth as string;
-        console.log(`Synth Deployed: ${synthAddr}`);
-
-
-        /* 2️⃣ Vault whitelist the new synth address */
-        console.log(`Registering Synth ${synthAddr} with Vault ${VAULT_ADDR}`);
-        const registerTx = await vault.registerSynth(synthAddr);
-        await registerTx.wait(1); // Wait for confirmation
-        console.log(`Synth registered with Vault.`);
-    } else {
-        console.log(`Skipping blockchain interaction for PAPER market: ${symbol}`);
-        // For PAPER mode, synthAddr remains null or you could use a placeholder if needed downstream
-    }
-    // --- End Conditional Blockchain Interaction ---
-
-    /* 3️⃣ Insert Markets row (status = PAUSED until unpaused explicitly) */
-    const pk = pkMarketMode(symbol, mode);
-    const marketItem = {
-        pk: pk,
-        sk: "META",
-        symbol,
-        type,
-        status: "PAUSED", // Always start paused
-        tickSize,
-        lotSize,
-        fundingIntervalSec,
-        expiryTs,
-        strike,
-        optionType,
-        synth: synthAddr, // Will be null for PAPER mode
-        createdAt: Date.now(),
-        createdBy: admin.properties.email, // Or admin ID
-        mode: mode, // Store mode explicitly as an attribute too
+    const body = (await req.json()) as Partial<Omit<UnderlyingPairMeta, 'pk' | 'sk' | 'createdAt' | 'updatedAt' | 'type' | 'baseAssetSynthContract'>> & {
+        symbol: string; // e.g. "BTC/USDC"
+        baseAsset: string; // e.g. "BTC"
+        quoteAsset: "USDC";
+        mode: TradingMode;
+        allowsOptions: boolean;
+        allowsFutures: boolean;
+        allowsPerpetuals: boolean;
+        tickSizeSpot: number;
+        lotSizeSpot: number;
+        defaultOptionTickSize: number;
+        defaultOptionLotSize: number;
+        defaultFutureTickSize: number;
+        defaultFutureLotSize: number;
+        defaultPerpTickSize?: number;
+        defaultPerpLotSize?: number;
+        fundingIntervalSecPerp?: number; // For the auto-created PERP market
     };
 
-    console.log(`Writing ${mode} market to DynamoDB: ${pk}`);
+    // --- Robust Validation ---
+    const requiredFields: (keyof typeof body)[] = [
+        'symbol', 'baseAsset', 'quoteAsset', 'mode', 'allowsOptions', 'allowsFutures', 'allowsPerpetuals',
+        'tickSizeSpot', 'lotSizeSpot', 'defaultOptionTickSize', 'defaultOptionLotSize',
+        'defaultFutureTickSize', 'defaultFutureLotSize'
+    ];
+    for (const field of requiredFields) {
+        if (body[field] === undefined || body[field] === null) {
+            return NextResponse.json({ error: `Missing required field: '${field}'` }, { status: 400 });
+        }
+    }
+    if (body.quoteAsset !== "USDC") {
+      return NextResponse.json({ error: "'quoteAsset' must be USDC." }, { status: 400 });
+    }
+    if (body.mode !== "REAL" && body.mode !== "PAPER") {
+      return NextResponse.json({ error: "Invalid 'mode' (REAL or PAPER)" }, { status: 400 });
+    }
+    const sizesAndTicks: (keyof typeof body)[] = [
+        'tickSizeSpot', 'lotSizeSpot', 'defaultOptionTickSize', 'defaultOptionLotSize',
+        'defaultFutureTickSize', 'defaultFutureLotSize'
+    ];
+    if (body.allowsPerpetuals) {
+        if (typeof body.defaultPerpTickSize !== 'number' || body.defaultPerpTickSize <= 0 ||
+            typeof body.defaultPerpLotSize !== 'number' || body.defaultPerpLotSize <= 0) {
+            return NextResponse.json({ error: "defaultPerpTickSize and defaultPerpLotSize required and must be positive if allowsPerpetuals is true." }, { status: 400 });
+        }
+        sizesAndTicks.push('defaultPerpTickSize', 'defaultPerpLotSize');
+    }
+    for (const field of sizesAndTicks) {
+        if (typeof body[field] !== 'number' || (body[field] as number) <= 0) {
+             return NextResponse.json({ error: `Field '${field}' must be a positive number.` }, { status: 400 });
+        }
+    }
+    if (!body.symbol.includes('/') || body.symbol.split('/').length !== 2 || body.symbol.split('/')[0] !== body.baseAsset || body.symbol.split('/')[1] !== body.quoteAsset) {
+        return NextResponse.json({ error: "Symbol format incorrect. Expected 'BASE/QUOTE', e.g., 'BTC/USDC', matching baseAsset and quoteAsset." }, { status: 400 });
+    }
+    // --- End Validation ---
+
+
+    const {
+      symbol, baseAsset, quoteAsset, mode, allowsOptions, allowsFutures, allowsPerpetuals,
+      tickSizeSpot, lotSizeSpot,
+      defaultOptionTickSize, defaultOptionLotSize,
+      defaultFutureTickSize, defaultFutureLotSize,
+      defaultPerpTickSize, defaultPerpLotSize,
+      fundingIntervalSecPerp = 28800, // Default 8 hours for auto-created perp
+    } = body;
+
+    const pk = pkUnderlyingPairKey(baseAsset, quoteAsset, mode);
+    const now = Date.now();
+    let baseAssetSynthContractAddress: string | null = null;
+    let synthCreationDetails: any = null;
+
+    // --- On-chain SynthERC20 Deployment via Factory & Vault Registration (REAL mode, if configured) ---
+    if (mode === "REAL" && FACTORY_ADDR && VAULT_ADDR && ADMIN_PK && PEAQ_RPC_URL && CHAIN_ID) {
+      const signer = getSigner();
+      if (signer) {
+        const factory = new ethers.Contract(FACTORY_ADDR, factoryAbi, signer);
+        const vault = new ethers.Contract(VAULT_ADDR, vaultAbi, signer);
+        const onChainSynthSymbol = `s${baseAsset.toUpperCase()}`; // e.g., sBTC
+
+        try {
+          console.log(`Admin: Checking for existing synth ${onChainSynthSymbol} via factory...`);
+          const existingSynthAddr = await factory.getSynthBySymbol(onChainSynthSymbol).catch(() => ethers.ZeroAddress);
+          
+          if (existingSynthAddr && existingSynthAddr !== ethers.ZeroAddress) {
+            baseAssetSynthContractAddress = existingSynthAddr;
+            console.log(`Admin: Synth ${onChainSynthSymbol} already exists at ${baseAssetSynthContractAddress}.`);
+            // Verify it's registered with the Vault
+            const isRegistered = await vault.isRegisteredSynth(baseAssetSynthContractAddress).catch(() => false);
+            if (!isRegistered) {
+                console.log(`Admin: Synth ${baseAssetSynthContractAddress} exists but not registered with Vault. Registering...`);
+                const registerTx = await vault.registerSynth(baseAssetSynthContractAddress);
+                await registerTx.wait(1);
+                console.log(`Admin: Synth ${baseAssetSynthContractAddress} now registered with Vault.`);
+            }
+            synthCreationDetails = { address: baseAssetSynthContractAddress, status: "existed" };
+          } else {
+            console.log(`Admin: Synth ${onChainSynthSymbol} not found. Creating via factory...`);
+            const tx = await factory.createSynth(`Synthetic ${baseAsset}`, onChainSynthSymbol);
+            const receipt = await tx.wait(1);
+            console.log(`Admin: Factory createSynth transaction mined: ${tx.hash}`);
+
+            const createdEvent = receipt.logs?.map((l: any) => { try { return factory.interface.parseLog(l); } catch { return null; } })
+                                           .find((l: any) => l?.name === "SynthCreated");
+            if (!createdEvent?.args?.synthContract) {
+              throw new Error("Synth creation event not found or synthContract address missing in event.");
+            }
+            baseAssetSynthContractAddress = createdEvent.args.synthContract as string;
+            synthCreationDetails = { address: baseAssetSynthContractAddress, txHash: tx.hash, status: "created" };
+            console.log(`Admin: Synth ${onChainSynthSymbol} deployed: ${baseAssetSynthContractAddress}`);
+
+            console.log(`Admin: Registering new Synth ${baseAssetSynthContractAddress} with Vault ${VAULT_ADDR}`);
+            const registerTx = await vault.registerSynth(baseAssetSynthContractAddress);
+            await registerTx.wait(1);
+            console.log(`Admin: Synth ${baseAssetSynthContractAddress} registered with Vault. Tx: ${registerTx.hash}`);
+          }
+        } catch (chainError: any) {
+          console.error(`Admin: On-chain synth setup failed for ${baseAsset} (${mode}):`, chainError);
+          // This is a critical failure for REAL mode if synths are essential for DEX accounting
+          return NextResponse.json({ error: `On-chain synth setup failed: ${chainError.reason || chainError.message || 'Unknown chain error'}` }, { status: 502 });
+        }
+      } else {
+        console.warn("Admin: Signer not available due to missing env vars for REAL mode on-chain operations. Synth will not be created/registered on-chain.");
+      }
+    } else if (mode === "REAL") {
+      console.warn("Admin: On-chain synth creation/registration skipped for REAL mode due to missing FACTORY_ADDR, VAULT_ADDR or other critical env vars.");
+    }
+
+    const underlyingPairItem: UnderlyingPairMeta = {
+      pk,
+      sk: "META",
+      symbol,
+      baseAsset,
+      quoteAsset,
+      type: "SPOT", // This entry defines the underlying and its spot market.
+      status: "ACTIVE",
+      mode,
+      allowsOptions,
+      allowsFutures,
+      allowsPerpetuals,
+      tickSizeSpot,
+      lotSizeSpot,
+      defaultOptionTickSize,
+      defaultOptionLotSize,
+      defaultFutureTickSize,
+      defaultFutureLotSize,
+      ...(allowsPerpetuals && defaultPerpTickSize && defaultPerpLotSize && { defaultPerpTickSize, defaultPerpLotSize }),
+      baseAssetSynthContract: baseAssetSynthContractAddress,
+      createdAt: now,
+      updatedAt: now,
+    };
+
     await ddb.send(
       new PutItemCommand({
-        TableName: MARKETS_TABLE,
-        Item: marshall(marketItem, { removeUndefinedValues: true }),
-        ConditionExpression: "attribute_not_exists(pk)", // Prevent overwriting
+        TableName: MARKETS_TABLE_NAME,
+        Item: marshall(underlyingPairItem, { removeUndefinedValues: true }),
       })
     );
+    console.log(`Admin: Underlying pair definition saved: ${symbol} (${mode})`);
+
+    // If allowsPerpetuals, automatically create the specific PERP market entry
+    if (allowsPerpetuals && defaultPerpTickSize && defaultPerpLotSize) {
+        const perpInstrumentSymbol = `${symbol}-PERP`;
+        const perpMarketPK = `MARKET#${perpInstrumentSymbol}#${mode}`;
+        const perpMarketItem: InstrumentMarketMeta = {
+            pk: perpMarketPK,
+            sk: "META",
+            symbol: perpInstrumentSymbol,
+            type: "PERP",
+            underlyingPairSymbol: symbol,
+            baseAsset: baseAsset,
+            quoteAsset: quoteAsset,
+            status: "ACTIVE",
+            mode: mode,
+            tickSize: defaultPerpTickSize,
+            lotSize: defaultPerpLotSize,
+            fundingIntervalSec: fundingIntervalSecPerp,
+            createdAt: now,
+            updatedAt: now,
+        };
+        await ddb.send(
+            new PutItemCommand({
+                TableName: MARKETS_TABLE_NAME,
+                Item: marshall(perpMarketItem, { removeUndefinedValues: true }),
+            })
+        );
+        console.log(`Admin: PERP market auto-created: ${perpInstrumentSymbol} (${mode})`);
+    }
 
     return NextResponse.json(
-        { symbol, mode, synthAddr, txHash, status: "PAUSED" }, // Return relevant info
-        { status: 201 }
+      {
+        message: `Underlying pair '${symbol}' (${mode}) definition saved.`,
+        definedPair: underlyingPairItem,
+        synthDetails: synthCreationDetails,
+      },
+      { status: 201 }
     );
 
   } catch (err: any) {
-    if (err?.name === "ConditionalCheckFailedException") {
-        return NextResponse.json({ error: `market ${err.message?.includes('pk') ? 'already exists' : 'creation conflict'}` }, { status: 409 });
-    }
-    console.error("Admin Create Market Error:", err);
-    // Check for common ethers errors (e.g., insufficient funds, network issues)
-     if (err.code) { // Ethers errors often have codes
-       return NextResponse.json({ error: `Blockchain interaction failed: ${err.reason || err.code}` }, { status: 502 }); // Bad Gateway/Upstream Error
-     }
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    console.error("Admin POST /api/admin/markets error:", err);
+    // Check for specific DynamoDB errors like ConditionalCheckFailedException if using conditions
+    return NextResponse.json({ error: "Internal server error processing market definition." }, { status: 500 });
   }
 }
 
-/* ——————————————————————— PATCH = pause / unpause —————————————————————— */
+// --- PATCH and DELETE handlers from previous response (largely unchanged in core logic) ---
+// They operate on `marketSymbol` which can be an underlying OR a specific instrument.
+// Ensure their validation and PK construction `MARKET#${marketSymbol}#${mode}` is correct.
+// The SETTLE action in PATCH is particularly relevant for derivative expiry.
+
 export async function PATCH(req: NextRequest) {
   await requireAdmin();
-
-  const { symbol, action, mode } = (await req.json()) as {
-    symbol: string;
-    action: "PAUSE" | "UNPAUSE";
-    mode: TradingMode; // Expect mode
-  };
-
-  // --- Validation ---
-  if (!symbol || !action || !mode || (mode !== "REAL" && mode !== "PAPER")) {
-    return NextResponse.json({ error: "bad request: requires symbol, action (PAUSE/UNPAUSE), and mode (REAL/PAPER)" }, { status: 400 });
-  }
-  // --- End Validation ---
-
   try {
-    const pk = pkMarketMode(symbol, mode); // Construct mode-specific PK
-    const newStatus = action === "PAUSE" ? "PAUSED" : "ACTIVE";
+    const body = (await req.json()) as {
+      marketSymbol: string; 
+      action: "PAUSE" | "UNPAUSE" | "EXPIRE" | "SETTLE";
+      mode: TradingMode;
+      settlementPrice?: number; // Only for SETTLE action
+    };
 
-    console.log(`Admin PATCH: Setting market ${pk} status to ${newStatus}`);
-    await ddb.send(
-      new UpdateItemCommand({
-        TableName: MARKETS_TABLE,
-        Key: marshall({ pk: pk, sk: "META" }),
-        UpdateExpression: "SET #s = :st",
-        ConditionExpression: "attribute_exists(pk)", // Ensure market exists
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: marshall({ ":st": newStatus }),
-      })
-    );
-    return NextResponse.json({ ok: true, symbol, mode, status: newStatus });
-  } catch (err: any) {
-     if (err?.name === "ConditionalCheckFailedException") {
-        return NextResponse.json({ error: `market not found for symbol '${symbol}' and mode '${mode}'` }, { status: 404 });
+    const { marketSymbol, action, mode, settlementPrice } = body;
+
+    if (!marketSymbol || !action || !mode || (mode !== "REAL" && mode !== "PAPER") ||
+        !["PAUSE", "UNPAUSE", "EXPIRE", "SETTLE"].includes(action)) {
+      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
-    console.error(`Admin Pause/Unpause Error for ${symbol} (${mode}):`, err);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    if (action === "SETTLE" && typeof settlementPrice !== 'number') {
+        return NextResponse.json({ error: "settlementPrice (number) required for SETTLE action" }, { status: 400 });
+    }
+
+    const pk = `MARKET#${marketSymbol}#${mode.toUpperCase()}`;
+    const newStatus = action === "PAUSE" ? "PAUSED" :
+                      action === "UNPAUSE" ? "ACTIVE" :
+                      action === "EXPIRE" ? "EXPIRED" : "SETTLED";
+
+    const updateExpressionParts = ["SET #s = :newStatus, updatedAt = :ts"];
+    const expressionAttributeNames: Record<string, string> = { "#s": "status" };
+    const expressionAttributeValues: Record<string, any> = {
+      ":newStatus": newStatus,
+      ":ts": Date.now(),
+    };
+
+    if (action === "SETTLE" && settlementPrice !== undefined) {
+        updateExpressionParts.push("settlementPrice = :sp");
+        expressionAttributeValues[":sp"] = settlementPrice;
+    }
+    
+    const updateParams = {
+        TableName: MARKETS_TABLE_NAME,
+        Key: marshall({ pk: pk, sk: "META" }),
+        UpdateExpression: updateExpressionParts.join(", "),
+        ConditionExpression: "attribute_exists(pk)",
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: marshall(expressionAttributeValues),
+        ReturnValues: "ALL_NEW",
+    };
+
+    const result = await ddb.send(new UpdateItemCommand(updateParams as any));
+
+    return NextResponse.json({
+      ok: true,
+      marketSymbol,
+      mode,
+      status: newStatus,
+      updatedAttributes: result.Attributes ? unmarshall(result.Attributes) : {},
+    });
+
+  } catch (err: any) {
+    let reqBodyForError = {};
+    try { reqBodyForError = await req.clone().json(); } catch {}
+    if (err?.name === "ConditionalCheckFailedException") {
+      return NextResponse.json({ error: `Market '${(reqBodyForError as any).marketSymbol}' not found for mode '${(reqBodyForError as any).mode}'.` }, { status: 404 });
+    }
+    console.error("Admin PATCH /api/admin/markets error:", err, "Request Body:", reqBodyForError);
+    return NextResponse.json({ error: "Internal server error updating market status." }, { status: 500 });
   }
 }
 
-/* ——————————————————————— DELETE = delist market ——————————————————————— */
-// Note: Delisting usually means setting status=DELISTED, not physically deleting.
-// Actual deletion might orphan data unless carefully managed.
 export async function DELETE(req: NextRequest) {
   await requireAdmin();
-
-  const { symbol, mode } = (await req.json()) as {
-      symbol: string;
-      mode: TradingMode; // Expect mode
-  };
-
-  // --- Validation ---
-   if (!symbol || !mode || (mode !== "REAL" && mode !== "PAPER")) {
-    return NextResponse.json({ error: "bad request: requires symbol and mode (REAL/PAPER)" }, { status: 400 });
-  }
-  // --- End Validation ---
-
-
   try {
-    const pk = pkMarketMode(symbol, mode); // Construct mode-specific PK
+    const { marketSymbol, mode } = (await req.json()) as {
+      marketSymbol: string;
+      mode: TradingMode;
+    };
+
+    if (!marketSymbol || !mode || (mode !== "REAL" && mode !== "PAPER")) {
+      return NextResponse.json({ error: "Invalid payload: requires marketSymbol and mode" }, { status: 400 });
+    }
+
+    const pk = `MARKET#${marketSymbol}#${mode.toUpperCase()}`;
     const newStatus = "DELISTED";
 
-    console.log(`Admin DELETE (Delist): Setting market ${pk} status to ${newStatus}`);
     await ddb.send(
       new UpdateItemCommand({
-        TableName: MARKETS_TABLE,
+        TableName: MARKETS_TABLE_NAME,
         Key: marshall({ pk: pk, sk: "META" }),
-        UpdateExpression: "SET #s = :del",
-         ConditionExpression: "attribute_exists(pk)", // Ensure market exists
+        UpdateExpression: "SET #s = :newStatus, updatedAt = :ts",
+        ConditionExpression: "attribute_exists(pk)",
         ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: marshall({ ":del": newStatus }),
+        ExpressionAttributeValues: marshall({ ":newStatus": newStatus, ":ts": Date.now() }),
       })
     );
-    return NextResponse.json({ ok: true, symbol, mode, status: newStatus });
+    return NextResponse.json({ ok: true, marketSymbol, mode, status: newStatus });
   } catch (err: any) {
-     if (err?.name === "ConditionalCheckFailedException") {
-        return NextResponse.json({ error: `market not found for symbol '${symbol}' and mode '${mode}'` }, { status: 404 });
+    let reqBodyForError = {};
+    try { reqBodyForError = await req.clone().json(); } catch {}
+    if (err?.name === "ConditionalCheckFailedException") {
+      return NextResponse.json({ error: `Market '${(reqBodyForError as any).marketSymbol}' not found for mode '${(reqBodyForError as any).mode}'.` }, { status: 404 });
     }
-    console.error(`Admin Delist Error for ${symbol} (${mode}):`, err);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    console.error("Admin DELETE /api/admin/markets error:", err, "Request Body:", reqBodyForError);
+    return NextResponse.json({ error: "Internal server error delisting market." }, { status: 500 });
   }
 }

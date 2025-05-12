@@ -1,325 +1,300 @@
-// interfaces.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/lib/interfaces.ts
 
-//
-// COMMON SHARED TYPES
-//
+// ─────────────────────────────────────────────────────────────────────────────
+// Common scalar aliases & enums
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** A day-based reward entry */
-export interface RewardEntry {
-    day: string;     // e.g., "2025-04-13"
-    amount: number;
-  }
-  
-  /** Diagnostics for a device's compute */
-  export interface DiagnosticsType {
-    osType: "macOS" | "Windows" | "Linux";
-    gpu?: {
-      name: string;
-      memory: number; // MB
-      type: "integrated" | "dedicated";
-      supportsCUDA: boolean;
-    };
-    cpu?: {
-      name: string;
-      cores: number;
-      threads: number;
-      architecture: string;
-    };
-    memory?: {
-      total: number;
-      used: number;
-      free: number;
-    };
-    storage?: {
-      total: number;
-      used: number;
-      free: number;
-    };
-    os?: {
-      name: string;
-      version: string;
-      architecture: string;
-    };
-  }
-  
-  /** A device's diagnostic data plus GPU vs. no-GPU type */
-  export interface DeviceDiagnostics {
-    compute: DiagnosticsType;
-    type: "nogpu" | "gpu";
-  }
-  
-  /** A simple location object */
-  export interface Location {
-    country: string;
-    state: string;
-    city: string;
-  }
-  
-  /** A user’s API key info (stored in user.apiKeys[]) */
-  export interface ApiKeyInfo {
-    key: string;
-    creditLimit: number;
-    creditsLeft: number;
-    permittedRoutes: string[]; // ex: ["/chat/completions", "/embeddings"]
-  }
-  
-  //
-  // PROVIDER TABLE
-  //
-  export interface ProviderRecord {
-    providerId: string;
-    providerEmail?: string;
-    apiKey?: string;                // Additional or transitional if needed
-    providerWalletAddress?: string; // Optional if you store wallet
-    rewards?: RewardEntry[];        // Past 30 days
-    totalRewards?: number;          // Accumulated
-  }
-  
-  //
-  // PROVISIONS TABLE
-  //
-  export interface ProvisionRecord {
-    provisionId: string;
-    providerId?: string;
-    deviceDiagnostics?: DeviceDiagnostics;
-    location?: Location;
-    // ... any other fields you store
-  }
-  
-  //
-  // LLM PROVISION POOL TABLE
-  //
-  export interface LLMProvisionRecord {
-    provisionId: string;
-    model: string;
-    randomValue: number;           // For random selection
-    provisionEndpoint?: string;    // e.g. "https://node-cxmpute.cloud"
-    location?: Location;           // optional
-  }
-  
-  //
-  // EMBEDDINGS PROVISION POOL TABLE
-  //
-  export interface EmbeddingsProvisionRecord {
-    provisionId: string;
-    model: string;
-    randomValue: number;
-    provisionEndpoint?: string;
-    location?: Location;
-  }
-  
-  //
-  // SCRAPING PROVISION POOL TABLE
-  //
-  export interface ScrapingProvisionRecord {
-    provisionId: string;
-    randomValue: number;
-    provisionEndpoint?: string;
-    location?: Location;
-  }
-  
-  //
-  // MOON PROVISION POOL TABLE
-  //
-  export interface MoonProvisionRecord {
-    provisionId: string;
-    randomValue: number;
-    provisionEndpoint?: string;
-    location?: Location;
-  }
-  
-  //
-  // VIDEO & IMAGE PROVISION POOL TABLE (MEDIA)
-  //
-  export interface MediaProvisionRecord {
-    provisionId: string;
-    model?: string;
-    type?: "image" | "video";
-    randomValue: number;
-    provisionEndpoint?: string;
-    location?: Location;
-  }
-  
-  //
-  // TTS PROVISION POOL TABLE
-  //
-  export interface TTSProvisionRecord {
-    provisionId: string;
-    model?: string;
-    randomValue: number;
-    provisionEndpoint?: string;
-    location?: Location;
-  }
-  
-  //
-  // USER TABLE
-  //
-  /**
-   * A user's record in the system, storing their wallet,
-   * ads array, credits, and any relevant data.
-   */
-  export interface UserRecord {
-    userId: string;
-    userAk: string;
-    userWalletAddress?: string;
-    // If you store multiple API keys in an array:
-    apiKeys?: ApiKeyInfo[];
-    // or if you store user ads or credit usage in an array:
-    userAds?: Array<{
-      permittedCreditLimit: number;
-      permittedRoutes: string[];
-      creditsLeft: number;
-    }>;
-    credits?: number;
-    rewards?: RewardEntry[];
-    totalRewards?: number;
-  }
-  
-  //
-  // METADATA TABLE
-  //
-  /** Optional LLM info for an endpoint entry. */
-  export interface LLMMetadata {
-    model: string;
-    tokensIn: number;
-    tokensOut: number;
-    averageTps?: number;
-    uptime?: number;
-  }
-  
-  /**
-   * A single day's metadata record for an endpoint or model.
-   * For example: endpoint='/chat/completions' & dayTimestamp='2025-04-13'.
-   */
-  export interface MetadataRecord {
-    endpoint: string;       // e.g., "/chat/completions"
-    dayTimestamp: string;   // e.g., "2025-04-13"
-    totalNumRequests?: number;
-    averageLatency?: number;
-    LLM?: LLMMetadata;
-  }
-  
-  //
-  // SERVICE METADATA TABLE
-  //
-  /**
-   * For each endpoint, we might track totalNumRequests + array of daily usage.
-   */
-  export interface ServiceEndpointUsage {
-    totalNumRequests: number;
-    requests: Array<{
-      dayTimestamp: string;
-      numRequests: number;
-    }>;
-  }
-  
-  /**
-   * For each model (used by /chat/completions), we might track total tokens + daily usage.
-   */
-  export interface ServiceModelUsage {
-    totalInputTokens: number;
-    totalOutputTokens: number;
-    totals: Array<{
-      dayTimestamp: string;
-      numInputTokens: number;
-      numOutputTokens: number;
-    }>;
-  }
-  
-  /**
-   * A single service's record in the table, which might hold:
-   * - endpoints: item["/embeddings"], item["/m/query"], etc.
-   * - models: item["gpt-4"], item["llama2"], etc.
-   */
-  export interface ServiceMetadataRecord {
-    serviceName: string;
-    serviceUrl?: string;
-    // Possibly:
-    [endpointOrModel: string]:
-    //   | any
-      | ServiceEndpointUsage
-      | ServiceModelUsage
-      | string
-      | undefined;
-  }
-  
-  //
-  // NETWORK STATS TABLE
-  //
-  export interface NetworkStatsRecord {
-    dateTimestamp: string;     // e.g., "2025-04-13"
-    endpointOrModel: string;   // e.g., "/chat/completions" or "gpt-4"
-    currentNumProvisions?: number;
-    provisionTier?: number;
-  }
-  
-  //
-  // ADVERTISEMENT TABLE
-  //
-  export interface AdvertisementRecord {
-    timeSlotTimestamp: string; // e.g. the start time for a 15-min block
-    location: string;          // some location identifier
-    content?: string;          // e.g., S3 url
-  }
-  
-/* UUID without hyphens */
 export type UUID = string;
-
-/* ── Orders ──────────────────────────────────────────────────────────── */
+export type TradingMode = "REAL" | "PAPER";
 export type OrderSide = "BUY" | "SELL";
 export type OrderStatus = "OPEN" | "PARTIAL" | "FILLED" | "CANCELLED" | "EXPIRED";
+export type DerivativeType = "OPTION" | "FUTURE" | "PERP"; // Distinct from SPOT
+export type OptionType = "CALL" | "PUT";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reward & Diagnostics​ (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface RewardEntry {
+  day: string;     // e.g., "2025‑04‑13"
+  amount: number;
+}
+
+export interface DiagnosticsType {
+  osType: "macOS" | "Windows" | "Linux";
+  gpu?: {
+    name: string;
+    memory: number; // MB
+    type: "integrated" | "dedicated";
+    supportsCUDA: boolean;
+  };
+  cpu?: {
+    name: string;
+    cores: number;
+    threads: number;
+    architecture: string;
+  };
+  memory?: {
+    total: number;
+    used: number;
+    free: number;
+  };
+  storage?: {
+    total: number;
+    used: number;
+    free: number;
+  };
+  os?: {
+    name: string;
+    version: string;
+    architecture: string;
+  };
+}
+
+export interface DeviceDiagnostics {
+  compute: DiagnosticsType;
+  type: "nogpu" | "gpu";
+}
+
+export interface Location {
+  country: string;
+  state: string;
+  city: string;
+}
+
+export interface ApiKeyInfo {
+  key: string;
+  creditLimit: number;
+  creditsLeft: number;
+  permittedRoutes: string[]; // ex: ["/chat/completions", "/embeddings"]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider & Provision pool tables (unchanged from legacy version)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ProviderRecord {
+  providerId: string;
+  providerEmail?: string;
+  apiKey?: string;
+  providerWalletAddress?: string;
+  rewards?: RewardEntry[];
+  totalRewards?: number;
+}
+
+export interface ProvisionRecord {
+  provisionId: string;
+  providerId?: string;
+  deviceDiagnostics?: DeviceDiagnostics;
+  location?: Location;
+}
+
+export interface LLMProvisionRecord {
+  provisionId: string;
+  model: string;
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+export interface EmbeddingsProvisionRecord {
+  provisionId: string;
+  model: string;
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+export interface ScrapingProvisionRecord {
+  provisionId: string;
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+export interface MoonProvisionRecord {
+  provisionId: string;
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+export interface MediaProvisionRecord {
+  provisionId: string;
+  model?: string;
+  type?: "image" | "video";
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+export interface TTSProvisionRecord {
+  provisionId: string;
+  model?: string;
+  randomValue: number;
+  provisionEndpoint?: string;
+  location?: Location;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User record (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface UserRecord {
+  userId: string;
+  userAk: string;
+  userWalletAddress?: string;
+  apiKeys?: ApiKeyInfo[];
+  userAds?: Array<{
+    permittedCreditLimit: number;
+    permittedRoutes: string[];
+    creditsLeft: number;
+  }>;
+  credits?: number;
+  rewards?: RewardEntry[];
+  totalRewards?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service metadata & network‑level stats (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface LLMMetadata {
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  averageTps?: number;
+  uptime?: number;
+}
+export interface MetadataRecord {
+  endpoint: string;
+  dayTimestamp: string;
+  totalNumRequests?: number;
+  averageLatency?: number;
+  LLM?: LLMMetadata;
+}
+export interface ServiceEndpointUsage {
+  totalNumRequests: number;
+  requests: { dayTimestamp: string; numRequests: number }[];
+}
+export interface ServiceModelUsage {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totals: { dayTimestamp: string; numInputTokens: number; numOutputTokens: number }[];
+}
+export interface ServiceMetadataRecord {
+  serviceName: string;
+  serviceUrl?: string;
+  [endpointOrModel: string]: ServiceEndpointUsage | ServiceModelUsage | string | undefined;
+}
+export interface NetworkStatsRecord {
+  dateTimestamp: string;
+  endpointOrModel: string;
+  currentNumProvisions?: number;
+  provisionTier?: number;
+}
+export interface AdvertisementRecord {
+  timeSlotTimestamp: string;
+  location: string;
+  content?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Balances
+// ─────────────────────────────────────────────────────────────────────────────
+export interface Balance {
+  pk: string;          // TRADER#<traderId>#<mode>
+  sk: string;          // ASSET#<assetSymbol>
+  asset: string;       // Convenience copy derived from sk
+  balance: string;     // Big‑int‑compatible string
+  pending: string;     // Big‑int‑compatible string
+  updatedAt?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Market definitions (new)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface UnderlyingPairMeta {
+  pk: string; // MARKET#<baseAsset/quoteAsset>#<mode>
+  sk: "META";
+  symbol: string;           // e.g. "BTC/USDC"
+  baseAsset: string;        // e.g. "BTC"
+  quoteAsset: "USDC";
+  type: "SPOT";
+  status: "ACTIVE" | "PAUSED" | "DELISTED";
+  mode: TradingMode;
+  tickSizeSpot: number;
+  lotSizeSpot: number;
+  allowsOptions: boolean;
+  allowsFutures: boolean;
+  allowsPerpetuals: boolean;
+  defaultOptionTickSize: number;
+  defaultOptionLotSize: number;
+  defaultFutureTickSize: number;
+  defaultFutureLotSize: number;
+  defaultPerpTickSize?: number;
+  defaultPerpLotSize?: number;
+  baseAssetSynthContract?: string | null;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface InstrumentMarketMeta {
+  pk: string; // MARKET#<instrumentSymbol>#<mode>
+  sk: "META";
+  symbol: string;           // Full tradable symbol
+  type: DerivativeType | "PERP_SPOT";
+  underlyingPairSymbol: string; // "BTC/USDC"
+  baseAsset: string;        // e.g. "BTC"
+  quoteAsset: "USDC";
+  status: "ACTIVE" | "PAUSED" | "DELISTED" | "EXPIRED" | "SETTLED";
+  mode: TradingMode;
+  tickSize: number;
+  lotSize: number;
+  expiryTs?: number;
+  strikePrice?: number;
+  optionType?: OptionType;
+  fundingIntervalSec?: number;
+  createdByTraderId?: UUID;
+  createdAt: number;
+  updatedAt?: number;
+  settlementPrice?: number;
+}
+
+export type MarketMeta = UnderlyingPairMeta | InstrumentMarketMeta;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orders
+// ─────────────────────────────────────────────────────────────────────────────
 interface BaseOrder {
   orderId: UUID;
   traderId: UUID;
-  market: string;          // eg. BTC-PERP
+  market: string;        // Specific instrument or spot pair symbol
   side: OrderSide;
   qty: number;
   filledQty: number;
-  createdAt: number;       // ms epoch
+  createdAt: number;
   status: OrderStatus;
-  feeBps: 100;              // flat 0.5 %
-  sk: string;              // Dynamo sort‑key "TS#<epoch>"
-  price?: number;          // optional → undefined for pure MARKET orders
-}
+  feeBps: number;        // e.g. 50 for 0.5 %
+  sk: string;            // TS#<timestamp>#<orderId>
+  pk: string;            // MARKET#<marketSymbol>#<mode>
+  mode: TradingMode;
+  price?: number;
 
-/* Discriminated union */
-export interface MarketOrder extends BaseOrder {
-  orderType: "MARKET";
+  // Optional fields when backend constructs market on‑the‑fly
+  underlyingPairSymbol?: string;
+  expiryTs?: number;
+  strikePrice?: number;
+  optionType?: OptionType;
 }
-
-export interface LimitOrder extends BaseOrder {
-  orderType: "LIMIT";
-  price: number;
-}
-
-export interface PerpOrder extends BaseOrder {
-  orderType: "PERP";
-  price: number;
-}
-
-export interface FutureOrder extends BaseOrder {
-  orderType: "FUTURE";
-  price: number;
-  expiryTs: number;
-}
-
+export interface MarketOrder extends BaseOrder { orderType: "MARKET"; }
+export interface LimitOrder  extends BaseOrder { orderType: "LIMIT";  price: number; }
+export interface PerpOrder   extends BaseOrder { orderType: "PERP";   price?: number; }
+export interface FutureOrder extends BaseOrder { orderType: "FUTURE"; price: number; expiryTs: number; }
 export interface OptionOrder extends BaseOrder {
   orderType: "OPTION";
-  price: number;           // premium
-  strike: number;
+  price: number;
+  strikePrice: number;
   expiryTs: number;
-  optionType: "CALL" | "PUT";
+  optionType: OptionType;
 }
+export type Order = MarketOrder | LimitOrder | PerpOrder | FutureOrder | OptionOrder;
 
-export type Order =
-  | MarketOrder
-  | LimitOrder
-  | PerpOrder
-  | FutureOrder
-  | OptionOrder;
-
-/* ── Trades ──────────────────────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Trades
+// ─────────────────────────────────────────────────────────────────────────────
 export interface Trade {
   tradeId: UUID;
   takerOrderId: UUID;
@@ -328,61 +303,69 @@ export interface Trade {
   price: number;
   qty: number;
   timestamp: number;
-  side: OrderSide;         // from taker perspective
+  side: OrderSide;
   takerFee: number;
   makerFee: number;
+  mode: TradingMode;
+  pk: string; // MARKET#<marketSymbol>#<mode>
+  sk: string; // TS#<timestamp>#<tradeId>
+  traderId?: UUID; // Taker – optional for GSI convenience
+  prevPrice?: number;
 }
 
-/* ── Positions ───────────────────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Positions
+// ─────────────────────────────────────────────────────────────────────────────
 export interface Position {
+  pk: string;            // TRADER#<traderId>#<mode>
+  sk: string;            // MARKET#<instrumentSymbol>
   traderId: UUID;
   market: string;
-  size: number;            // signed qty
+  mode: TradingMode;
+  size: number;
   avgEntryPrice: number;
   realizedPnl: number;
   unrealizedPnl: number;
+  collateralHeld?: string;
+  collateralAsset?: string;
   updatedAt: number;
 }
 
-/* ── Markets metadata ───────────────────────────────────────────────── */
-export interface MarketMeta {
-  symbol: string;           // BTC‑PERP
-  type:   "SPOT" | "PERP" | "FUTURE" | "OPTION";
-  status: "ACTIVE" | "PAUSED" | "DELISTED";
-  tickSize: number;
-  lotSize:  number;
-  fundingIntervalSec?: number;
-  expiryTs?: number;
-  synth: string;            // **NEW** – ERC‑20 address for this market
-  createdAt: number;
-  mode: TradingMode;
-}
-
-/* ── Oracle price snapshots ─────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Oracle price snapshots
+// ─────────────────────────────────────────────────────────────────────────────
 export interface PriceSnapshot {
-  asset: string;            // BTC
-  timestamp: number;
+  pk: string; // ASSET#<symbol>
+  sk: string; // TS#<iso>
+  asset: string;
   price: number;
+  timestamp: number;
+  source?: string;
+  expireAt?: number;
 }
 
-/* ── Metrics rows ───────────────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Stats tables
+// ─────────────────────────────────────────────────────────────────────────────
 export interface StatsIntradayRow {
+  pk: string; // MARKET#<instrumentSymbol>#<mode>
+  sk: string; // TS#<minute_epoch_ms>
   market: string;
-  bucketTs: number;         // minute ISO ts
+  mode: TradingMode;
+  bucketTs?: number;
   volume: number;
-  openInterest: number;
+  openInterest?: number;
   fees: number;
-  depth1bp: number;
-  depth5bp: number;
-  fundingRate?: number;
-  impliedVol?: number;
   trades?: number;
+  fundingRate?: number;
+  markPrice?: number;
+  indexPrice?: number;
+  impliedVol?: number;
+  expireAt?: number;
 }
-
-export interface StatsDailyRow extends Omit<StatsIntradayRow, "bucketTs"> {
-  day: string;              // YYYY‑MM‑DD
+export interface StatsDailyRow extends Omit<StatsIntradayRow, "sk" | "bucketTs" | "expireAt"> {
+  day: string; // YYYY‑MM‑DD
 }
-
 export interface StatsLifetimeRow {
   key: "GLOBAL";
   volume: number;
@@ -391,7 +374,9 @@ export interface StatsLifetimeRow {
   markets: number;
 }
 
-/* ── WebSocket connection registry ─────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// WebSocket connection registry
+// ─────────────────────────────────────────────────────────────────────────────
 export interface WSConnection {
   connectionId: string;
   traderId?: UUID;
@@ -399,186 +384,173 @@ export interface WSConnection {
   expiresAt: number;
 }
 
-/* ── Queue payloads ──────────────────────────────────────────────── */
+// ─────────────────────────────────────────────────────────────────────────────
+// Queue payloads
+// ─────────────────────────────────────────────────────────────────────────────
 export interface OrderQueueMessage {
-  /** UUID of the order being processed */
   orderId: UUID;
-  /** Market symbol, eg. "BTC-PERP" */
   market: string;
-  /** Discriminated order payload (copied from Orders table item) */
-  order: Order & { pk: string; sk: string }; // Include pk/sk as they are needed by matcher sometimes
-  /** NEW: Trading mode for this order */
+  order: Order & { pk: string; sk: string };
   mode: TradingMode;
 }
-
 export type MatcherBatch = OrderQueueMessage[];
 
-export type TradingMode = "REAL" | "PAPER";
-
-// Define Balance type if needed
-export interface Balance {
-    pk: string; // TRADER#<id>#<mode>
-    sk: string; // ASSET#<asset>
-    balance: number;
-    pending: number;
-}
-
-// --- NEW Interfaces for TraderRecord and PaperPoints ---
-
-/** Structure for storing paper trading points */
+// ─────────────────────────────────────────────────────────────────────────────
+// Paper trading points helper
+// ─────────────────────────────────────────────────────────────────────────────
 export interface PaperPoints {
-  totalPoints: number; // Current accumulated points for the epoch
-  epoch: number;       // Current reward epoch (e.g., increments monthly)
+  totalPoints: number;
+  epoch: number;
 }
 
-/** Represents a record in the Traders DynamoDB table */
-export interface TraderRecord {
-  /** Primary Key: Composite key including trader ID and mode. Example: TRADER#uuid123abc#PAPER */
-  pk: string;
-  /** Sort Key: Often a static value for metadata. Example: META */
-  sk: string;
-  /** The unique identifier for the trader */
-  traderId: UUID;
-  /** The trading mode (REAL or PAPER) associated with this specific record/PK */
-  mode: TradingMode;
-  /** Optional: Trader's email address */
+// ─────────────────────────────────────────────────────────────────────────────
+// Trader profile (renamed from TraderRecord)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface TraderProfile {
+  traderId: UUID; // PK
   email?: string;
-  /** Optional: Trader's wallet address */
   walletAddress?: string;
-  /** Optional: Paper trading points, only present for PAPER mode traders */
-  paperPoints?: PaperPoints;
-  /** Optional: API Keys associated with the trader */
-  apiKeys?: ApiKeyInfo[];
-  /** Optional: Credits balance */
-  credits?: number;
-   /** Optional: Historical rewards entries */
-  rewards?: RewardEntry[];
-  /** Optional: Total accumulated rewards */
-  totalRewards?: number;
-  /** Optional: User Access Key */
   userAk?: string;
-   /** Optional: Status like ACTIVE/SUSPENDED if stored here */
   status?: "ACTIVE" | "SUSPENDED";
-  // Add any other relevant trader attributes here (e.g., createdAt, lastLoginAt)
   createdAt?: number;
 }
 
-// --- WebSocket Message Payloads (examples, align with your fanOut.ts output) ---
+// ─────────────────────────────────────────────────────────────────────────────
+// WebSocket payloads – Market data
+// ─────────────────────────────────────────────────────────────────────────────
 export interface WsDepthUpdate {
-  type: "depth"; // Custom type client-side if fanOut sends raw depth
+  type: "depth";
   market: string;
   mode: TradingMode;
-  bids: [number, number][]; // [price, quantity]
+  bids: [number, number][];
   asks: [number, number][];
-  ts?: number; // Server timestamp of the update
+  ts?: number;
 }
-
 export interface WsTrade {
-  type: "trade"; // This will be "trade" when coming from matcher, not "orderUpdate"
+  type: "trade";
   market: string;
   mode: TradingMode;
   tradeId: UUID;
   price: number;
   qty: number;
-  side: OrderSide; // Taker's side
-  timestamp: number; // Trade execution timestamp
-  prevPrice?: number; // Optional: Price of the trade immediately preceding this one for this market
+  side: OrderSide;
+  timestamp: number;
+  prevPrice?: number;
 }
-
-export interface WsFundingRateUpdate { // This type matches your existing funding.ts SNS payload
-    type: "fundingRateUpdate";
-    market: string;
-    mode: TradingMode;
-    fundingRate: number;
-    markPrice?: number; // Mark price at the time of funding calculation
-    timestamp: number;
-    nextFundingTime?: number; // If you send this
+export interface WsFundingRateUpdate {
+  type: "fundingRateUpdate";
+  market: string;
+  mode: TradingMode;
+  fundingRate: number;
+  markPrice?: number;
+  timestamp: number;
+  nextFundingTime?: number;
 }
-
 export interface WsMarketSummaryUpdate {
-  type: "marketSummaryUpdate"; // New type for this specific message
-  market: string; // e.g., BTC-PERP
-  mode: TradingMode; // REAL or PAPER
+  type: "marketSummaryUpdate";
+  market: string;
+  mode: TradingMode;
   markPrice: number | null;
   indexPrice: number | null;
-  openInterest: number | string; // e.g., 12345.67 or "N/A"
-  volume24h: number | string;    // e.g., 1234567.89 or "N/A" (in quote currency)
-  change24h: number | null;      // e.g., 0.05 for +5%, -0.02 for -2%, or null
-  fundingRate?: number | null;    // Current hourly or 8-hourly funding rate (for PERPs)
-  timestamp: number;             // Epoch ms when this summary was generated
+  openInterest: number | string;
+  volume24h: number | string;
+  change24h: number | null;
+  fundingRate?: number | null;
+  timestamp: number;
 }
-
-// In WsMarketDataState for WebSocketContext
-export interface WsMarketDataState {
-  depth: WsDepthUpdate | null;
-  lastTrade: WsTrade | null;
-  markPrice: WsMarkPriceUpdate | null; // Can be updated by 'markPrice' type or 'fundingRateUpdate' or 'marketSummaryUpdate'
-  fundingRate: WsFundingRateUpdate | null; // Can be updated by 'fundingRateUpdate' or 'marketSummaryUpdate'
-  summary: WsMarketSummaryUpdate | null; // For OI, Volume, Change, Index
-}
-
-
 export interface WsMarkPriceUpdate {
-    type: "markPrice";
-    market: string;
-    mode: TradingMode;
-    price: number;
-    timestamp: number;
+  type: "markPrice";
+  market: string;
+  mode: TradingMode;
+  price: number;
+  timestamp: number;
 }
-
 export interface WsOrderUpdate {
-  type: "orderUpdate"; // Matches SNS payload type from matchers
+  type: "orderUpdate";
   market: string;
   orderId: UUID;
   mode: TradingMode;
   status: OrderStatus;
   filledQty?: number;
   avgFillPrice?: number;
-  // Other relevant order fields that might be broadcasted
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
-
 export interface WsPositionUpdate {
-  type: "positionUpdate"; // Matches SNS payload type
+  type: "positionUpdate";
   market: string;
   mode: TradingMode;
-  traderId?: UUID; // Often implicit if on trader.<uuid> channel
+  traderId?: UUID;
   size: number;
   avgEntryPrice: number;
   realizedPnl: number;
   unrealizedPnl: number;
   updatedAt: number;
-  markPrice?: number; // Current mark price used for unrealized PnL
-  liquidationPrice?: number; // If applicable
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  markPrice?: number;
+  liquidationPrice?: number;
   [key: string]: any;
 }
-
 export interface WsBalanceUpdate {
-  type: "balanceUpdate"; // Needs to be emitted by vault deposit/withdraw listeners
+  type: "balanceUpdate";
   mode: TradingMode;
   traderId?: UUID;
-  asset: string; // e.g., "USDC", "CXPT"
-  balance: string; // String to handle large numbers, parse to BigInt/Number as needed
+  asset: string;
+  balance: string;
   pending?: string;
   timestamp: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
-
 export interface WsLiquidationAlert {
-    type: "liquidationAlert";
-    market: string;
-    mode: TradingMode;
-    traderId?: UUID;
-    message: string;
-    timestamp: number;
+  type: "liquidationAlert";
+  market: string;
+  mode: TradingMode;
+  traderId?: UUID;
+  message: string;
+  timestamp: number;
 }
-
+export interface WsMarketDataState {
+  depth: WsDepthUpdate | null;
+  lastTrade: WsTrade | null;
+  markPrice: WsMarkPriceUpdate | null;
+  fundingRate: WsFundingRateUpdate | null;
+  summary: WsMarketSummaryUpdate | null;
+}
 export interface WsTraderDataState {
-  lastOrderUpdate: WsOrderUpdate | null; // Could be an array/map if multiple updates are needed
-  lastPositionUpdate: WsPositionUpdate | null; // Or a map by market
-  balances: Record<string, WsBalanceUpdate>; // Map asset symbol to balance update
+  lastOrderUpdate: WsOrderUpdate | null;
+  lastPositionUpdate: WsPositionUpdate | null;
+  balances: Record<string, WsBalanceUpdate>;
   lastLiquidationAlert: WsLiquidationAlert | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Instruments API helper interfaces
+// ─────────────────────────────────────────────────────────────────────────────
+export interface OptionInstrumentData {
+  strikePrice: number;
+  instrumentSymbol: string;
+  lastPrice?: number;
+  openInterest?: number;
+}
+export interface FutureInstrumentData {
+  instrumentSymbol: string;
+  lastPrice?: number;
+  openInterest?: number;
+}
+export interface ExpiryData {
+  expiryTs: number;
+  displayDate: string;
+  callStrikes?: OptionInstrumentData[];
+  putStrikes?: OptionInstrumentData[];
+  futureInstrument?: FutureInstrumentData;
+}
+export interface InstrumentsApiResponse {
+  underlyingPairSymbol: string;
+  instrumentType: "OPTION" | "FUTURE";
+  expiries: ExpiryData[];
+}
+export interface PerpInstrumentApiResponse {
+  instrument: InstrumentMarketMeta;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// End of interfaces.ts
+// ─────────────────────────────────────────────────────────────────────────────
