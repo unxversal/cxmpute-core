@@ -546,9 +546,11 @@ export interface InstrumentsApiResponse {
   underlyingPairSymbol: string;
   instrumentType: "OPTION" | "FUTURE";
   expiries: ExpiryData[];
+  nextToken: string | null;
 }
 export interface PerpInstrumentApiResponse {
-  instrument: InstrumentMarketMeta;
+  instrument: InstrumentMarketMeta | null;
+  nextToken: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
