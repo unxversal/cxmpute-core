@@ -3,80 +3,100 @@
 
 import React, { useMemo, useState, useCallback, useEffect, ChangeEvent } from 'react';
 import styles from './OrderBook.module.css';
-import { useWebSocket } from '@/contexts/WebsocketContext';
-import { useMarketContext } from '@/contexts/MarketContext';
+import { useWebSocket } from '@/contexts/WebsocketContext'; // Consistent casing
+import { useMarketContext, InstrumentsBundle } from '@/contexts/MarketContext';
+import { useTradingMode } from '@/contexts/TradingModeContext';
+import { useOrderEntry } from '@/contexts/OrderEntryContext';
+import type { UnderlyingPairMeta, ExpiryData, TradingMode } from '@/lib/interfaces';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
-// import { useOrderEntry } from '@/contexts/OrderEntryContext'; // Example
+import { ChevronDown } from 'lucide-react';
 
-const MAX_ORDER_BOOK_LEVELS = 15;
+const MAX_ORDER_BOOK_LEVELS_DISPLAY = 12;
 
-// Formatting helpers
-const formatPrice = (price: number, tickSize: number | undefined): string => {
+const formatPrice = (price: number, tickSize: number | undefined, defaultPrecision = 2): string => {
+  if (typeof price !== 'number' || isNaN(price)) return '-.--';
   if (tickSize === undefined || typeof tickSize !== 'number' || isNaN(tickSize) || tickSize <= 0) {
-    return price.toFixed(2);
+    return price.toFixed(defaultPrecision);
   }
   const precision = Math.max(0, tickSize.toString().split('.')[1]?.length || 0);
   return price.toFixed(precision);
 };
 
-const formatSize = (size: number, lotSize: number | undefined): string => {
+const formatSize = (size: number, lotSize: number | undefined, defaultPrecision = 4): string => {
+  if (typeof size !== 'number' || isNaN(size)) return '0.00';
   if (lotSize === undefined || typeof lotSize !== 'number' || isNaN(lotSize) || lotSize <= 0) {
-    if (Math.abs(size) < 0.0001 && size !== 0) return size.toExponential(2);
-    if (Math.abs(size) < 1) return size.toFixed(4);
-    if (Math.abs(size) < 100) return size.toFixed(2);
-    return size.toFixed(0);
+    if (Math.abs(size) < 0.00001 && size !== 0) return size.toExponential(2);
+    return size.toFixed(defaultPrecision);
   }
   const precision = Math.max(0, lotSize.toString().split('.')[1]?.length || 0);
   return size.toFixed(precision);
 };
 
-interface AggregatedLevel {
-  price: number;
-  size: number;
-  cumulativeSize: number;
-}
+const getCurrentInstrumentParameters = (
+    activeSymbol: string | null,
+    underlying: UnderlyingPairMeta | null,
+    instrumentsBundle: InstrumentsBundle | null,
+    currentMode: TradingMode | null // currentMode is used in constructing PK for some lookups if needed
+): { tickSize?: number; lotSize?: number; baseAsset?: string; quoteAsset?: string } => {
+    if (!activeSymbol || !underlying || !currentMode) return {};
+
+    if (activeSymbol === underlying.symbol && underlying.type === "SPOT") {
+        return { tickSize: underlying.tickSizeSpot, lotSize: underlying.lotSizeSpot, baseAsset: underlying.baseAsset, quoteAsset: underlying.quoteAsset };
+    }
+    if (instrumentsBundle?.perp?.symbol === activeSymbol) {
+        return { tickSize: instrumentsBundle.perp.tickSize, lotSize: instrumentsBundle.perp.lotSize, baseAsset: instrumentsBundle.perp.baseAsset, quoteAsset: instrumentsBundle.perp.quoteAsset };
+    }
+    const findInExpiryData = (data?: ExpiryData[], type?: "OPTION" | "FUTURE") => {
+        if (!data || !type) return null;
+        for (const expiry of data) {
+            if (type === "FUTURE" && expiry.futureInstrument?.instrumentSymbol === activeSymbol)
+                return { tickSize: underlying.defaultFutureTickSize, lotSize: underlying.defaultFutureLotSize, baseAsset: underlying.baseAsset, quoteAsset: underlying.quoteAsset };
+            const call = expiry.callStrikes?.find(s => s.instrumentSymbol === activeSymbol);
+            if (call && type === "OPTION") return { tickSize: underlying.defaultOptionTickSize, lotSize: underlying.defaultOptionLotSize, baseAsset: underlying.baseAsset, quoteAsset: underlying.quoteAsset };
+            const put = expiry.putStrikes?.find(s => s.instrumentSymbol === activeSymbol);
+            if (put && type === "OPTION") return { tickSize: underlying.defaultOptionTickSize, lotSize: underlying.defaultOptionLotSize, baseAsset: underlying.baseAsset, quoteAsset: underlying.quoteAsset };
+        }
+        return null;
+    };
+    return findInExpiryData(instrumentsBundle?.options, "OPTION") || 
+           findInExpiryData(instrumentsBundle?.futures, "FUTURE") || 
+           { tickSize: underlying.tickSizeSpot, lotSize: underlying.lotSizeSpot, baseAsset: underlying.baseAsset, quoteAsset: underlying.quoteAsset };
+};
+
+interface AggregatedLevel { price: number; size: number; cumulativeSize: number; }
 
 interface OrderBookRowProps {
-  price: number;
-  size: number;
-  cumulativeSize: number;
-  maxCumulativeSize: number;
+  price: number; size: number; cumulativeSize: number; maxCumulativeSize: number;
   type: 'bid' | 'ask';
-  aggregationLevel: number; // For formatting price correctly
-  tickSize?: number; // Original market ticksize for reference
-  lotSize?: number;
-  onRowClick?: (price: number, size: number) => void;
+  aggregationLevel: number; tickSize?: number; lotSize?: number;
+  onRowClick?: (price: number, size: number, type: 'bid' | 'ask') => void;
 }
 
 const OrderBookRow: React.FC<OrderBookRowProps> = React.memo(({
-  price,
-  size,
-  cumulativeSize,
-  maxCumulativeSize,
-  type,
-  aggregationLevel,
-  tickSize,
-  lotSize,
-  onRowClick
+  price, size, cumulativeSize, maxCumulativeSize, type,
+  aggregationLevel, tickSize, lotSize, onRowClick
 }) => {
-  const depthPercentage = maxCumulativeSize > 0 ? (cumulativeSize / maxCumulativeSize) * 100 : 0;
-  // Price should be formatted to the precision of the aggregationLevel or market tickSize
+  const depthPercentage = maxCumulativeSize > 0 ? Math.min(100, (cumulativeSize / maxCumulativeSize) * 100) : 0;
   const displayTickSize = aggregationLevel > 0 ? aggregationLevel : tickSize;
+
+  const handleClick = () => {
+    if (onRowClick) onRowClick(price, size, type);
+  };
 
   return (
     <tr
       className={`${styles.orderRow} ${type === 'bid' ? styles.bidRow : styles.askRow}`}
-      onClick={onRowClick ? () => onRowClick(price, size) : undefined}
-      tabIndex={onRowClick ? 0 : undefined}
-      onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onRowClick(price, size); } : undefined}
-      aria-label={`Price ${formatPrice(price, displayTickSize)}, Size ${formatSize(size, lotSize)}`}
+      onClick={handleClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick(); }}
+      tabIndex={0}
+      aria-label={`${type === 'bid' ? 'Bid' : 'Ask'} at price ${formatPrice(price, displayTickSize)}, size ${formatSize(size, lotSize)}, cumulative ${formatSize(cumulativeSize, lotSize)}`}
     >
       <td className={`${styles.priceCell} ${type === 'bid' ? styles.bidPrice : styles.askPrice}`}>
         {formatPrice(price, displayTickSize)}
       </td>
       <td className={styles.sizeCell}>{formatSize(size, lotSize)}</td>
-      <td className={styles.cumulativeSizeCell}>{formatSize(cumulativeSize, lotSize)}</td>
-      <td className={styles.depthBarCell}>
+      <td className={styles.totalCell}>{formatSize(cumulativeSize, lotSize)}</td>
+      <td className={styles.depthBarContainer}>
         <div
           className={`${styles.depthBar} ${type === 'bid' ? styles.bidDepthBar : styles.askDepthBar}`}
           style={{ width: `${depthPercentage}%` }}
@@ -87,233 +107,193 @@ const OrderBookRow: React.FC<OrderBookRowProps> = React.memo(({
 });
 OrderBookRow.displayName = 'OrderBookRow';
 
-
 const OrderBook: React.FC = () => {
-  const { marketData, connectionStatus } = useWebSocket();
-  const { selectedMarket, isLoadingMarkets } = useMarketContext();
-  // const { setOrderEntryFields } = useOrderEntry();
+  const { marketSpecificData, connectionStatus } = useWebSocket(); // Get connectionStatus
+  const { activeInstrumentSymbol, selectedUnderlying, instrumentsForSelectedUnderlying, isLoadingUnderlyings } = useMarketContext();
+  const { currentMode } = useTradingMode();
+  const { setPriceFromOrderBook } = useOrderEntry();
 
-  const [currentAggregation, setCurrentAggregation] = useState<number>(0.01); // Default, will be updated
+  const instrumentParams = useMemo(() =>
+    getCurrentInstrumentParameters(activeInstrumentSymbol, selectedUnderlying, instrumentsForSelectedUnderlying, currentMode),
+    [activeInstrumentSymbol, selectedUnderlying, instrumentsForSelectedUnderlying, currentMode]
+  );
+
+  const [currentAggregation, setCurrentAggregation] = useState<number>(instrumentParams.tickSize || 0.01);
 
   useEffect(() => {
-    if (selectedMarket?.tickSize) {
-      setCurrentAggregation(selectedMarket.tickSize);
-    } else {
-      setCurrentAggregation(0.01); // Fallback if tickSize is not available
-    }
-  }, [selectedMarket?.tickSize]);
+    setCurrentAggregation(instrumentParams.tickSize || 0.01);
+  }, [instrumentParams.tickSize]);
 
   const handleAggregationChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const newAggregation = parseFloat(event.target.value);
-    if (!isNaN(newAggregation) && newAggregation > 0) {
-      setCurrentAggregation(newAggregation);
-    }
+    const newAgg = parseFloat(event.target.value);
+    if (!isNaN(newAgg) && newAgg > 0) setCurrentAggregation(newAgg);
   };
 
-  const handleRowClick = useCallback((price: number, size: number) => {
-    console.log(`Order book row clicked: Price=${price}, Size=${size}`);
-    // if (setOrderEntryFields) {
-    //   setOrderEntryFields({ price: price.toString(), quantity: size.toString() });
-    // }
-  }, []);
+  const handleRowClick = useCallback((price: number, size: number, type: 'bid' | 'ask') => {
+    setPriceFromOrderBook(price, instrumentParams.tickSize);
+    console.log(`Order book click: ${type} @ ${price}, size ${size}. Sent to order entry.`);
+  }, [setPriceFromOrderBook, instrumentParams.tickSize]);
+
+  // Moved isWsConnected outside useMemo to be used in its dependency array
+  const isWsConnected = connectionStatus === 'OPEN';
 
   const processedDepth = useMemo(() => {
     const defaultReturn = { bids: [], asks: [], spread: null, spreadPercentage: null, maxCumulative: 0 };
-    if (!marketData.depth || !selectedMarket ||
-        marketData.depth.market !== selectedMarket.symbol ||
-        marketData.depth.mode !== selectedMarket.mode ||
+    // Use isWsConnected from outer scope, now correctly in dependency array
+    if (!isWsConnected || !activeInstrumentSymbol || !marketSpecificData.depth ||
+        marketSpecificData.depth.market !== activeInstrumentSymbol ||
+        marketSpecificData.depth.mode !== currentMode ||
         currentAggregation <= 0) {
       return defaultReturn;
     }
 
-    const { bids: rawBids, asks: rawAsks } = marketData.depth;
+    const { bids: rawBids, asks: rawAsks } = marketSpecificData.depth;
 
-    const aggregateLevels = (
-        levels: [number, number][],
-        isBids: boolean,
-        aggregation: number
-      ): AggregatedLevel[] => {
-        if (!levels) return [];
-        const aggregated: Map<number, number> = new Map();
-        
+    const aggregateLevels = (levels: [number, number][], isBids: boolean, aggregation: number): AggregatedLevel[] => {
+        if (!levels || levels.length === 0) return [];
+        const aggregatedMap: Map<number, number> = new Map();
+        const keyPrecision = Math.max(0, aggregation.toString().split('.')[1]?.length || 0);
+
         for (const [price, size] of levels) {
-          // Round price to the nearest aggregation level
-          // For bids, we floor: e.g., agg=0.5, price 100.3 -> 100.0
-          // For asks, we ceil: e.g., agg=0.5, price 100.3 -> 100.5
-          let groupKey: number;
-          if (isBids) {
-            groupKey = Math.floor(price / aggregation) * aggregation;
-          } else {
-            groupKey = Math.ceil(price / aggregation) * aggregation;
-          }
-          // Ensure precision for map keys to avoid floating point issues
-          const keyPrecision = Math.max(0, aggregation.toString().split('.')[1]?.length || 0);
-          groupKey = parseFloat(groupKey.toFixed(keyPrecision));
-
-          aggregated.set(groupKey, (aggregated.get(groupKey) || 0) + size);
+            let groupKey: number;
+            if (isBids) groupKey = Math.floor(price / aggregation) * aggregation;
+            else groupKey = Math.ceil(price / aggregation) * aggregation;
+            groupKey = parseFloat(groupKey.toFixed(keyPrecision));
+            aggregatedMap.set(groupKey, (aggregatedMap.get(groupKey) || 0) + size);
         }
       
-        const sortedAggregatedLevels = Array.from(aggregated.entries())
+        const sortedAggregated = Array.from(aggregatedMap.entries())
           .map(([price, size]) => ({ price, size, cumulativeSize: 0 }))
-          .sort((a, b) => isBids ? b.price - a.price : a.price - b.price); // Bids: High to Low, Asks: Low to High
+          .sort((a, b) => isBids ? b.price - a.price : a.price - b.price);
 
-        let cumulativeSize = 0;
-        return sortedAggregatedLevels.map(level => {
-          cumulativeSize += level.size;
-          return { ...level, cumulativeSize };
-        }).slice(0, MAX_ORDER_BOOK_LEVELS);
+        let cumulative = 0;
+        return sortedAggregated.map(level => {
+          cumulative += level.size;
+          return { ...level, cumulativeSize: cumulative };
+        }).slice(0, MAX_ORDER_BOOK_LEVELS_DISPLAY);
       };
 
     const aggregatedBids = aggregateLevels(rawBids, true, currentAggregation);
     const aggregatedAsks = aggregateLevels(rawAsks, false, currentAggregation);
-        
-    // Asks for display are usually reversed (lowest ask closest to spread)
     const displayAsks = [...aggregatedAsks].reverse();
 
-    const bestBidPrice = aggregatedBids.length > 0 ? aggregatedBids[0].price : null;
-    const bestAskPrice = aggregatedAsks.length > 0 ? aggregatedAsks[0].price : null; // Lowest ask after sort, before reverse for display
+    const bestBidPrice = aggregatedBids[0]?.price;
+    const bestAskPrice = aggregatedAsks[0]?.price;
 
     let spread: number | null = null;
     let spreadPercentage: number | null = null;
-    if (bestBidPrice !== null && bestAskPrice !== null && bestAskPrice > bestBidPrice) {
+    if (bestBidPrice !== undefined && bestAskPrice !== undefined && bestAskPrice > bestBidPrice) {
       spread = bestAskPrice - bestBidPrice;
-      if (bestBidPrice > 0) {
-        spreadPercentage = (spread / bestBidPrice);
-      }
+      if (bestBidPrice > 0) spreadPercentage = (spread / bestBidPrice);
     }
     
-    const maxCumulativeBid = aggregatedBids[aggregatedBids.length - 1]?.cumulativeSize || 0;
-    const maxCumulativeAsk = aggregatedAsks[aggregatedAsks.length - 1]?.cumulativeSize || 0;
+    const maxCumulativeBid = aggregatedBids[aggregatedBids.length-1]?.cumulativeSize || 0;
+    const maxCumulativeAsk = aggregatedAsks[aggregatedAsks.length-1]?.cumulativeSize || 0; // This was using aggregatedBids before, corrected to aggregatedAsks
     const maxCumulative = Math.max(maxCumulativeBid, maxCumulativeAsk);
-
     return { bids: aggregatedBids, asks: displayAsks, spread, spreadPercentage, maxCumulative };
-  }, [marketData.depth, selectedMarket, currentAggregation]);
+
+  }, [marketSpecificData.depth, activeInstrumentSymbol, currentMode, currentAggregation, isWsConnected]); // Added isWsConnected to dependency array
 
   const aggregationOptions = useMemo(() => {
-    if (!selectedMarket?.tickSize || selectedMarket.tickSize <= 0) return [0.01, 0.1, 0.5, 1, 5, 10]; // Default options
-    const ts = selectedMarket.tickSize;
-    return [ts, ts * 5, ts * 10, ts * 50, ts * 100].filter(opt => opt > 0); // Filter out zero or negative
-  }, [selectedMarket?.tickSize]);
+    const ts = instrumentParams.tickSize;
+    if (!ts || ts <= 0) return [0.01, 0.1, 0.5, 1, 5, 10].filter(opt => opt >= (ts || 0.00000001)); // Ensure positive filter value
+    // Create more granular options around the tick size
+    const options = new Set<number>();
+    options.add(ts);
+    options.add(ts * 2);
+    options.add(ts * 5);
+    options.add(ts * 10);
+    if (ts < 0.01) options.add(0.01);
+    if (ts < 0.1) options.add(0.1);
+    if (ts < 1) options.add(ts * 20 > 1 ? 1 : ts * 20 ); // Add a step towards 1
+    options.add(1);
+    options.add(5);
+    options.add(10);
+    options.add(50);
+    options.add(100);
+    return Array.from(options).filter(opt => opt > 0 && opt >= ts).sort((a,b) => a-b).slice(0,7); // Limit options shown
+  }, [instrumentParams.tickSize]);
 
+  // isLoadingUnderlyings is from MarketContext, indicating if the base pair list is loading.
+  // isWsConnected checks WebSocket.
+  // marketSpecificData.depth being null while connected means no data for *this activeInstrumentSymbol* yet.
+  const showInitialSkeletons = (isLoadingUnderlyings && !activeInstrumentSymbol) || 
+                             (isWsConnected && !marketSpecificData.depth && !!activeInstrumentSymbol && processedDepth.bids.length === 0 && processedDepth.asks.length === 0) ||
+                             (!isWsConnected && !activeInstrumentSymbol); // Show skeletons if not connected and no symbol
 
-  const isWsConnected = connectionStatus === 'OPEN';
-  const showSkeletons = isLoadingMarkets || (isWsConnected && (!marketData.depth || (processedDepth.bids.length === 0 && processedDepth.asks.length === 0)) && !selectedMarket);
-
-
-  const renderSkeletonRows = (count: number) => (
-    Array.from({ length: count }).map((_, i) => (
-      <tr key={`skel-ob-${i}`} className={styles.orderRow}>
-        <td className={styles.priceCell}><SkeletonLoader width="70px" /></td>
-        <td className={styles.sizeCell}><SkeletonLoader width="60px" /></td>
-        <td className={styles.cumulativeSizeCell}><SkeletonLoader width="60px" /></td>
-        <td className={styles.depthBarCell}><SkeletonLoader width="100%" height="100%" /></td>
-      </tr>
-    ))
-  );
-
-  const [baseAsset, quoteAsset] = useMemo(() => {
-    if (selectedMarket?.symbol) {
-      const parts = selectedMarket.symbol.split(/[-/]/);
-      return parts.length >= 2 ? [parts[0], parts[1]] : [selectedMarket.symbol, 'QUOTE'];
-    }
-    return ['BASE', 'QUOTE'];
-  }, [selectedMarket?.symbol]);
 
   return (
     <div className={styles.orderBookContainer}>
       <div className={styles.header}>
         <h3 className={styles.title}>Order Book</h3>
-        <select
-          value={currentAggregation}
-          onChange={handleAggregationChange}
-          className={styles.aggregationSelect}
-          disabled={!selectedMarket}
-          aria-label="Order book aggregation level"
-        >
-          {aggregationOptions.map(opt => (
-            <option key={opt} value={opt}>
-              {formatPrice(opt, opt)} {/* Format option value itself */}
-            </option>
+        <div className={styles.aggregationControl}>
+            <select value={currentAggregation} onChange={handleAggregationChange} className={styles.aggregationSelect}
+                    disabled={!activeInstrumentSymbol || aggregationOptions.length <= 1} aria-label="Group order book levels">
+            {aggregationOptions.map(opt => (
+                <option key={opt} value={opt}>{formatPrice(opt, opt, 8)}</option>
+            ))}
+            </select>
+            <ChevronDown size={14} className={styles.selectArrow}/>
+        </div>
+      </div>
+
+      <div className={styles.columnsHeader}>
+          <span>Price ({instrumentParams.quoteAsset || 'QUOTE'})</span>
+          <span>Size ({instrumentParams.baseAsset || 'BASE'})</span>
+          <span>Total</span>
+          {/* Empty span for depth bar column or specific label like "Depth" */}
+          <span className={styles.depthHeaderLabel}></span> 
+      </div>
+
+      <div className={styles.asksSection}>
+          {showInitialSkeletons ? Array.from({ length: Math.floor(MAX_ORDER_BOOK_LEVELS_DISPLAY / 2) || 5 }).map((_, i) => <OrderBookRowSkeleton key={`ask-skel-${i}`} type="ask"/>) :
+           processedDepth.asks.length === 0 && isWsConnected && activeInstrumentSymbol ? (
+            <div className={styles.noData}>No asks</div>
+           ) :
+           processedDepth.asks.map((ask) => (
+            <OrderBookRow key={`ask-${ask.price}-${ask.size}`} type="ask" {...ask} maxCumulativeSize={processedDepth.maxCumulative}
+                aggregationLevel={currentAggregation} tickSize={instrumentParams.tickSize} lotSize={instrumentParams.lotSize} onRowClick={handleRowClick} />
           ))}
-        </select>
       </div>
 
-      <div className={styles.columns}>
-        <div className={`${styles.column} ${styles.asksColumn}`}>
-          <table className={styles.orderTable}>
-            <thead>
-              <tr>
-                <th>Price ({quoteAsset})</th>
-                <th>Size ({baseAsset})</th>
-                <th>Total ({baseAsset})</th>
-                <th className={styles.depthHeader}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {showSkeletons ? renderSkeletonRows(Math.floor(MAX_ORDER_BOOK_LEVELS / 2) || 5) :
-               processedDepth.asks.length === 0 && isWsConnected && selectedMarket ? (
-                <tr><td colSpan={4} className={styles.noData}>No asks</td></tr>
-               ) :
-               processedDepth.asks.map((ask) => (
-                <OrderBookRow
-                  key={`ask-${ask.price}`}
-                  type="ask"
-                  price={ask.price}
-                  size={ask.size}
-                  cumulativeSize={ask.cumulativeSize}
-                  maxCumulativeSize={processedDepth.maxCumulative}
-                  aggregationLevel={currentAggregation}
-                  tickSize={selectedMarket?.tickSize}
-                  lotSize={selectedMarket?.lotSize}
-                  onRowClick={handleRowClick}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {isWsConnected && activeInstrumentSymbol && processedDepth.spread !== null && (
+          <div className={styles.spreadInfo} aria-label="Market Spread">
+              <span className={styles.spreadValue} title={`Spread: ${formatPrice(processedDepth.spread, instrumentParams.tickSize)}`}>
+                  {formatPrice(processedDepth.spread, instrumentParams.tickSize)}
+              </span>
+              {processedDepth.spreadPercentage !== null && (
+                  <span className={styles.spreadPercentage}>
+                      ({(processedDepth.spreadPercentage * 100).toFixed(2)}%)
+                  </span>
+              )}
+          </div>
+      )}
 
-        {processedDepth.spread !== null && selectedMarket && isWsConnected && (
-            <div className={styles.spreadInfo} aria-label="Market Spread">
-                <span className={styles.spreadValue} title={`Spread: ${formatPrice(processedDepth.spread, selectedMarket.tickSize)}`}>
-                    {formatPrice(processedDepth.spread, selectedMarket.tickSize)}
-                </span>
-                {processedDepth.spreadPercentage !== null && (
-                    <span className={styles.spreadPercentage}>
-                        ({(processedDepth.spreadPercentage * 100).toFixed(2)}%)
-                    </span>
-                )}
-            </div>
-        )}
-
-        <div className={`${styles.column} ${styles.bidsColumn}`}>
-          <table className={styles.orderTable}>
-            {/* Headers can be omitted for bids if implied by asks or a central header row */}
-            <tbody>
-              {showSkeletons ? renderSkeletonRows(Math.floor(MAX_ORDER_BOOK_LEVELS / 2) || 5) :
-               processedDepth.bids.length === 0 && isWsConnected && selectedMarket ? (
-                <tr><td colSpan={4} className={styles.noData}>No bids</td></tr>
-               ) :
-               processedDepth.bids.map((bid) => (
-                <OrderBookRow
-                  key={`bid-${bid.price}`}
-                  type="bid"
-                  price={bid.price}
-                  size={bid.size}
-                  cumulativeSize={bid.cumulativeSize}
-                  maxCumulativeSize={processedDepth.maxCumulative}
-                  aggregationLevel={currentAggregation}
-                  tickSize={selectedMarket?.tickSize}
-                  lotSize={selectedMarket?.lotSize}
-                  onRowClick={handleRowClick}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className={styles.bidsSection}>
+           {showInitialSkeletons ? Array.from({ length: Math.floor(MAX_ORDER_BOOK_LEVELS_DISPLAY / 2) || 5 }).map((_, i) => <OrderBookRowSkeleton key={`bid-skel-${i}`} type="bid"/>) :
+           processedDepth.bids.length === 0 && isWsConnected && activeInstrumentSymbol ? (
+            <div className={styles.noData}>No bids</div>
+           ) :
+           processedDepth.bids.map((bid) => (
+            <OrderBookRow key={`bid-${bid.price}-${bid.size}`} type="bid" {...bid} maxCumulativeSize={processedDepth.maxCumulative}
+                aggregationLevel={currentAggregation} tickSize={instrumentParams.tickSize} lotSize={instrumentParams.lotSize} onRowClick={handleRowClick}/>
+          ))}
       </div>
-      {!isWsConnected && !isLoadingMarkets && <div className={styles.disconnectedOverlay}>Order Book Disconnected</div>}
+      {!activeInstrumentSymbol && !isLoadingUnderlyings && <div className={styles.noMarketMessage}>Select an instrument</div>}
+      {!isWsConnected && activeInstrumentSymbol && <div className={styles.disconnectedMessage}>Book Feed Disconnected</div>}
     </div>
   );
 };
+
+const OrderBookRowSkeleton: React.FC<{type: 'bid'|'ask'}> = ({type}) => (
+    // Using <tr> and <td> for skeleton to match table structure if OrderBookRow is <tr>
+    // If OrderBookRow is a div, then this should also be divs. Assuming OrderBookRow is <tr>.
+    <tr className={`${styles.orderRowSkeleton} ${type === 'bid' ? styles.bidRow : styles.askRow}`}>
+        <td className={styles.priceCell}><SkeletonLoader width="90%" height="12px"/></td>
+        <td className={styles.sizeCell}><SkeletonLoader width="90%" height="12px"/></td>
+        <td className={styles.totalCell}><SkeletonLoader width="90%" height="12px"/></td>
+        <td className={styles.depthBarContainer}><SkeletonLoader width={`${Math.random()*50+10}%`} height="12px" style={{ marginLeft: type === 'ask' ? 'auto' : '0', marginRight: type === 'bid' ? 'auto' : '0' }}/></td>
+    </tr>
+);
 
 export default OrderBook;
