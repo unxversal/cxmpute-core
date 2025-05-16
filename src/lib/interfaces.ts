@@ -229,6 +229,8 @@ export interface UnderlyingPairMeta {
   baseAssetSynthContract?: string | null;
   createdAt: number;
   updatedAt?: number;
+  gsi1pk?: string; // e.g., <symbol>#<mode>#SPOT
+  gsi1sk?: string; // e.g., ACTIVE#<symbol>
 }
 
 export interface InstrumentMarketMeta {
@@ -251,6 +253,8 @@ export interface InstrumentMarketMeta {
   createdAt: number;
   updatedAt?: number;
   settlementPrice?: number;
+  gsi1pk: string; // This will be constructed: underlyingPairSymbol#mode#type
+  gsi1sk: string; // This will be constructed: 
 }
 
 export type MarketMeta = UnderlyingPairMeta | InstrumentMarketMeta;
@@ -278,6 +282,12 @@ interface BaseOrder {
   expiryTs?: number;
   strikePrice?: number;
   optionType?: OptionType;
+
+  // Fields to be enriched by the API
+  tickSize?: number;    // Tick size of the specific instrument
+  lotSize?: number;     // Lot size of the specific instrument
+  baseAsset?: string;   // Base asset of the instrument
+  quoteAsset?: string;  // Quote asset of the instrument (should always be USDC for price)
 }
 export interface MarketOrder extends BaseOrder { orderType: "MARKET"; }
 export interface LimitOrder  extends BaseOrder { orderType: "LIMIT";  price: number; }

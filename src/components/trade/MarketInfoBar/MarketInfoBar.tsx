@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/trade/MarketInfoBar/MarketInfoBar.tsx
 "use client";
 
@@ -10,9 +9,9 @@ import { useWebSocket } from '@/contexts/WebsocketContext';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
 import Tooltip from '@/components/ui/Tooltip/Tooltip';
 import { TrendingUp, Zap, Clock, Info, Percent, Activity, Layers } from 'lucide-react';
-import type { InstrumentMarketMeta, MarketMeta, ExpiryData, TradingMode } from '@/lib/interfaces'; // Added MarketMeta for clarity
+import type { InstrumentMarketMeta, MarketMeta, ExpiryData, TradingMode, DerivativeType, OptionType } from '@/lib/interfaces';
 
-// Formatting helpers (ensure these are robust or imported from a shared util)
+// Formatting helpers
 const formatPrice = (price: number | undefined | null, tickSize: number | undefined, defaultPrecision = 2): string => {
   if (price === undefined || price === null || typeof price !== 'number' || isNaN(price)) return '-.--';
   if (tickSize === undefined || typeof tickSize !== 'number' || isNaN(tickSize) || tickSize <= 0) {
@@ -54,6 +53,15 @@ const formatTimeToExpiry = (expiryTs?: number): string | null => {
     return "<1m";
 };
 
+const constructGsi1pk = (underlyingPairSymbol: string, mode: TradingMode, type: DerivativeType | "PERP" | "SPOT") => {
+    return `${underlyingPairSymbol}#${mode}#${type}`;
+};
+const constructGsi1sk = (status: string, instrumentSymbol: string, expiryTs?: number, strikePrice?: number, optionType?: OptionType) => {
+    return `${status}#${expiryTs || 0}#${strikePrice || 0}#${optionType || 'NONE'}#${instrumentSymbol}`;
+};
+const pkMarketKey = (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`;
+
+
 const MarketInfoBar: React.FC = () => {
   const { selectedUnderlying, activeInstrumentSymbol, isLoadingUnderlyings, instrumentsForSelectedUnderlying } = useMarketContext();
   const { currentMode } = useTradingMode();
@@ -63,75 +71,61 @@ const MarketInfoBar: React.FC = () => {
 
   const displayMarketDefinition: MarketMeta | null = useMemo(() => {
     if (!selectedUnderlying) return null;
-    if (!activeInstrumentSymbol) return selectedUnderlying; // Default to underlying if no specific instrument active
-
-    if (activeInstrumentSymbol === selectedUnderlying.symbol && selectedUnderlying.type === "SPOT") {
+    if (!activeInstrumentSymbol || (activeInstrumentSymbol === selectedUnderlying.symbol && selectedUnderlying.type === "SPOT")) {
         return selectedUnderlying;
     }
-
-    if (instrumentsForSelectedUnderlying) {
+    if (instrumentsForSelectedUnderlying && activeInstrumentSymbol) {
         if (instrumentsForSelectedUnderlying.perp?.symbol === activeInstrumentSymbol) {
             return instrumentsForSelectedUnderlying.perp;
         }
-        
-        const findInstrument = (data?: ExpiryData[]): InstrumentMarketMeta | null => {
-            if (!data) return null;
+        const findInstrument = (data?: ExpiryData[], derivType?: "OPTION" | "FUTURE"): InstrumentMarketMeta | null => {
+            if (!data || !derivType) return null;
             for (const expiry of data) {
-                if (expiry.futureInstrument?.instrumentSymbol === activeInstrumentSymbol) {
+                let instrumentDetail = null;
+                let specificType: DerivativeType | null = null;
+                let specificOptionType: OptionType | undefined = undefined;
+                let specificStrike: number | undefined = undefined;
+                if (derivType === "FUTURE" && expiry.futureInstrument?.instrumentSymbol === activeInstrumentSymbol) {
+                    instrumentDetail = expiry.futureInstrument; specificType = "FUTURE";
+                } else if (derivType === "OPTION") {
+                    const call = expiry.callStrikes?.find(s => s.instrumentSymbol === activeInstrumentSymbol);
+                    if (call) { instrumentDetail = call; specificType = "OPTION"; specificOptionType = "CALL"; specificStrike = call.strikePrice; }
+                    else { const put = expiry.putStrikes?.find(s => s.instrumentSymbol === activeInstrumentSymbol);
+                        if (put) { instrumentDetail = put; specificType = "OPTION"; specificOptionType = "PUT"; specificStrike = put.strikePrice; }
+                    }
+                }
+                if (instrumentDetail && specificType) {
+                    const defaultTick = specificType === "OPTION" ? selectedUnderlying.defaultOptionTickSize : selectedUnderlying.defaultFutureTickSize;
+                    const defaultLot = specificType === "OPTION" ? selectedUnderlying.defaultOptionLotSize : selectedUnderlying.defaultFutureLotSize;
                     return {
-                        pk: pkMarketKey(expiry.futureInstrument.instrumentSymbol, currentMode), // Construct PK
-                        sk: "META",
-                        symbol: expiry.futureInstrument.instrumentSymbol,
-                        type: "FUTURE",
-                        underlyingPairSymbol: selectedUnderlying.symbol, // <<< FIX: Add underlyingPairSymbol
-                        baseAsset: selectedUnderlying.baseAsset,
-                        quoteAsset: selectedUnderlying.quoteAsset,
-                        status: "ACTIVE", // Assuming active if selectable
-                        mode: currentMode,
-                        tickSize: selectedUnderlying.defaultFutureTickSize,
-                        lotSize: selectedUnderlying.defaultFutureLotSize,
-                        expiryTs: expiry.expiryTs,
-                        createdAt: 0, // Placeholder, actual meta would have this
-                        updatedAt: Date.now(),
+                        pk: pkMarketKey(instrumentDetail.instrumentSymbol, currentMode), sk: "META",
+                        symbol: instrumentDetail.instrumentSymbol, type: specificType,
+                        underlyingPairSymbol: selectedUnderlying.symbol,
+                        baseAsset: selectedUnderlying.baseAsset, quoteAsset: selectedUnderlying.quoteAsset,
+                        status: "ACTIVE", mode: currentMode,
+                        tickSize: defaultTick, lotSize: defaultLot,
+                        expiryTs: expiry.expiryTs, strikePrice: specificStrike, optionType: specificOptionType,
+                        createdAt: 0, updatedAt: Date.now(),
+                        gsi1pk: constructGsi1pk(selectedUnderlying.symbol, currentMode, specificType),
+                        gsi1sk: constructGsi1sk("ACTIVE", instrumentDetail.instrumentSymbol, expiry.expiryTs, specificStrike, specificOptionType),
                     };
                 }
-                const call = expiry.callStrikes?.find(s => s.instrumentSymbol === activeInstrumentSymbol);
-                if (call) return {
-                    pk: pkMarketKey(call.instrumentSymbol, currentMode), sk: "META", symbol: call.instrumentSymbol, type: "OPTION",
-                    underlyingPairSymbol: selectedUnderlying.symbol, // <<< FIX: Add underlyingPairSymbol
-                    baseAsset: selectedUnderlying.baseAsset, quoteAsset: selectedUnderlying.quoteAsset,
-                    status: "ACTIVE", mode: currentMode, tickSize: selectedUnderlying.defaultOptionTickSize, lotSize: selectedUnderlying.defaultOptionLotSize,
-                    expiryTs: expiry.expiryTs, strikePrice: call.strikePrice, optionType: "CALL", createdAt: 0, updatedAt: Date.now(),
-                };
-                const put = expiry.putStrikes?.find(s => s.instrumentSymbol === activeInstrumentSymbol);
-                if (put) return {
-                    pk: pkMarketKey(put.instrumentSymbol, currentMode), sk: "META", symbol: put.instrumentSymbol, type: "OPTION",
-                    underlyingPairSymbol: selectedUnderlying.symbol, // <<< FIX: Add underlyingPairSymbol
-                    baseAsset: selectedUnderlying.baseAsset, quoteAsset: selectedUnderlying.quoteAsset,
-                    status: "ACTIVE", mode: currentMode, tickSize: selectedUnderlying.defaultOptionTickSize, lotSize: selectedUnderlying.defaultOptionLotSize,
-                    expiryTs: expiry.expiryTs, strikePrice: put.strikePrice, optionType: "PUT", createdAt: 0, updatedAt: Date.now(),
-                };
             }
             return null;
         };
-        // Search in options first, then futures
-        const foundInstrument = findInstrument(instrumentsForSelectedUnderlying.options) || findInstrument(instrumentsForSelectedUnderlying.futures);
+        const foundInstrument = findInstrument(instrumentsForSelectedUnderlying.options, "OPTION") || findInstrument(instrumentsForSelectedUnderlying.futures, "FUTURE");
         if (foundInstrument) return foundInstrument;
     }
-    // If activeInstrumentSymbol is set but not found in the loaded instruments (e.g. stale context), fallback to underlying
-    // or ideally, activeInstrumentSymbol should be cleared if its details are not found.
-    // For now, returning selectedUnderlying.
-    console.warn(`MarketInfoBar: activeInstrumentSymbol '${activeInstrumentSymbol}' not found in fetched instruments for ${selectedUnderlying.symbol}. Falling back to underlying.`);
+    console.warn(`MarketInfoBar: activeInstrumentSymbol '${activeInstrumentSymbol}' details not fully resolved. Falling back to selectedUnderlying.`);
     return selectedUnderlying;
   }, [activeInstrumentSymbol, selectedUnderlying, instrumentsForSelectedUnderlying, currentMode]);
 
 
-  const liveDataForActiveInstrument = useMemo(() => {
+  const liveDataForActiveInstrument = useMemo(() => { /* ... same as before ... */
     const emptyData = { markPrice: null, lastTrade: null, fundingRate: null, summary: null };
     if (!activeInstrumentSymbol || !isWsConnected) return emptyData;
-    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isCorrectMarket = (data: any) => data && data.market === activeInstrumentSymbol && data.mode === currentMode;
-
     return {
       markPrice: isCorrectMarket(marketSpecificData.markPrice) ? marketSpecificData.markPrice : null,
       lastTrade: isCorrectMarket(marketSpecificData.lastTrade) ? marketSpecificData.lastTrade : null,
@@ -142,11 +136,53 @@ const MarketInfoBar: React.FC = () => {
 
 
   const displayValues = useMemo(() => {
-    const base = {
-      symbol: activeInstrumentSymbol || selectedUnderlying?.symbol || 'N/A',
-      type: displayMarketDefinition?.type,
-      tickSize: displayMarketDefinition ? ('tickSize' in displayMarketDefinition ? displayMarketDefinition.tickSize : displayMarketDefinition.tickSizeSpot) : undefined,
-      lotSize: displayMarketDefinition ? ('lotSize' in displayMarketDefinition ? displayMarketDefinition.lotSize : displayMarketDefinition.lotSizeSpot) : undefined,
+    // Define base values if displayMarketDefinition is null
+    const defaultBaseValues = {
+        symbol: selectedUnderlying?.symbol || 'N/A',
+        type: selectedUnderlying?.type,
+        tickSize: selectedUnderlying?.tickSizeSpot,
+        lotSize: selectedUnderlying?.lotSizeSpot,
+        quoteAsset: selectedUnderlying?.quoteAsset || "USDC",
+        baseAssetForIndex: selectedUnderlying?.baseAsset, // For index price if only underlying is selected
+        tickSizeForIndex: selectedUnderlying?.tickSizeSpot,
+        isDerivativeView: false,
+        timeToExpiry: null,
+        // Live data will be from emptyData if no activeInstrumentSymbol
+        markPrice: null, lastTradePrice: null, prevTradePrice: null,
+        change24h: null, volume24h: 'N/A', openInterest: 'N/A',
+        indexPrice: null, fundingRate: null,
+    };
+
+    if (!displayMarketDefinition) { // Handles case where selectedUnderlying might also be null initially
+        return {
+            ...defaultBaseValues,
+            symbol: activeInstrumentSymbol || 'N/A', // Show activeInstrumentSymbol if available
+            markPrice: liveDataForActiveInstrument.markPrice?.price,
+            lastTradePrice: liveDataForActiveInstrument.lastTrade?.price,
+            prevTradePrice: liveDataForActiveInstrument.lastTrade?.prevPrice,
+            change24h: liveDataForActiveInstrument.summary?.change24h,
+            volume24h: liveDataForActiveInstrument.summary?.volume24h,
+            openInterest: liveDataForActiveInstrument.summary?.openInterest,
+            indexPrice: liveDataForActiveInstrument.summary?.indexPrice,
+            fundingRate: liveDataForActiveInstrument.fundingRate?.fundingRate ?? liveDataForActiveInstrument.summary?.fundingRate,
+        };
+    }
+
+    // Determine the base asset for index price context
+    let baseAssetForIndexContext = displayMarketDefinition.baseAsset;
+    if ('underlyingPairSymbol' in displayMarketDefinition && displayMarketDefinition.underlyingPairSymbol) {
+        baseAssetForIndexContext = displayMarketDefinition.underlyingPairSymbol.split('/')[0];
+    }
+    
+    // Determine tick size for index price (should be from the underlying spot market)
+    const tickSizeForIndexPrice = selectedUnderlying?.tickSizeSpot;
+
+
+    return {
+      symbol: displayMarketDefinition.symbol, // This is now the specific instrument or underlying spot
+      type: displayMarketDefinition.type,
+      tickSize: 'tickSize' in displayMarketDefinition ? displayMarketDefinition.tickSize : displayMarketDefinition.tickSizeSpot,
+      lotSize: 'lotSize' in displayMarketDefinition ? displayMarketDefinition.lotSize : displayMarketDefinition.lotSizeSpot,
       markPrice: liveDataForActiveInstrument.markPrice?.price ?? liveDataForActiveInstrument.summary?.markPrice,
       lastTradePrice: liveDataForActiveInstrument.lastTrade?.price,
       prevTradePrice: liveDataForActiveInstrument.lastTrade?.prevPrice,
@@ -155,17 +191,17 @@ const MarketInfoBar: React.FC = () => {
       openInterest: liveDataForActiveInstrument.summary?.openInterest,
       indexPrice: liveDataForActiveInstrument.summary?.indexPrice,
       fundingRate: liveDataForActiveInstrument.fundingRate?.fundingRate ?? liveDataForActiveInstrument.summary?.fundingRate,
-      timeToExpiry: displayMarketDefinition && 'expiryTs' in displayMarketDefinition && displayMarketDefinition.expiryTs ? formatTimeToExpiry(displayMarketDefinition.expiryTs) : null,
-      isDerivativeActive: !!activeInstrumentSymbol && activeInstrumentSymbol !== selectedUnderlying?.symbol,
-      quoteAsset: displayMarketDefinition?.quoteAsset || "USDC", // Fallback for quote asset
-      underlyingForIndex: displayMarketDefinition?.type !== "SPOT" && displayMarketDefinition?.underlyingPairSymbol ? displayMarketDefinition.underlyingPairSymbol.split('/')[0] : displayMarketDefinition?.baseAsset
+      timeToExpiry: 'expiryTs' in displayMarketDefinition && displayMarketDefinition.expiryTs ? formatTimeToExpiry(displayMarketDefinition.expiryTs) : null,
+      isDerivativeView: !!activeInstrumentSymbol && activeInstrumentSymbol !== selectedUnderlying?.symbol,
+      quoteAsset: displayMarketDefinition.quoteAsset || "USDC",
+      baseAssetForIndexDisplay: baseAssetForIndexContext, // Corrected: Use determined base asset
+      tickSizeForIndex: tickSizeForIndexPrice, // Corrected: Use underlying's spot tick size
     };
-    return base;
-  }, [activeInstrumentSymbol, selectedUnderlying, displayMarketDefinition, liveDataForActiveInstrument]);
+  }, [selectedUnderlying, displayMarketDefinition, liveDataForActiveInstrument, activeInstrumentSymbol]);
 
 
+  // ... (Skeleton loading and No Market Selected JSX as before) ...
   if (isLoadingUnderlyings && !selectedUnderlying) {
-    // ... skeleton loader as before ...
     return (
       <div className={styles.infoBar}>
         <SkeletonLoader type="text" width="150px" height="28px" className={styles.skeletonTitle} />
@@ -181,10 +217,16 @@ const MarketInfoBar: React.FC = () => {
     );
   }
 
-  if (!selectedUnderlying) {
+  if (!selectedUnderlying) { // This implies displayMarketDefinition will also be null
     return (
       <div className={styles.infoBar}>
-        <h2 className={styles.marketSymbolDisplay}>Select Underlying Pair</h2>
+        <div className={styles.marketTitleSection}>
+            <Tooltip content="No Underlying Selected">
+              <Layers size={18} className={styles.mainIcon} />
+            </Tooltip>
+             <h2 className={styles.marketSymbolDisplay}>Select Pair</h2>
+        </div>
+        {/* Optionally show a minimal set of empty info items or a message */}
       </div>
     );
   }
@@ -200,12 +242,22 @@ const MarketInfoBar: React.FC = () => {
   return (
     <div className={styles.infoBar}>
       <div className={styles.marketTitleSection}>
-        <div title={selectedUnderlying.symbol}>
-          <Layers size={18} className={styles.mainIcon} />
-        </div>
-        <h2 className={styles.marketSymbolDisplay} title={activeInstrumentSymbol || selectedUnderlying.symbol}>
-            {activeInstrumentSymbol ? activeInstrumentSymbol : selectedUnderlying.symbol}
-        </h2>
+        <Tooltip content={`Underlying Pair: ${selectedUnderlying.symbol}`}>
+            <div className={styles.underlyingPairDisplay}>
+                <Layers size={16} className={styles.mainIcon} />
+                <span>{selectedUnderlying.symbol}</span>
+            </div>
+        </Tooltip>
+
+        {displayValues.isDerivativeView && displayValues.symbol !== selectedUnderlying.symbol && (
+            <>
+                <span className={styles.separator}>›</span>
+                <h2 className={styles.marketSymbolDisplay} title={displayValues.symbol}>
+                    {displayValues.symbol.replace(selectedUnderlying.symbol + "-", "")}
+                </h2>
+            </>
+        )}
+        
         <div className={`${styles.priceDisplay} ${priceColorClass}`}>
           {isWsConnected && primaryPriceToDisplay !== null && primaryPriceToDisplay !== undefined ? 
             formatPrice(primaryPriceToDisplay, displayValues.tickSize) : 
@@ -217,7 +269,7 @@ const MarketInfoBar: React.FC = () => {
                 <TrendingUp size={14} style={{ transform: displayValues.change24h < 0 ? 'rotate(180deg)' : 'none' }} />
                 {formatPercentage(displayValues.change24h, 2, true)}
             </span>
-        ) : isWsConnected ? (
+        ) : isWsConnected && activeInstrumentSymbol ? ( // Show skeleton only if an instrument is active
             <span className={styles.change24h}><SkeletonLoader width="60px" height="18px" /></span>
         ) : null }
       </div>
@@ -233,11 +285,11 @@ const MarketInfoBar: React.FC = () => {
         </Tooltip>
 
         {(displayValues.type === 'PERP' || displayValues.type === 'FUTURE') && (
-            <Tooltip content={`Index Price: Oracle-based price of the underlying ${displayValues.underlyingForIndex || 'asset'}.`}>
+            <Tooltip content={`Index Price: Oracle-based price of the underlying ${displayValues.baseAssetForIndexDisplay || 'asset'}.`}>
                 <div className={styles.infoItem}>
                     <span className={styles.label}>Index <Info size={12} /></span>
                     <span className={styles.value}>
-                        {isWsConnected && displayValues.indexPrice !== null && displayValues.indexPrice !== undefined ? formatPrice(displayValues.indexPrice, selectedUnderlying.tickSizeSpot) : <SkeletonLoader width="70px" />}
+                        {isWsConnected && displayValues.indexPrice !== null && displayValues.indexPrice !== undefined ? formatPrice(displayValues.indexPrice, displayValues.tickSizeForIndex) : <SkeletonLoader width="70px" />}
                     </span>
                 </div>
             </Tooltip>
@@ -266,24 +318,19 @@ const MarketInfoBar: React.FC = () => {
         <Tooltip content="Open Interest: Total number of outstanding contracts (in base asset units or number of contracts).">
             <div className={styles.infoItem}>
                 <span className={styles.label}>Open Interest <Zap size={12} /></span>
-                <span className={styles.value}>{isWsConnected ? formatBigNumber(displayValues.openInterest) : <SkeletonLoader width="80px" />}</span>
+                <span className={styles.value}>{isWsConnected && displayValues.openInterest !== "N/A" ? formatBigNumber(displayValues.openInterest) : (isWsConnected ? "N/A" : <SkeletonLoader width="80px" />)}</span>
             </div>
         </Tooltip>
 
         <Tooltip content="24h Volume: Total value traded in the last 24 hours (in quote currency).">
             <div className={styles.infoItem}>
                 <span className={styles.label}>24h Volume</span>
-                <span className={styles.value}>{isWsConnected ? formatBigNumber(displayValues.volume24h, '0') : <SkeletonLoader width="70px" />}</span>
+                <span className={styles.value}>{isWsConnected && displayValues.volume24h !== "N/A" ? formatBigNumber(displayValues.volume24h, '0') : (isWsConnected ? "0" :<SkeletonLoader width="70px" />)}</span>
             </div>
         </Tooltip>
       </div>
     </div>
   );
 };
-
-// Helper to construct PK for market key, assuming it's needed for some meta construction
-// This might not be needed if all data comes from context that already has full objects.
-const pkMarketKey = (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`;
-
 
 export default MarketInfoBar;
