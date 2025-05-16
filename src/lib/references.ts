@@ -6,6 +6,19 @@ interface SystemMetadataRecord {
     provisionTargetNumber: number;
   }
   
+export const SUPPORTED_SYNTH_ASSETS = [
+  { symbol: "sBTC", name: "Synthetic BTC", baseForOracle: "BTC", decimals: 8 },
+  { symbol: "sETH", name: "Synthetic ETH", baseForOracle: "ETH", decimals: 8 },
+  { symbol: "sPEAQ", name: "Synthetic PEAQ", baseForOracle: "PEAQ", decimals: 6 },
+  { symbol: "sAVAX", name: "Synthetic AVAX", baseForOracle: "AVAX", decimals: 8 },
+  { symbol: "sSOL", name: "Synthetic SOL", baseForOracle: "SOL", decimals: 9 },
+  { symbol: "sBNB", name: "Synthetic BNB", baseForOracle: "BNB", decimals: 8 },
+  { symbol: "sNEAR", name: "Synthetic NEAR", baseForOracle: "NEAR", decimals: 8 },
+  { symbol: "sOP", name: "Synthetic OP", baseForOracle: "OP", decimals: 8 },
+  { symbol: "sDOT", name: "Synthetic DOT", baseForOracle: "DOT", decimals: 10 },
+];
+export const USDC_ASSET_INFO = { symbol: "USDC", name: "USD Coin", decimals: 6 };
+
   export const SystemProvisionReference: SystemMetadataRecord[] = [
     // EMBEDDINGS
     {

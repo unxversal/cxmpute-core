@@ -2,112 +2,167 @@
 .balancesContainer {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  background-color: #171b26; /* Dark panel background */
+  gap: 12px; /* Reduced gap */
+  padding: 12px 16px; /* Compact padding */
+  background-color: #171b26;
   color: #d1d4dc;
   border-radius: 6px;
   border: 1px solid #2a2f3b;
-  height: 100%; /* Allow it to fill parent height */
+  height: 100%;
+  min-height: 250px; /* Ensure some minimum height */
 }
 
 .header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding-bottom: 10px;
+  padding-bottom: 8px; /* Reduced padding */
   border-bottom: 1px solid #2a2f3b;
+  margin-bottom: 4px; /* Reduced margin */
 }
-
+.titleContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 .title {
-  font-size: 0.9rem;
+  font-size: 0.85rem; /* Smaller title */
   font-weight: 600;
   color: #c0c5ce;
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.header svg {
-    color: var(--cxmpute-purple, #91a8eb);
+.header svg { /* Icon in title */
+  color: var(--cxmpute-purple, #91a8eb);
+}
+.header button svg { /* Refresh icon */
+    color: #8690a2;
+}
+.header button:hover svg {
+    color: #c0c5ce;
 }
 
+
 .globalError {
-    font-size: 0.8rem;
-    color: var(--cxmpute-red, #d64989);
-    padding: 8px;
-    background-color: rgba(214, 73, 137, 0.1);
-    border: 1px solid var(--cxmpute-red, #d64989);
-    border-radius: 4px;
-    text-align: center;
+  font-size: 0.8rem;
+  color: var(--cxmpute-red, #d64989);
+  padding: 8px;
+  background-color: rgba(214, 73, 137, 0.1);
+  border: 1px solid var(--cxmpute-red, #d64989);
+  border-radius: 4px;
+  text-align: center;
 }
+.noBalances {
+    text-align: center;
+    color: #6b778c;
+    font-size: 0.85rem;
+    padding: 20px 0;
+    font-style: italic;
+}
+
 
 .balancesList {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px; /* Tighter rows */
+  flex-grow: 1; /* Allow list to take space */
+  overflow-y: auto; /* Scroll if many assets */
+  min-height: 50px; /* Min height for the list area */
+  padding-right: 4px; /* Space for scrollbar */
+
+  scrollbar-width: thin;
+  scrollbar-color: #3e4556 #171b26;
 }
+.balancesList::-webkit-scrollbar { width: 4px; }
+.balancesList::-webkit-scrollbar-track { background: #171b26; }
+.balancesList::-webkit-scrollbar-thumb { background-color: #3e4556; border-radius: 2px; }
+
 
 .balanceRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0; /* Vertical padding */
-  font-size: 0.875rem;
+  padding: 5px 0; /* Compact vertical padding */
+  font-size: 0.8rem; /* Smaller font for balance rows */
 }
 
-.assetLabel {
-  color: #8690a2; /* Muted label color */
+.assetInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.assetSymbol {
+  color: #c0c5ce; /* Slightly brighter symbol */
   font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
-.assetLabel svg {
-    opacity: 0.8;
+.assetName {
+    font-size: 0.7rem;
+    color: #8690a2;
 }
 
+.amountInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
 .assetAmount {
-  color: #e0e0e0; /* Brighter amount color */
+  color: #e0e0e0;
   font-weight: 600;
-  font-family: monospace; /* Good for numbers */
+  font-family: monospace;
 }
-
 .pendingAmount {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #6b778c;
-  margin-left: 6px;
+  /* margin-left: 6px; */ /* Removed to stack below */
+  font-style: italic;
 }
-.errorText {
-    color: var(--cxmpute-red, #d64989);
-    font-style: italic;
-    font-size: 0.8rem;
+.errorTextSmall {
+  color: var(--cxmpute-red, #d64989);
+  font-style: italic;
+  font-size: 0.75rem;
 }
-
 
 .paperSection {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed #2a2f3b; /* Dashed separator for paper section */
+  margin-top: 10px; /* Adjusted margin */
+  padding-top: 10px;
+  border-top: 1px dashed #2a2f3b;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
-.paperSection .balanceRow {
-    padding-bottom: 0; /* Reduce padding for points row */
+.paperSection .assetLabel { /* Specifically for Paper Points row if needed */
+    color: var(--cxmpute-yellow);
+}
+.paperSection .assetLabel svg {
+    color: var(--cxmpute-yellow);
 }
 
 
 .actions {
-  margin-top: auto; /* Push actions to the bottom if container has extra space */
-  padding-top: 16px;
+  margin-top: auto; 
+  padding-top: 12px;
   border-top: 1px solid #2a2f3b;
   display: flex;
-  gap: 10px;
-  justify-content: space-around; /* Distribute buttons */
-  flex-wrap: wrap; /* Allow buttons to wrap on smaller widths */
+  gap: 8px; /* Tighter gap for action buttons */
+  justify-content: space-around;
+  flex-wrap: nowrap; /* Prevent wrapping for main actions if possible */
+  flex-shrink: 0; /* Prevent actions from shrinking */
+}
+.actions > * { /* Button direct children */
+    flex-grow: 1; /* Allow buttons to grow equally */
+    min-width: 90px;
+    padding: 6px 10px !important; /* More compact buttons */
+    font-size: 0.75rem !important;
+}
+.actions svg {
+    width: 14px; height: 14px; /* Smaller icons in buttons */
 }
 
-.actions > * { /* Target direct children of actions for flex-basis */
-    flex-basis: calc(50% - 5px); /* Aim for two buttons per row, accounting for gap */
-    min-width: 120px; /* Ensure buttons don't get too squished */
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

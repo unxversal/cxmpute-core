@@ -1,193 +1,217 @@
 // src/components/trade/BalancesInfo/BalancesInfo.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import styles from './BalancesInfo.module.css';
 import { useAccountContext } from '@/contexts/AccountContext';
 import { useTradingMode } from '@/contexts/TradingModeContext';
-import Button from '@/components/ui/Button/Button'; // Your UI Button
+import Button from '@/components/ui/Button/Button';
 import PaperFaucetButton from '@/components/trade/PaperFaucetButton/PaperFaucetButton';
+import DepositModal from '@/components/trade/DepositModal/DepositModal'; // Assuming path
+import WithdrawModal from '@/components/trade/WithdrawModal/WithdrawModal'; // Assuming path
+import SynthExchangeModal from '@/components/trade/SynthExchangeModal/SynthExchangeModal'; // Assuming path & exported constants
+import { USDC_ASSET_INFO, SUPPORTED_SYNTH_ASSETS } from '@/lib/references';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
-import { Wallet, Coins, Award, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
-import type { Balance } from '@/lib/interfaces'; // Assuming Balance has asset, balance, pending
+import { Wallet, Award, Repeat, ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react';
+import type { Balance } from '@/lib/interfaces';
+import Tooltip from '@/components/ui/Tooltip/Tooltip';
 
-// Placeholder for Modal components - to be implemented later
-// For now, buttons will just log or set a simple state
-// import DepositModal from '@/components/trade/DepositModal/DepositModal';
-// import WithdrawModal from '@/components/trade/WithdrawModal/WithdrawModal';
+// Centralized Decimal Configuration (could be moved to a shared constants file)
+const ASSET_DECIMALS: Record<string, number> = {
+  [USDC_ASSET_INFO.symbol]: USDC_ASSET_INFO.decimals,
+  "CXPT": 18, // Assuming 18 for CXPT
+  ...SUPPORTED_SYNTH_ASSETS.reduce((acc, asset) => {
+    acc[asset.symbol] = asset.decimals;
+    return acc;
+  }, {} as Record<string, number>)
+};
+
+const getAssetDisplayInfo = (assetSymbol: string): { name: string; decimals: number } => {
+    if (assetSymbol === USDC_ASSET_INFO.symbol) return { name: USDC_ASSET_INFO.name, decimals: USDC_ASSET_INFO.decimals };
+    if (assetSymbol === "CXPT") return { name: "Cxmpute Token", decimals: ASSET_DECIMALS["CXPT"] || 18 };
+    const synth = SUPPORTED_SYNTH_ASSETS.find(s => s.symbol === assetSymbol);
+    if (synth) return { name: synth.name, decimals: synth.decimals };
+    return { name: assetSymbol, decimals: 8 }; // Fallback
+};
 
 
-// Helper to format large balance numbers (USDC, CXPT usually have 6-18 decimals)
-// This needs to be robust based on how your 'balance' numbers are stored (e.g., string for BigInts, or number)
-const formatBalance = (balanceValue: number | string | undefined, decimals: number = 6): string => {
-    if (balanceValue === undefined || balanceValue === null) return '-.--';
+// Robust formatting function
+const formatDisplayBalance = (
+    balanceValueStr: string | number | undefined | null,
+    assetSymbol: string
+): string => {
+    if (balanceValueStr === undefined || balanceValueStr === null) return '-.--';
+    
+    const assetInfo = getAssetDisplayInfo(assetSymbol);
+    const decimals = assetInfo.decimals;
+
     try {
-        const num = typeof balanceValue === 'string' ? parseFloat(balanceValue) : balanceValue;
-        if (isNaN(num)) return '-.--';
-        
-        // If it's a whole number already (e.g., from BigInt conversion without decimals)
-        // or a number that represents base units
-        const val = num / (10 ** decimals);
+        const balanceBigInt = BigInt(String(balanceValueStr)); // Expects base units as string/number
+        const divisor = BigInt(10) ** BigInt(decimals);
+        const wholePart = balanceBigInt / divisor;
+        const fractionalPart = balanceBigInt % divisor;
 
-        if (val === 0) return "0.00";
-        if (Math.abs(val) < 0.000001) return val.toExponential(2);
-        if (Math.abs(val) < 1) return val.toFixed(Math.min(decimals, 4)); // Show up to 4 decimals for small amounts
-        return val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+        
+        // Determine display precision: show significant decimals, up to a max like 4-6 for UI
+        const displayPrecision = Math.min(decimals, assetSymbol === "USDC" || assetSymbol === "CXPT" ? 2 : 4);
+        fractionalStr = fractionalStr.substring(0, displayPrecision);
+        
+        // Remove trailing zeros from fractional part if it's not all zeros after displayPrecision
+        if (fractionalStr.length > 0 && displayPrecision < decimals) {
+             // only remove trailing zeros if we truncated
+        } else if (fractionalStr.length > 0) {
+            // fractionalStr = fractionalStr.replace(/0+$/, ""); // This might remove too much, e.g., 1.5000 -> 1.5
+        }
+
+        if (fractionalStr.length > 0) {
+            return `${wholePart.toLocaleString()}.${fractionalStr}`;
+        }
+        return wholePart.toLocaleString();
+
     } catch (e) {
-        console.error("Error formatting balance:", e, "Value:", balanceValue);
-        return "Error";
+        console.error("Error formatting balance:", e, "Value:", balanceValueStr, "Asset:", assetSymbol);
+        // Fallback for non-BigInt numbers or if string parsing fails
+        const num = Number(balanceValueStr);
+        if (isNaN(num)) return "Error";
+        return num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: Math.min(decimals, 6)});
     }
 };
 
+
 const BalancesInfo: React.FC = () => {
-  const { balances, paperPoints, isLoading, error } = useAccountContext();
+  const { balances, paperPoints, isLoading, error, refreshAllAccountData } = useAccountContext();
   const { currentMode } = useTradingMode();
 
-  // State for controlling deposit/withdraw modals (to be used when modals are implemented)
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [assetForModal, setAssetForModal] = useState<'USDC' | 'CXPT' | null>(null);
+  const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
 
-  const openDepositModal = (asset: 'USDC' | 'CXPT') => {
-    setAssetForModal(asset);
-    setIsDepositModalOpen(true);
-    console.log(`Open deposit modal for ${asset}`); // Placeholder
-  };
+  // Memoize sorted balances for stable rendering order
+  const sortedBalances = useMemo(() => {
+    // Prioritize USDC, then CXPT, then sASSETs alphabetically
+    return [...balances].sort((a, b) => {
+      if (a.asset === "USDC") return -1;
+      if (b.asset === "USDC") return 1;
+      if (a.asset === "CXPT") return -1;
+      if (b.asset === "CXPT") return 1;
+      return (a.asset || "").localeCompare(b.asset || "");
+    });
+  }, [balances]);
 
-  const openWithdrawModal = (asset: 'USDC' | 'CXPT') => {
-    setAssetForModal(asset);
-    setIsWithdrawModalOpen(true);
-    console.log(`Open withdraw modal for ${asset}`); // Placeholder
-  };
-
-  const usdcBalance = balances.find(b => b.asset === 'USDC');
-  const cxptBalance = balances.find(b => b.asset === 'CXPT');
-  // Add other assets if you track them, e.g., synth balances in paper mode
-
-  const renderBalanceRow = (
-    label: string,
-    balanceItem: Partial<Balance> | undefined,
-    assetSymbol: 'USDC' | 'CXPT',
-    decimals: number = 6
-  ) => {
-    if (isLoading.balances) {
-      return (
-        <div className={styles.balanceRow}>
-          <span className={styles.assetLabel}>{label}</span>
-          <SkeletonLoader width="100px" height="20px" />
-        </div>
-      );
-    }
-    if (error.balances && !balanceItem) { // Show error only if no specific balance item is found for this asset
-        return (
-            <div className={styles.balanceRow}>
-                <span className={styles.assetLabel}>{label}</span>
-                <span className={styles.errorText}>Error loading</span>
-            </div>
-        );
-    }
+  const renderBalanceRow = (balanceItem: Partial<Balance>) => {
+    if (!balanceItem.asset) return null;
+    const assetInfo = getAssetDisplayInfo(balanceItem.asset);
 
     return (
-      <div className={styles.balanceRow}>
-        <span className={styles.assetLabel}>{label}</span>
-        <span className={styles.assetAmount} title={String(balanceItem?.balance || '0')}>
-          {formatBalance(balanceItem?.balance, decimals)}
-        </span>
-        {/* Optional: Display pending amounts
-        {balanceItem?.pending && Number(balanceItem.pending) !== 0 && (
-          <span className={styles.pendingAmount} title={`Pending: ${formatBalance(balanceItem.pending, decimals)}`}>
-            ({formatBalance(balanceItem.pending, decimals)})
+      <div className={styles.balanceRow} key={balanceItem.asset}>
+        <div className={styles.assetInfo}>
+            <span className={styles.assetSymbol}>{balanceItem.asset}</span>
+            <span className={styles.assetName}>{assetInfo.name}</span>
+        </div>
+        <div className={styles.amountInfo} title={`Full: ${balanceItem.balance || '0'} base units`}>
+          <span className={styles.assetAmount}>
+            {formatDisplayBalance(balanceItem.balance, balanceItem.asset)}
           </span>
-        )} */}
+          {balanceItem.pending && BigInt(balanceItem.pending) !== BigInt(0) && (
+            <Tooltip content={`Pending/Locked: ${formatDisplayBalance(balanceItem.pending, balanceItem.asset)}`}>
+              <span className={styles.pendingAmount}>
+                (In Orders: {formatDisplayBalance(balanceItem.pending, balanceItem.asset)})
+              </span>
+            </Tooltip>
+          )}
+        </div>
       </div>
     );
   };
 
   return (
-    <div className={styles.balancesContainer}>
-      <div className={styles.header}>
-        <Wallet size={18} />
-        <h3 className={styles.title}>Account Balances ({currentMode})</h3>
-      </div>
-
-      {error.balances && <p className={styles.globalError}>Failed to load balances: {error.balances}</p>}
-
-      <div className={styles.balancesList}>
-        {renderBalanceRow('USDC Balance', usdcBalance, 'USDC', 6)}
-        {renderBalanceRow('CXPT Balance', cxptBalance, 'CXPT', 18)} {/* Assuming 18 decimals for CXPT */}
-        {/* Add more assets here if needed */}
-      </div>
-
-      {currentMode === 'PAPER' && (
-        <div className={styles.paperSection}>
-            {isLoading.points ? (
-                <div className={styles.balanceRow}>
-                    <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
-                    <SkeletonLoader width="80px" height="20px" />
-                </div>
-            ) : error.points ? (
-                 <div className={styles.balanceRow}>
-                    <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
-                    <span className={styles.errorText}>Error</span>
-                </div>
-            ) : (
-                <div className={styles.balanceRow}>
-                    <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
-                    <span className={styles.assetAmount}>
-                    {paperPoints?.totalPoints?.toLocaleString() || '0'}
-                    </span>
-                </div>
-            )}
-          <PaperFaucetButton />
+    <>
+      <div className={styles.balancesContainer}>
+        <div className={styles.header}>
+            <div className={styles.titleContainer}>
+                <Wallet size={18} />
+                <h3 className={styles.title}>Balances ({currentMode})</h3>
+            </div>
+            <Button variant="ghost" size="sm" onClick={refreshAllAccountData} disabled={Object.values(isLoading).some(Boolean)} title="Refresh all account data">
+                <RefreshCw size={14} className={Object.values(isLoading).some(Boolean) ? styles.spin : ''} />
+            </Button>
         </div>
-      )}
 
-      {currentMode === 'REAL' && (
+        {isLoading.balances && sortedBalances.length === 0 && (
+          <div className={styles.balancesList}>
+            {Array.from({length: 3}).map((_, i) => (
+              <div className={styles.balanceRow} key={`skel-bal-${i}`}>
+                <SkeletonLoader width="80px" height="18px" />
+                <SkeletonLoader width="100px" height="18px" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isLoading.balances && error.balances && <p className={styles.globalError}>Failed to load balances: {error.balances}</p>}
+        
+        {!isLoading.balances && !error.balances && sortedBalances.length === 0 && (
+            <p className={styles.noBalances}>No balances found for {currentMode} mode.</p>
+        )}
+
+        {!isLoading.balances && !error.balances && sortedBalances.length > 0 && (
+          <div className={styles.balancesList}>
+            {sortedBalances.map(renderBalanceRow)}
+          </div>
+        )}
+
+        {currentMode === 'PAPER' && (
+          <div className={styles.paperSection}>
+              {isLoading.points ? (
+                  <div className={styles.balanceRow}>
+                      <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
+                      <SkeletonLoader width="80px" height="18px" />
+                  </div>
+              ) : error.points ? (
+                  <div className={styles.balanceRow}>
+                      <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
+                      <span className={styles.errorTextSmall}>Error</span>
+                  </div>
+              ) : (
+                  <div className={styles.balanceRow}>
+                      <span className={styles.assetLabel}><Award size={16} /> Paper Points</span>
+                      <span className={styles.assetAmount}>
+                      {paperPoints?.totalPoints?.toLocaleString() || '0'}
+                      </span>
+                  </div>
+              )}
+            <PaperFaucetButton />
+          </div>
+        )}
+
         <div className={styles.actions}>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => openDepositModal('USDC')}
-            iconLeft={<ArrowDownCircle size={16} />}
-          >
-            Deposit USDC
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => openWithdrawModal('USDC')}
-            iconLeft={<ArrowUpCircle size={16} />}
-          >
-            Withdraw USDC
-          </Button>
-           <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => openWithdrawModal('CXPT')}
-            iconLeft={<ArrowUpCircle size={16} />}
-            disabled={!cxptBalance || Number(cxptBalance.balance) === 0} // Example disabled state
-          >
-            Withdraw CXPT
+          {currentMode === 'REAL' && (
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setIsDepositModalOpen(true)} iconLeft={<ArrowDownCircle size={16} />}>
+                Deposit
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setIsWithdrawModalOpen(true)} iconLeft={<ArrowUpCircle size={16} />}>
+                Withdraw
+              </Button>
+            </>
+          )}
+          {/* Synth Exchange available in both modes for now, can restrict later if needed */}
+          <Button variant="secondary" size="sm" onClick={() => setIsExchangeModalOpen(true)} iconLeft={<Repeat size={16} />}>
+            Exchange Synths
           </Button>
         </div>
-      )}
+      </div>
 
-      {/* Placeholder for Modals - to be implemented fully later */}
-      {/* {isDepositModalOpen && assetForModal && (
-        <DepositModal
-          asset={assetForModal}
-          isOpen={isDepositModalOpen}
-          onClose={() => setIsDepositModalOpen(false)}
-        />
+      {/* Modals */}
+      {currentMode === 'REAL' && (
+        <>
+          <DepositModal isOpen={isDepositModalOpen} onClose={() => setIsDepositModalOpen(false)} />
+          <WithdrawModal isOpen={isWithdrawModalOpen} onClose={() => setIsWithdrawModalOpen(false)} />
+        </>
       )}
-      {isWithdrawModalOpen && assetForModal && (
-        <WithdrawModal
-          asset={assetForModal}
-          isOpen={isWithdrawModalOpen}
-          onClose={() => setIsWithdrawModalOpen(false)}
-        />
-      )} */}
-    </div>
+      <SynthExchangeModal isOpen={isExchangeModalOpen} onClose={() => setIsExchangeModalOpen(false)} />
+    </>
   );
 };
 
