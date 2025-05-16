@@ -1,76 +1,146 @@
-/* app/api/positions/route.ts */
+// src/app/api/positions/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  DynamoDBClient,
+  DynamoDBDocumentClient,
   QueryCommand,
-} from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import type { TradingMode, Position } from "@/lib/interfaces"; // Ensure TradingMode is defined
+  QueryCommandInput,
+  GetCommand,
+} from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
+import type { TradingMode, Position, MarketMeta } from "@/lib/interfaces";
+import { requireAuth, AuthenticatedUserSubject } from "@/lib/auth";
 
-const POSITIONS_TABLE = Resource.PositionsTable.name;
-const ddb = new DynamoDBClient({});
+const rawDdbClient = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(rawDdbClient);
 
-/**
- * Helper: derive PK for Positions/Balances tables
- * NEW: Incorporates trading mode.
- */
-const pkTraderMode = (traderId: string, mode: TradingMode) =>
-  `TRADER#${traderId}#${mode.toUpperCase()}`;
+const POSITIONS_TABLE_NAME = Resource.PositionsTable.name;
+const MARKETS_TABLE_NAME = Resource.MarketsTable.name;
 
-/* ————————————————————————————— GET /positions ——————————————————————————— */
+const pkTraderMode = (traderId: string, mode: TradingMode) => `TRADER#${traderId}#${mode.toUpperCase()}`;
+const pkMarketMetaKey = (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`;
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
-  const traderId = req.nextUrl.searchParams.get("traderId") ?? undefined;
-  const modeParam = req.nextUrl.searchParams.get("mode") ?? undefined;
-  const market = req.nextUrl.searchParams.get("market") ?? undefined; // Optional: filter by market
-
-  // --- Validation ---
-  if (!traderId) {
-    return NextResponse.json(
-      { error: "query parameter 'traderId' is required" },
-      { status: 400 }
-    );
+  let authenticatedUser: AuthenticatedUserSubject;
+  try {
+    authenticatedUser = await requireAuth();
+  } catch (authError: any) {
+    if (authError instanceof NextResponse) return authError;
+    console.error("GET /api/positions - Auth Error:", authError.message);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const traderId = authenticatedUser.properties.traderId;
+
+  const url = req.nextUrl;
+  const modeParam = url.searchParams.get("mode");
+  const marketFilter = url.searchParams.get("market");
+  const includeZeroPositions = url.searchParams.get("includeZero") === "true";
+
   if (!modeParam || (modeParam !== "REAL" && modeParam !== "PAPER")) {
-    return NextResponse.json(
-      { error: "query parameter 'mode' (REAL or PAPER) is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Query parameter 'mode' is required" }, { status: 400 });
   }
   const mode = modeParam as TradingMode;
-  // --- End Validation ---
 
   try {
-    // Construct the primary key for the query
     const pk = pkTraderMode(traderId, mode);
+    let keyConditionExpression = "pk = :pkVal";
+    const expressionAttributeValues: Record<string, any> = { ":pkVal": pk };
+    const expressionAttributeNames: Record<string, string> = {}; // Initialize
+    const filterExpressionParts: string[] = [];
 
-    // Determine KeyConditionExpression based on whether market filter is applied
-    let keyCondition = "pk = :pk";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expressionValues: Record<string, any> = { ":pk": pk }; // Use any type for flexibility
-
-    if (market) {
-      keyCondition += " AND begins_with(sk, :marketPrefix)";
-      expressionValues[":marketPrefix"] = `MARKET#${market}`; // Filter by market symbol if provided
+    if (marketFilter) {
+      keyConditionExpression += " AND sk = :skVal";
+      expressionAttributeValues[":skVal"] = `MARKET#${marketFilter.toUpperCase()}`;
     }
 
-    const resp = await ddb.send(
-      new QueryCommand({
-        TableName: POSITIONS_TABLE,
-        KeyConditionExpression: keyCondition,
-        ExpressionAttributeValues: marshall(expressionValues),
-        // Add FilterExpression if you want to exclude zero positions, e.g., "size <> :zero"
-        // FilterExpression: "size <> :zero",
-        // ExpressionAttributeValues: marshall({ ...expressionValues, ":zero": 0 }),
-      })
-    );
+    if (!includeZeroPositions) {
+        filterExpressionParts.push("#sz <> :zeroSize");
+        expressionAttributeNames["#sz"] = "size";
+        expressionAttributeValues[":zeroSize"] = 0;
+    }
 
-    const positions = (resp.Items ?? []).map((item) => unmarshall(item) as Position);
+    const queryInput: QueryCommandInput = {
+      TableName: POSITIONS_TABLE_NAME,
+      KeyConditionExpression: keyConditionExpression,
+      ExpressionAttributeValues: expressionAttributeValues,
+    };
+    
+    if (Object.keys(expressionAttributeNames).length > 0) {
+        queryInput.ExpressionAttributeNames = expressionAttributeNames;
+    }
+    if (filterExpressionParts.length > 0) {
+        queryInput.FilterExpression = filterExpressionParts.join(" AND ");
+    }
 
-    return NextResponse.json(positions);
+    const { Items } = await docClient.send(new QueryCommand(queryInput));
+    const enrichedPositions: Position[] = [];
 
-  } catch (err) {
-    console.error("GET /positions error", err);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    if (Items) {
+      for (const item of Items) {
+        // item is already an unmarshalled JavaScript object from DocumentClient
+        const basePosition = item as Omit<Position, 'tickSize' | 'lotSize' | 'baseAsset' | 'quoteAsset' | 'instrumentType' | 'underlyingPairSymbol'>;
+        
+        const enrichedPosition: Position = { ...basePosition } as Position; // Start with base, cast to full Position
+
+        const marketPkForMeta = pkMarketMetaKey(basePosition.market, basePosition.mode);
+        try {
+          const marketRes = await docClient.send(new GetCommand({
+            TableName: MARKETS_TABLE_NAME,
+            Key: { pk: marketPkForMeta, sk: "META" },
+          }));
+
+          if (marketRes.Item) {
+            const marketMeta = marketRes.Item as MarketMeta; // This is UnderlyingPairMeta | InstrumentMarketMeta
+            
+            enrichedPosition.baseAsset = marketMeta.baseAsset;
+            enrichedPosition.quoteAsset = marketMeta.quoteAsset;
+            enrichedPosition.instrumentType = marketMeta.type;
+            
+            if ('underlyingPairSymbol' in marketMeta && marketMeta.underlyingPairSymbol) {
+                enrichedPosition.underlyingPairSymbol = marketMeta.underlyingPairSymbol;
+            }
+
+            // Correctly access tickSize/lotSize based on the actual type of marketMeta
+            if (marketMeta.type === "SPOT") { // It's an UnderlyingPairMeta
+              enrichedPosition.tickSize = marketMeta.tickSizeSpot;
+              enrichedPosition.lotSize = marketMeta.lotSizeSpot;
+            } else if (marketMeta.type === "PERP" || marketMeta.type === "OPTION" || marketMeta.type === "FUTURE") {
+              // It's an InstrumentMarketMeta (or a PERP which also fits InstrumentMarketMeta structure for these fields)
+              enrichedPosition.tickSize = marketMeta.tickSize;
+              enrichedPosition.lotSize = marketMeta.lotSize;
+            }
+          } else {
+            console.warn(`MarketMeta not found for position in market ${basePosition.market} (${basePosition.mode}). Using fallbacks.`);
+            enrichedPosition.baseAsset = basePosition.market.split(/[-/]/)[0];
+            enrichedPosition.quoteAsset = basePosition.market.split(/[-/]/)[1] || "USDC";
+            enrichedPosition.tickSize = 0.01; // Fallback
+            enrichedPosition.lotSize = 0.001; // Fallback
+          }
+        } catch (metaError: any) {
+          console.error(`Error enriching position for market ${basePosition.market}:`, metaError.message);
+          enrichedPosition.baseAsset = basePosition.market.split(/[-/]/)[0];
+          enrichedPosition.quoteAsset = basePosition.market.split(/[-/]/)[1] || "USDC";
+          enrichedPosition.tickSize = 0.01;
+          enrichedPosition.lotSize = 0.001;
+        }
+        enrichedPositions.push(enrichedPosition);
+      }
+    }
+    return NextResponse.json(enrichedPositions, { status: 200 });
+  } catch (err: any) {
+    console.error("GET /api/positions error:", err);
+    return NextResponse.json({ error: "Internal server error fetching positions." }, { status: 500 });
   }
 }

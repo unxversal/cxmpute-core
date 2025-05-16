@@ -339,6 +339,14 @@ export interface Position {
   collateralHeld?: string;
   collateralAsset?: string;
   updatedAt: number;
+
+  // Fields to be enriched by the API (GET /api/positions)
+  tickSize?: number;
+  lotSize?: number;
+  baseAsset?: string;
+  quoteAsset?: string;
+  instrumentType?: "SPOT" | DerivativeType | "PERP_SPOT"; // Type of the instrument
+  underlyingPairSymbol?: string; // For derivatives
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
