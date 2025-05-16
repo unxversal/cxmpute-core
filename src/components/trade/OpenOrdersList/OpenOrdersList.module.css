@@ -2,25 +2,27 @@
 .openOrdersContainer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background-color: #171b26; /* Dark panel background */
+  gap: 10px; /* Reduced gap */
+  padding: 12px 16px;
+  background-color: #171b26;
   color: #d1d4dc;
   border-radius: 6px;
   border: 1px solid #2a2f3b;
-  height: 100%; /* Fill parent */
+  height: 100%;
+  min-height: 250px; /* Ensure some min height */
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #2a2f3b;
+  margin-bottom: 5px; /* Reduced margin */
 }
 
 .title {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #c0c5ce;
   margin: 0;
@@ -31,93 +33,97 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px; /* Tighter controls */
 }
 
-.filterButton,
-.filterButtonActive {
-  /* Uses Button component styles, can add specific overrides here */
+/* Filter Dropdown Styles */
+.filterDropdownWrapper {
+  position: relative;
+  display: inline-block;
 }
-.filterButtonActive {
-  background-color: var(--cxmpute-purple, #91a8eb) !important;
-  color: #131722 !important;
+
+.filterToggleButton {
+  /* Uses Button styles, can customize more here */
+  min-width: 150px; /* Give it some width */
+  justify-content: space-between !important; /* Ensure icon is on left, text fills */
 }
-.filterButtonActive svg,
-.filterButtonActive:hover svg {
-    color: #131722 !important;
+.filterToggleButton svg:last-child { /* If an arrow icon is added */
+    margin-left: auto;
 }
 
 
-.marketCell {
-  font-weight: 500;
+.filterDropdownContent {
+  display: none; /* Hidden by default */
+  position: absolute;
+  background-color: #1e222d;
+  min-width: 200px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.3);
+  z-index: 10; /* Above DataTable */
+  border-radius: 4px;
+  border: 1px solid #3e4556;
+  right: 0; /* Align to the right of the button */
+  margin-top: 2px;
+}
+.filterDropdownWrapper:hover .filterDropdownContent,
+.filterDropdownWrapper .filterToggleButton:focus + .filterDropdownContent, /* Show on focus of button */
+.filterDropdownContent:hover /* Keep open if hovering content */ {
+  display: block; /* Show on hover/focus */
 }
 
-.buySide {
-  color: var(--cxmpute-green, #00c78b);
+.filterDropdownContent button {
+  color: #a0aec0;
+  padding: 8px 12px;
+  text-decoration: none;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.filterDropdownContent button:hover {
+  background-color: #2a2f3b;
+  color: #e0e0e0;
+}
+.filterDropdownContent button.activeFilter {
+  background-color: var(--cxmpute-purple, #91a8eb);
+  color: #171b26;
   font-weight: 600;
 }
-
-.sellSide {
-  color: var(--cxmpute-red, #ff5a5a);
-  font-weight: 600;
+.filterDropdownContent button:disabled {
+    color: #50586a;
+    cursor: not-allowed;
+    background-color: transparent !important;
 }
 
-.filledCell {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end; /* Align numbers to the right */
-    line-height: 1.2;
-}
-.filledPercentage {
-    font-size: 0.7rem;
-    color: #8690a2;
-}
 
+.marketCell { font-weight: 500; }
+.buySide { color: var(--cxmpute-green, #00c78b); font-weight: 600; }
+.sellSide { color: var(--cxmpute-red, #ff5a5a); font-weight: 600; }
+
+.filledCell { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.filledPercentage { font-size: 0.7rem; color: #8690a2; }
 
 .statusCell {
-    font-weight: 500;
-    padding: 3px 6px;
-    border-radius: 4px;
+  font-weight: 500; padding: 2px 5px; border-radius: 3px;
+  font-size: 0.65rem; text-align: center; display: inline-block;
+  min-width: 55px; text-transform: capitalize; line-height: 1.2;
+}
+.open { background-color: rgba(66, 153, 225, 0.15); color: #63b3ed; }
+.partial { background-color: rgba(236, 201, 75, 0.15); color: #ecc94b; }
+
+.cancelButton { padding: 0.2em 0.4em !important; }
+.cancelButton svg { margin: 0 !important; }
+
+.modalFooter { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+
+/* DataTable specific overrides for this instance */
+.openOrdersContainer :global(table td),
+.openOrdersContainer :global(table th) {
+  font-size: 0.75rem; /* Smaller font for dense order list */
+  padding: 5px 8px; /* Compact padding */
+}
+.openOrdersContainer :global(table th) {
     font-size: 0.7rem;
-    text-align: center;
-    display: inline-block; /* To allow padding and centering */
-    min-width: 60px;
-    text-transform: capitalize;
-}
-.open {
-    background-color: rgba(66, 153, 225, 0.2); /* Blue-ish */
-    color: #63b3ed;
-}
-.partial {
-    background-color: rgba(236, 201, 75, 0.2); /* Yellow-ish */
-    color: #ecc94b;
-}
-/* Other statuses like FILLED, CANCELLED won't appear in "OpenOrdersList"
-   but good to have if this component is reused or adapted. */
-.filled {
-    background-color: rgba(72, 187, 120, 0.2); /* Green-ish */
-    color: #48bb78;
-}
-.cancelled {
-    background-color: rgba(113, 128, 150, 0.2); /* Gray-ish */
-    color: #a0aec0;
-}
-.expired {
-    background-color: rgba(160, 174, 192, 0.2); /* Darker Gray-ish */
-    color: #a0aec0;
-}
-
-
-.cancelButton {
-  padding: 0.25em 0.5em !important; /* Smaller padding for action buttons */
-}
-.cancelButton svg {
-    margin: 0 !important; /* Remove margin if Button adds it by default */
-}
-
-.modalFooter { /* For the Cancel All confirmation modal */
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 16px;
 }
