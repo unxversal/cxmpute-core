@@ -321,6 +321,13 @@ export interface Trade {
   sk: string; // TS#<timestamp>#<tradeId>
   traderId?: UUID; // Taker – optional for GSI convenience
   prevPrice?: number;
+
+  // Fields to be enriched by the API
+  tickSize?: number;
+  lotSize?: number;
+  baseAsset?: string;
+  quoteAsset?: string;
+  instrumentType?: "SPOT" | DerivativeType | "PERP_SPOT"; // Type of the instrument
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
