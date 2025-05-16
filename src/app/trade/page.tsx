@@ -1,44 +1,33 @@
 // src/app/trade/page.tsx
-import { auth } from "@/app/actions"; // Your server-side auth function
-import { redirect } from "next/navigation";
-import { AuthProvider } from "@/contexts/AuthContext"; // Import AuthProvider
+import { auth } from "@/app/actions"; // <<< FIX: Import server action for authentication
+import { redirect } from "next/navigation"; // <<< FIX: Import redirect from next/navigation
+import { AuthProvider } from "@/contexts/AuthContext";
 import { TradingModeProvider } from "@/contexts/TradingModeContext";
-import { MarketProvider } from "@/contexts/MarketContext";
-import { WebSocketProvider } from "@/contexts/WebsocketContext";
-import { AccountProvider } from "@/contexts/AccountContext";
-import TradeDashboard from "@/components/trade/TradeDashboard"; // This component will be built next
-import styles from "./trade.module.css"; // Create this file
-import { WalletProvider } from "@/contexts/WalletContext";
-import { OrderEntryProvider } from "@/contexts/OrderEntryContext";
+import TradeDashboard from "@/components/trade/TradeDashboard/TradeDashboard";
+import styles from "./trade.module.css"; // Assuming you have this CSS file
 
 export default async function TradePage() {
   const userSubject = await auth(); // Fetches user subject on the server
 
   if (!userSubject) {
-    // Redirect to login or a relevant page if not authenticated
-    // Ensure your login page is correctly set up
-    redirect("/dashboard"); // Or your actual login page, e.g., /login
+    // Redirect to a login page or a general dashboard if not authenticated.
+    // Ensure '/dashboard' is appropriate or change to your login route.
+    // Example: if your OpenAuth callback redirects to /dashboard and that page
+    // itself handles login if no session, this might be okay.
+    // Or, you might have a specific /login page.
+    redirect("/dashboard"); // Or your designated login page e.g. /auth/login
   }
 
+  // The userSubject from `await auth()` is the complete subject object
+  // which includes `type: "user"` and `properties: {...}`.
+  // AuthProvider expects this structure or null.
   return (
-    // Pass the server-fetched userSubject to AuthProvider
-    // This makes the user data available to all nested client components via useAuth()
-    <AuthProvider user={userSubject}>
+    <AuthProvider user={userSubject}> {/* Pass the fetched user subject */}
       <TradingModeProvider initialMode="PAPER"> {/* Default to PAPER mode */}
-        <MarketProvider>
-          <WalletProvider>
-            <WebSocketProvider>
-              <OrderEntryProvider>
-                <AccountProvider>
-                  <main className={styles.tradePageMain}>
-                    {/* TradeDashboard will be a client component */}
-                    <TradeDashboard />
-                  </main>
-                </AccountProvider>
-              </OrderEntryProvider>
-            </WebSocketProvider>
-          </WalletProvider>
-        </MarketProvider>
+        {/* The main className for the page can be on <main> or a div inside it */}
+        <main className={styles.tradePageMain}>
+          <TradeDashboard /> {/* TradeDashboard now wraps the other more specific contexts */}
+        </main>
       </TradingModeProvider>
     </AuthProvider>
   );

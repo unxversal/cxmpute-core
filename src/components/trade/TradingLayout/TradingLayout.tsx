@@ -12,7 +12,7 @@ interface TradingLayoutProps {
   recentTradesArea: ReactNode;   // e.g., <RecentTrades />
   accountInfoArea: ReactNode;    // e.g., <AccountInfoPanel />
   // Potentially a top bar for global controls like WalletConnectButton, ModeSwitcher
-  topBarArea?: ReactNode; 
+  // topBarArea?: ReactNode; 
 }
 
 const TradingLayout: React.FC<TradingLayoutProps> = ({

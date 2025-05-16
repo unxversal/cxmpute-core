@@ -1,0 +1,34 @@
+/* src/components/trade/TradeDashboard/TradeDashboard.module.css */
+.dashboardWrapper {
+  display: flex;
+  flex-direction: column; /* To stack toaster and layout if needed, though toaster is usually fixed */
+  height: 100vh; /* Full viewport height */
+  width: 100%;
+  background-color: #131722; /* Overall page background for trading section */
+  color: #d1d4dc; /* Default text color for the trading page */
+  overflow: hidden; /* Prevent main page scroll if layout manages its own */
+}
+
+/* Styling for the content passed into TradingLayout's marketSelectorArea (top bar) */
+.topBarControls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 16px; /* Gap between left and right groups */
+}
+
+.topLeftControls {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Gap between MarketSelector and ModeSwitcher */
+}
+
+.topRightControls {
+  display: flex;
+  align-items: center;
+  /* Any specific styling for wallet connect button area if needed */
+}
+
+/* Ensure that TradingLayout itself takes up the full space given by dashboardWrapper */
+/* This is mostly handled by TradingLayout's internal styling (height: 100vh and flex-grow) */
