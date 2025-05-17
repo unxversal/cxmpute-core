@@ -143,7 +143,7 @@ async function ensureUserAndTrader(email: string): Promise<{
         TableName: TRADERS_TABLE,
         Item: {
           traderId: traderIdForTable,   // PK
-          userAk: traderUserAkForTable, // Attribute for GSI `ByAk`, same as UserTable.userAk
+          traderAk: traderUserAkForTable, // Attribute for GSI `ByAk`, same as UserTable.userAk
           email: email,                 // Store email for convenience
           status: "ACTIVE",             // Default status
           createdAt: Date.now(),
