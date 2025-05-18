@@ -9,13 +9,13 @@ import type { Order, OrderQueueMessage, TradingMode } from "../../src/lib/interf
 const sqs = new SQSClient({});
 
 // Matcher Queues (existing)
-const marketOrdersQueueUrl = (Resource as any).MarketOrdersQueue.url;
-const optionsOrdersQueueUrl = (Resource as any).OptionsOrdersQueue.url;
-const perpsOrdersQueueUrl = (Resource as any).PerpsOrdersQueue.url;
-const futuresOrdersQueueUrl = (Resource as any).FuturesOrdersQueue.url;
+const marketOrdersQueueUrl = Resource.MarketOrdersQueue.url;
+const optionsOrdersQueueUrl = Resource.OptionsOrdersQueue.url;
+const perpsOrdersQueueUrl = Resource.PerpsOrdersQueue.url;
+const futuresOrdersQueueUrl = Resource.FuturesOrdersQueue.url;
 
 // New Cancellation Queue
-const CANCELLED_ORDERS_QUEUE_URL = (Resource as any).CancelledOrdersQueue.url;
+const CANCELLED_ORDERS_QUEUE_URL = Resource.CancelledOrdersQueue.url;
 
 const queueUrls = {
   MARKET: marketOrdersQueueUrl,

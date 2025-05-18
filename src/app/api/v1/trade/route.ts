@@ -426,7 +426,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const body: any = await req.json();
-    const { orderId, mode } = body; 
+    const { orderId, mode } = body;
 
     if (!orderId || typeof orderId !== 'string') return NextResponse.json({ error: "Missing 'orderId'" }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
     if (!mode || (mode !== "REAL" && mode !== "PAPER")) return NextResponse.json({ error: "Missing 'mode'" }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -445,29 +445,36 @@ export async function DELETE(req: NextRequest) {
     if (order.mode !== mode) return NextResponse.json({ error: `Order not in specified mode '${mode}'.` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
     if (order.status !== "OPEN" && order.status !== "PARTIAL") return NextResponse.json({ error: `Order status ${order.status} not cancellable` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
 
-    // TODO: Implement collateral release here, similar to how it's locked in POST.
-    // This requires knowing the original collateral type and amount.
-    // This would make DELETE a TransactWriteItemsCommand.
-    // For now, just updating status. Matcher should handle collateral on "CANCELLED" event.
+    // Only update the order status. Collateral release is handled by the backend processor.
     await docClient.send(
       new UpdateCommand({
         TableName: ORDERS_TABLE_NAME, Key: { pk: order.pk, sk: order.sk },
-        ConditionExpression: "#s IN (:open, :partial)",
+        ConditionExpression: "#s IN (:open, :partial)", 
         UpdateExpression: "SET #s = :cancelled, updatedAt = :ts",
         ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: { ":open": "OPEN", ":partial": "PARTIAL", ":cancelled": "CANCELLED", ":ts": Date.now() },
+        ExpressionAttributeValues: { 
+            ":open": "OPEN", 
+            ":partial": "PARTIAL", 
+            ":cancelled": "CANCELLED", 
+            ":ts": Date.now() 
+        },
       })
     );
-    return new NextResponse(JSON.stringify({ success: true, message: `Order ${orderId} cancelled.` }), {
+
+    return new NextResponse(JSON.stringify({ success: true, message: `Order ${orderId} cancellation request accepted. Collateral release will be processed.` }), {
         status: 200, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   } catch (err: any) {
-    if (err instanceof ConditionalCheckFailedException) return NextResponse.json({ error: "Order status changed during cancellation" }, { status: 409, headers: { 'Access-Control-Allow-Origin': '*' } });
+    // Check if ConditionalCheckFailedException comes from DynamoDBDocumentClient directly or needs to be checked from @aws-sdk/client-dynamodb
+    if (err.name === 'ConditionalCheckFailedException' || (err.hasOwnProperty('$metadata') && err.$metadata.httpStatusCode === 400 && err.message.includes("conditional request failed"))) {
+         return NextResponse.json({ error: "Order status changed during cancellation attempt (e.g., already filled or cancelled by system)." }, { status: 409, headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
     let orderIdParam = 'unknown'; try { orderIdParam = (await req.clone().json()).orderId ?? 'unknown'; } catch {}
     console.error(`DELETE /api/v1/trade (orderId: ${orderIdParam}) error:`, err);
-    return NextResponse.json({ error: "Internal server error cancelling order" }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
+    return NextResponse.json({ error: "Internal server error processing cancellation request." }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 }
+
 
 export async function GET(req: NextRequest) {
   let authenticatedTraderId: string;

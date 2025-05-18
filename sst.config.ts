@@ -497,6 +497,19 @@ export default $config({
       ],
     });
 
+    cancelledOrdersQueue.subscribe({ // Give it a unique name
+      handler: "dex/processors/cancellationProcessor.handler", // Path to the new Lambda
+      link: [
+        balancesTable,
+        marketsTable,
+        pricesTable,
+      ],
+      timeout: "45 seconds", // Should be less than queue visibility timeout
+      memory: "256 MB",    // Adjust as needed
+      // deadLetterQueue: myDlq, // Strongly recommended for production
+    });
+
+
     /* ─── Matcher subscribers (Matchers need updated logic for mode) ─── */
     // Links remain the same, but handlers need mode awareness
     marketOrdersQueue.subscribe({
@@ -830,7 +843,8 @@ export default $config({
         paperPointsUsdcVolume,
         cmcApiKey,
         coreFactoryAddress,
-        klinesTable
+        klinesTable,
+        cancelledOrdersQueue
       ]
     });
   },
