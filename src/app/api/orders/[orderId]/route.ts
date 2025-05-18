@@ -1,115 +1,161 @@
-/* app/api/orders/[orderId]/route.ts */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// src/app/api/orders/[orderId]/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import {
   DynamoDBClient,
-  QueryCommand,
-  UpdateItemCommand,
 } from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
-import type { Order } from "@/lib/interfaces"; // Assuming TradingMode is defined
+import {
+  DynamoDBDocumentClient, // Use DocumentClient
+  QueryCommand,
+  UpdateCommand,
+  GetCommand, // For GET handler
+} from "@aws-sdk/lib-dynamodb";
+import type { Order, OrderStatus } from "@/lib/interfaces";
 import { Resource } from "sst";
+import { requireAuth, AuthenticatedUserSubject } from "@/lib/auth"; // Your auth helper
 
-const ORDERS_TABLE = Resource.OrdersTable.name;
-const ddb = new DynamoDBClient({});
+const ORDERS_TABLE_NAME = (Resource as any).OrdersTable.name; // Use type assertion for local dev
+const ddbDocClient = DynamoDBDocumentClient.from(new DynamoDBClient({})); // Use DocumentClient
 
-// PK helper is not strictly needed here as we get the full PK from the GSI lookup
-
-/* ————————————————————————————— GET /orders/:orderId —————————————————————— */
+// --- GET /api/orders/:orderId (Fetch specific order) ---
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: { orderId: string } }
+  req: NextRequest, // _req is conventional for unused params, but req is fine
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
+  let authenticatedUser: AuthenticatedUserSubject;
+  // Await the params promise to get the orderId
+  const aparams = await params;
+
   try {
-    const { Items } = await ddb.send(
+    authenticatedUser = await requireAuth();
+  } catch (authError: any) {
+    if (authError instanceof NextResponse) return authError;
+    console.error(`GET /api/orders/${aparams.orderId} - Auth Error:`, authError.message);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } });
+  }
+
+  try {
+    const { Items } = await ddbDocClient.send(
       new QueryCommand({
-        TableName: ORDERS_TABLE,
-        IndexName: "ByOrderId", // Use the GSI to find the order by its unique ID
-        KeyConditionExpression: "orderId = :id",
-        ExpressionAttributeValues: marshall({ ":id": params.orderId }),
+        TableName: ORDERS_TABLE_NAME,
+        IndexName: "ByOrderId",
+        KeyConditionExpression: "orderId = :idVal",
+        ExpressionAttributeValues: { ":idVal": aparams.orderId },
         Limit: 1,
       })
     );
 
     if (!Items || Items.length === 0) {
-      return NextResponse.json({ error: "order not found" }, { status: 404 });
+      return NextResponse.json({ error: "Order not found" }, { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
-    // The item contains the full original data including the mode-partitioned PK
-    return NextResponse.json(unmarshall(Items[0]));
-  } catch (err) {
-    console.error("GET /orders/:id error", err);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    const order = Items[0] as Order;
+
+    // Authorization: Ensure the authenticated user owns this order
+    if (order.traderId !== authenticatedUser.properties.traderId) {
+        console.warn(`Order GET AuthZ Error: User ${authenticatedUser.properties.traderId} attempted to access order ${aparams.orderId} belonging to ${order.traderId}`);
+        return NextResponse.json({ error: "Forbidden: Cannot access another user's order." }, { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } });
+    }
+    
+    // Do not return pk/sk to client if they are internal implementation details
+    const { pk, sk, ...clientOrder } = order;
+
+    return NextResponse.json(clientOrder, { headers: { 'Access-Control-Allow-Origin': '*' } });
+
+  } catch (err: any) {
+    console.error(`GET /api/orders/${aparams.orderId} error:`, err);
+    return NextResponse.json({ error: "Internal server error fetching order." }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 }
 
-/* ————————————————————————— DELETE /orders/:orderId (cancel) ——————————————— */
+
+// --- DELETE /api/orders/:orderId (Cancel specific order) ---
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest, // Changed _req to req as it might be used for logging body if needed
   { params }: { params: { orderId: string } }
 ) {
-  const orderId = params.orderId;
+  let authenticatedUser: AuthenticatedUserSubject;
+  try {
+    authenticatedUser = await requireAuth(); // Use your existing auth helper
+  } catch (authError: any) {
+    if (authError instanceof NextResponse) return authError; // Auth error is already a NextResponse
+    console.error(`DELETE /api/orders/${params.orderId} - Auth Error:`, authError.message);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } });
+  }
+
+  const orderIdToCancel = params.orderId;
 
   try {
-    /* 1. Look up via the GSI to get the full PK/SK + status */
-    const { Items } = await ddb.send(
+    // 1. Find the order using the GSI to get its full PK/SK and current state
+    const queryResult = await ddbDocClient.send(
       new QueryCommand({
-        TableName: ORDERS_TABLE,
+        TableName: ORDERS_TABLE_NAME,
         IndexName: "ByOrderId",
-        KeyConditionExpression: "orderId = :id",
-        ExpressionAttributeValues: marshall({ ":id": orderId }),
-        // ProjectionExpression: "pk, sk, #s", // Project only needed fields
+        KeyConditionExpression: "orderId = :idVal",
+        ExpressionAttributeValues: { ":idVal": orderIdToCancel },
+        // ProjectionExpression: "pk, sk, traderId, #s, mode", // Fetch necessary fields
         // ExpressionAttributeNames: { "#s": "status" },
         Limit: 1,
       })
     );
 
-    if (!Items || Items.length === 0) {
-      return NextResponse.json({ error: "order not found" }, { status: 404 });
+    if (!queryResult.Items || queryResult.Items.length === 0) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
-    // Unmarshall the full item to get pk, sk, and status
-    const order = unmarshall(Items[0]) as Order & { pk: string }; // Need pk and sk from the item
+    const order = queryResult.Items[0] as Order & { pk: string; sk: string }; // Cast to include pk/sk
 
-    if (!order.pk || !order.sk) {
-        console.error("Error fetching order details for cancellation: Missing pk or sk", order);
-        return NextResponse.json({ error: "internal error fetching order details" }, { status: 500 });
+    // 2. Authorization Check: Ensure the authenticated user owns this order
+    if (order.traderId !== authenticatedUser.properties.traderId) {
+      console.warn(`Order Cancel AuthZ Error: User ${authenticatedUser.properties.traderId} attempted to cancel order ${orderIdToCancel} belonging to ${order.traderId}`);
+      return NextResponse.json({ error: "Forbidden: You can only cancel your own orders." }, { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
-
-    // Check current status before attempting cancellation
+    // 3. Check if the order is in a cancellable state
     if (order.status !== "OPEN" && order.status !== "PARTIAL") {
       return NextResponse.json(
-        { error: `cannot cancel order in status: ${order.status}` },
-        { status: 400 } // Bad request - can't cancel completed/cancelled order
+        { error: `Cannot cancel order. Current status: ${order.status}` },
+        { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } } // Bad Request
       );
     }
 
-    /* 2. Atomic status flip using the retrieved PK and SK */
-    await ddb.send(
-      new UpdateItemCommand({
-        TableName: ORDERS_TABLE,
-        Key: marshall({ pk: order.pk, sk: order.sk }), // Use the exact PK/SK from the lookup
-        ConditionExpression: "#s IN (:open, :partial)", // Ensure it's still cancellable
-        UpdateExpression: "SET #s = :cancelled",
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: marshall({
-          ":open": "OPEN",
-          ":partial": "PARTIAL",
-          ":cancelled": "CANCELLED",
-        }),
+    // 4. Atomically update the order status to CANCELLED
+    // The collateral release will be handled by the backend CancellationProcessor via DynamoDB Streams.
+    await ddbDocClient.send(
+      new UpdateCommand({
+        TableName: ORDERS_TABLE_NAME,
+        Key: { pk: order.pk, sk: order.sk }, // Use the actual PK and SK of the order
+        UpdateExpression: "SET #statusAttr = :cancelledStatus, updatedAt = :timestamp",
+        ConditionExpression: "#statusAttr IN (:openStatus, :partialStatus)", // Ensure it's still cancellable
+        ExpressionAttributeNames: {
+          "#statusAttr": "status",
+        },
+        ExpressionAttributeValues: {
+          ":cancelledStatus": "CANCELLED" as OrderStatus,
+          ":openStatus": "OPEN" as OrderStatus,
+          ":partialStatus": "PARTIAL" as OrderStatus,
+          ":timestamp": Date.now(),
+        },
       })
     );
 
-    return NextResponse.json({ ok: true, message: `Order ${orderId} cancelled.` });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    console.log(`Order ${orderIdToCancel} marked as CANCELLED by API. Collateral release to be handled by stream processor.`);
+
+    return NextResponse.json(
+      { success: true, message: `Order ${orderIdToCancel} cancellation request accepted.`, orderId: orderIdToCancel, newStatus: "CANCELLED" },
+      { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } }
+    );
+
   } catch (err: any) {
-    if (err?.name === "ConditionalCheckFailedException") {
-      // This means the status changed between the read (Query) and the write (Update)
+    // Specific check for ConditionalCheckFailedException from DynamoDBDocumentClient
+    if (err.name === 'ConditionalCheckFailedException' || (err.hasOwnProperty('$metadata') && err.$metadata.httpStatusCode === 400 && err.message.includes("conditional request failed"))) {
+      console.warn(`Order ${orderIdToCancel} cancellation failed due to conditional check (already filled/cancelled/status changed).`);
       return NextResponse.json(
-        { error: "order status changed during cancellation attempt (likely already filled/cancelled)" },
-        { status: 409 } // Conflict
+        { error: "Order status changed during cancellation attempt (e.g., already filled or cancelled)." },
+        { status: 409, headers: { 'Access-Control-Allow-Origin': '*' } } // Conflict
       );
     }
-    console.error("DELETE /orders/:id error", err);
-    return NextResponse.json({ error: "internal server error" }, { status: 500 });
+    console.error(`DELETE /api/orders/${orderIdToCancel} error:`, err);
+    return NextResponse.json({ error: "Internal server error processing cancellation request." }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 }
