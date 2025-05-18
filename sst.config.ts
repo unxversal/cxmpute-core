@@ -456,6 +456,13 @@ export default $config({
       visibilityTimeout: "30 seconds",
     });
 
+    const cancelledOrdersQueue = new sst.aws.Queue("CancelledOrdersQueue", {
+      fifo: true, // Recommended for ordered processing of cancellations for a market/trader
+      // contentBasedDeduplication: true, // If using MessageDeduplicationId in router
+      visibilityTimeout: "60 seconds", // Adjust based on processor lambda timeout
+    });
+
+
     const klineAggregationQueue = new sst.aws.Queue("KlineAggregationQueue", {
       // fifo: true, // Consider FIFO if strict order of trades for kline building is critical
       // visibilityTimeout: "60 seconds", // Needs to be longer than klineAggregator Lambda timeout
@@ -486,6 +493,7 @@ export default $config({
         optionsOrdersQueue,
         perpsOrdersQueue,
         futuresOrdersQueue,
+        cancelledOrdersQueue,
       ],
     });
 
