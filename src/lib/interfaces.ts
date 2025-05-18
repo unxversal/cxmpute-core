@@ -288,6 +288,11 @@ interface BaseOrder {
   lotSize?: number;     // Lot size of the specific instrument
   baseAsset?: string;   // Base asset of the instrument
   quoteAsset?: string;  // Quote asset of the instrument (should always be USDC for price)
+
+  lockedCollateralAmount?: string; // Optional: If you decide to store exact locked amount
+  lockedCollateralAsset?: string;  // Optional: If you decide to store exact locked asset
+  oraclePriceUsedForCollateral?: number; // <<<< NEW: For market sell derivatives
+
 }
 export interface MarketOrder extends BaseOrder { orderType: "MARKET"; }
 export interface LimitOrder  extends BaseOrder { orderType: "LIMIT";  price: number; }

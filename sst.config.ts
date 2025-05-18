@@ -502,7 +502,6 @@ export default $config({
       link: [
         balancesTable,
         marketsTable,
-        pricesTable,
       ],
       timeout: "45 seconds", // Should be less than queue visibility timeout
       memory: "256 MB",    // Adjust as needed

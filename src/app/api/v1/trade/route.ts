@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     const qty = parseFloat(rawQty);
     if (isNaN(qty) || qty <= 0) return NextResponse.json({ error: "Quantity must be a positive number." }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
     
-    let orderType = rawOrderType; // Use a mutable variable for orderType
+    let orderType = rawOrderType;
     let price: number | undefined = undefined;
     if (orderType !== "MARKET") {
         if (rawPrice === undefined) return NextResponse.json({ error: "Price required for non-market orders." }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
@@ -175,9 +175,9 @@ export async function POST(req: NextRequest) {
     let marketEntryToCreate: InstrumentMarketMeta | null = null;
     let underlyingPairDef: UnderlyingPairMeta | null = null;
     let finalInstrumentMeta: InstrumentMarketMeta | UnderlyingPairMeta | null = null;
-    let expiryTime: number | undefined = undefined; // Define expiryTime here
-    let strike: number | undefined = undefined; // Define strike here
-
+    let expiryTime: number | undefined = undefined;
+    let strike: number | undefined = undefined;
+    let oraclePriceUsedForMarketSellCollateral: number | undefined = undefined;
 
     const now = Date.now();
     const orderId = uuidv4().replace(/-/g, "");
@@ -245,9 +245,7 @@ export async function POST(req: NextRequest) {
                  return NextResponse.json({ error: `Market/Limit orders only on SPOT or PERP. ${instrumentSymbol} is ${currentMarketType}.`}, {status: 400, headers: { 'Access-Control-Allow-Origin': '*' }});
             }
             if (currentMarketType === "PERP" && (orderType === "MARKET" || orderType === "LIMIT")) {
-                orderType = "PERP"; // Normalize: A MARKET/LIMIT on a PERP market is a PERP order.
-            } else if (currentMarketType === "SPOT" && (orderType === "MARKET" || orderType === "LIMIT")) {
-                // orderType remains MARKET or LIMIT (implicitly SPOT)
+                orderType = "PERP";
             }
         }
     } else {
@@ -260,18 +258,15 @@ export async function POST(req: NextRequest) {
     const currentLotSize = 'lotSize' in finalInstrumentMeta ? finalInstrumentMeta.lotSize : finalInstrumentMeta.lotSizeSpot;
 
     if (price !== undefined && currentTickSize > 0) {
-        const priceDecimals = Math.max(0, currentTickSize.toString().split('.')[1]?.length || 0);
-        const remainder = price % currentTickSize;
-        // Use a small epsilon for floating point comparison
-        if (Math.abs(remainder) > 1e-9 && Math.abs(remainder - currentTickSize) > 1e-9) {
-             return NextResponse.json({ error: `Price ${price} must be a multiple of tick size (${currentTickSize}). Remainder: ${remainder.toFixed(priceDecimals + 2)}` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
+        const priceRemainder = price % currentTickSize;
+        if (Math.abs(priceRemainder) > 1e-9 && Math.abs(priceRemainder - currentTickSize) > 1e-9) {
+             return NextResponse.json({ error: `Price ${price} must be a multiple of tick size (${currentTickSize}).` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
     }
     if (currentLotSize > 0) {
-        const qtyDecimals = Math.max(0, currentLotSize.toString().split('.')[1]?.length || 0);
-        const remainder = qty % currentLotSize;
-        if (Math.abs(remainder) > 1e-9 && Math.abs(remainder - currentLotSize) > 1e-9) {
-            return NextResponse.json({ error: `Quantity ${qty} must be a multiple of lot size (${currentLotSize}). Remainder: ${remainder.toFixed(qtyDecimals + 2)}` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
+        const qtyRemainder = qty % currentLotSize;
+        if (Math.abs(qtyRemainder) > 1e-9 && Math.abs(qtyRemainder - currentLotSize) > 1e-9) {
+            return NextResponse.json({ error: `Quantity ${qty} must be a multiple of lot size (${currentLotSize}).` }, { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } });
         }
     }
 
@@ -335,24 +330,41 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({error: "Naked call writing is not permitted."}, {status: 400, headers: { 'Access-Control-Allow-Origin': '*' }});
             }
             let collateralAmountValue = BigInt(0);
-            const strikePriceForCollateral = (finalInstrumentMeta as InstrumentMarketMeta).strikePrice; // Assumed InstrumentMarketMeta for derivatives
+            const strikePriceForCollateral = (finalInstrumentMeta as InstrumentMarketMeta).strikePrice;
             const optionTypeForCollateral = (finalInstrumentMeta as InstrumentMarketMeta).optionType;
 
             if (orderType === "OPTION" && optionTypeForCollateral === "PUT" && strikePriceForCollateral) {
                 const strikeInSmallestQuoteUnits = BigInt(Math.round(strikePriceForCollateral * (10**quoteAssetDecimals)));
                 collateralAmountValue = BigInt(qty) * BigInt(Math.round(currentLotSize * (10**baseAssetDecimals))) * strikeInSmallestQuoteUnits / BigInt(10**baseAssetDecimals);
-            } else if ((finalInstrumentMeta.type === "PERP" || orderType === "FUTURE") && price) {
+            } else if ((finalInstrumentMeta.type === "PERP" || orderType === "FUTURE") && price) { // Limit Sell Derivative
                 const priceInSmallestQuoteUnits = BigInt(Math.round(price * (10**quoteAssetDecimals)));
                 const notionalValue = BigInt(qty) * BigInt(Math.round(currentLotSize * (10**baseAssetDecimals))) * priceInSmallestQuoteUnits / BigInt(10**baseAssetDecimals);
                 collateralAmountValue = notionalValue / BigInt(10); 
-            } else if (orderType === "MARKET" && (finalInstrumentMeta.type === "PERP" || finalInstrumentMeta.type === "FUTURE")){
+            } else if (orderType === "MARKET" && (finalInstrumentMeta.type === "PERP" || finalInstrumentMeta.type === "FUTURE")){ // Market Sell Derivative
                 const oraclePriceNum = await getOraclePrice(baseAssetSymbol);
-                if (!oraclePriceNum) return NextResponse.json({error: "Oracle price unavailable for market short."}, {status: 503, headers: { 'Access-Control-Allow-Origin': '*' }});
+                if (!oraclePriceNum) {
+                    // If oracle price fails, we CANNOT calculate collateral for market sell derivative.
+                    // The order CANNOT be placed safely.
+                    return NextResponse.json({error: "Oracle price unavailable for market sell derivative collateral calculation. Order rejected."}, {status: 503, headers: { 'Access-Control-Allow-Origin': '*' }});
+                }
+                oraclePriceUsedForMarketSellCollateral = oraclePriceNum; // Store for the order item
+
                 const oraclePriceInSmallestQuoteUnits = BigInt(Math.round(oraclePriceNum * (10**quoteAssetDecimals)));
                 const notionalValue = BigInt(qty) * BigInt(Math.round(currentLotSize * (10**baseAssetDecimals))) * oraclePriceInSmallestQuoteUnits / BigInt(10**baseAssetDecimals);
                 collateralAmountValue = notionalValue / BigInt(5); 
             }
-            if (collateralAmountValue <= BigInt(0)) return NextResponse.json({error: "Collateral non-positive."}, {status:400, headers: { 'Access-Control-Allow-Origin': '*' }});
+
+            // Check if collateral is positive. For market sell derivatives, if oraclePriceUsedForMarketSellCollateral is undefined (meaning oracle failed),
+            // collateralAmountValue would be 0, this check will catch it if it's not supposed to be 0.
+            if (collateralAmountValue <= BigInt(0)) {
+                if (orderType === "MARKET" && (finalInstrumentMeta.type === "PERP" || finalInstrumentMeta.type === "FUTURE") && oraclePriceUsedForMarketSellCollateral === undefined) {
+                    // This case should have been handled by the return above if oraclePriceNum was null.
+                    // Defensive coding:
+                    return NextResponse.json({error: "Collateral calculation failed for market sell derivative due to missing oracle price."}, {status: 500, headers: { 'Access-Control-Allow-Origin': '*' }});
+                }
+                return NextResponse.json({error: "Calculated collateral is non-positive. Please check order parameters or market conditions."}, {status:400, headers: { 'Access-Control-Allow-Origin': '*' }});
+            }
+
             transactionItems.push({
                 Update: {
                     TableName: BALANCES_TABLE_NAME, Key: { pk: pkTraderBalanceKey(authenticatedTraderId, mode), sk: skAssetBalanceKey(USDC_ASSET_SYMBOL) },
@@ -369,7 +381,6 @@ export async function POST(req: NextRequest) {
       market: instrumentSymbol, side: side as OrderSide, qty, orderType, mode,
       price: orderType === "MARKET" ? undefined : price,
       filledQty: 0, createdAt: now, status: "OPEN", feeBps: FEE_BPS,
-      // Add derivative-specific fields from validated request body or resolved market meta
       ...( (orderType === "OPTION" || orderType === "FUTURE") && underlyingPairSymbol && {underlyingPairSymbol} ),
       ...( orderType === "OPTION" && strike !== undefined && formOptionType && expiryTime && { 
           strikePrice: strike, 
@@ -377,6 +388,7 @@ export async function POST(req: NextRequest) {
           expiryTs: expiryTime 
       }),
       ...( orderType === "FUTURE" && expiryTime && { expiryTs: expiryTime }),
+      ...( oraclePriceUsedForMarketSellCollateral !== undefined && { oraclePriceUsedForMarketSellCollateral }), // Store it
     };
 
     const transactionOperations: any[] = [];
@@ -414,6 +426,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || "Internal server error creating order." }, { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 }
+
+
 
 export async function DELETE(req: NextRequest) {
   let authenticatedTraderId: string;
