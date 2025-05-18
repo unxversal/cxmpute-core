@@ -1,250 +1,239 @@
 // src/app/api/synths/exchange/route.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
-import {
-  DynamoDBClient,
-  QueryCommand, // To get oracle price
-  TransactWriteItemsCommand, // For atomic balance updates
-} from "@aws-sdk/client-dynamodb";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { ethers } from "ethers"; // Using ethers v6
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, QueryCommandInput } from "@aws-sdk/lib-dynamodb"; // For PricesTable
 import { Resource } from "sst";
 import { requireAuth, AuthenticatedUserSubject } from "@/lib/auth";
 import type { TradingMode, PriceSnapshot } from "@/lib/interfaces";
 
-const ddb = new DynamoDBClient({});
-const BALANCES_TABLE_NAME = Resource.BalancesTable.name;
-const PRICES_TABLE_NAME = Resource.PricesTable.name;
+// --- Configuration & Contract Setup ---
+const PEAQ_RPC_URL = process.env.PEAQ_RPC_URL || "https://peaq.api.onfinality.io/public";
+const CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID || "3338";
+const VAULT_ADDR = Resource.CoreVaultAddress.value;
+const SERVER_PK = Resource.CoreWalletPk.value; // Backend's private key (CORE_ROLE on Vault)
+const FACTORY_ADDR = Resource.CoreFactoryAddress.value;
+const USDC_CONTRACT_ADDR = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Actual USDC on Peaq
 
-// PK helper for BalancesTable: TRADER#<traderId>#<mode>
-const pkTraderMode = (traderId: string, mode: TradingMode) => `TRADER#${traderId}#${mode.toUpperCase()}`;
-// SK helper for BalancesTable: ASSET#<assetSymbol>
-const skAsset = (assetSymbol: string) => `ASSET#${assetSymbol.toUpperCase()}`;
-// PK helper for PricesTable: ASSET#<assetSymbol>
+if (!PEAQ_RPC_URL || !SERVER_PK || !VAULT_ADDR || !FACTORY_ADDR || !USDC_CONTRACT_ADDR || USDC_CONTRACT_ADDR === "0xReplaceWithActualUSDConPeaqAddress") {
+  console.error("CRITICAL: SynthExchange API - Missing environment variables for Vault/Factory/USDC interaction.");
+}
+
+// ABIs
+const vaultExchangeAbi = [
+    "function exchangeUSDCToSAsset(address userWallet, address sAssetContract, uint256 usdcAmountToSpend, uint256 sAssetAmountToMint) external returns (uint256)",
+    "function exchangeSAssetToUSDC(address userWallet, address sAssetContract, uint256 sAssetAmountToSpend, uint256 usdcAmountToCredit) external returns (uint256)",
+    "event USDCToSAssetExchanged(address indexed coreAddress, address indexed userWallet, address indexed sAssetContract, uint256 usdcAmountSpent, uint256 sAssetAmountMinted)",
+    "event SAssetToUSDCExchanged(address indexed coreAddress, address indexed userWallet, address indexed sAssetContract, uint256 sAssetAmountBurned, uint256 usdcAmountReceived)"
+];
+const factoryAbiMinimal = ["function getSynthBySymbol(string calldata symbol) external view returns (address synthContract)"];
+const erc20AbiMinimal = [
+    "function allowance(address owner, address spender) view returns (uint256)",
+    "function decimals() view returns (uint8)" // Standard ERC20 decimals function
+];
+
+const ddbClient = new DynamoDBClient({});
+const docClient = DynamoDBDocumentClient.from(ddbClient);
+const PRICES_TABLE_NAME = Resource.PricesTable.name;
+const TRADERS_TABLE_NAME = Resource.TradersTable.name; // To fetch linked wallet
+
+let provider: ethers.JsonRpcProvider | null = null;
+let coreSigner: ethers.Wallet | null = null;
+let vaultContractForExchange: ethers.Contract | null = null;
+let factoryContractForExchange: ethers.Contract | null = null;
+
+if (PEAQ_RPC_URL && SERVER_PK && VAULT_ADDR && FACTORY_ADDR && USDC_CONTRACT_ADDR && USDC_CONTRACT_ADDR !== "0xReplaceWithActualUSDConPeaqAddress") {
+    try {
+        provider = new ethers.JsonRpcProvider(PEAQ_RPC_URL, CHAIN_ID ? parseInt(CHAIN_ID) : undefined);
+        coreSigner = new ethers.Wallet(SERVER_PK, provider);
+        vaultContractForExchange = new ethers.Contract(VAULT_ADDR, vaultExchangeAbi, coreSigner);
+        factoryContractForExchange = new ethers.Contract(FACTORY_ADDR, factoryAbiMinimal, provider);
+    } catch(e) {
+        console.error("Failed to initialize ethers providers/contracts in synthExchange:", e);
+    }
+}
+
+const USDC_DECIMALS = 6; // Standard
+const SYNTH_ASSET_DECIMALS_EX: Record<string, number> = {
+    "SBTC": 8, "SETH": 8, "SPEAQ": 18, "SAVAX": 8, "SSOL": 9, 
+    "SBNB": 8, "SNEAR": 24, "SOP": 18, "SDOT": 10,
+};
+const getAssetDecimalsExchange = (assetSymbol: string | undefined): number => {
+    if (!assetSymbol) return USDC_DECIMALS;
+    const upperAsset = assetSymbol.toUpperCase();
+    if (upperAsset === "USDC") return USDC_DECIMALS;
+    return SYNTH_ASSET_DECIMALS_EX[upperAsset] || 8; // Fallback to 8 if not defined
+};
 const pkPriceAsset = (assetSymbol: string) => `ASSET#${assetSymbol.toUpperCase()}`;
 
-
-const USDC_DECIMALS = 6;
-// Define decimals for your synthetic assets (these are for internal accounting/display precision)
-// The actual "value" is always pegged to the underlying via oracle price in USDC.
-const SYNTH_ASSET_DECIMALS: Record<string, number> = {
-    "sBTC": 8,
-    "sETH": 8, // Example, ETH often uses 18 for real ERC20, but for internal balance might be less
-    "sPEAQ": 6,
-    "sAVAX": 8,
-    "sSOL": 9,
-    "sBNB": 8,
-    "sNEAR": 8,
-    "sOP": 8,
-    "sDOT": 10,
-    // Add other synths as needed
-};
-const ZERO = BigInt(0);
-
-/**
- * Fetches the latest oracle price for a given asset against USDC.
- * @param baseAssetSymbol - e.g., "BTC", "ETH" (without the "s" prefix)
- */
-async function getOraclePrice(baseAssetSymbol: string): Promise<number | null> {
-  try {
-    const { Items } = await ddb.send(
-      new QueryCommand({
-        TableName: PRICES_TABLE_NAME,
-        KeyConditionExpression: "pk = :pk",
-        ExpressionAttributeValues: marshall({ ":pk": pkPriceAsset(baseAssetSymbol) }),
-        ScanIndexForward: false, // Get the latest price (assuming SK is timestamp based and descending)
-        Limit: 1,
-      })
-    );
-    if (!Items || Items.length === 0) {
-      console.warn(`Oracle price not found for asset: ${baseAssetSymbol}`);
-      return null;
+async function getOraclePriceForExchange(baseAssetSymbol: string): Promise<number | null> {
+    const assetKey = baseAssetSymbol.startsWith("s") ? baseAssetSymbol.substring(1) : baseAssetSymbol;
+    try {
+        const queryLatestInput: QueryCommandInput = {
+            TableName: PRICES_TABLE_NAME,
+            KeyConditionExpression: "pk = :pkVal",
+            ExpressionAttributeValues: { ":pkVal": pkPriceAsset(assetKey) },
+            ScanIndexForward: false, Limit: 1
+        };
+        const queryResult = await docClient.send(new QueryCommand(queryLatestInput));
+        if (!queryResult.Items || queryResult.Items.length === 0) {
+             console.warn(`SynthExchange: Oracle price not found for asset: ${assetKey}.`);
+             return null;
+        }
+        return (queryResult.Items[0] as PriceSnapshot).price;
+    } catch (error) {
+        console.error(`SynthExchange: Error fetching oracle price for ${assetKey}:`, error);
+        return null;
     }
-    const priceData = unmarshall(Items[0]) as PriceSnapshot;
-    return priceData.price;
-  } catch (error) {
-    console.error(`Error fetching oracle price for ${baseAssetSymbol}:`, error);
-    return null;
-  }
+}
+
+async function getLinkedWalletAddress(traderId: string): Promise<string | null> {
+    // ... (implementation from withdraw/route.ts)
+    if (!traderId) return null;
+    try {
+        const { Item } = await docClient.send(new GetCommand({ TableName: TRADERS_TABLE_NAME, Key: { traderId }, ProjectionExpression: "walletAddress" }));
+        return Item?.walletAddress && ethers.isAddress(Item.walletAddress) ? Item.walletAddress : null;
+    } catch (e) { console.error("Error fetching linked wallet in SynthExchange:", e); return null; }
 }
 
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    },
-  });
+    return new NextResponse(null, { status: 200, headers: {
+        "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }});
 }
 
 export async function POST(req: NextRequest) {
-  let authenticatedUser: AuthenticatedUserSubject;
-  try {
-    authenticatedUser = await requireAuth();
-  } catch (authError: any) {
-    if (authError instanceof NextResponse) return authError;
-    console.error("/api/synths/exchange - Auth Error:", authError.message);
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!vaultContractForExchange || !coreSigner || !factoryContractForExchange || !provider || !USDC_CONTRACT_ADDR || USDC_CONTRACT_ADDR === "0xReplaceWithActualUSDConPeaqAddress") {
+        console.error("SynthExchange API: Server contracts or USDC address not initialized.");
+        return NextResponse.json({ error: "Server configuration error for synth exchange." }, { status: 503 });
+    }
 
-  try {
-    const body = await req.json() as {
-      fromAsset: string; // e.g., "USDC" or "sBTC"
-      toAsset: string;   // e.g., "sBTC" or "USDC"
-      amount: string;    // Amount of fromAsset in its base units (string for BigInt)
-      mode: TradingMode;
-    };
-
-    // --- Validation ---
-    if (!body.fromAsset || !body.toAsset || !body.amount || !body.mode) {
-      return NextResponse.json({ error: "Missing required fields: fromAsset, toAsset, amount, mode" }, { status: 400 });
-    }
-    if (body.mode !== "REAL" && body.mode !== "PAPER") {
-      return NextResponse.json({ error: "Invalid mode. Must be REAL or PAPER." }, { status: 400 });
-    }
-    if (body.fromAsset === body.toAsset) {
-      return NextResponse.json({ error: "fromAsset and toAsset cannot be the same." }, { status: 400 });
-    }
-    if (!((body.fromAsset === "USDC" && body.toAsset.startsWith("s")) || 
-          (body.toAsset === "USDC" && body.fromAsset.startsWith("s")))) {
-      return NextResponse.json({ error: "Exchange must be between USDC and an sAsset (e.g., sBTC)." }, { status: 400 });
-    }
-    
-    let amountFromBigInt: bigint;
+    let authenticatedUser: AuthenticatedUserSubject;
     try {
-      amountFromBigInt = BigInt(body.amount);
-      if (amountFromBigInt <= ZERO) throw new Error("Amount must be positive.");
-    } catch (e) {
-      console.error(e);
-      return NextResponse.json({ error: "Invalid amount. Must be a positive integer string." }, { status: 400 });
-    }
-    // --- End Validation ---
-
-    const traderId = authenticatedUser.properties.traderId;
-    const { fromAsset, toAsset, mode } = body;
-
-    let oraclePrice: number | null = null;
-    let amountToBigInt: bigint;
-    let fromAssetDecimals: number;
-    let toAssetDecimals: number;
-
-    if (fromAsset === "USDC") { // Buying sAsset with USDC
-      const baseSynthSymbol = toAsset.substring(1); // "sBTC" -> "BTC"
-      oraclePrice = await getOraclePrice(baseSynthSymbol);
-      if (oraclePrice === null) {
-        return NextResponse.json({ error: `Oracle price for ${baseSynthSymbol} unavailable.` }, { status: 503 });
-      }
-      if (oraclePrice <= 0) {
-        return NextResponse.json({ error: `Invalid oracle price (${oraclePrice}) for ${baseSynthSymbol}.` }, { status: 500 });
-      }
-      fromAssetDecimals = USDC_DECIMALS;
-      toAssetDecimals = SYNTH_ASSET_DECIMALS[toAsset] || 8; // Default if not in map
-
-      // amountToBigInt = (amountFromBigInt * BigInt(10**toAssetDecimals)) / BigInt(Math.round(oraclePrice * (10**fromAssetDecimals)));
-      // To avoid precision loss with BigInt division, multiply by a large factor then divide, or use a bignumber library
-      // (USDC amount / price) * 10^toAssetDecimals
-      // Example: 100 USDC (100 * 10^6), price 50000 BTC/USDC. sBTC has 8 decimals.
-      // (100 * 10^6 / 50000) * 10^8 = (100000000 / 50000) * 10^8 = 2000 * 10^8 = 200000000000 (0.002 sBTC)
-      const usdcValueScaled = amountFromBigInt * BigInt(10 ** toAssetDecimals); // Scale USDC amount by target decimals
-      const priceScaled = BigInt(Math.round(oraclePrice * (10 ** fromAssetDecimals))); // Scale price by fromAsset decimals
-      amountToBigInt = usdcValueScaled / priceScaled;
-
-
-    } else { // Selling sAsset for USDC (fromAsset starts with "s")
-      const baseSynthSymbol = fromAsset.substring(1); // "sBTC" -> "BTC"
-      oraclePrice = await getOraclePrice(baseSynthSymbol);
-      if (oraclePrice === null) {
-        return NextResponse.json({ error: `Oracle price for ${baseSynthSymbol} unavailable.` }, { status: 503 });
-      }
-       if (oraclePrice <= 0) {
-        return NextResponse.json({ error: `Invalid oracle price (${oraclePrice}) for ${baseSynthSymbol}.` }, { status: 500 });
-      }
-      fromAssetDecimals = SYNTH_ASSET_DECIMALS[fromAsset] || 8;
-      toAssetDecimals = USDC_DECIMALS;
-
-      // amountToBigInt = (amountFromBigInt * BigInt(Math.round(oraclePrice * (10**toAssetDecimals)))) / BigInt(10**fromAssetDecimals);
-      // (sAsset amount * price) * 10^toAssetDecimals (scaled by fromAssetDecimals)
-      // Example: 0.1 sBTC (0.1 * 10^8), price 50000 BTC/USDC. USDC has 6 decimals.
-      // (0.1 * 10^8 * 50000) * 10^6 / 10^8 = (10000000 * 50000 / 10^8) * 10^6 = 5000 * 10^6
-      const synthValueInUsdcScaled = amountFromBigInt * BigInt(Math.round(oraclePrice * (10 ** toAssetDecimals)));
-      amountToBigInt = synthValueInUsdcScaled / BigInt(10 ** fromAssetDecimals);
+        authenticatedUser = await requireAuth();
+    } catch (authError: any) {
+        return authError instanceof NextResponse ? authError : NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (amountToBigInt <= ZERO) {
-      return NextResponse.json({ error: "Calculated exchange amount is zero or less, possibly due to small input amount or price." }, { status: 400 });
+    const internalDEXTraderId = authenticatedUser.properties.traderId; // For logging/internal reference
+    const userWalletAddress = authenticatedUser.properties.walletAddress || await getLinkedWalletAddress(internalDEXTraderId);
+
+    if (!userWalletAddress || !ethers.isAddress(userWalletAddress)) {
+        return NextResponse.json({ error: "User's Peaq wallet not linked or invalid. Please link your wallet." }, { status: 400 });
     }
-
-    const now = Date.now();
-    const pk = pkTraderMode(traderId, mode);
-
-    // Prepare transaction items
-    const transactItems = [
-      { // Debit fromAsset
-        Update: {
-          TableName: BALANCES_TABLE_NAME,
-          Key: marshall({ pk, sk: skAsset(fromAsset) }),
-          UpdateExpression: "SET balance = balance - :amount, updatedAt = :ts",
-          ConditionExpression: "attribute_exists(balance) AND balance >= :amount", // Ensure sufficient balance
-          ExpressionAttributeValues: marshall({ ":amount": amountFromBigInt, ":ts": now }),
-        }
-      },
-      { // Credit toAsset
-        Update: {
-          TableName: BALANCES_TABLE_NAME,
-          Key: marshall({ pk, sk: skAsset(toAsset) }),
-          // If item doesn't exist, set balance to amountTo. Otherwise, add.
-          // Also initialize pending to 0 if it's a new balance entry.
-          UpdateExpression: "ADD balance :amountTo SET pending = if_not_exists(pending, :zero), updatedAt = :ts",
-          ExpressionAttributeValues: marshall({ ":amountTo": amountToBigInt, ":zero": ZERO, ":ts": now }),
-        }
-      }
-    ];
 
     try {
-      await ddb.send(new TransactWriteItemsCommand({ TransactItems: transactItems }));
-      
-      // For REAL mode, if sASSETs were actual on-chain tokens that users could withdraw,
-      // this is where you'd interact with the Vault contract to reflect the DEX's internal accounting change.
-      // E.g., if user bought sBTC with USDC:
-      // Vault might internally "mint" sBTC (just an accounting update for its total sBTC liability)
-      // and "burn" USDC (move it to a different pool or just account for it).
-      // But since we're using internal balances, this on-chain step for this specific API is not needed for user balances.
+        const body = await req.json() as { fromAsset: string; toAsset: string; amount: string; mode: TradingMode; };
+        if (!body.fromAsset || !body.toAsset || !body.amount || !body.mode || body.mode !== "REAL") {
+            return NextResponse.json({ error: "Missing/invalid fields. Required: fromAsset, toAsset, amount (base units string), mode (must be REAL)." }, { status: 400 });
+        }
+        if (body.fromAsset === body.toAsset) return NextResponse.json({ error: "From and To assets cannot be the same." }, { status: 400 });
+        if (!((body.fromAsset.toUpperCase() === "USDC" && body.toAsset.startsWith("s")) || 
+              (body.toAsset.toUpperCase() === "USDC" && body.fromAsset.startsWith("s")))) {
+            return NextResponse.json({ error: "Exchange must be between USDC and an sASSET (e.g., sBTC)." }, { status: 400 });
+        }
 
-      // Consider logging this exchange event to a separate audit table if required.
+        const fromAssetSymbol = body.fromAsset.toUpperCase();
+        const toAssetSymbol = body.toAsset.toUpperCase();
+        const fromAssetDecimals = getAssetDecimalsExchange(fromAssetSymbol);
+        const toAssetDecimals = getAssetDecimalsExchange(toAssetSymbol);
+        
+        let amountFromBigInt: bigint;
+        try {
+            amountFromBigInt = ethers.parseUnits(body.amount, fromAssetDecimals);
+        } catch {
+            return NextResponse.json({ error: `Invalid amount format for ${fromAssetSymbol}. Expected up to ${fromAssetDecimals} decimals as string.` }, { status: 400 });
+        }
+        if (amountFromBigInt <= BigInt(0)) return NextResponse.json({ error: "Amount must be positive." }, { status: 400 });
 
-      console.log( // This notification won't be seen by API caller, but good for server log
-        `Exchange successful: ${body.amount} ${fromAsset} -> ${amountToBigInt.toString()} ${toAsset} for trader ${traderId} in ${mode} mode.`
-      );
-      // The /api/orders route (and subsequently WebSocketContext) will push balanceUpdate.
-      // Or this API can directly publish to SNS for a balanceUpdate. Let's do that for immediate feedback.
-      // TODO: Consider if an SNS topic for balance updates triggered by non-trade actions is needed.
-      // For now, rely on client to re-fetch balances or on next trade-related balance update.
+        let txResponse;
+        let txDescription: string;
+        let sAssetContractAddress: string;
+        let amountToReceiveBigInt: bigint; // This will be calculated based on oracle
 
-      return NextResponse.json({
-        success: true,
-        message: "Exchange successful.",
-        fromAsset,
-        fromAmount: body.amount,
-        toAsset,
-        toAmount: amountToBigInt.toString(),
-        oraclePriceUsed: oraclePrice,
-        mode,
-      }, { status: 200 });
+        const sAssetInvolved = fromAssetSymbol === "USDC" ? toAssetSymbol : fromAssetSymbol;
+        const underlyingForOracle = sAssetInvolved.substring(1); // "sBTC" -> "BTC"
+        const oraclePrice = await getOraclePriceForExchange(underlyingForOracle);
 
-    } catch (error: any) {
-      if (error.name === 'TransactionCanceledException') {
-        // One of the conditions failed, likely insufficient balance
-        console.warn(`Synth exchange failed for ${traderId} due to transaction cancellation (likely insufficient balance):`, error.CancellationReasons);
-        return NextResponse.json({ error: "Exchange failed: Insufficient balance or concurrent update." }, { status: 400 });
-      }
-      console.error(`Synth exchange transaction failed for ${traderId}:`, error);
-      return NextResponse.json({ error: "Exchange transaction failed." }, { status: 500 });
+        if (!oraclePrice || oraclePrice <= 0) {
+            return NextResponse.json({ error: `Oracle price for ${underlyingForOracle} is currently unavailable or invalid.` }, { status: 503 });
+        }
+
+        if (fromAssetSymbol === "USDC") { // User spends USDC to get sASSET
+            sAssetContractAddress = await factoryContractForExchange.getSynthBySymbol(toAssetSymbol);
+            if (!sAssetContractAddress || sAssetContractAddress === ethers.ZeroAddress) {
+                return NextResponse.json({ error: `Synth contract for ${toAssetSymbol} not found.` }, { status: 404 });
+            }
+            
+            // Calculate sAssetAmountToMint based on oraclePrice
+            // sAssetAmount = (usdcAmount / oraclePrice) * 10^sAssetDecimals (scaled appropriately)
+            amountToReceiveBigInt = (amountFromBigInt * BigInt(10 ** toAssetDecimals)) / BigInt(Math.round(oraclePrice * (10 ** fromAssetDecimals)));
+            if (amountToReceiveBigInt <= BigInt(0)) {
+                 return NextResponse.json({ error: "Calculated amount of sAsset to receive is zero or less. Check input amount or oracle price." }, { status: 400 });
+            }
+
+
+            const usdcTokenContract = new ethers.Contract(USDC_CONTRACT_ADDR, erc20AbiMinimal, provider);
+            const usdcAllowance: bigint = await usdcTokenContract.allowance(userWalletAddress, VAULT_ADDR);
+            if (usdcAllowance < amountFromBigInt) {
+                 return NextResponse.json({ error: `Vault needs approval to spend ${body.amount} USDC. Current allowance: ${ethers.formatUnits(usdcAllowance, fromAssetDecimals)}.`, needsApproval: true, tokenToApprove: USDC_CONTRACT_ADDR, spender: VAULT_ADDR, requiredAmountFormatted: body.amount, requiredAmountBaseUnits: amountFromBigInt.toString() }, { status: 400 });
+            }
+
+            txResponse = await vaultContractForExchange.exchangeUSDCToSAsset(userWalletAddress, sAssetContractAddress, amountFromBigInt, amountToReceiveBigInt);
+            txDescription = `Exchanged ${ethers.formatUnits(amountFromBigInt, fromAssetDecimals)} USDC for ${ethers.formatUnits(amountToReceiveBigInt, toAssetDecimals)} ${toAssetSymbol}`;
+        } else { // User spends sASSET to get USDC
+            sAssetContractAddress = await factoryContractForExchange.getSynthBySymbol(fromAssetSymbol);
+            if (!sAssetContractAddress || sAssetContractAddress === ethers.ZeroAddress) {
+                return NextResponse.json({ error: `Synth contract for ${fromAssetSymbol} not found.` }, { status: 404 });
+            }
+
+            // Calculate usdcAmountToCredit based on oraclePrice
+            // usdcAmount = (sAssetAmount * oraclePrice) * 10^usdcDecimals (scaled appropriately)
+            amountToReceiveBigInt = (amountFromBigInt * BigInt(Math.round(oraclePrice * (10 ** toAssetDecimals)))) / BigInt(10 ** fromAssetDecimals);
+            if (amountToReceiveBigInt <= BigInt(0)) {
+                 return NextResponse.json({ error: "Calculated amount of USDC to receive is zero or less. Check input amount or oracle price." }, { status: 400 });
+            }
+
+            const sAssetTokenContract = new ethers.Contract(sAssetContractAddress, erc20AbiMinimal, provider);
+            const sAssetAllowance: bigint = await sAssetTokenContract.allowance(userWalletAddress, VAULT_ADDR);
+            if (sAssetAllowance < amountFromBigInt) {
+                 return NextResponse.json({ error: `Vault needs approval to spend/burn ${body.amount} ${fromAssetSymbol}. Current allowance: ${ethers.formatUnits(sAssetAllowance, fromAssetDecimals)}.`, needsApproval: true, tokenToApprove: sAssetContractAddress, spender: VAULT_ADDR, requiredAmountFormatted: body.amount, requiredAmountBaseUnits: amountFromBigInt.toString() }, { status: 400 });
+            }
+            
+            txResponse = await vaultContractForExchange.exchangeSAssetToUSDC(userWalletAddress, sAssetContractAddress, amountFromBigInt, amountToReceiveBigInt);
+            txDescription = `Exchanged ${ethers.formatUnits(amountFromBigInt, fromAssetDecimals)} ${fromAssetSymbol} for ${ethers.formatUnits(amountToReceiveBigInt, toAssetDecimals)} USDC`;
+        }
+
+        console.log(`SynthExchange API: ${txDescription}. User: ${userWalletAddress}, TraderID: ${internalDEXTraderId}. Tx sent: ${txResponse.hash}`);
+        const receipt = await txResponse.wait(1);
+        if (receipt.status !== 1) throw new Error(`On-chain exchange transaction failed (Tx: ${txResponse.hash}).`);
+        
+        // The Vault functions now return the amounts.
+        // We can try to parse events if needed, but let's assume the contract returns are reliable or we use the pre-calculated `amountToReceiveBigInt`.
+        const actualAmountReceivedFormatted = ethers.formatUnits(amountToReceiveBigInt, toAssetDecimals);
+
+        return NextResponse.json({ 
+            success: true, 
+            message: `Exchange successful! ${txDescription}. Funds are in your Peaq wallet.`, 
+            txHash: txResponse.hash,
+            fromAsset: fromAssetSymbol,
+            fromAmountSpentBaseUnits: amountFromBigInt.toString(),
+            fromAmountSpentFormatted: ethers.formatUnits(amountFromBigInt, fromAssetDecimals),
+            toAsset: toAssetSymbol,
+            amountReceivedBaseUnits: amountToReceiveBigInt.toString(),
+            amountReceivedFormatted: actualAmountReceivedFormatted,
+            oraclePriceUsed: oraclePrice // Good to return the price used for transparency
+        }, { status: 200 });
+
+    } catch (err: any) {
+        console.error(`SynthExchange API Error for trader ${internalDEXTraderId}, wallet ${userWalletAddress}:`, err);
+        let errorMessage = "Internal server error during synth exchange.";
+        if (err.code === 'INSUFFICIENT_FUNDS' && typeof err.message === 'string') errorMessage = "Transaction failed: Insufficient funds for gas on your wallet.";
+        else if (err.reason && typeof err.reason === 'string') errorMessage = `Transaction failed: ${err.reason}`;
+        else if (err.message && typeof err.message === 'string') errorMessage = err.message; // Use error message directly if available
+        return NextResponse.json({ error: errorMessage, txHashAttempted: (err as any).transactionHash || (err as any).hash }, { status: 500 });
     }
-
-  } catch (err: any) {
-    console.error("POST /api/synths/exchange error:", err);
-    return NextResponse.json({ error: "Internal server error during synth exchange." }, { status: 500 });
-  }
 }
