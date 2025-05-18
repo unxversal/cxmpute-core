@@ -124,3 +124,105 @@
   padding-top: 16px;
   border-top: 1px solid #2a2f3b;
 }
+
+/* src/components/trade/SynthExchangeModal/SynthExchangeModal.module.css */
+/* ... (existing styles from your file) ... */
+
+.txLinkModal { /* For transaction links within the modal */
+  color: var(--cxmpute-purple, #91a8eb);
+  text-decoration: none;
+  display: inline-flex; /* Align icon nicely */
+  align-items: center;
+}
+.txLinkModal:hover {
+  text-decoration: underline;
+}
+.txLinkModal svg { /* For ExternalLink icon */
+  margin-left: 4px;
+  width: 0.8em;
+  height: 0.8em;
+}
+
+.errorMessageModal { /* For error messages specific to this modal's error step */
+  color: var(--cxmpute-red, #d64989);
+  font-weight: 500;
+  font-size: 0.9rem; /* Match other messages */
+  line-height: 1.5;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.infoSmall { /* General small info text */
+  font-size: 0.75rem;
+  color: #6b778c;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+
+/* For step containers that need centering (success/error messages) */
+.stepContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.stepContainer.centered {
+    min-height: 200px; /* Give some space for centered content */
+    justify-content: center;
+}
+.stepContainer h4 {
+  font-size: 1.1rem;
+  color: #e0e0e0;
+  margin-bottom: 8px;
+}
+.stepContainer p {
+  font-size: 0.875rem;
+  color: #a0aec0;
+  line-height: 1.5;
+  max-width: 380px;
+}
+
+.confirmActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    width: 100%;
+    justify-content: flex-end; /* Or center, depending on preference */
+}
+
+.actionButtonConfirm { /* For primary action button in confirm steps */
+    /* width: auto; Don't make it full width in confirm step, Button component handles size */
+    padding: 10px 20px !important; /* If Button's default "md" isn't quite right */
+}
+
+.backButton { /* For "Back" or secondary actions in confirm steps */
+    font-size: 0.85rem !important;
+    color: #a0aec0 !important;
+}
+.backButton:hover {
+    color: #d1d4dc !important;
+}
+
+.successIcon { color: var(--cxmpute-green, #20a191); }
+.errorIcon { color: var(--cxmpute-red, #d64989); }
+
+.notice { /* Copied from DepositModal for consistency */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  color: #c0c5ce;
+  font-size: 0.8rem;
+}
+.notice svg { flex-shrink: 0; }
+
+.errorNotice {
+  background-color: rgba(214, 73, 137, 0.1);
+  border: 1px solid var(--cxmpute-red, #d64989);
+}
+.errorNotice svg {
+  color: var(--cxmpute-red, #d64989);
+}

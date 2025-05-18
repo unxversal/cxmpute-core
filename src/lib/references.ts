@@ -18,6 +18,7 @@ export const SUPPORTED_SYNTH_ASSETS = [
   { symbol: "sDOT", name: "Synthetic DOT", baseForOracle: "DOT", decimals: 10 },
 ];
 export const USDC_ASSET_INFO = { symbol: "USDC", name: "USD Coin", decimals: 6 };
+export const USDC_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Ethereum Mainnet USDC address
 
   export const SystemProvisionReference: SystemMetadataRecord[] = [
     // EMBEDDINGS
