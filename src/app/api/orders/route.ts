@@ -39,7 +39,7 @@ const MARKETS_TABLE_NAME = Resource.MarketsTable.name;
 const BALANCES_TABLE_NAME = Resource.BalancesTable.name;
 const PRICES_TABLE_NAME = Resource.PricesTable.name;
 
-const FEE_BPS = 50; // 0.5% is 50 BPS (50 / 10000)
+const FEE_BPS = 100; // 0.5% is 50 BPS (50 / 10000)
 
 const USDC_ASSET_SYMBOL = "USDC";
 const USDC_DECIMALS = 6;

@@ -440,6 +440,15 @@ export interface TraderProfile {
   createdAt?: number;
 }
 
+export interface TraderRecord {
+  traderId: UUID; // PK
+  email?: string;
+  walletAddress?: string;
+  userAk?: string;
+  status?: "ACTIVE" | "SUSPENDED";
+  createdAt?: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WebSocket payloads – Market data
 // ─────────────────────────────────────────────────────────────────────────────
