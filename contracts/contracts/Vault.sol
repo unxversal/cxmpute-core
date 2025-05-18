@@ -1,210 +1,199 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./SynthERC20.sol"; // Assuming SynthERC20 has mint/burnFromVault controlled by MINTER_ROLE (Vault)
-import "./CXPTToken.sol";   // Assuming CXPTToken has mint controlled by MINTER_ROLE (Vault)
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "./CXPTToken.sol"; // Your CXPTToken contract
+// Assuming SynthERC20.sol defines a contract that implements ISynthERC20
+// You might need to adjust path or define ISynthERC20 if SynthERC20.sol is complex
+import "./SynthERC20.sol"; // Placeholder: ensure this path is correct or define ISynthERC20
 
-/**
- * @title Vault Contract for CXMPUTE DEX (No User Shares Version)
- * @notice Holds 100% USDC collateral for the DEX. Manages synth minting/burning
- *         and CXPT token minting. Facilitates deposits and withdrawals via a GATEWAY_ROLE.
- *         Collected fees are tracked and withdrawable by ADMIN_ROLE.
- * @dev Uses AccessControl for roles (ADMIN, CORE, GATEWAY).
- *      GATEWAY_ROLE handles deposits/withdrawals of USDC and minting of CXPT.
- *      CORE_ROLE (matcher/CRONs) handles synth minting/burning and fee recording.
- *      ADMIN_ROLE handles fee withdrawals and synth registration.
- *      This version does NOT track per-user shares on-chain. Off-chain BalancesTable is the source of truth.
- */
-contract Vault is AccessControlEnumerable, ReentrancyGuard {
+interface ISynthERC20 is IERC20 {
+    function mint(address to, uint256 amount) external;
+    function burnFrom(address account, uint256 amount) external;
+    // Add burn(uint256 amount) external; if synths can be burned by the contract itself (e.g., if Vault holds them)
+}
 
-    // --- Roles ---
-    bytes32 public constant CORE_ROLE    = keccak256("CORE_ROLE");
-    bytes32 public constant ADMIN_ROLE   = keccak256("ADMIN_ROLE");
+contract Vault is AccessControlEnumerable {
+    bytes32 public constant CORE_ROLE = keccak256("CORE_ROLE");
     bytes32 public constant GATEWAY_ROLE = keccak256("GATEWAY_ROLE");
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
-    // --- State Variables ---
-    IERC20 public immutable usdc;
-    CXPTToken public immutable cxpt;
+    IERC20 public immutable usdcToken;
+    CXPTToken public immutable cxptToken;
 
-    mapping(address => bool) public isSynth; // synth address => registered?
-    uint256 public collectedFees;            // Tracks accumulated USDC fees (in base units)
+    mapping(address => bool) public isRegisteredSynth; // synthContractAddress => is official
+    uint256 public totalFeesCollectedUSDC; // Fees collected in USDC base units
 
     // --- Events ---
-    // Emitted when USDC is deposited into the Vault for a user.
-    // `gateway` is the msg.sender (GATEWAY_ROLE address).
-    // `user` is the beneficiary of the deposit whose off-chain balance should be credited.
-    event Deposited(address indexed gateway, address indexed user, uint256 amount);
+    event DepositedUSDC(address indexed coreAddress, address indexed userWallet, uint256 usdcAmount);
+    event WithdrawnUSDC(address indexed coreAddress, address indexed userWallet, uint256 usdcAmount);
+    event WithdrawnCXPT(address indexed coreAddress, address indexed userWallet, uint256 cxptAmount);
+    event SynthRegistered(address indexed registrar, address indexed synthContract);
+    event FeesRecorded(address indexed coreAddress, uint256 usdcFeeAmount);
+    event FeesWithdrawn(address indexed admin, address indexed to, uint256 usdcAmount);
 
-    // Emitted when USDC or CXPT is withdrawn from the Vault for a user.
-    // `gateway` is the msg.sender (GATEWAY_ROLE address).
-    // `user` is the recipient of the withdrawal whose off-chain balance was debited.
-    event Withdrawn(address indexed gateway, address indexed user, uint256 amount, bool asCxpt);
+    event SynthDepositedToVault(address indexed userWallet, address indexed synthContract, uint256 sAssetAmount);
+    event SynthWithdrawnFromVault(address indexed coreAddress, address indexed userWallet, address indexed synthContract, uint256 sAssetAmount);
+    
+    event USDCToSAssetExchanged(
+        address indexed coreAddress,
+        address indexed userWallet,
+        address indexed sAssetContract,
+        uint256 usdcAmountSpent,
+        uint256 sAssetAmountMinted
+    );
+    event SAssetToUSDCExchanged(
+        address indexed coreAddress,
+        address indexed userWallet,
+        address indexed sAssetContract,
+        uint256 sAssetAmountBurned,
+        uint256 usdcAmountReceived
+    );
 
-    event SynthRegistered(address indexed admin, address indexed synth);
-    event SynthMinted(address indexed core, address indexed synth, address indexed to, uint256 amount);
-    event SynthBurned(address indexed core, address indexed synth, address indexed from, uint256 amount);
-    event FeesRecorded(address indexed core, uint256 amount);
-    event FeesWithdrawn(address indexed admin, address indexed to, uint256 amount);
-    // CXPTMinted event can be emitted by CXPTToken contract itself upon minting if designed that way.
-    // If not, you can add: event CXPTMinted(address indexed gateway, address indexed to, uint256 amount);
-
-    // --- Errors ---
-    error Vault__ZeroAddress();
-    error Vault__ZeroAmount();
-    error Vault__InsufficientBalanceInVault(); // Changed from Vault__InsufficientBalance
-    error Vault__InsufficientFees();
-    error Vault__TransferFailed(string reason);
-    error Vault__UnknownSynth();
-    error Vault__AlreadyRegistered();
-
-    // --- Constructor ---
     constructor(
         address _usdcAddress,
-        address _cxptAddress,
+        address _cxptTokenAddress,
         address _coreAddress,
-        address _gatewayAddress
+        address _gatewayAddress 
     ) {
-        if (_usdcAddress == address(0) || _cxptAddress == address(0) || _coreAddress == address(0) || _gatewayAddress == address(0)) {
-            revert Vault__ZeroAddress();
-        }
-        usdc = IERC20(_usdcAddress);
-        cxpt = CXPTToken(_cxptAddress); // Assumes CXPTToken constructor grants MINTER_ROLE to this Vault if needed
+        require(_usdcAddress != address(0), "Vault: Invalid USDC address");
+        require(_cxptTokenAddress != address(0), "Vault: Invalid CXPT address");
+        require(_coreAddress != address(0), "Vault: Invalid Core address");
+        require(_gatewayAddress != address(0), "Vault: Invalid Gateway address");
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // Deployer gets DEFAULT_ADMIN_ROLE
-        _grantRole(ADMIN_ROLE, msg.sender);         // Deployer also gets ADMIN_ROLE initially
+        usdcToken = IERC20(_usdcAddress);
+        cxptToken = CXPTToken(_cxptTokenAddress); // Assumes CXPTToken type is available
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(CORE_ROLE, _coreAddress);
         _grantRole(GATEWAY_ROLE, _gatewayAddress);
     }
 
-    // --- Admin Functions ---
-
-    function registerSynth(address synthAddress) external onlyRole(ADMIN_ROLE) {
-        if (synthAddress == address(0)) revert Vault__ZeroAddress();
-        if (isSynth[synthAddress]) revert Vault__AlreadyRegistered();
-        isSynth[synthAddress] = true;
-        emit SynthRegistered(msg.sender, synthAddress);
+    // --- USDC Operations (Called by CORE_ROLE backend) ---
+    function depositUSDC(address userWallet, uint256 usdcAmount) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(usdcAmount > 0, "Vault: Amount must be positive");
+        // User must have approved this Vault contract to spend 'usdcAmount' of their USDC
+        require(usdcToken.transferFrom(userWallet, address(this), usdcAmount), "Vault: USDC transferFrom failed");
+        emit DepositedUSDC(msg.sender, userWallet, usdcAmount);
     }
 
-    function withdrawFees(address to, uint256 amount) external onlyRole(ADMIN_ROLE) nonReentrant {
-        if (to == address(0)) revert Vault__ZeroAddress();
-        if (amount == 0) revert Vault__ZeroAmount();
+    // --- Combined Withdraw (USDC or CXPT) (Called by CORE_ROLE backend) ---
+    function withdraw(address userWallet, uint256 amount, bool withdrawAsCxpt) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(amount > 0, "Vault: Amount must be positive");
+        // Backend ensures user has sufficient internal balance before calling this
 
-        uint256 currentCollectedFees = collectedFees;
-        if (currentCollectedFees < amount) revert Vault__InsufficientFees();
-
-        // Check if the Vault physically has enough USDC (can differ from collectedFees if issues occur)
-        if (usdc.balanceOf(address(this)) < amount) revert Vault__InsufficientBalanceInVault();
-
-        collectedFees = currentCollectedFees - amount;
-
-        bool success = usdc.transfer(to, amount);
-        if (!success) {
-            collectedFees = currentCollectedFees; // Revert state change
-            revert Vault__TransferFailed("USDC fee transfer failed");
+        if (withdrawAsCxpt) {
+            // Vault contract must have MINTER_ROLE on CXPTToken contract
+            cxptToken.mint(userWallet, amount); // Assumes CXPTToken has appropriate mint permissions
+            emit WithdrawnCXPT(msg.sender, userWallet, amount);
+        } else { // Withdraw as USDC
+            require(usdcToken.balanceOf(address(this)) >= amount, "Vault: Insufficient USDC in Vault");
+            usdcToken.transfer(userWallet, amount);
+            emit WithdrawnUSDC(msg.sender, userWallet, amount);
         }
-        emit FeesWithdrawn(msg.sender, to, amount);
     }
 
-    // --- Gateway Functions (Deposit/Withdraw) ---
-
-    /**
-     * @notice Called by the GATEWAY_ROLE to process a user's USDC deposit.
-     * @dev The 'user' must have pre-approved the Vault contract (this address) OR the GATEWAY_ROLE address
-     *      (if the gateway then transfers to Vault) to spend their USDC.
-     *      This function pulls 'amount' of USDC from 'user' into this Vault.
-     *      The off-chain system listens for the 'Deposited' event to update the user's balance
-     *      in the `BalancesTable`.
-     * @param user The end-user address for whom the deposit is made.
-     * @param amount The amount of USDC to deposit, in base units.
-     */
-    function deposit(address user, uint256 amount) external onlyRole(GATEWAY_ROLE) nonReentrant {
-        if (user == address(0)) revert Vault__ZeroAddress();
-        if (amount == 0) revert Vault__ZeroAmount();
-
-        // The GATEWAY_ROLE (msg.sender) is initiating this.
-        // `user` must have approved this Vault contract to spend their USDC.
-        // Or, if GATEWAY_ROLE holds user funds temporarily, then `user` must approve GATEWAY_ROLE,
-        // and GATEWAY_ROLE must then transfer to Vault (requiring two approvals or a different flow).
-        // Assuming user approves Vault directly for simplicity here:
-        bool success = usdc.transferFrom(user, address(this), amount);
-        if (!success) revert Vault__TransferFailed("USDC transferFrom failed during deposit");
-
-        // No on-chain share accounting.
-        emit Deposited(msg.sender, user, amount);
+    // --- sASSET Deposit & Withdrawal (Called by CORE_ROLE backend) ---
+    // User wants to deposit their sASSET ERC20 tokens (e.g. sBTC) into the Vault for internal DEX trading
+    function depositSynthToVault(address userWallet, address synthContract, uint256 sAssetAmount) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(isRegisteredSynth[synthContract], "Vault: Synth not registered");
+        require(sAssetAmount > 0, "Vault: Amount must be positive");
+        // User (userWallet) must have approved this Vault contract to spend 'sAssetAmount' of their synthContract tokens
+        require(ISynthERC20(synthContract).transferFrom(userWallet, address(this), sAssetAmount), "Vault: sASSET transferFrom failed");
+        emit SynthDepositedToVault(userWallet, synthContract, sAssetAmount);
     }
 
-    /**
-     * @notice Called by the GATEWAY_ROLE to process a user's withdrawal.
-     * @dev Off-chain systems must verify the user's balance in `BalancesTable` *before* calling this.
-     *      This function transfers USDC from the Vault to the 'user' or mints CXPT to the 'user'.
-     * @param user The end-user address receiving the withdrawal.
-     * @param amount The amount to withdraw, in base units.
-     * @param asCxpt If true, mints CXPT; otherwise, transfers USDC.
-     */
-    function withdraw(address user, uint256 amount, bool asCxpt) external onlyRole(GATEWAY_ROLE) nonReentrant {
-        if (user == address(0)) revert Vault__ZeroAddress();
-        if (amount == 0) revert Vault__ZeroAmount();
-
-        // Off-chain system is responsible for checking if 'user' has sufficient balance.
-        // This contract only checks if it has enough USDC to send (if not CXPT).
-
-        if (asCxpt) {
-            // Vault needs MINTER_ROLE on CXPTToken contract
-            cxpt.mint(user, amount);
-            // Consider emitting CXPTMinted event here if CXPTToken doesn't do it.
-        } else {
-            if (usdc.balanceOf(address(this)) < amount) revert Vault__InsufficientBalanceInVault();
-            bool success = usdc.transfer(user, amount);
-            if (!success) revert Vault__TransferFailed("USDC transfer failed during withdrawal");
-        }
-
-        // No on-chain share accounting.
-        emit Withdrawn(msg.sender, user, amount, asCxpt);
+    // User wants to withdraw their internal sASSET balance as ERC20 tokens to their wallet
+    function withdrawSynthFromVault(address userWallet, address synthContract, uint256 sAssetAmount) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(isRegisteredSynth[synthContract], "Vault: Synth not registered");
+        require(sAssetAmount > 0, "Vault: Amount must be positive");
+        require(ISynthERC20(synthContract).balanceOf(address(this)) >= sAssetAmount, "Vault: Insufficient sASSET in Vault");
+        
+        ISynthERC20(synthContract).transfer(userWallet, sAssetAmount);
+        emit SynthWithdrawnFromVault(msg.sender, userWallet, synthContract, sAssetAmount);
     }
 
-    // --- Core (Matcher/CRONs) Functions ---
+    // --- sASSET On-Chain Exchange with USDC (Called by CORE_ROLE backend) ---
+    // User spends USDC from their external wallet to receive newly minted sASSETs in their external wallet
+    function exchangeUSDCToSAsset(
+        address userWallet,         // User EOA spending USDC and receiving sASSET
+        address sAssetContract,     // The specific sASSET (e.g., sBTC) contract address
+        uint256 usdcAmountToSpend,  // Amount of USDC user will spend (in USDC base units)
+        uint256 sAssetAmountToMint  // Amount of sASSET to mint (in sASSET base units) - calculated by backend
+    ) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(isRegisteredSynth[sAssetContract], "Vault: Synth not registered");
+        require(usdcAmountToSpend > 0, "Vault: USDC amount must be positive");
+        require(sAssetAmountToMint > 0, "Vault: sASSET amount must be positive");
 
-    function recordFees(uint256 feeAmount) external onlyRole(CORE_ROLE) {
-        if (feeAmount == 0) revert Vault__ZeroAmount();
-        collectedFees += feeAmount;
-        emit FeesRecorded(msg.sender, feeAmount);
+        // 1. Vault pulls USDC from user (user must have approved Vault)
+        require(usdcToken.transferFrom(userWallet, address(this), usdcAmountToSpend), "Vault: USDC transferFrom for exchange failed");
+        
+        // 2. Vault mints sASSET directly to user's wallet
+        //    This Vault contract needs MINTER_ROLE on the sAssetContract (SynthERC20)
+        ISynthERC20(sAssetContract).mint(userWallet, sAssetAmountToMint);
+
+        emit USDCToSAssetExchanged(msg.sender, userWallet, sAssetContract, usdcAmountToSpend, sAssetAmountToMint);
     }
 
-    function mintSynth(address synthAddress, address to, uint256 amount) external onlyRole(CORE_ROLE) {
-        if (!isSynth[synthAddress]) revert Vault__UnknownSynth();
-        if (to == address(0)) revert Vault__ZeroAddress();
-        if (amount == 0) revert Vault__ZeroAmount(); // Added zero amount check for synth ops
-        SynthERC20(synthAddress).mint(to, amount); // Assumes SynthERC20.mint is onlyRole(VAULT_MINTER_ROLE)
-        emit SynthMinted(msg.sender, synthAddress, to, amount);
+    // User spends sASSETs from their external wallet (burning them) to receive USDC in their external wallet
+    function exchangeSAssetToUSDC(
+        address userWallet,         // User EOA spending sASSET and receiving USDC
+        address sAssetContract,     // The specific sASSET (e.g., sBTC) contract address
+        uint256 sAssetAmountToSpend,// Amount of sASSET user will spend (in sASSET base units)
+        uint256 usdcAmountToCredit  // Amount of USDC to credit to user (in USDC base units) - calculated by backend
+    ) external onlyRole(CORE_ROLE) {
+        require(userWallet != address(0), "Vault: Invalid user wallet");
+        require(isRegisteredSynth[sAssetContract], "Vault: Synth not registered");
+        require(sAssetAmountToSpend > 0, "Vault: sASSET amount must be positive");
+        require(usdcAmountToCredit > 0, "Vault: USDC amount must be positive");
+
+        // 1. Vault burns sASSET from user's wallet (user must have approved Vault for sAssetContract)
+        //    The SynthERC20 contract needs a burnFrom method that Vault can call.
+        ISynthERC20(sAssetContract).burnFrom(userWallet, sAssetAmountToSpend);
+        
+        // 2. Vault transfers USDC to user's wallet
+        require(usdcToken.balanceOf(address(this)) >= usdcAmountToCredit, "Vault: Insufficient USDC in Vault for exchange");
+        usdcToken.transfer(userWallet, usdcAmountToCredit);
+
+        emit SAssetToUSDCExchanged(msg.sender, userWallet, sAssetContract, sAssetAmountToSpend, usdcAmountToCredit);
     }
 
-    function burnSynth(address synthAddress, address from, uint256 amount) external onlyRole(CORE_ROLE) {
-        if (!isSynth[synthAddress]) revert Vault__UnknownSynth();
-        if (from == address(0)) revert Vault__ZeroAddress();
-        if (amount == 0) revert Vault__ZeroAmount(); // Added zero amount check
-        // Assumes SynthERC20.burnFromVault requires msg.sender to be Vault (MINTER_ROLE)
-        // and that SynthERC20 has approved Vault or Vault uses transferFrom if user approved synth.
-        // More commonly, burnFrom(from, amount) is called where SynthERC20 gives Vault allowance.
-        // Let's assume SynthERC20 has `burnFromVault(address account, uint256 value)` that only Vault can call.
-        SynthERC20(synthAddress).burnFromVault(from, amount);
-        emit SynthBurned(msg.sender, synthAddress, from, amount);
+    // --- Admin & Gateway Functions ---
+    function registerSynth(address synthContract) external onlyRole(GATEWAY_ROLE) {
+        require(synthContract != address(0), "Vault: Zero address for synth");
+        isRegisteredSynth[synthContract] = true;
+        emit SynthRegistered(msg.sender, synthContract);
+    }
+
+    function recordFees(uint256 usdcFeeAmount) external onlyRole(CORE_ROLE) {
+        // Called by match engine (backend)
+        totalFeesCollectedUSDC += usdcFeeAmount;
+        emit FeesRecorded(msg.sender, usdcFeeAmount);
+    }
+
+    function withdrawFees(address to, uint256 usdcAmount) external onlyRole(ADMIN_ROLE) {
+        require(to != address(0), "Vault: Fee recipient cannot be zero address");
+        require(totalFeesCollectedUSDC >= usdcAmount, "Vault: Insufficient collected fees");
+        require(usdcToken.balanceOf(address(this)) >= usdcAmount, "Vault: Insufficient USDC balance in Vault for fee withdrawal");
+        
+        totalFeesCollectedUSDC -= usdcAmount;
+        usdcToken.transfer(to, usdcAmount);
+        emit FeesWithdrawn(msg.sender, to, usdcAmount);
     }
 
     // --- View Functions ---
-
-    function isRegisteredSynth(address synthAddress) external view returns (bool) {
-        return isSynth[synthAddress];
+    function getUSDCTokenAddress() external view returns (address) {
+        return address(usdcToken);
     }
 
-    function getCollectedFees() external view returns (uint256) {
-        return collectedFees;
-    }
-
-    // Function to check total USDC held by the Vault (for reconciliation)
-    function totalUsdcBalance() external view returns (uint256) {
-        return usdc.balanceOf(address(this));
+    function getCXPTTokenAddress() external view returns (address) {
+        return address(cxptToken);
     }
 }

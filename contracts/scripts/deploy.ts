@@ -1,110 +1,153 @@
 // /Users/rizzytwizzy/prod/cxmpute-core/contracts/scripts/deploy.ts
-import { ethers } from "hardhat"; // Use Hardhat's ethers instance
+import { ethers } from "hardhat";
+import hre from "hardhat"; // <<< ADD THIS IMPORT for Hardhat Runtime Environment
+
+// Define an interface for the synth details to improve type safety
+interface SynthDetail {
+  name: string;       // e.g., "Synthetic Bitcoin"
+  symbol: string;     // e.g., "sBTC"
+  decimals: number;   // e.g., 8
+  baseAsset: string;  // e.g., "BTC" (used for logging/reference)
+}
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
   console.log("Account balance:", (await deployer.provider.getBalance(deployer.address)).toString());
 
-  // --- Addresses needed for deployment (Update these based on your setup) ---
-  // You'll need the addresses of your backend components that need roles.
-  // Get these from your SST output or environment variables.
-  const coreAddress = process.env.CORE_SIGNER_ADDRESS || "0xReplaceWithCoreSignerAddress"; // Matcher Lambda Signer
-  const gatewayAddress = process.env.GATEWAY_SIGNER_ADDRESS || "0xReplaceWithGatewaySignerAddress"; // API Gateway Lambda Signer
-  const adminAddress = deployer.address; // Often the deployer starts as admin
+  const coreAddress = process.env.CORE_SIGNER_ADDRESS || deployer.address;
+  // const gatewayAddressForVault = process.env.GATEWAY_SIGNER_ADDRESS || deployer.address; // Not strictly needed for Vault constructor if role granted later
+  const adminAddress = deployer.address;
 
-  if (!ethers.isAddress(coreAddress) || !ethers.isAddress(gatewayAddress)) {
-      throw new Error("CORE_SIGNER_ADDRESS and GATEWAY_SIGNER_ADDRESS must be valid addresses in .env or environment");
+  // if (!ethers.isAddress(coreAddress) || !ethers.isAddress(gatewayAddressForVault)) { // gatewayAddressForVault removed from this check
+  if (!ethers.isAddress(coreAddress)) {
+      throw new Error("CORE_SIGNER_ADDRESS must be a valid address in .env or environment");
   }
 
-  // --- 1. Deploy USDC Mock (ONLY FOR TESTING - Replace with actual Peaq USDC address for Agung/Mainnet) ---
-  // IMPORTANT: For real deployment, get the OFFICIAL Peaq USDC address for the target network!
   let usdcAddress: string;
-  if (process.env.HARDHAT_NETWORK === 'hardhat' || process.env.HARDHAT_NETWORK === 'localhost') {
-       console.log("Deploying MockUSDC for local testing...");
-       const MockUSDC = await ethers.getContractFactory("CXPTToken"); // Re-using ERC20 for mock
-       const mockUsdc = await MockUSDC.deploy(deployer.address); // Deployer can mint mock tokens
+  // Use hre.network.name for checking the current network
+  if (hre.network.name === 'hardhat' || hre.network.name === 'localhost') {
+       console.log("Deploying MockUSDC (as CXPTToken contract type) for local testing...");
+       const MockUSDCFactory = await ethers.getContractFactory("CXPTToken");
+       // constructor(string memory name, string memory symbol, uint8 decimals_, address initialAdmin)
+       const mockUsdc = await MockUSDCFactory.deploy("Mock USDC", "mUSDC", 6, adminAddress);
        await mockUsdc.waitForDeployment();
        usdcAddress = await mockUsdc.getAddress();
        console.log("MockUSDC deployed to:", usdcAddress);
-       // Optionally mint some mock USDC to the deployer for testing deposits
-       // await mockUsdc.mint(deployer.address, ethers.parseUnits("1000000", 6)); // Mint 1M mock USDC (assuming 6 decimals)
-       // console.log("Minted 1M MockUSDC to deployer");
   } else {
-      usdcAddress = process.env.USDC_ADDRESS || "0xReplaceWithActualPeaqUsdcAddress"; // Get actual address for Peaq/Agung
-      if (!ethers.isAddress(usdcAddress)) {
-          throw new Error("USDC_ADDRESS environment variable must be set to the official Peaq USDC contract address for this network.");
+      usdcAddress = process.env.USDC_ADDRESS || "";
+      if (!usdcAddress || !ethers.isAddress(usdcAddress)) {
+          throw new Error(`CRITICAL: USDC_ADDRESS env var must be set for network: ${hre.network.name}.`);
       }
-      console.log("Using existing USDC address:", usdcAddress);
+      console.log(`Using existing USDC address for ${hre.network.name}:`, usdcAddress);
   }
 
-
-  // --- 2. Deploy CXPTToken ---
-  // The Vault address isn't known yet, so we deploy CXPT first,
-  // and the Vault constructor will get MINTER_ROLE later implicitly if needed,
-  // OR we grant it manually after Vault deployment. Let's grant it manually.
   console.log("Deploying CXPTToken...");
   const CXPTTokenFactory = await ethers.getContractFactory("CXPTToken");
-  // Pass deployer as initial admin, vault address will be granted role later
-  const cxptToken = await CXPTTokenFactory.deploy(adminAddress); // Pass *something* valid, we'll grant role later
+  const cxptToken = await CXPTTokenFactory.deploy("Cxmpute Token", "CXPT", 18, adminAddress);
   await cxptToken.waitForDeployment();
   const cxptTokenAddress = await cxptToken.getAddress();
   console.log("CXPTToken deployed to:", cxptTokenAddress);
 
-
-  // --- 3. Deploy Vault ---
-  // Vault needs USDC, CXPT, CORE, and GATEWAY addresses
   console.log("Deploying Vault...");
   const VaultFactory = await ethers.getContractFactory("Vault");
   const vault = await VaultFactory.deploy(
     usdcAddress,
     cxptTokenAddress,
     coreAddress,
-    gatewayAddress
+    deployer.address // Initial GATEWAY_ROLE holder (can be deployer, will be granted to SynthFactory)
   );
   await vault.waitForDeployment();
   const vaultAddress = await vault.getAddress();
   console.log("Vault deployed to:", vaultAddress);
 
-
-  // --- 4. Deploy SynthFactory ---
-  // Factory needs the Vault address
   console.log("Deploying SynthFactory...");
   const SynthFactoryFactory = await ethers.getContractFactory("SynthFactory");
-  const synthFactory = await SynthFactoryFactory.deploy(vaultAddress);
+  // constructor(address initialOwner, address vaultAddress)
+  const synthFactory = await SynthFactoryFactory.deploy(adminAddress, vaultAddress);
   await synthFactory.waitForDeployment();
   const synthFactoryAddress = await synthFactory.getAddress();
   console.log("SynthFactory deployed to:", synthFactoryAddress);
 
-
-  // --- 5. Grant Roles (Post-Deployment) ---
-  // Grant MINTER_ROLE on CXPTToken to the deployed Vault
   console.log(`Granting MINTER_ROLE on CXPTToken (${cxptTokenAddress}) to Vault (${vaultAddress})...`);
-  const grantTx = await cxptToken.grantRole(await cxptToken.MINTER_ROLE(), vaultAddress);
-  await grantTx.wait(1); // Wait for confirmation
+  let tx = await cxptToken.grantRole(await cxptToken.MINTER_ROLE(), vaultAddress);
+  await tx.wait(1);
   console.log("MINTER_ROLE granted to Vault on CXPTToken.");
 
-  // Optional: Grant ADMIN_ROLE, CORE_ROLE, GATEWAY_ROLE on Vault to other addresses if needed
-  // Example: Grant ADMIN_ROLE to another admin multisig
-  // const anotherAdmin = "0x...";
-  // console.log(`Granting ADMIN_ROLE on Vault to ${anotherAdmin}...`);
-  // const grantAdminTx = await vault.grantRole(await vault.ADMIN_ROLE(), anotherAdmin);
-  // await grantAdminTx.wait(1);
-  // console.log("ADMIN_ROLE granted.");
+  console.log(`Granting GATEWAY_ROLE on Vault (${vaultAddress}) to SynthFactory (${synthFactoryAddress})...`);
+  tx = await vault.grantRole(await vault.GATEWAY_ROLE(), synthFactoryAddress);
+  await tx.wait(1);
+  console.log("GATEWAY_ROLE granted to SynthFactory on Vault.");
+  
+  const initialSynthsToDeploy: SynthDetail[] = [
+    { name: "Synthetic Bitcoin", symbol: "sBTC",  decimals: 8,  baseAsset: "BTC" },
+    { name: "Synthetic Ethereum", symbol: "sETH",  decimals: 8,  baseAsset: "ETH" },
+    { name: "Synthetic PEAQ",    symbol: "sPEAQ", decimals: 18, baseAsset: "PEAQ" },
+    { name: "Synthetic Avalanche",symbol: "sAVAX",decimals: 8, baseAsset: "AVAX" },
+    { name: "Synthetic Solana",  symbol: "sSOL",  decimals: 9,  baseAsset: "SOL" },
+    { name: "Synthetic BNB",     symbol: "sBNB",  decimals: 8,  baseAsset: "BNB" },
+    { name: "Synthetic NEAR",    symbol: "sNEAR", decimals: 24, baseAsset: "NEAR" }, // NEAR uses 24 decimals typically
+    { name: "Synthetic Optimism",symbol: "sOP",   decimals: 18, baseAsset: "OP" },  // OP uses 18 decimals
+    { name: "Synthetic Polkadot",symbol: "sDOT",  decimals: 10, baseAsset: "DOT" }, // DOT uses 10 decimals
+  ];
+
+  console.log("\n--- Deploying Initial Synthetic Assets ---");
+  const deployedSynthAddresses: Record<string, string> = {};
+
+  for (const synth of initialSynthsToDeploy) {
+    console.log(`Processing synth for ${synth.baseAsset} (Symbol: ${synth.symbol})...`);
+    let sAssetAddress = await synthFactory.getSynthBySymbol(synth.symbol);
+
+    if (sAssetAddress && sAssetAddress !== ethers.ZeroAddress) {
+      console.log(`  ${synth.symbol} already exists at: ${sAssetAddress}.`);
+      // Roles are granted by SynthERC20 constructor to the Vault.
+      // SynthFactory's createSynth calls vault.registerSynth.
+      // If it already exists, we assume it was correctly set up before or by a previous run.
+      // We could add a check here: vault.isRegisteredSynth(sAssetAddress)
+      // And if not, and this deployer has GATEWAY_ROLE on vault, register it.
+      // However, if factory created it, it should be registered.
+    } else {
+      console.log(`  Deploying new ${synth.symbol} via SynthFactory...`);
+      const createTx = await synthFactory.createSynth(synth.name, synth.symbol, synth.decimals);
+      const receipt = await createTx.wait(1);
+      
+      const createdEvent = receipt?.logs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ?.map((log: any) => { try { return synthFactory.interface.parseLog(log); } catch { return null; }})
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .find((eventLog: any) => eventLog?.name === "SynthCreated");
+
+      if (createdEvent?.args?.synthContractAddress) { // Updated to match event arg name in revised SynthFactory
+        sAssetAddress = createdEvent.args.synthContractAddress;
+        console.log(`  ${synth.symbol} deployed to: ${sAssetAddress}`);
+      } else {
+        console.error(`  ERROR: Could not find SynthCreated event or synthContractAddress arg for ${synth.symbol} in transaction ${createTx.hash}`);
+        throw new Error(`Synth creation event not found for ${synth.symbol}`);
+      }
+    }
+    deployedSynthAddresses[synth.symbol] = sAssetAddress;
+  }
+  console.log("--- Initial Synthetic Assets Deployed/Verified ---");
 
   console.log("\n--- Deployment Summary ---");
-  console.log("Deployer:", deployer.address);
-  console.log("USDC Address:", usdcAddress);
+  console.log("Deployer Account:", deployer.address);
+  console.log("USDC Address (IMPORTANT! Verify for non-local):", usdcAddress);
   console.log("CXPTToken Address:", cxptTokenAddress);
   console.log("Vault Address:", vaultAddress);
   console.log("SynthFactory Address:", synthFactoryAddress);
-  console.log("CORE_ROLE Address:", coreAddress);
-  console.log("GATEWAY_ROLE Address:", gatewayAddress);
+  console.log("---------------------------");
+  console.log("Deployed sASSETs:");
+  for (const [symbol, address] of Object.entries(deployedSynthAddresses)) {
+    console.log(`  ${symbol}: ${address}`);
+  }
+  console.log("---------------------------");
+  console.log("Assigned Roles:");
+  console.log(`  Vault (${vaultAddress}) has MINTER_ROLE on CXPTToken (${cxptTokenAddress})`);
+  console.log(`  SynthFactory (${synthFactoryAddress}) has GATEWAY_ROLE on Vault (${vaultAddress})`);
+  console.log(`  Vault (${vaultAddress}) has MINTER_ROLE & BURNER_ROLE on all deployed sASSETs (granted by SynthERC20 constructor)`);
   console.log("------------------------\n");
-  console.log("✅ Deployment complete!");
-
-  // TODO: Save these addresses to your SST config/secrets or a deployment info file
-  // for your backend application to use.
+  console.log("✅ Deployment and initial synth setup complete!");
+  console.log("➡️ Next Steps: Update backend config (e.g., SST secrets) with Vault and SynthFactory addresses.");
 }
 
 main()
