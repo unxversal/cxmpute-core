@@ -411,10 +411,23 @@ export default $config({
         pk:       "string",            // Keep: WS#<connId>
         sk:       "string",            // Keep: META
         expireAt: "number",            // Keep TTL
-        channelMode: "string",         // NEW: "REAL" or "PAPER" (nullable if not subscribed)
+        channel:  "string",            // Attribute for GSI Hash Key
+        // channelMode: "string",         // NEW: "REAL" or "PAPER" (nullable if not subscribed)
         // Attributes: traderId, channel etc. remain attributes
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+      globalIndexes: {
+        // NEW GSI: To efficiently query connections by channel
+        ByChannel: { 
+          hashKey: "channel",   // The attribute storing the full channel string (e.g., "market.BTC-PERP.REAL")
+          rangeKey: "pk"        // Using the table's PK as the GSI's sort key allows fetching all attributes
+                                // or just 'pk' (connectionId) if that's all fanOut needs.
+                                // Default projection is ALL_ATTRIBUTES. If you only need connectionId for fan-out,
+                                // you could project only 'pk' to save on GSI storage/RCU costs.
+                                // For simplicity and flexibility, ALL_ATTRIBUTES is fine for now.
+        }
+        // You might have other GSIs here if needed for other query patterns
+      },
       ttl: "expireAt",
     });
 
