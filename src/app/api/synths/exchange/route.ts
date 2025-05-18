@@ -9,8 +9,8 @@ import { requireAuth, AuthenticatedUserSubject } from "@/lib/auth";
 import type { TradingMode, PriceSnapshot } from "@/lib/interfaces";
 
 // --- Configuration & Contract Setup ---
-const PEAQ_RPC_URL = process.env.PEAQ_RPC_URL || "https://peaq.api.onfinality.io/public";
-const CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID || "3338";
+const PEAQ_RPC_URL = "https://peaq.api.onfinality.io/public";
+const CHAIN_ID = "3338";
 const VAULT_ADDR = Resource.CoreVaultAddress.value;
 const SERVER_PK = Resource.CoreWalletPk.value; // Backend's private key (CORE_ROLE on Vault)
 const FACTORY_ADDR = Resource.CoreFactoryAddress.value;

@@ -1,202 +1,557 @@
-**Revising architecture document**
+# Cxmpute Core
 
-The user wants an updated version of their "Revised Hybrid Order Book DEX Architecture" document, incorporating changes discussed throughout our conversation. This includes adjustments for the new smart contract architecture, on-chain integration, deposit/withdrawal flows, and synth creation. They’d also like me to include more flow and explanation blocks, similar to the one provided for WebSockets. I’ll make sure to revise the entire document without omitting anything, ensuring I capture both new and existing sections. No external information is needed—just a well-rounded update.
+Cxmpute Core is the central application powering the Cxmpute platform. It encompasses the backend services, APIs, and smart contract infrastructure for a hybrid order book Decentralized Exchange (DEX) and a suite of AI/compute services.
 
+## Overview
 
-Thought for 16 seconds
+Built with Next.js (App Router for frontend components and API route handlers), TypeScript, and SST v3 for robust AWS serverless deployment, Cxmpute Core is designed for scalability and performance.
 
+**Key Platform Features:**
 
-# **Re‑revised Hybrid‑Order‑Book DEX Architecture**
+*   **Hybrid Order Book DEX:**
+    *   Supports synthetic assets, options, futures, perpetuals, market, and limit orders.
+    *   Features both `REAL` (on-chain settlement) and `PAPER` (simulated) trading modes.
+    *   Native platform token ($CXPT) minted upon USDC withdrawal and tradable on the DEX.
+    *   Off-chain order matching with on-chain settlement for `REAL` mode via Peaq network smart contracts.
+*   **AI & Compute Service APIs:**
+    *   Provides authenticated API gateways for various services including LLM Chat, Embeddings, Image/Video/TTS Generation, and Web Scraping. (The actual compute nodes for these services are managed by other parts of the Cxmpute ecosystem).
+*   **Authentication & Authorization:**
+    *   Utilizes OpenAuthJS for email code-based login.
+    *   Manages user accounts, provider identities, and API keys for platform and DEX access.
+    *   DEX trading access is controlled via a `traderAk` linked to the user's account.
+*   **Infrastructure:**
+    *   Leverages AWS serverless technologies (Lambda, DynamoDB, SQS, SNS, API Gateway, S3, SES) deployed and managed by SST v3.
+*   **Smart Contracts:**
+    *   Solidity-based smart contracts deployed on the Peaq network, handling USDC vault operations, synthetic asset management, and the $CXPT token.
 
-*(May 2025 – incorporates on‑chain Vault + Factory, Balances table, event listeners, and clearer flow diagrams)*
+## Platform Architecture
 
----
+Cxmpute Core follows a modular, service-oriented architecture:
 
-## **1  On‑chain layer (settlement & collateral)**
+1.  **Application Layer (Next.js):**
+    *   Serves the main user interface (parts of `cxmpute.cloud`) and the dedicated trading interface (`trade.cxmpute.cloud` via middleware).
+    *   Hosts API route handlers (`src/app/api/*`) for all platform functionalities.
+2.  **Authentication (OpenAuthJS):**
+    *   Handles user sign-up and login via email codes.
+    *   Creates and manages user records in `UserTable`, provider records in `ProviderTable`, and DEX-specific trader identities in `TradersTable`.
+    *   Generates API keys (`userAk`, `providerAk`, `traderAk`).
+3.  **DEX Subsystem (Off-chain & On-chain):**
+    *   **Order Management:** APIs for order submission and cancellation. Orders are stored in DynamoDB (`OrdersTable`).
+    *   **Matching Engine:** Orders are routed via SQS queues (e.g., `MarketOrdersQueue`, `OptionsOrdersQueue`) to dedicated Lambda matchers.
+    *   **Balance & Position Management:** DynamoDB tables (`BalancesTable`, `PositionsTable`) track user funds and open positions, partitioned by trading `mode` (REAL/PAPER).
+    *   **Trade & Market Data:**
+        *   `TradesTable`: Stores executed trades.
+        *   `KlinesTable`: Stores OHLCV data, aggregated by Lambda functions.
+        *   `MarketsTable`: Defines tradable instruments (SPOT, OPTION, FUTURE, PERP) and their parameters.
+        *   `PricesTable`: Stores oracle prices for underlying assets.
+        *   `Stats...Tables`: Collect various market statistics.
+    *   **Real-time Updates (WebSockets):** API Gateway WebSockets (`DexWsApi`) provide live data (depth, trades, PnL) to clients. Subscriptions are managed via `WSConnectionsTable`, with messages fanned out using an SNS topic (`MarketUpdatesTopic`).
+    *   **Cron Jobs (Scheduled Lambdas):** Handle options/futures expiry, perpetuals funding, oracle price fetching, metrics rollups, and kline aggregation.
+    *   **Smart Contracts (Peaq Network):**
+        *   `Vault.sol`: Manages USDC deposits/withdrawals. Acts as a gateway for synthetic asset minting/burning (authorized by `SynthFactory.sol`). Facilitates $CXPT token minting upon USDC withdrawal.
+        *   `SynthFactory.sol`: Deploys new `SynthERC20` token contracts, representing synthetic assets.
+        *   `SynthERC20.sol`: Standard ERC20 contract for individual synthetic assets (e.g., sBTC, sETH).
+        *   `CXPTToken.sol`: The platform's ERC20 utility token.
+4.  **AI/Compute Services APIs:**
+    *   Next.js API routes under `/api/v1/*` (e.g., `/chat`, `/embeddings`) act as gateways.
+    *   These routes authenticate users and then (conceptually) select and forward requests to provisioned compute nodes (details of node management are likely outside `cxmpute-core`).
+    *   DynamoDB tables (e.g., `LLMProvisionPoolTable`, `MetadataTable`) support the selection and monitoring of these services.
 
-| Contract / library           | Purpose                                                          | Notes                                                                                                                                                                                                                            |
-| ---------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vault (UUPS‑upgradeable)** | Holds 100 % USDC collateral; tracks user balances in **shares**. | • `deposit(uint amt)` & `withdraw(uint amt, bool asCxpt)` mint/transfer instantly.<br>• Emits `Deposited`, `Withdrawn`, `SynthMinted`, `SynthBurned` for Dynamo sync.<br>• Owns the only **MINTER\_ROLE** on every Synth & CXPT. |
-| **CXPT ERC‑20**              | Governance / fee‑rebate token.                                   | Minted **1 : 1** inside `Vault.withdraw(asCxpt = true)`; only trades on this DEX.                                                                                                                                                |
-| **SynthFactory**             | One‑shot deployer for new synth markets.                         | • `createSynth(name,symbol)` → deterministic `CREATE2` address.<br>• Grants `MINTER_ROLE` to Vault and emits `SynthCreated`.                                                                                                     |
-| **SynthERC20 (N × assets)**  | 1 : 1‑backed synthetic tokens the off‑chain matcher exchanges.   | Simple ERC‑20 with `mint` / `burnFromVault`.                                                                                                                                                                                     |
-| **EIP‑712 order‑hash lib**   | Typed‑data domain shared by all order types.                     | Enables cancel‑by‑sig & bot trading.                                                                                                                                                                                             |
+## Key Features
 
-> **No on‑chain matching.**
-> Latency target < 100 ms; all orders fully pre‑paid.
+### DEX Features
+*   **Comprehensive Order Types:** Market, Limit, Options (European), Futures, and Perpetuals.
+*   **Dual Trading Modes:** `REAL` mode with on-chain value and `PAPER` mode for simulated trading and practice.
+*   **Synthetic Assets:** Trade synthetic representations of popular assets (e.g., sBTC, sETH) backed by USDC collateral.
+*   **$CXPT Platform Token:**
+    *   Minted when users choose to withdraw USDC as $CXPT.
+    *   Tradable exclusively on the Cxmpute DEX.
+*   **Admin Capabilities:** Secure endpoints for market creation, pausing/unpausing markets, instrument delisting, and fee management.
+*   **Real-time Data Feeds:** WebSocket API for live order book updates, recent trades, PnL calculations, oracle prices, and market summaries.
+*   **Kline Data:** Historical price data aggregated into various intervals (1m, 5m, 1h, 1d, 1w, 1M) for charting.
+*   **Paper Trading Points:** Users earn points in PAPER mode for trading activity and PnL.
 
----
+### Platform Features
+*   **Authenticated API Access:** Secure API keys for users and providers to interact with Cxmpute services.
+*   **AI Service Gateways:** API endpoints for:
+    *   Chat Completions (OpenAI-compatible)
+    *   Text Embeddings
+    *   Image Generation
+    *   Video Generation
+    *   Text-to-Speech (TTS)
+    *   Web Scraping
+    *   Multi-modal Vision tasks (caption, detect, point, query) via `/api/v1/m/*` routes.
+*   **User & Provider Dashboards:** Frontend components for users to manage API keys, view platform stats, and for providers to monitor their earnings and provisions (conceptual based on `src/app/dashboard` and API routes).
 
-## **2  Off‑chain core (Next.js `route.ts` + SST constructs)**
+## Directory Structure Highlights
 
-### REST / HTTP
+*   `src/app/`: Next.js application code.
+    *   `pages/`: Frontend pages (e.g., `/`, `/trade`, `/dashboard`).
+    *   `api/`: API route handlers.
+        *   `v1/trade/`, `orders/`, `balances/`, etc.: DEX-specific authenticated APIs.
+        *   `public/`: Publicly accessible DEX data APIs (markets, underlyings, klines).
+        *   `v1/chat/`, `v1/embeddings/`, etc.: AI/Compute service APIs.
+        *   `admin/`: Administrative APIs.
+*   `auth/`: Authentication logic using OpenAuthJS (`index.ts` for handler, `subjects.ts` for user schema).
+*   `contracts/`: Solidity smart contracts (`Vault.sol`, `SynthFactory.sol`, etc.) and Hardhat deployment/testing scripts.
+*   `dex/`: Core backend logic for the DEX.
+    *   `aggregators/`: Kline data aggregation (e.g., `klineAggregator.ts`).
+    *   `chain/`: Helpers for interacting with smart contracts (e.g., `vaultHelper.ts`).
+    *   `cron/`: Scheduled Lambda functions (e.g., `oracle.ts`, `funding.ts`, `optionExpiry.ts`).
+    *   `matchers/`: Order matching engine logic (e.g., `matchEngine.ts`, `market.ts`).
+    *   `processors/`: Post-match processing or specific event handling (e.g., `cancellationProcessor.ts`).
+    *   `streams/`: DynamoDB stream handlers (e.g., `ordersStreamRouter.ts`).
+    *   `ws/`: WebSocket API handlers (connect, disconnect, subscribe, fanOut).
+*   `public/`: Static assets.
+*   `src/components/`: Reusable React components for UI elements and trading interface panels.
+*   `src/contexts/`: React Context API providers for managing global/shared state (Auth, Market, TradingMode, WebSocket, Account, OrderEntry, Wallet).
+*   `src/lib/`: Shared utilities, type definitions (`interfaces.ts`), constants (`references.ts`), and API client helpers.
+*   `middleware.ts`: Next.js middleware for handling subdomains (e.g., `trade.cxmpute.cloud`).
+*   `sst.config.ts`: Serverless Stack (SST) v3 configuration defining AWS infrastructure.
 
-| Route                  | Description                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------------- |
-| `POST /orders`         | Create market / limit / option / perp / future (body = discriminated DTO + EIP‑712 sig). |
-| `DELETE /orders/:id`   | Cancel single or bulk (filter).                                                          |
-| `GET /orders`          | Paginated query.                                                                         |
-| `GET /positions`       | Live positions & PnL.                                                                    |
-| `POST /admin/markets`  | Create ∣ pause ∣ delete market (Cognito group‑gated).                                    |
-| `POST /vault/deposit`  | Initiate USDC → Vault deposit *(calls `Vault.deposit` then updates Balances)*.           |
-| `POST /vault/withdraw` | Withdraw as USDC **or** CXPT *(calls `Vault.withdraw`)*.                                 |
+## Key Technologies
 
-*All routes deploy as **Lambda\@Edge** via `sst.aws.Nextjs` for <100 ms cold‑start.*
+*   **Framework:** Next.js (v14+ with App Router), React
+*   **Language:** TypeScript
+*   **Serverless & IaC:** SST v3 (Serverless Stack)
+*   **Cloud Provider:** Amazon Web Services (AWS)
+    *   Compute: Lambda
+    *   Database: DynamoDB
+    *   Messaging: SQS (FIFO Queues), SNS
+    *   API: API Gateway (REST & WebSocket)
+    *   Storage: S3
+    *   Email: SES
+*   **Blockchain:**
+    *   Smart Contracts: Solidity
+    *   Development/Testing: Hardhat
+    *   Interaction: Ethers.js (v6)
+*   **Authentication:** OpenAuthJS
+*   **Charting:** Lightweight Charts (TradingView)
+*   **Styling:** CSS Modules (TailwindCSS potentially used in some Sandpack previews, but primary appears to be CSS Modules).
 
-### WebSocket channels (`sst.ApiGatewayWebSocket`)
+## Setup and Deployment
 
-| Channel           | Messages                                            | Emitted by |
-| ----------------- | --------------------------------------------------- | ---------- |
-| `market.<symbol>` | `depth`, `trade`, `markPrice`, `fundingRate`        | Matcher Fn |
-| `trader.<uuid>`   | `orderUpdate`, `positionUpdate`, `liquidationAlert` | Matcher Fn |
-| `admin.<market>`  | `stateChange`                                       | Admin Fns  |
+### Prerequisites
+*   Node.js (LTS version recommended)
+*   pnpm (Package manager)
+*   AWS CLI configured with appropriate credentials and default region.
+*   SST CLI installed globally (`npm install -g sst`).
 
-**Broadcast fan‑out**
+### Environment Variables & Secrets
+1.  **Contract Deployment (`contracts/.env`):**
+    *   `DEPLOYER_PRIVATE_KEY`: Private key for deploying contracts.
+    *   `PEAQ_RPC_URL`: RPC URL for the Peaq mainnet (or testnet like Agung).
+    *   `AGUNG_RPC_URL`: RPC URL for the Peaq Agung testnet.
+    *   `USDC_ADDRESS` (for non-local deployments): Address of the USDC token contract on the target network.
+    *   `CORE_SIGNER_ADDRESS`: Address that will receive `CORE_ROLE` on the Vault (typically the deployer or a dedicated operations wallet).
+2.  **SST Secrets (Backend Configuration):**
+    *   These are managed via the SST console or CLI (`pnpm sst secrets set <SecretName> <value>`).
+    *   `CoreWalletPk`: Private key for the backend wallet that interacts with smart contracts (holds `CORE_ROLE` on Vault, used for funding, expiry settlements, etc.).
+    *   `CoreVaultAddress`: Deployed address of the `Vault.sol` contract.
+    *   `CoreFactoryAddress`: Deployed address of the `SynthFactory.sol` contract.
+    *   `CmcApiKey`: API key for CoinMarketCap (used by the oracle).
+    *   Paper trading points configuration: `PaperPointsLimitOrder`, `PaperPointsUsdcVolume`, `PaperPointsUsdcPnl`.
+    *   (Ensure any other necessary API keys or sensitive data are configured as SST secrets).
 
-```
-matcher ➜ SNS Topic “MarketUpdates” ➜ FanOut Fn ➜ postToConnection (batch)
-```
-
-Uses `sst.aws.SnsTopic` + `sst.aws.Function`.
-
-*(Detailed WebSocket explainer block appears in § 8.)*
-
----
-
-## **3  Data & state (DynamoDB + S3)**
-
-| Table             | PK / SK example                   | TTL / GSIs                                       | Purpose                                                         |
-| ----------------- | --------------------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
-| **Orders**        | `MARKET#BTC-PERP` / `TS#<uuid>`   | GSI `TRADER#uuid`                                | Single table; `orderType` attribute discriminates.              |
-| **Trades**        | `MARKET#BTC-PERP` / `TS#<uuid>`   | GSI `TRADER#uuid`<br>**Stream → TradesArchiver** | Raw fills; stream feeds S3 lake.                                |
-| **Positions**     | `TRADER#uuid` / `MARKET#BTC-PERP` | –                                                | Net snapshot; updated atomically by matcher.                    |
-| **Balances**      | `TRADER#uuid` / `USDC`            | –                                                | Mirrors `Vault.shares` and CXPT balances for fast UI retrieval. |
-| **Markets**       | `MARKET#BTC-PERP` / `META`        | GSI `status`                                     | Tick size, expiryTs, funding params, synth address…             |
-| **Prices**        | `ASSET#BTC` / `TS#<iso>`          | TTL 7 d                                          | Oracle snapshots (TWAP / funding).                              |
-| **StatsIntraday** | `MARKET#BTC-PERP` / `<minute>`    | TTL 48 h                                         | 1‑min (or 5 s) buckets.                                         |
-| **StatsDaily**    | `MARKET#BTC-PERP` / `YYYY‑MM‑DD`  | –                                                | 24 h aggregates, retained 12 mo.                                |
-| **StatsLifetime** | `KEY#GLOBAL` / `META`             | –                                                | Single row of all‑time totals.                                  |
-| **WSConnections** | `WS#<connId>` / `META`            | TTL 24 h                                         | Connection registry.                                            |
-
-### Cold history lake
-
-```
-Dynamo Stream (Trades) ➜ TradesArchiver Fn ➜ putObject
-      s3://dex-data-lake/trades/YYYY/MM/DD/…
-```
-
----
-
-## **4  Event & compute flows**
-
-### 4.1 Order ingress ➜ Matcher
-
-1. **API Fn** validates payload & `putItem` → **Orders** (`attribute_not_exists`).
-2. **Dynamo Stream → EventBridge Pipe → SQS FIFO** (messageGroup = market).
-3. **Matcher Fn / ECS Fargate** (micro‑batch 10‑50):
-
-   * Update in‑mem book; compute matches.
-   * **TransactWriteItems**:
-
-     * update Orders, insert Trades, upsert Positions, update StatsIntraday & StatsLifetime.
-     * On each fill call `vault.mintSynth()` / `burnSynth()` to move synthetic inventory.
-   * Publish WebSocket payload via **SNS “MarketUpdates”**.
-
-### 4.2 Vault deposit / withdraw flow
-
-| Step | Component             | Action                                                                                                     |
-| ---- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
-| 1    | Front‑end             | User signs `permit` → calls **POST /vault/deposit** (or withdraw).                                         |
-| 2    | API Fn                | Invokes `Vault.deposit()` / `withdraw()` with signer key.                                                  |
-| 3    | Vault                 | Emits `Deposited` / `Withdrawn` *(and `SynthMinted` / `SynthBurned` if CXPT path)*.                        |
-| 4    | **On‑chain Listener** | Small Lambda subscribed to an Alchemy/Infura WS provider:  <br>• Decodes events<br>• Updates **Balances**. |
-| 5    | UI / Matcher          | Balances table is source‑of‑truth for off‑chain logic; can assert vs on‑chain if desired.                  |
-
-### 4.3 New market (synth) creation
-
-| Step | Actor / component                | Action                                                                                      |
-| ---- | -------------------------------- | ------------------------------------------------------------------------------------------- |
-| 1    | Admin UI → `POST /admin/markets` | Calls `SynthFactory.createSynth("Synthetic SOL", "sSOL")`.                                  |
-| 2    | Factory                          | Deploys new Synth via `CREATE2`, grants `MINTER_ROLE` to Vault, emits `SynthCreated`.       |
-| 3    | Admin Fn                         | • Calls `Vault.registerSynth(newSynth)`.<br>• Inserts row in **Markets** (`status=PAUSED`). |
-| 4    | Off‑chain listener               | Sees `SynthCreated`, logs to monitoring, can pre‑warm front‑end configs.                    |
-| 5    | Operator                         | When ready: PATCH market row → `status=ACTIVE` → matcher starts processing.                 |
-
-### 4.4 Metrics flow & scheduled jobs
-
-*(Unchanged from previous draft – see § 5 & schedule table.)*
-
----
-
-## **5  Metrics & observability**
-
-| Tier         | Resolution    | Retention | Store         | Query path                 |
-| ------------ | ------------- | --------- | ------------- | -------------------------- |
-| **Hot**      | 1 min / 5 s   | 48 h      | StatsIntraday | REST dashboards (<15 ms).  |
-| **Warm**     | 1 day         | ≤ 12 mo   | StatsDaily    | Leaderboards, 30‑d charts. |
-| **Lifetime** | cumulative    | forever   | StatsLifetime | Fast global counters.      |
-| **Cold**     | per Trade / δ | years     | S3 data lake  | Athena / Glue / BI / ML.   |
-
-Key metrics captured everywhere:
-
-* Volume (USDC / CXPT)   *·*  Open interest   *·*  Depth @ 1–5 bp
-* Funding rate (perps)   *·*  Implied vol (options)
-* Protocol fees   *·*  Trader realised / unrealised PnL
-* Infra p95 order → fill latency
-
----
-
-## **6  Security, fees, admin quirks**
-
-* **Flat 0.5 % fee** deducted inside matcher Tx (split maker / taker).
-* **Idempotency‑Key** header on every order / cancel.
-* **Admin auth** via Cognito (`sst.aws.Auth`) + WAF IP throttling.
-* **Circuit breaker**: `Markets.status = PAUSED` gate checked in API & matcher.
-* **CORE\_ROLE** signer key used by off‑chain matcher to call Vault mints/burns.
-* **UUPS upgrade paths** secured by a 24 h timelock & multisig guardian.
-
----
-
-## **7  Next concrete development steps**
-
-1. **Deploy contracts** (`Vault`, `CXPTToken`, `SynthFactory`) to testnet; fund Vault with mock USDC.
-2. **Wire matcher signer**: load CORE\_ROLE private‑key via SST secret; add `mintSynth` / `burnSynth` tx in `matchEngine.ts`.
-3. **Implement on‑chain event listener Lambda** (Node ethers v6):
-
-   * subscribe to `Deposited`, `Withdrawn`, `SynthMinted`, `SynthBurned`;
-   * update **Balances**, publish WebSocket `balanceUpdate`.
-4. **Extend admin route** to call factory + registerSynth + create Markets row.
-5. **Happy‑path E2E test**: deposit → place order → fill → withdraw CXPT → market data WS.
-6. Harden with fuzz tests (Foundry) on Vault and Synths.
-
----
-
-## **8  What the WebSockets layer does (and why you need it)**
-
-| Piece                                         | When it runs                                                                                    | What it actually **does**                                                                                                                                                                                                                                                                                  | Why it matters to the DEX                                                                       |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| **`$connect` route**                          | The instant a client opens `wss://…`                                                            | • Registers the connection ID in **WSConnections** (`WS#<id>`) with optional `traderId` / `market` from the query string.<br>• Stores a 24‑h TTL so idle sockets self‑expire.                                                                                                                              | Gives matcher & fan‑out a fast lookup table: “who is online and what channel did they ask for?” |
-| **`subscribe` route**                         | When the client sends `{"action":"subscribe","channel":"market.BTC-PERP"}` (or `trader.<uuid>`) | • Updates the saved row with the chosen `channel`.<br>• Client may send another `subscribe` later to switch without reconnecting.                                                                                                                                                                          | Enables one socket to hop between feeds, reducing connection churn.                             |
-| **`$disconnect` route**                       | Browser tab closes, network drops, or you force‑close                                           | • Deletes the row from **WSConnections** so fan‑out stops wasting calls on it.                                                                                                                                                                                                                             | Keeps table small; avoids expensive 410 (Gone) retries.                                         |
-| **Fan‑out Lambda**<br>`dex/ws/fanOut.handler` | Triggered by every matcher via **SNS “MarketUpdates”**                                          | 1. Receives a payload like `{type:"orderUpdate", market:"BTC-PERP", …}`.<br>2. Derives channel key (`market.BTC-PERP` or `trader.<uuid>`).<br>3. Scans **WSConnections** for rows whose `channel` matches.<br>4. Uses **APIGW Management API** to `postToConnection` in batches.<br>5. If 410 → purge row. | Achieves real‑time fan‑out in < 100 ms without per‑symbol Lambdas or polling.                   |
-
-### What traders actually *see*
-
-```
-wss://dex-ws.cxmpute.cloud
-   ──►  SUBSCRIBE  market.BTC-PERP
-   ◄──  depth     { bids:[…], asks:[…] }
-   ◄──  trade     { px:64523, qty:0.02, … }
-   ◄──  funding   { rate:0.0037, ts:… }
-   ──►  SUBSCRIBE  trader.8b2f…
-   ◄──  orderUpdate     { id:"…", status:"FILLED" }
-   ◄──  positionUpdate  { pnl: 184.32 }
-   ◄──  balanceUpdate   { usdc: 0, cxpt: 500 }
+### Installation
+```bash
+pnpm install
 ```
 
-* **`market.<symbol>` channels** – depth, trades, mark‑price, funding, IV.
-* **`trader.<uuid>` channels** – your fills, PnL, liquidation alerts, balance changes.
-* **`admin.<market>` channels** – optional: `PAUSED`, `DELISTED`, parameter changes.
+### Smart Contract Deployment
+1.  Navigate to the contracts directory: `cd contracts`
+2.  Ensure your `contracts/.env` file is correctly populated.
+3.  Deploy to the desired network (e.g., `agung`, `peaq`, or `localhost` for testing):
+    ```bash
+    pnpm hardhat deploy --network agung
+    ```
+4.  After deployment, note the addresses of `Vault.sol` and `SynthFactory.sol`. Update the corresponding SST secrets (`CoreVaultAddress`, `CoreFactoryAddress`) with these new addresses.
 
-> **Why WebSockets?** Latency, bandwidth, and cost: one push per delta rather than thousands of REST polls.
+### Backend and API Deployment
+1.  Ensure all necessary SST secrets are set.
+2.  Deploy the application using SST:
+    ```bash
+    pnpm sst deploy --stage <your_stage_name> # e.g., dev, prod
+    ```
+    The `--stage` flag is crucial for isolating environments.
 
+## API Overview
+
+Cxmpute Core exposes a comprehensive set of APIs. Refer to `src/lib/openapi.yaml` (if available and maintained) for detailed specifications. Key API groups include:
+
+*   **Authentication:** `/api/auth/*` (handled by OpenAuthJS for login/callback).
+*   **DEX APIs:**
+    *   Order Management: `POST /api/v1/trade` (legacy, prefer `/api/orders`), `POST /api/orders`, `GET /api/orders`, `DELETE /api/orders/[orderId]`, `GET /api/orders/[orderId]`
+    *   Account Data: `GET /api/balances`, `GET /api/positions`, `GET /api/trades/history`, `GET /api/trades/[traderId]/paper-points`
+    *   Vault Operations: `POST /api/vault/deposit`, `POST /api/vault/withdraw`, `POST /api/vault/depositsynth`
+    *   Synth Exchange: `POST /api/synths/exchange`
+    *   Public Market Data: `GET /api/markets`, `GET /api/underlyings`, `GET /api/klines`, `GET /api/instruments`
+*   **AI & Compute Service APIs (under `/api/v1/`):**
+    *   `/chat/completions`: OpenAI-compatible chat API.
+    *   `/embeddings`: Text embedding generation.
+    *   `/image`: Text-to-image generation.
+    *   `/video`: Text-to-video generation.
+    *   `/tts`: Text-to-Speech.
+    *   `/scrape`: Web scraping.
+    *   `/m/*`: Multi-modal vision tasks (detect, caption, point, query).
+*   **User & Provider Management APIs:**
+    *   `/api/user/[userId]/*`: User-specific operations (API key management, wallet linking).
+    *   `/api/providers/*`: Provider onboarding, login, provision management.
+*   **Admin APIs:**
+    *   `/api/admin/markets`: Create, pause, delete markets.
+    *   `/api/admin/fees`: Manage fee withdrawals from the Vault.
+
+## Smart Contract Interactions
+
+The DEX relies on the following key smart contracts on the Peaq network:
+
+*   **`Vault.sol`**:
+    *   Securely holds USDC collateral.
+    *   Manages deposits of USDC and sAssets (via `depositSynthToVault`).
+    *   Handles withdrawals of USDC or the minting and withdrawal of $CXPT tokens.
+    *   Provides `CORE_ROLE` for privileged operations (e.g., fee withdrawal, settlements by backend).
+    *   Provides `GATEWAY_ROLE` to `SynthFactory` for registering synths and potentially to other contracts for minting/burning sAssets against collateral.
+*   **`SynthFactory.sol`**:
+    *   Responsible for deploying new `SynthERC20` token contracts for synthetic assets.
+    *   Registers newly created synths with the `Vault`.
+*   **`SynthERC20.sol`**:
+    *   Standard ERC20-compliant contract representing a specific synthetic asset (e.g., sBTC).
+    *   Grants `MINTER_ROLE` and `BURNER_ROLE` to the `Vault` contract for managing supply based on collateral.
+*   **`CXPTToken.sol`**:
+    *   The platform's native ERC20 token ($CXPT).
+    *   Minted by the `Vault` contract when users choose to withdraw USDC as $CXPT.
+
+**Role-Based Access Control:**
+The contracts use OpenZeppelin's `AccessControl` for managing permissions. Key roles include:
+*   `DEFAULT_ADMIN_ROLE`: Overall admin for contract ownership and role management.
+*   `CORE_ROLE` (on Vault): For backend operations like settlements and fee withdrawals.
+*   `GATEWAY_ROLE` (on Vault): Granted to `SynthFactory` to register synths. Also used by the Vault for sAsset mint/burn operations executed by the backend server signer for `exchangeUSDCToSAsset` and `exchangeSAssetToUSDC` functions.
+*   `MINTER_ROLE`, `BURNER_ROLE` (on SynthERC20 & CXPTToken): Granted to the `Vault` to control token supply.
+
+## Database Schema (DynamoDB)
+
+The platform utilizes DynamoDB for its data persistence, with schemas designed for scalability and efficient querying. Many tables are partitioned by trading `mode` (REAL/PAPER) embedded within their primary keys (e.g., `MARKET#BTC-PERP#PAPER`).
+
+**Key DEX Tables:**
+
+*   **`OrdersTable`**: Stores all open, partial, filled, cancelled, and expired orders.
+    *   PK: `MARKET#<symbol>#<mode>`, SK: `TS#<timestamp>#<orderId>`
+    *   GSIs: `ByTraderMode` (PK: `traderId`, SK: `pk`), `ByOrderId` (PK: `orderId`).
+*   **`BalancesTable`**: Tracks trader balances for various assets (USDC, CXPT, sAssets).
+    *   PK: `TRADER#<traderId>#<mode>`, SK: `ASSET#<assetSymbol>`
+*   **`PositionsTable`**: Manages traders' open positions for derivative markets.
+    *   PK: `TRADER#<traderId>#<mode>`, SK: `MARKET#<instrumentSymbol>`
+*   **`TradesTable`**: Logs all executed trades.
+    *   PK: `MARKET#<symbol>#<mode>`, SK: `TS#<tradeId>`
+    *   GSIs: `ByTraderMode` (PK: `traderId`, SK: `pk`).
+*   **`MarketsTable`**: Defines all tradable instruments and underlying pairs.
+    *   PK: `MARKET#<symbolOrPair>#<mode>`, SK: `META`
+    *   GSIs: `ByStatusMode` (status & mode), `InstrumentsByUnderlying` (for derivative discovery).
+*   **`KlinesTable`**: Stores aggregated OHLCV (candlestick) data.
+    *   PK: `MARKET#<instrumentSymbol>#<mode>`, SK: `INTERVAL#<interval_str>#TS#<start_timestamp_seconds>`
+*   **`PricesTable`**: Stores oracle price snapshots for underlying assets.
+    *   PK: `ASSET#<symbol>`, SK: `TS#<ISO_timestamp>`
+*   **`StatsIntradayTable`**, **`StatsDailyTable`**, **`StatsLifetimeTable`**: Aggregate market statistics.
+*   **`WSConnectionsTable`**: Manages active WebSocket connections and their subscriptions.
+    *   PK: `WS#<connectionId>`, SK: `META`
+    *   GSI: `ByChannel` (PK: `channel`).
+*   **`TradersTable`**: Stores DEX trader identity information, linked wallet, and API key for trading.
+    *   PK: `traderId`
+    *   GSI: `ByAk` (PK: `traderAk`).
+
+**Key Platform Tables (Non-DEX specific but part of `cxmpute-core`):**
+
+*   **`ProviderTable`**: Information about compute providers.
+*   **`ProvisionsTable`**: Details of individual compute provisions by providers.
+*   **`UserTable`**: Core platform user accounts and general API keys.
+*   **`*ProvisionPoolTable`s** (e.g., `LLMProvisionPoolTable`, `MediaProvisionPoolTable`): Manage pools of available compute resources for different service types.
+*   **`MetadataTable`**, **`ServiceMetadataTable`**: Track usage and performance metrics for platform services.
+
+## Authentication Flow
+
+1.  A user initiates login, typically from a frontend component (e.g., `/dashboard`).
+2.  The request is handled by a server action (`src/app/actions.ts/login`) which redirects the user to the OpenAuth provider endpoint (e.g., `/api/auth/code/...`).
+3.  The OpenAuth provider (`auth/index.ts`) handles the email code generation (via SES) and verification.
+4.  Upon successful code verification, the `success` callback in `auth/index.ts` is triggered.
+5.  The `ensureUserAndTrader` function within this callback:
+    *   Checks for an existing `ProviderTable` entry for the email or creates one.
+    *   Checks for an existing `UserTable` entry linked to the provider or creates one. Generates `userAk`.
+    *   Checks for an existing `TradersTable` entry using the `UserTable.userId` as `TradersTable.traderId`. If not found, creates one, storing the `UserTable.userAk` as the `TradersTable.traderAk` (used for GSI).
+6.  The OpenAuth client (`src/app/auth.ts`) sets JWTs (access and refresh tokens) as HTTP-only cookies.
+7.  Subsequent requests are authenticated:
+    *   Server-side: The `auth()` server action (`src/app/actions.ts`) verifies tokens and returns the user subject.
+    *   Client-side: The `useAuth()` context hook provides access to the user subject.
+    *   API Routes: Use helper functions like `requireAuth()` or `requireAdmin()` from `src/lib/auth.ts` to protect endpoints.
+
+## Middleware (`middleware.ts`)
+
+The Next.js middleware (`middleware.ts`) inspects the host header. If a request comes to `trade.cxmpute.cloud`, it rewrites the URL path to prepend `/trade`. For example, `trade.cxmpute.cloud/settings` becomes `/trade/settings` internally, allowing the Next.js App Router to serve content from the `src/app/trade/` directory structure.
+
+## WebSockets (`DexWsApi`)
+
+*   **Connection:** Clients connect to the API Gateway WebSocket endpoint, providing their `traderAk` as a query parameter for authentication in the `$connect` route handler (`dex/ws/connect.ts`).
+*   **Subscription:** Clients send a `subscribe` message with a channel string (e.g., `market.BTC-PERP.REAL` or `trader.<traderId>.PAPER`). The `dex/ws/subscribe.ts` handler updates the `WSConnectionsTable` with the subscribed channel and mode.
+*   **Fan-Out:** Backend services (matchers, cron jobs) publish market events to an SNS topic (`MarketUpdatesTopic`). The `dex/ws/fanOut.ts` Lambda subscribes to this topic, queries `WSConnectionsTable` (using the `ByChannel` GSI) for relevant connections, and pushes updates to clients via the API Gateway Management API.
+*   **Data Types:** WebSocket messages include depth updates, new trades, PnL changes, oracle prices, market summaries, and trader-specific order/position/balance updates.
+  
+
+## Architecture Overview
+
+Cxmpute Core implements a modular, event-driven architecture designed for scalability and real-time performance. It revolves around API gateways (Next.js routes), serverless functions (AWS Lambda), managed databases (DynamoDB), message queues (SQS), real-time messaging (SNS, API Gateway WebSockets), and on-chain smart contracts (Peaq).
+
+### Core Systems
+
+1.  **Authentication & User Management:** Handles user identity, API key provisioning, and DEX trader account linkage.
+2.  **Decentralized Exchange (DEX):** Manages order lifecycle, matching, balance updates, position tracking, and market data dissemination for both `REAL` and `PAPER` trading modes.
+3.  **AI/Compute Service Gateways:** Provides authenticated API endpoints that (conceptually) route requests to a network of compute providers.
+
+---
+
+### 1. Authentication & User Management
+
+**Flow:** User Login & Trader Setup
+
+```
+   User via UI                             Cxmpute Core (Next.js/OpenAuthJS)                      DynamoDB
+      │                                           │                                                │
+      ├─ 1. Login Request ──────────────────────► │                                                │
+      │                                           ├─ 2. Email Code Flow (OpenAuthJS + SES) ───────► │ User confirms
+      │                                           │                                                │
+      │                                           ├─ 3. `ensureUserAndTrader` function runs ──────► │
+      │                                           │    - Create/Verify ProviderTable entry         │ ProviderTable
+      │                                           │    - Create/Verify UserTable entry (gen userAk)  │ UserTable
+      │                                           │    - Create/Verify TradersTable entry          │ TradersTable
+      │                                           │      (traderId=userId, traderAk=userAk)        │
+      │                                           │                                                │
+      │ ◄─ 4. Set Auth Cookies (JWTs) ────────────┤                                                │
+      │                                           │                                                │
+```
+
+*   **`auth/index.ts`:** OpenAuthJS handler.
+    *   Uses `ensureUserAndTrader` to create/verify entries in:
+        *   **`ProviderTable`**: Stores provider identity (e.g., email if they are also a compute provider).
+        *   **`UserTable`**: Core platform user account, stores general `userAk`.
+        *   **`TradersTable`**: DEX-specific trader profile. `traderId` is the same as `UserTable.userId`. `traderAk` is the same as `UserTable.userAk` and is used for authenticating DEX API calls and WebSocket connections.
+
+**Key Tables:**
+
+*   **`UserTable`**:
+    *   PK: `userId` (e.g., `u_uuid1`)
+    *   Attributes: `userAk`, `email`, `providerId`, `admin`, `walletAddress` (optional, for platform use, not necessarily DEX)
+*   **`ProviderTable`**:
+    *   PK: `providerId` (e.g., `p_uuid2`)
+    *   Attributes: `providerEmail`, `apiKey` (this is providerAk)
+*   **`TradersTable`**:
+    *   PK: `traderId` (e.g., `u_uuid1` - same as UserTable.userId)
+    *   Attributes: `traderAk` (same as UserTable.userAk), `email`, `status`, `walletAddress` (primary linked wallet for DEX), `paperPoints`
+    *   GSI `ByAk`: PK `traderAk` (for WS auth and API auth)
+
+---
+
+### 2. Decentralized Exchange (DEX)
+
+#### a. Order Lifecycle & Matching
+
+**Flow:** New Order Submission & Matching
+
+```
+   Trader Client (UI/API)        Next.js API (/api/orders)       OrdersTable (DDB)        DDB Stream Router (Lambda)       SQS FIFO Queue        Matcher Lambda (e.g., market.ts)
+            │                             │                             │                            │                            │                             │
+            ├─ 1. Submit Order ----------► │                             │                            │                            │                             │
+            │                             ├─ 2. Auth (traderAk)        │                            │                            │                             │
+            │                             │    & Validate               │                            │                            │                             │
+            │                             ├─ 3. Lock Collateral ◄─────► │ BalancesTable (DDB)        │                            │                             │
+            │                             ├─ 4. Put Order Item ────────► │                            │                            │                             │
+            │                             │                             │ ◄─ 5. Stream Event ────────┤                            │                             │
+            │                             │                             │                            ├─ 6. Route to SQS ──────────► │                             │
+            │                             │                             │                            │                            │ ◄─ 7. Consume Order Msg ─────┤
+            │                             │                             │                            │                            │                             ├─ 8. Match Engine Logic
+            │                             │                             │                            │                            │                             │   - Query OrdersTable (Book)
+            │                             │                             │                            │                            │                             │   - Update OrdersTable (Fill/Partial)
+            │                             │                             │                            │                            │                             │   - Create TradesTable entries
+            │                             │                             │                            │                            │                             │   - Update PositionsTable
+            │                             │                             │                            │                            │                             │   - Update BalancesTable (settle)
+            │                             │                             │                            │                            │                             │   - Update Stats...Tables
+            │                             │                             │                            │                            │                             │   - (REAL Mode) Record Fees (Vault.sol)
+            │                             │                             │                            │                            │                             │
+            │                             │                             │                            │                            │                             ├─ 9. Publish to SNS (MarketUpdatesTopic)
+            │                             │                             │                            │                            │                             │
+            │ ◄─ (Optional) Order Ack ---┤                             │                            │                            │                             │
+            │    (WebSocket updates follow)                             │                            │                            │                             │
+```
+
+**Key Components & Tables for Order Flow:**
+
+*   **API (`src/app/api/orders/route.ts` or `/api/v1/trade/route.ts`):**
+    *   Authenticates trader via `X-Trader-Ak`.
+    *   Validates order parameters against `MarketsTable` definitions (tick size, lot size).
+    *   Performs initial collateral check and lock in `BalancesTable` (transactional with order placement).
+    *   Writes the new `Order` to `OrdersTable`.
+*   **`OrdersTable`**:
+    *   PK: `MARKET#<instrumentSymbol>#<mode>` (e.g., `MARKET#BTC-PERP#PAPER`)
+    *   SK: `TS#<timestamp>#<orderId>`
+    *   Attributes: `orderId`, `traderId`, `market`, `side`, `qty`, `price`, `orderType`, `status`, `filledQty`, `mode`, `createdAt`, `feeBps`, `oraclePriceUsedForCollateral` (for market sell perps/futures).
+    *   Stream: `NEW_AND_OLD_IMAGES` (triggers `ordersStreamRouter.ts`).
+*   **`ordersStreamRouter.ts` (Lambda):**
+    *   Consumes `OrdersTable` stream.
+    *   For `INSERT` (new orders): Routes order to the appropriate SQS FIFO queue based on `orderType` and `mode`.
+    *   For `MODIFY` (e.g., status changes to `CANCELLED`): Routes to `CancelledOrdersQueue`.
+*   **SQS Queues (FIFO):** `MarketOrdersQueue`, `OptionsOrdersQueue`, `PerpsOrdersQueue`, `FuturesOrdersQueue`, `CancelledOrdersQueue`.
+    *   Ensures ordered processing per market-mode group (`MessageGroupId: <marketSymbol>-<mode>`).
+*   **Matcher Lambdas (`dex/matchers/*.ts`):**
+    *   Consume orders from their respective SQS queues.
+    *   Utilize `matchEngine.ts` to:
+        *   Load open orders from `OrdersTable` for the specified market and mode.
+        *   Match incoming taker orders against the book.
+        *   Perform transactional updates (using `TransactWriteItems`) to:
+            *   `OrdersTable`: Update status and `filledQty` of matched orders.
+            *   `TradesTable`: Create new trade records.
+            *   `BalancesTable`: Debit/credit assets for filled trades (USDC and base/sAsset).
+            *   `PositionsTable`: Update position size, average entry price, and realized PnL.
+            *   `StatsIntradayTable` & `StatsLifetimeTable`: Update volume, fees, trade counts.
+    *   For `REAL` mode, the `matchEngine` calls `Vault.sol::recordFees()` for collected fees.
+    *   Publishes events (e.g., `orderUpdate`, `trade`, `positionUpdate`) to `MarketUpdatesTopic` (SNS).
+*   **`cancellationProcessor.ts` (Lambda):**
+    *   Consumes from `CancelledOrdersQueue`.
+    *   Calculates and releases any locked collateral in `BalancesTable` for the cancelled order portion.
+
+**Example `OrdersTable` Item:**
+```json
+{
+  "pk": "MARKET#BTC-PERP#PAPER", // MARKET#<instrumentSymbol>#<mode>
+  "sk": "TS#1700000000000#order_uuid123",
+  "orderId": "order_uuid123",
+  "traderId": "trader_abc",
+  "market": "BTC-PERP",
+  "side": "BUY",
+  "qty": 0.5,
+  "price": 60000,
+  "orderType": "LIMIT", // or "PERP" if Limit on a PERP market
+  "status": "OPEN",
+  "filledQty": 0,
+  "mode": "PAPER",
+  "createdAt": 1700000000000,
+  "feeBps": 50 // 0.5%
+}
+```
+
+**Example `BalancesTable` Item:**
+```json
+{
+  "pk": "TRADER#trader_abc#PAPER", // TRADER#<traderId>#<mode>
+  "sk": "ASSET#USDC",             // ASSET#<assetSymbol>
+  "asset": "USDC",
+  "balance": "10000000000",      // 10,000 USDC (bigint string, 6 decimals)
+  "pending": "500000000",        // 500 USDC locked for open orders (bigint string)
+  "updatedAt": 1700000000000
+}
+```
+
+#### b. Real-time Data (WebSockets)
+
+**Flow:** Market Event to Client UI
+
+```
+Matcher/Cron Lambda           SNS (MarketUpdatesTopic)      WsFanOut Lambda        API Gateway WebSocket       Client UI
+       │                             │                            │                       │                    │
+       ├─ 1. Publish Event ---------► │                            │                       │                    │
+       │                             │ ◄─ 2. Consume SNS Msg ----┤                       │                    │
+       │                             │                            ├─ 3. Query WSConnectionsTable -► │ DDB        │
+       │                             │                            │    (GSI ByChannel)            │            │
+       │                             │                            ├─ 4. PostToConnection() -------► │            │
+       │                             │                            │                               │ ◄─ 5. Data │
+       │                             │                            │                               │    Update  │
+```
+
+*   **`WSConnectionsTable`**:
+    *   PK: `WS#<connectionId>`
+    *   SK: `META`
+    *   Attributes: `traderId`, `channel` (e.g., `market.BTC-PERP.REAL`), `channelMode` (`REAL`/`PAPER`), `expireAt` (TTL).
+    *   GSI `ByChannel`: PK `channel`, SK `pk` (used by `WsFanOut` to find subscribers).
+*   **`dex/ws/subscribe.ts`:** Handles client requests to subscribe to specific channels, updating the `channel` and `channelMode` in `WSConnectionsTable`.
+*   **`dex/ws/fanOut.ts`:** Lambda triggered by SNS. Retrieves connection IDs for the event's channel/mode from `WSConnectionsTable` and pushes data via API Gateway's management API.
+
+#### c. Smart Contracts & On-Chain Operations (REAL Mode)
+
+```
+DEX Backend (e.g., Matcher, Cron, API)   Ethers.js + CoreWalletPk    Peaq Network (Smart Contracts)
+            │                                       │                               │
+            ├─ 1. Initiate On-Chain Action --------► │                               │
+            │    (e.g., recordFees, withdraw,        │                               │
+            │     depositSynth, exchange)           │                               │
+            │                                       ├─ 2. Sign & Send Tx --------► │ Vault.sol
+            │                                       │                               │ SynthFactory.sol
+            │                                       │                               │ CXPTToken.sol
+            │                                       │                               │ SynthERC20.sol
+            │                                       │                               │ (USDC ERC20)
+            │                                       │                               │
+            │ ◄─ 3. Tx Receipt/Confirmation --------┤                               │
+            │                                       │                               │
+            ├─ 4. Update Off-Chain State (DDB)      │                               │
+            │                                       │                               │
+```
+
+*   **`Vault.sol`:** Central contract for holding USDC, managing deposits/withdrawals, minting $CXPT, and interfacing with synthetic assets.
+    *   `deposit()`: User deposits USDC (requires user's prior ERC20 approval to Vault).
+    *   `withdraw()`: Backend calls to transfer USDC or mint & transfer $CXPT to user.
+    *   `depositSynthToVault()`: User deposits sAsset (requires user's prior sAsset ERC20 approval to Vault).
+    *   `withdrawSynthFromVault()`: Backend calls to transfer sAsset from Vault to user.
+    *   `exchangeUSDCToSAsset()` / `exchangeSAssetToUSDC()`: Backend calls for direct USDC <> sAsset swaps via Vault (requires user's prior ERC20 approval of FROM_ASSET to Vault).
+    *   `recordFees()`: Called by backend (matcher) to track platform fees.
+*   **`SynthFactory.sol`:** Deploys `SynthERC20` contracts and registers them with the Vault.
+*   **`CXPTToken.sol`:** ERC20 for the platform token, mintable by the `Vault`.
+*   **`dex/chain/vaultHelper.ts` (and similar):** Backend helpers for interacting with these contracts.
+
+#### d. Kline Aggregation
+
+```
+TradesTable (DDB Stream)    TradesStreamRouter (Lambda)    KlineAggregationQueue (SQS)    KlineAggregator (Lambda)    KlinesTable (DDB)
+        │                             │                               │                                 │                      │
+        ├─ 1. New Trade Stream Event ► │                               │                                 │                      │
+        │                             ├─ 2. Send Trade to Queue -----► │                                 │                      │
+        │                             │                               │ ◄─ 3. Consume Trade -----------┤                      │
+        │                             │                               │                                 ├─ 4. Aggregate OHLCV ► │
+        │                             │                               │                                 │                      │
+```
+*   `klineAggregator.ts`: Processes trades from `TradesTable` (via SQS), calculates OHLCV data for various intervals, and stores them in `KlinesTable`.
+*   `dailyToWeeklyKlineCron.ts`, `dailyToMonthlyKlineCron.ts`: Aggregate finer-grained klines into coarser ones.
+
+---
+
+### 3. AI/Compute Service Gateways
+
+**Flow:** AI Service Request (e.g., Chat Completion)
+
+```
+   User Client (e.g., App/SDK)      Next.js API (/api/v1/chat/completions)      (Conceptual) Provision Pool (DDB)      (Conceptual) Compute Node
+            │                                        │                                     │                                  │
+            ├─ 1. API Request (OpenAI format) -----► │                                     │                                  │
+            │                                        ├─ 2. Auth (API Key, X-User-Id)      │                                  │
+            │                                        │    & Validate                         │                                  │
+            │                                        ├─ 3. Select Healthy Node ◄───────────┤ LLMProvisionPoolTable          │
+            │                                        │    (via lib/utils.ts helpers)         │                                  │
+            │                                        ├─ 4. Forward Request ───────────────────────────────────────────────► │
+            │                                        │                                     │                                  │ ◄─ 5. Process Request
+            │                                        │                                     │                                  │
+            │ ◄─ 6. Stream/Return Response ---------┼─────────────────────────────────────────────────────────────────────────┤
+            │                                        │                                     │                                  │
+            │                                        ├─ 7. Update Metrics (MetadataTable, ServiceMetadataTable)             │
+            │                                        │    & Reward Provider (ProviderTable)                                  │
+            │                                        │                                     │                                  │
+```
+
+*   **API Routes (`src/app/api/v1/*`):**
+    *   Act as authenticated gateways.
+    *   Use helpers from `src/lib/utils.ts` to:
+        *   `validateApiKey()`: Checks `UserTable` for key validity and credits.
+        *   `select<Service>Provision()`: Chooses a node from the relevant `*ProvisionPoolTable` (e.g., `LLMProvisionPoolTable`).
+        *   `check<Service>Health()`: Pings the node's heartbeat.
+        *   `remove<Service>Provision()`: Removes unhealthy nodes.
+        *   `update<Service>Metadata()` & `update<Service>ServiceMetadata()`: Logs usage.
+        *   `rewardProvider()`: Updates provider earnings in `ProviderTable`.
+*   **Provision Pool Tables (e.g., `LLMProvisionPoolTable`):**
+    *   Store available compute nodes for specific services/models.
+    *   Contain `provisionId`, `model`, `randomValue` (for load balancing), `provisionEndpoint`.
+    *   Populated by providers via `/api/v1/providers/start/callback`.
+
+---
