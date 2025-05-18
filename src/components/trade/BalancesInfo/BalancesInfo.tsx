@@ -1,25 +1,28 @@
 // src/components/trade/BalancesInfo/BalancesInfo.tsx
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react'; // Added useState
 import styles from './BalancesInfo.module.css';
 import { useAccountContext } from '@/contexts/AccountContext';
 import { useTradingMode } from '@/contexts/TradingModeContext';
 import Button from '@/components/ui/Button/Button';
 import PaperFaucetButton from '@/components/trade/PaperFaucetButton/PaperFaucetButton';
-import DepositModal from '@/components/trade/DepositModal/DepositModal'; // Assuming path
-import WithdrawModal from '@/components/trade/WithdrawModal/WithdrawModal'; // Assuming path
-import SynthExchangeModal from '@/components/trade/SynthExchangeModal/SynthExchangeModal'; // Assuming path & exported constants
+import DepositModal from '@/components/trade/DepositModal/DepositModal';
+import WithdrawModal from '@/components/trade/WithdrawModal/WithdrawModal';
+import SynthExchangeModal from '@/components/trade/SynthExchangeModal/SynthExchangeModal';
+import DepositSynthModal from '@/components/trade/DepositSynthModal/DepositSynthModal'; // <<< NEW IMPORT
 import { USDC_ASSET_INFO, SUPPORTED_SYNTH_ASSETS } from '@/lib/references';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
-import { Wallet, Award, Repeat, ArrowDownCircle, ArrowUpCircle, RefreshCw } from 'lucide-react';
+import { Wallet, Award, Repeat, ArrowDownCircle, ArrowUpCircle, RefreshCw, DownloadCloud } from 'lucide-react'; // <<< Added DownloadCloud
 import type { Balance } from '@/lib/interfaces';
 import Tooltip from '@/components/ui/Tooltip/Tooltip';
 
-// Centralized Decimal Configuration (could be moved to a shared constants file)
+// ... (Keep existing ASSET_DECIMALS, getAssetDisplayInfo, formatDisplayBalance helpers) ...
+// These are the same as in the previous response for BalancesInfo.tsx
+
 const ASSET_DECIMALS: Record<string, number> = {
   [USDC_ASSET_INFO.symbol]: USDC_ASSET_INFO.decimals,
-  "CXPT": 18, // Assuming 18 for CXPT
+  "CXPT": 18,
   ...SUPPORTED_SYNTH_ASSETS.reduce((acc, asset) => {
     acc[asset.symbol] = asset.decimals;
     return acc;
@@ -31,47 +34,24 @@ const getAssetDisplayInfo = (assetSymbol: string): { name: string; decimals: num
     if (assetSymbol === "CXPT") return { name: "Cxmpute Token", decimals: ASSET_DECIMALS["CXPT"] || 18 };
     const synth = SUPPORTED_SYNTH_ASSETS.find(s => s.symbol === assetSymbol);
     if (synth) return { name: synth.name, decimals: synth.decimals };
-    return { name: assetSymbol, decimals: 8 }; // Fallback
+    return { name: assetSymbol, decimals: 8 };
 };
 
-
-// Robust formatting function
-const formatDisplayBalance = (
-    balanceValueStr: string | number | undefined | null,
-    assetSymbol: string
-): string => {
+const formatDisplayBalance = (balanceValueStr: string | number | undefined | null, assetSymbol: string): string => {
     if (balanceValueStr === undefined || balanceValueStr === null) return '-.--';
-    
     const assetInfo = getAssetDisplayInfo(assetSymbol);
     const decimals = assetInfo.decimals;
-
     try {
-        const balanceBigInt = BigInt(String(balanceValueStr)); // Expects base units as string/number
+        const balanceBigInt = BigInt(String(balanceValueStr));
         const divisor = BigInt(10) ** BigInt(decimals);
         const wholePart = balanceBigInt / divisor;
         const fractionalPart = balanceBigInt % divisor;
-
         let fractionalStr = fractionalPart.toString().padStart(decimals, '0');
-        
-        // Determine display precision: show significant decimals, up to a max like 4-6 for UI
         const displayPrecision = Math.min(decimals, assetSymbol === "USDC" || assetSymbol === "CXPT" ? 2 : 4);
         fractionalStr = fractionalStr.substring(0, displayPrecision);
-        
-        // Remove trailing zeros from fractional part if it's not all zeros after displayPrecision
-        if (fractionalStr.length > 0 && displayPrecision < decimals) {
-             // only remove trailing zeros if we truncated
-        } else if (fractionalStr.length > 0) {
-            // fractionalStr = fractionalStr.replace(/0+$/, ""); // This might remove too much, e.g., 1.5000 -> 1.5
-        }
-
-        if (fractionalStr.length > 0) {
-            return `${wholePart.toLocaleString()}.${fractionalStr}`;
-        }
+        if (fractionalStr.length > 0) return `${wholePart.toLocaleString()}.${fractionalStr}`;
         return wholePart.toLocaleString();
-
-    } catch (e) {
-        console.error("Error formatting balance:", e, "Value:", balanceValueStr, "Asset:", assetSymbol);
-        // Fallback for non-BigInt numbers or if string parsing fails
+    } catch {
         const num = Number(balanceValueStr);
         if (isNaN(num)) return "Error";
         return num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: Math.min(decimals, 6)});
@@ -86,15 +66,12 @@ const BalancesInfo: React.FC = () => {
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
+  const [isDepositSynthModalOpen, setIsDepositSynthModalOpen] = useState(false); // <<< NEW STATE
 
-  // Memoize sorted balances for stable rendering order
   const sortedBalances = useMemo(() => {
-    // Prioritize USDC, then CXPT, then sASSETs alphabetically
     return [...balances].sort((a, b) => {
-      if (a.asset === "USDC") return -1;
-      if (b.asset === "USDC") return 1;
-      if (a.asset === "CXPT") return -1;
-      if (b.asset === "CXPT") return 1;
+      if (a.asset === "USDC") return -1; if (b.asset === "USDC") return 1;
+      if (a.asset === "CXPT") return -1; if (b.asset === "CXPT") return 1;
       return (a.asset || "").localeCompare(b.asset || "");
     });
   }, [balances]);
@@ -148,13 +125,10 @@ const BalancesInfo: React.FC = () => {
             ))}
           </div>
         )}
-
         {!isLoading.balances && error.balances && <p className={styles.globalError}>Failed to load balances: {error.balances}</p>}
-        
         {!isLoading.balances && !error.balances && sortedBalances.length === 0 && (
             <p className={styles.noBalances}>No balances found for {currentMode} mode.</p>
         )}
-
         {!isLoading.balances && !error.balances && sortedBalances.length > 0 && (
           <div className={styles.balancesList}>
             {sortedBalances.map(renderBalanceRow)}
@@ -189,16 +163,19 @@ const BalancesInfo: React.FC = () => {
           {currentMode === 'REAL' && (
             <>
               <Button variant="secondary" size="sm" onClick={() => setIsDepositModalOpen(true)} iconLeft={<ArrowDownCircle size={16} />}>
-                Deposit
+                Deposit USDC
+              </Button>
+              {/* <<< NEW BUTTON FOR SYNTH DEPOSIT >>> */}
+              <Button variant="secondary" size="sm" onClick={() => setIsDepositSynthModalOpen(true)} iconLeft={<DownloadCloud size={16} />}>
+                Deposit sAsset
               </Button>
               <Button variant="secondary" size="sm" onClick={() => setIsWithdrawModalOpen(true)} iconLeft={<ArrowUpCircle size={16} />}>
                 Withdraw
               </Button>
             </>
           )}
-          {/* Synth Exchange available in both modes for now, can restrict later if needed */}
           <Button variant="secondary" size="sm" onClick={() => setIsExchangeModalOpen(true)} iconLeft={<Repeat size={16} />}>
-            Exchange Synths
+            Exchange
           </Button>
         </div>
       </div>
@@ -208,8 +185,11 @@ const BalancesInfo: React.FC = () => {
         <>
           <DepositModal isOpen={isDepositModalOpen} onClose={() => setIsDepositModalOpen(false)} />
           <WithdrawModal isOpen={isWithdrawModalOpen} onClose={() => setIsWithdrawModalOpen(false)} />
+          {/* <<< NEW MODAL INSTANCE >>> */}
+          <DepositSynthModal isOpen={isDepositSynthModalOpen} onClose={() => setIsDepositSynthModalOpen(false)} />
         </>
       )}
+      {/* ExchangeModal can be available in both modes if needed, or conditioned on REAL */}
       <SynthExchangeModal isOpen={isExchangeModalOpen} onClose={() => setIsExchangeModalOpen(false)} />
     </>
   );
