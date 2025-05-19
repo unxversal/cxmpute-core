@@ -92,8 +92,6 @@ export async function POST(req: NextRequest) {
       Resource.LLMProvisionPoolTable.name,
       Resource.EmbeddingsProvisionPoolTable.name,
       Resource.ScrapingProvisionPoolTable.name,
-      Resource.MoonProvisionPoolTable.name,
-      Resource.MediaProvisionPoolTable.name,
       Resource.TTSProvisionPoolTable.name
     ];
 
@@ -137,12 +135,8 @@ function mapServicesToTables(services: string[]): string[] {
   for (const service of services) {
     if (service === "/scrape") {
       tables.add(Resource.ScrapingProvisionPoolTable.name);
-    } else if (service === "/m") {
-      tables.add(Resource.MoonProvisionPoolTable.name);
     } else if (service.startsWith("/tts")) {
       tables.add(Resource.TTSProvisionPoolTable.name);
-    } else if (service.startsWith("/image") || service.startsWith("/video")) {
-      tables.add(Resource.MediaProvisionPoolTable.name);
     } else if (service.startsWith("/embeddings")) {
       tables.add(Resource.EmbeddingsProvisionPoolTable.name);
     } else if (service.startsWith("/chat/completions") || !service.includes("/")) {
