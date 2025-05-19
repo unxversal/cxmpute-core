@@ -58,16 +58,6 @@ export default function ModelDetailPage({
             : input;
           break;
 
-        case 'image':
-          endpoint      = '/api/v1/image';
-          body          = { prompt: input, width: 512, height: 512 };
-          break;
-
-        case 'video':
-          endpoint      = '/api/v1/video';
-          body          = { prompt: input, size: '832*480' };
-          break;
-
         case 'audio':
           endpoint      = '/api/v1/tts';
           body          = { text: input, voice };
@@ -290,26 +280,6 @@ export default function ModelDetailPage({
                       />
                     )}
                   </>
-                )}
-
-                {model.Category === 'image' && (
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="Enter prompt…"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                  />
-                )}
-
-                {model.Category === 'video' && (
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="Enter prompt…"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                  />
                 )}
 
                 {model.Category === 'audio' && (
