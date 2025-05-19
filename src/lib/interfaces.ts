@@ -443,6 +443,7 @@ export interface TraderProfile {
   userAk?: string;
   status?: "ACTIVE" | "SUSPENDED";
   createdAt?: number;
+  lastFaucetClaimPaper?: number; // <<<< NEW: Last faucet claim timestamp
 }
 
 export interface TraderRecord {
@@ -452,6 +453,7 @@ export interface TraderRecord {
   userAk?: string;
   status?: "ACTIVE" | "SUSPENDED";
   createdAt?: number;
+  lastFaucetClaimPaper?: number; // <<<< NEW: Last faucet claim timestamp
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
