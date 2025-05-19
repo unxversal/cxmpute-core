@@ -2,6 +2,8 @@
 
 Cxmpute Core is the central application powering the Cxmpute platform. It encompasses the backend services, APIs, and smart contract infrastructure for a hybrid order book Decentralized Exchange (DEX) and a suite of AI/compute services.
 
+![Architecture Overview](https://i.postimg.cc/HkdjKNT8/Screenshot-2025-05-18-at-8-12-40-PM.png)
+
 ## Overview
 
 Built with Next.js (App Router for frontend components and API route handlers), TypeScript, and SST v3 for robust AWS serverless deployment, Cxmpute Core is designed for scalability and performance.
