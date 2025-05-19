@@ -1,7 +1,7 @@
 // dex/onchain/vaultHelper.ts
 import { ethers } from "ethers";
 import { Resource } from "sst";
-const { PEAQ_RPC_URL, CHAIN_ID = "3338" } = process.env;
+const { PEAQ_RPC_URL = "https://peaq.api.onfinality.io/public", CHAIN_ID = "3338" } = process.env;
 const VAULT_ADDR = Resource.CoreVaultAddress.value;
 const CORE_PK = Resource.CoreWalletPk.value;
 const abi = [
