@@ -590,7 +590,7 @@ export default $config({
         handler: "dex/cron/oracle.handler",
         timeout: "60 seconds",
         memory: "256 MB",
-        link: [pricesTable, marketsTable], // Reads market definitions (now includes mode)
+        link: [pricesTable, marketsTable, cmcApiKey], // Reads market definitions (now includes mode)
       },
     });
 
@@ -637,8 +637,6 @@ export default $config({
           pricesTable, // ADDED: For settlement price source
           // wsApi,
           marketUpdatesTopic,
-          coreVaultAddress,
-          coreWalletPk,
         ],
         // Environment vars for Vault/CORE_PK needed only if mode is REAL
          environment: {
@@ -719,8 +717,9 @@ export default $config({
           positionsTable,
           balancesTable, // Needed for both REAL and PAPER balance updates
           pricesTable, // Needed for PnL calculation
-          coreVaultAddress,
-          coreWalletPk
+          tradesTable,
+          marketsTable,
+          marketUpdatesTopic
           // statsIntradayTable, // Not directly needed for settlement?
         ],
         // Environment vars for Vault/CORE_PK only needed for REAL mode (if settlement involves on-chain transfers, which it doesn't seem to here, only balance updates)
