@@ -20,8 +20,8 @@ const MARKETS_TABLE_NAME = Resource.MarketsTable.name;
 const FACTORY_ADDR = Resource.CoreFactoryAddress.value;
 const VAULT_ADDR = Resource.CoreVaultAddress.value;
 const ADMIN_PK = Resource.CoreWalletPk.value;
-const PEAQ_RPC_URL = process.env.NEXT_PUBLIC_PEAQ_RPC_URL || "https://peaq.api.onfinality.io/public";
-const CHAIN_ID = process.env.NEXT_PUBLIC_CHAIN_ID || "3338";
+const PEAQ_RPC_URL = "https://peaq.api.onfinality.io/public";
+const CHAIN_ID = "3338";
 
 const factoryAbi = [
   "event SynthCreated(address indexed synthContract, string name, string symbol)",

@@ -838,6 +838,8 @@ export default $config({
         klinesTable,
         cancelledOrdersQueue,
         cxpttokenaddress,
+        coreWalletPk,
+        coreVaultAddress
       ]
     });
   },
