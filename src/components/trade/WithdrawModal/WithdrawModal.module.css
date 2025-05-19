@@ -1,5 +1,5 @@
 /* src/components/trade/WithdrawModal/WithdrawModal.module.css */
-/* Reusing many styles from DepositModal for consistency */
+/* Reusing many styles from DepositModal/SynthExchangeModal for consistency */
 .withdrawModalContent {
   display: flex;
   flex-direction: column;
@@ -112,7 +112,7 @@
 }
 
 .maxButtonContainer {
-    text-align: right; /* Aligns the button to the right below the input */
+    text-align: right;
     margin-top: 4px;
 }
 .maxButton {
@@ -128,13 +128,13 @@
 
 .actionButton {
   width: 100%;
-  margin-top: 12px; /* Spacing for the main action button */
+  margin-top: 12px; 
   padding-top: 12px !important;
   padding-bottom: 12px !important;
   font-size: 0.95rem !important;
 }
-.actionButtonConfirm { /* For the final confirm button */
-    width: auto; /* Don't make it full width in confirm step */
+.actionButtonConfirm { 
+    width: auto; 
     padding: 10px 20px !important;
 }
 
@@ -145,9 +145,9 @@
   align-items: center;
   text-align: center;
   gap: 12px;
-  padding: 10px 0; /* Padding for steps */
+  padding: 10px 0; 
 }
-.stepContainer.centered { /* For success/error messages */
+.stepContainer.centered { 
     flex-grow: 1;
     justify-content: center;
 }
@@ -171,11 +171,18 @@
   color: #8690a2;
   word-break: break-all;
 }
-.txLink {
+.txLinkModal { /* Using this distinct class name */
   color: var(--cxmpute-purple, #91a8eb);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
-.txLink:hover {
+.txLinkModal svg {
+  margin-left: 4px;
+  width: 0.8em;
+  height: 0.8em;
+}
+.txLinkModal:hover {
   text-decoration: underline;
 }
 
@@ -213,7 +220,7 @@
 .errorIcon {
   color: var(--cxmpute-red, #d64989);
 }
-.errorMessage {
+.errorMessageModal { /* Distinct class for error message */
   color: var(--cxmpute-red, #d64989);
   font-weight: 500;
   font-size: 0.9rem;
