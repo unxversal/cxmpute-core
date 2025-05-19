@@ -18,7 +18,7 @@ export const SUPPORTED_SYNTH_ASSETS = [
   { symbol: "sDOT", name: "Synthetic DOT", baseForOracle: "DOT", decimals: 10 },
 ];
 export const USDC_ASSET_INFO = { symbol: "USDC", name: "USD Coin", decimals: 6 };
-export const USDC_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Ethereum Mainnet USDC address
+export const USDC_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Peaq Mainnet USDC address
 
   export const SystemProvisionReference: SystemMetadataRecord[] = [
     // EMBEDDINGS
@@ -444,15 +444,6 @@ export const USDC_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Eth
       provisionTargetNumber: 10000,
     },
   
-    // IMAGE
-    {
-      endpoint: "/image",
-      model: "stable diffusion 2.1",
-      vramRequired: 8192,    // 8 GB
-      storageRequired: 2048, // 2 GB
-      provisionTargetNumber: 10000,
-    },
-  
     // AUDIO
     {
       endpoint: "/tts",
@@ -462,19 +453,75 @@ export const USDC_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Eth
       provisionTargetNumber: 10000,
     },
   
-    // VIDEO
     {
-      endpoint: "/video",
-      model: "Wan-AI/Wan2.1-T2V-1.3B",
-      vramRequired: 8192,     // 8 GB
-      storageRequired: 20000, // 20 GB
-      provisionTargetNumber: 10000,
+        endpoint: "/chat/completions",
+        model: "qwen2.5vl:3b",
+        vramRequired: 3200, // from 3.2GB
+        storageRequired: 3200,
+        provisionTargetNumber: 10000,
     },
     {
-      endpoint: "/m",
-      vramRequired: 2500,     // 2.5 GB
-      storageRequired: 2500, // 20 GB
-      provisionTargetNumber: 10000,
+        endpoint: "/chat/completions",
+        model: "qwen2.5vl:7b",
+        vramRequired: 6000, // from 6GB
+        storageRequired: 6000,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen2.5vl:32b",
+        vramRequired: 21000, // from 21GB
+        storageRequired: 21000,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen2.5vl:72b",
+        vramRequired: 71000, // from 71GB
+        storageRequired: 71000,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "phi4-reasoning:14b",
+        vramRequired: 11000, // from 11GB
+        storageRequired: 11000,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen3:4b",
+        vramRequired: 2600, // from 2.6GB
+        storageRequired: 2600,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen3:8b",
+        vramRequired: 5200, // from 5.2GB
+        storageRequired: 5200,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen3:14b",
+        vramRequired: 9300, // from 9.3GB
+        storageRequired: 9300,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen3:30b-a3b",
+        vramRequired: 19000, // from 19GB
+        storageRequired: 19000,
+        provisionTargetNumber: 10000,
+    },
+    {
+        endpoint: "/chat/completions",
+        model: "qwen3:32b",
+        vramRequired: 20000, // from 20GB
+        storageRequired: 20000,
+        provisionTargetNumber: 10000,
     }
   ];
 
@@ -628,38 +675,6 @@ except Exception as e:
 `;
 };
 
-// Generate docs for Image models
-const generateImageDocs = (modelName: string): string => {
-    const endpointRoute = "/api/v1/image";
-    // Note: The image endpoint docs don't show 'model' in the request body.
-    // The selection might happen based on the endpoint/provisioning, not the request body.
-    return `
-### Documentation for ${modelName}
-
-Generates images from text prompts using the \`${endpointRoute}\` endpoint. This specific model (${modelName}) is used internally by the service when this endpoint is called, based on system configuration.
-
-The endpoint accepts a text prompt and various parameters to control the image generation process. Refer to the full documentation for the \`${endpointRoute}\` endpoint for details on headers, parameters (\`negativePrompt\`, \`numInferenceSteps\`, \`width\`, \`height\`, etc.), error handling, and the PNG image stream response format.
-
-#### Sample Request (cURL)
-
-\`\`\`bash
-# Replace <your-orchestrator-host> and <API_KEY> with your actual values
-# The specific model (${modelName}) is typically selected by the backend for this endpoint.
-curl https://<your-orchestrator-host>/api/v1/image \\
-  -H "Authorization: Bearer <API_KEY>" \\
-  -H "X-User-Id: your_user_id_123" \\
-  -H "Content-Type: application/json" \\
-  --output generated_image.png \\
-  -d '{
-        "prompt": "A photo of an astronaut riding a horse on the moon",
-        "negativePrompt": "cartoon, drawing, sketch, low quality, blurry",
-        "numInferenceSteps": 30,
-        "width": 768,
-        "height": 768
-      }'
-\`\`\`
-`;
-};
 
 // Generate docs for Audio (TTS) models
 const generateTtsDocs = (modelName: string): string => {
@@ -689,38 +704,6 @@ curl https://<your-orchestrator-host>/api/v1/tts \\
 \`\`\`
 `;
 };
-
-// Generate docs for Video models
-const generateVideoDocs = (modelName: string): string => {
-    const endpointRoute = "/api/v1/video";
-     // Note: The video endpoint docs don't show 'model' in the request body.
-    return `
-### Documentation for ${modelName}
-
-Generates video from text prompts using the \`${endpointRoute}\` endpoint. This specific model (${modelName}) is used internally by the service when this endpoint is called, based on system configuration.
-
-The endpoint accepts a text prompt and parameters like resolution and generation settings. Refer to the full documentation for the \`${endpointRoute}\` endpoint for details on headers, parameters (\`size\`, \`sample_guide_scale\`, etc.), error handling, and the MP4 video stream response format.
-
-#### Sample Request (cURL)
-
-\`\`\`bash
-# Replace <your-orchestrator-host> and <API_KEY> with your actual values
-# The specific model (${modelName}) is typically selected by the backend for this endpoint.
-curl https://<your-orchestrator-host>/api/v1/video \\
-  -H "Authorization: Bearer <API_KEY>" \\
-  -H "X-User-Id: your_user_id_123" \\
-  -H "Content-Type: application/json" \\
-  --output generated_video.mp4 \\
-  -d '{
-        "prompt": "A cinematic shot of a spaceship flying through a nebula",
-        "size": "832*480",
-        "sample_guide_scale": 7,
-        "offload_model": true
-      }'
-\`\`\`
-`;
-};
-
 
 // The data array conforming to the Models[] type with docs added
 export const models: Models[] = [
@@ -1822,21 +1805,6 @@ Akin to Isaac Newton in his time, Mathstral stands on the shoulders of Mistral 7
   docs: generateChatCompletionsDocs("deepseek-coder-v2:16b")
 },
 {
-  Name: "stable diffusion 2.1",
-  Category: "image",
-  description: "A latent text-to-image diffusion model capable of generating photo-realistic images given any text input.",
-  Creator: "Stable Diffusion",
-  creatorUrl: "https://huggingface.co/stabilityai/stable-diffusion-2-1", // Using HF as creator URL
-  InputModalities: parseModalities("text"),
-  OutputModalities: parseModalities("image"),
-  contextSize: undefined, // N/A for image models
-  outputLength: undefined, // N/A for image models
-  blogUrl: undefined, // No blog post listed
-  vectorSize: undefined,
-  slug: generateSlug("stable diffusion 2.1"), // "stable-diffusion-2-1"
-  docs: generateImageDocs("stable diffusion 2.1")
-},
-{
   Name: "kokoro-82m",
   Category: "audio",
   description: "`Kokoro` is an open-weight TTS model with 82 million parameters. Despite its lightweight architecture, it delivers comparable quality to larger models while being significantly faster and more cost-efficient. With Apache-licensed weights, Kokoro can be deployed anywhere from production environments to personal projects.",
@@ -1852,26 +1820,6 @@ Akin to Isaac Newton in his time, Mathstral stands on the shoulders of Mistral 7
   docs: generateTtsDocs("kokoro-82m")
 },
 {
-  Name: "Wan-AI/Wan2.1-T2V-1.3B",
-  Category: "video",
-  description: `\`Wan2.1\`, a comprehensive and open suite of video foundation models that pushes the boundaries of video generation. Wan2.1 offers these key features:
-
-*   👍 **SOTA Performance**: Wan2.1 consistently outperforms existing open-source models and state-of-the-art commercial solutions across multiple benchmarks.
-*   👍 **Supports Consumer-grade GPUs**: The T2V-1.3B model requires only 8.19 GB VRAM, making it compatible with almost all consumer-grade GPUs. It can generate a 5-second 480P video on an RTX 4090 in about 4 minutes (without optimization techniques like quantization). Its performance is even comparable to some closed-source models.
-*   👍 **Multiple Tasks**: Wan2.1 excels in Text-to-Video, Image-to-Video, Video Editing, Text-to-Image, and Video-to-Audio, advancing the field of video generation.
-*   👍 **Visual Text Generation**: Wan2.1 is the first video model capable of generating both Chinese and English text, featuring robust text generation that enhances its practical applications.`,
-  Creator: "Wan AI",
-  creatorUrl: "https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B", // Using HF as creator URL
-  InputModalities: parseModalities("text"),
-  OutputModalities: parseModalities("video"),
-  contextSize: undefined, // N/A for video models
-  outputLength: undefined, // N/A for video models
-  blogUrl: undefined, // No blog post listed
-  vectorSize: undefined,
-  slug: generateSlug("Wan-AI/Wan2.1-T2V-1.3B"), // "wan-ai-wan2-1-t2v-1-3b"
-  docs: generateVideoDocs("Wan-AI/Wan2.1-T2V-1.3B")
-},
-{
   Name: "granite3.3:8b",
   Category: "text",
   description: "The IBM Granite 3.3 8B model is an 8-billion-parameter instruction-tuned LLM with a 128K token context window, optimized for reasoning, instruction following, fill-in-the-middle code completion, and structured reasoning.",
@@ -1885,6 +1833,242 @@ Akin to Isaac Newton in his time, Mathstral stands on the shoulders of Mistral 7
   slug: generateSlug("granite3.3:8b"),
   docs: generateChatCompletionsDocs("granite3.3:8b")
 },
+{
+    Name: "qwen2.5vl:3b",
+    Category: "vision",
+    description: `\`Qwen2.5-VL\` is the new flagship vision-language model series from Qwen, representing a significant leap from the previous \`Qwen2-VL\`.
+
+**Key Features**:
+*   **Understand Things Visually**: \`Qwen2.5-VL\` is proficient in recognizing common objects (flowers, birds, fish, insects) and excels at analyzing texts, charts, icons, graphics, and layouts within images.
+*   **Agentic Capabilities**: Acts as a visual agent that can reason and dynamically direct tools, enabling computer and phone use.
+*   **Visual Localization**: Accurately localizes objects in an image by generating bounding boxes or points, providing stable JSON outputs for coordinates and attributes.
+*   **Structured Outputs**: Supports structured outputs for data like scans of invoices, forms, and tables, beneficial for finance, commerce, etc.
+
+**Performance**:
+The flagship model, \`Qwen2.5-VL-72B-Instruct\`, achieves competitive performance across benchmarks. Smaller models like \`Qwen2.5-VL-7B-Instruct\` outperform \`GPT-4o-mini\` in several tasks. The \`Qwen2.5-VL-3B\` model, designed for edge AI, even surpasses the 7B model of the previous \`Qwen2-VL\` version.
+(Note: Requires Ollama 0.7.0 or later).`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text, image"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming based on Qwen family text output capabilities
+    blogUrl: "https://qwenlm.github.io/blog/qwen2.5-vl/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen2.5vl:3b"),
+    docs: generateChatCompletionsDocs("qwen2.5vl:3b", true),
+  },
+  {
+    Name: "qwen2.5vl:7b",
+    Category: "vision",
+    description: `\`Qwen2.5-VL\` is the new flagship vision-language model series from Qwen, representing a significant leap from the previous \`Qwen2-VL\`.
+
+**Key Features**:
+*   **Understand Things Visually**: \`Qwen2.5-VL\` is proficient in recognizing common objects and excels at analyzing texts, charts, icons, graphics, and layouts within images.
+*   **Agentic Capabilities**: Acts as a visual agent that can reason and dynamically direct tools.
+*   **Visual Localization**: Accurately localizes objects, providing stable JSON outputs for coordinates and attributes.
+*   **Structured Outputs**: Supports structured outputs for data like scans of invoices, forms, and tables.
+
+**Performance**:
+\`Qwen2.5-VL-7B-Instruct\` outperforms \`GPT-4o-mini\` in a number of tasks. It is part of a series where the flagship \`Qwen2.5-VL-72B-Instruct\` achieves competitive performance across many benchmarks.
+(Note: Requires Ollama 0.7.0 or later).`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text, image"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen2.5-vl/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen2.5vl:7b"),
+    docs: generateChatCompletionsDocs("qwen2.5vl:7b", true),
+  },
+  {
+    Name: "qwen2.5vl:32b",
+    Category: "vision",
+    description: `\`Qwen2.5-VL\` is the new flagship vision-language model series from Qwen. This 32B variant offers a powerful balance of capability and resource requirements within the \`Qwen2.5-VL\` family.
+
+**Key Features**:
+*   **Advanced Visual Understanding**: Proficient in recognizing diverse objects and analyzing complex visual content including text, charts, and layouts.
+*   **Strong Agentic Capabilities**: Functions as a visual agent, capable of reasoning and directing tools for tasks like computer and phone interaction.
+*   **Precise Visual Localization**: Accurately localizes objects using bounding boxes or points, with stable JSON output for coordinates.
+*   **Structured Data Extraction**: Efficiently generates structured outputs from visual data such as invoices and forms.
+
+**Performance**:
+As part of the \`Qwen2.5-VL\` series, the 32B model benefits from the architectural improvements that allow the flagship \`Qwen2.5-VL-72B-Instruct\` to achieve SOTA-competitive results. It offers a step up in performance from the smaller variants for more demanding tasks.
+(Note: Requires Ollama 0.7.0 or later).`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text, image"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen2.5-vl-32b/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen2.5vl:32b"),
+    docs: generateChatCompletionsDocs("qwen2.5vl:32b", true),
+  },
+  {
+    Name: "qwen2.5vl:72b",
+    Category: "vision",
+    description: `\`Qwen2.5-VL-72B-Instruct\` is the flagship vision-language model from Qwen, showcasing top-tier performance and a comprehensive feature set.
+
+**Key Features**:
+*   **Superior Visual Understanding**: Excels in recognizing a wide array of objects and analyzing intricate visual details in texts, charts, icons, graphics, and layouts.
+*   **Highly Agentic**: Functions effectively as a visual agent, demonstrating strong reasoning and tool utilization for complex interactions like computer and phone operation.
+*   **Accurate Visual Localization**: Precisely identifies and localizes objects, generating bounding boxes or points with stable JSON outputs for coordinates and attributes.
+*   **Robust Structured Output Generation**: Adept at extracting and structuring information from visual documents like invoices, forms, and tables, ideal for applications in finance and commerce.
+
+**Performance**:
+\`Qwen2.5-VL-72B-Instruct\` achieves competitive performance in a series of benchmarks covering diverse domains and tasks, including college-level problems, math, document understanding, general question answering, and visual agent capabilities. It demonstrates significant advantages in understanding documents and diagrams and can operate as a visual agent without task-specific fine-tuning.
+(Note: Requires Ollama 0.7.0 or later).`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text, image"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen2.5-vl/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen2.5vl:72b"),
+    docs: generateChatCompletionsDocs("qwen2.5vl:72b", true),
+  },
+  {
+    Name: "phi4-reasoning:14b",
+    Category: "text",
+    description: `\`Phi-4 Reasoning\` and \`Phi-4 Reasoning Plus\` are 14-billion-parameter models from Microsoft, designed to rival much larger models on complex reasoning tasks.
+
+*   **\`Phi-4 Reasoning\`**: Trained via supervised fine-tuning (SFT) of \`Phi-4\` on carefully curated reasoning demonstrations, including from OpenAI’s \`o3-mini\`. This highlights how meticulous data curation and high-quality synthetic datasets enable smaller models to compete with larger counterparts.
+*   **\`Phi-4 Reasoning Plus\`**: Builds upon \`Phi-4 Reasoning\` and is further trained with reinforcement learning (RL) to deliver higher accuracy.
+
+**Performance**:
+These models consistently outperform the base \`Phi-4\` model by significant margins on representative reasoning benchmarks (mathematical and scientific reasoning). They exceed \`DeepSeek-R1 Distill Llama 70B\` (5x larger) and demonstrate competitive performance against significantly larger models like \`DeepSeek-R1\`.`,
+    Creator: "Microsoft",
+    creatorUrl: "https://azure.microsoft.com/en-us/blog/one-year-of-phi-small-language-models-making-big-leaps-in-ai/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "32k",
+    outputLength: "8192", // Assuming based on Phi family capabilities
+    blogUrl: "https://azure.microsoft.com/en-us/blog/one-year-of-phi-small-language-models-making-big-leaps-in-ai/",
+    vectorSize: undefined,
+    slug: generateSlug("phi4-reasoning:14b"),
+    docs: generateChatCompletionsDocs("phi4-reasoning:14b", false),
+  },
+  {
+    Name: "qwen3:4b",
+    Category: "text",
+    description: `\`Qwen3\` is the latest generation of large language models in the Qwen series, offering a comprehensive suite of dense and mixture-of-experts (MoE) models. The 4B variant provides an efficient entry point into the Qwen3 family.
+
+**Key Capabilities**:
+*   **Thinking/Non-Thinking Modes**: Uniquely supports seamless switching between thinking mode (for complex logical reasoning, math, coding) and non-thinking mode (for efficient, general-purpose dialogue) within a single model.
+*   **Enhanced Reasoning**: Significant improvements in reasoning, surpassing previous \`QwQ\` (thinking mode) and \`Qwen2.5 Instruct\` (non-thinking mode) models in mathematics, code generation, and logical reasoning. \`Qwen3-4B\` can rival the performance of \`Qwen2.5-72B-Instruct\` in some aspects.
+*   **Human Preference Alignment**: Excels in creative writing, role-playing, multi-turn dialogues, and instruction following.
+*   **Agent Capabilities**: Precise integration with external tools in both modes, with leading performance among open-source models in complex agent-based tasks.
+*   **Multilingual Support**: Supports 100+ languages and dialects with strong capabilities for multilingual instruction following and translation.`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "32k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen3/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen3:4b"),
+    docs: generateChatCompletionsDocs("qwen3:4b", false),
+  },
+  {
+    Name: "qwen3:8b",
+    Category: "text",
+    description: `\`Qwen3\` is the latest generation of large language models in the Qwen series. The 8B variant offers a balanced blend of performance and efficiency.
+
+**Key Capabilities**:
+*   **Thinking/Non-Thinking Modes**: Supports seamless switching between modes for complex reasoning/coding and general dialogue.
+*   **Enhanced Reasoning**: Significant improvements in mathematics, code generation, and logical reasoning over previous Qwen generations.
+*   **Human Preference Alignment**: Excels in creative writing, role-playing, multi-turn dialogues, and instruction following.
+*   **Agent Capabilities**: Precise integration with external tools, leading in complex agent-based tasks among open-source models.
+*   **Multilingual Support**: Supports 100+ languages with strong instruction following and translation.
+*   **Extended Context**: This variant supports a 128k context window.`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen3/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen3:8b"),
+    docs: generateChatCompletionsDocs("qwen3:8b", false),
+  },
+  {
+    Name: "qwen3:14b",
+    Category: "text",
+    description: `\`Qwen3\` is the latest generation of Qwen LLMs. The 14B model provides enhanced capabilities for more demanding tasks.
+
+**Key Capabilities**:
+*   **Dual Modes**: Seamlessly switches between thinking (complex logic, math, code) and non-thinking (general dialogue) modes.
+*   **Advanced Reasoning**: Outperforms previous Qwen models (\`QwQ\`, \`Qwen2.5 Instruct\`) in math, coding, and logical reasoning.
+*   **Superior Alignment**: Strong in creative writing, role-playing, multi-turn conversations, and following instructions.
+*   **Expert Agent**: Integrates precisely with external tools, leading in agent-based tasks.
+*   **Broad Multilingualism**: Supports over 100 languages and dialects.
+*   **Large Context**: Features a 128k context window.`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen3/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen3:14b"),
+    docs: generateChatCompletionsDocs("qwen3:14b", false),
+  },
+  {
+    Name: "qwen3:30b-a3b",
+    Category: "text",
+    description: `\`Qwen3-30B-A3B\` is a Mixture-of-Experts (MoE) model from the latest \`Qwen3\` LLM series, designed for high efficiency and performance.
+
+**Key Capabilities**:
+*   **MoE Architecture**: Provides strong performance, outcompeting \`QwQ-32B\` with 10 times fewer activated parameters.
+*   **Dual Operational Modes**: Supports seamless switching between a "thinking mode" for complex reasoning, math, and coding tasks, and a "non-thinking mode" for efficient, general-purpose dialogue.
+*   **Significantly Enhanced Reasoning**: Surpasses previous \`QwQ\` (in thinking mode) and \`Qwen2.5 Instruct\` models (in non-thinking mode) on mathematics, code generation, and commonsense logical reasoning.
+*   **Superior Human Preference Alignment**: Excels in creative writing, role-playing, multi-turn dialogues, and instruction following, delivering a more natural and engaging conversational experience.
+*   **Expertise in Agent Capabilities**: Enables precise integration with external tools in both modes and achieves leading performance among open-source models in complex agent-based tasks.
+*   **Extensive Multilingual Support**: Supports over 100 languages and dialects with strong capabilities for multilingual instruction following and translation.
+*   **Large Context Window**: Supports a context length of 128k tokens.`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen3/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen3:30b-a3b"),
+    docs: generateChatCompletionsDocs("qwen3:30b-a3b", false),
+  },
+  {
+    Name: "qwen3:32b",
+    Category: "text",
+    description: `The \`Qwen3-32B\` model is a powerful dense model from the latest \`Qwen3\` LLM series, offering strong all-around capabilities.
+
+**Key Capabilities**:
+*   **Dual Operational Modes**: Features seamless switching between "thinking mode" (for complex tasks like logical reasoning, math, and coding) and "non-thinking mode" (for efficient, general-purpose dialogue).
+*   **Enhanced Reasoning Abilities**: Demonstrates significant improvements in reasoning, surpassing previous generations like \`QwQ\` (in thinking mode) and \`Qwen2.5 Instruct\` models (in non-thinking mode) in mathematics, code generation, and logical reasoning.
+*   **Excellent Human Preference Alignment**: Strong performance in creative writing, role-playing, multi-turn dialogues, and instruction following, leading to more natural and engaging interactions.
+*   **Advanced Agent Functionality**: Capable of precise integration with external tools in both operational modes, achieving leading performance among open-source models for complex agent-based tasks.
+*   **Comprehensive Multilingual Support**: Supports over 100 languages and dialects, with robust capabilities for multilingual instruction following and translation.
+*   **Large Context Window**: Supports a 128k token context length.`,
+    Creator: "Qwen",
+    creatorUrl: "https://qwenlm.github.io/",
+    InputModalities: parseModalities("text"),
+    OutputModalities: parseModalities("text"),
+    contextSize: "128k",
+    outputLength: "8192", // Assuming
+    blogUrl: "https://qwenlm.github.io/blog/qwen3/",
+    vectorSize: undefined,
+    slug: generateSlug("qwen3:32b"),
+    docs: generateChatCompletionsDocs("qwen3:32b", false),
+  },
 ];
 
 interface EndpointDoc{
@@ -2110,649 +2294,7 @@ Body and response signatures are identical to the public endpoint; authenticatio
 `
   },
   {
-    route: "/api/v1/video",
-    docs: `
-## Endpoint \`POST /api/v1/video\`
-
-Turn a text prompt into an **MP4 video** via your decentralized media-model network.
-The Next .js router validates the request, selects a healthy “Wan T2V” provider node, streams the MP4 back, and rewards the node.
-
----
-
-### 1  URL
-
-\`\`\`
-POST https://<orchestrator-host>/api/v1/video
-\`\`\`
-
----
-
-### 2  Pre-flight (CORS)
-
-\`\`\`
-OPTIONS /api/v1/video
-\`\`\`
-
-| Header | Value |
-|--------|-------|
-| Access-Control-Allow-Origin | \`*\` |
-| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
-| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
-
----
-
-### 3  Request Headers
-
-| Header | Required | Description |
-|--------|----------|-------------|
-| **Authorization** | ✓ | \`Bearer <API_KEY>\` |
-| **X-User-Id** | ✓ | Internal user identifier for metering / quotas. |
-| **X-Title** | — | Service name for per-service analytics. |
-| **HTTP-Referer** | — | Originating page URL. |
-| **Content-Type** | ✓ | \`application/json\` |
-
----
-
-### 4  Request Body
-
-\`\`\`jsonc
-{
-  "prompt":              "Two cats boxing on a stage",   // required
-  "size":                "832*480",                      // required (width*height)
-  "ckpt_dir":            "./Wan2.1-T2V-1.3B",            // optional – overrides default model dir
-  "sample_shift":        8,                              // optional int
-  "sample_guide_scale":  6,                              // optional float
-  "offload_model":       true,                           // optional – CPU/GPU memory trade-off
-  "t5_cpu":              true,                           // optional – run text encoder on CPU
-  // …any other CLI flags your generate.py supports
-}
-\`\`\`
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| \`prompt\` | \`string\` | ✓ | Text description of the desired clip. |
-| \`size\` | \`string\` | ✓ | Resolution in \`<width>*<height>\` format (e.g. \`832*480\`). |
-| \`ckpt_dir\` | \`string\` | — | Absolute/relative path to a Wan T2V checkpoint; defaults to the node’s configured model. |
-| \`sample_shift\` | \`integer\` | — | Temporal sampling offset. |
-| \`sample_guide_scale\` | \`number\` | — | Classifier-free guidance strength. |
-| \`offload_model\` | \`boolean\` | — | Off-loads non-active layers to RAM or disk. |
-| \`t5_cpu\` | \`boolean\` | — | Runs the T5 text encoder on CPU to free GPU VRAM. |
-| _…any other key_ | \`any\` | — | Passed straight through to the provider’s \`generate.py\`. |
-
----
-
-### 5  Successful Response \`200 OK\`
-
-*Binary stream* – an MP4 file.
-
-| Header | Value |
-|--------|-------|
-| \`Content-Type\` | \`video/mp4\` |
-| \`Access-Control-Allow-Origin\` | \`*\` |
-
-> The body is a **streaming MP4**; consume it as a file/pipe, not JSON.
-
----
-
-### 6  Error Responses
-
-| HTTP status | JSON body | Cause |
-|-------------|-----------|-------|
-| **400** | \`{ "error": "Missing required fields \\"prompt\\" and \\"size\\"." }\` | \`prompt\` or \`size\` not supplied. |
-| **401** | \`{ "error": "Invalid API key" }\` | Bad or absent \`Authorization\`. |
-| **503** | \`{ "error": "No healthy video provision found" }\` | All provider nodes failed health-checks. |
-| **500** | \`{ "error": "Internal server error" }\` | Unhandled exception in router. |
-| **502-504** | \`{ "error": "Node error: …" }\` | Provider returned non-200; message forwarded verbatim. |
-
----
-
-### 7  Example cURL
-
-\`\`\`bash
-curl https://api.my-net.io/api/v1/video \\
-  -H "Authorization: Bearer sk-live-abc123" \\
-  -H "X-User-Id: user_42" \\
-  -H "Content-Type: application/json" \\
-  --output boxing_cats.mp4 \\
-  -d '{
-        "prompt":"Two cats boxing on a stage",
-        "size":"832*480",
-        "sample_guide_scale":6,
-        "offload_model":true
-      }'
-\`\`\`
-
----
-
-### 8  OpenAPI Snippet
-
-\`\`\`yaml
-paths:
-  /api/v1/video:
-    post:
-      summary: Generate an MP4 video from a text prompt
-      operationId: createVideo
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/VideoRequest'
-      responses:
-        '200':
-          description: MP4 stream
-          content:
-            video/mp4: {}
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-components:
-  schemas:
-    VideoRequest:
-      type: object
-      required: [prompt, size]
-      properties:
-        prompt: { type: string }
-        size:   { type: string, pattern: '^[0-9]+\\\\*[0-9]+$' } # Escaped backslash for pattern
-        ckpt_dir: { type: string }
-        sample_shift: { type: integer }
-        sample_guide_scale: { type: number }
-        offload_model: { type: boolean }
-        t5_cpu: { type: boolean }
-      additionalProperties: true
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-\`\`\`
-
----
-
-### 9  Internal Flow (router → node)
-
-1. **Key validation** \`validateApiKey\`.
-2. **Node selection** \`selectVideoProvision("wan2.1")\` + health probe (max 3 attempts).
-3. **Forward** to \`http://<node>/video\` with the same JSON body.
-4. **Provider** runs \`python generate.py …\` and writes an MP4 to disk.
-5. **Stream** MP4 back through the router (\`Response(nodeResp.body, { "Content-Type": "video/mp4" })\`).
-6. **Metrics** \`updateVideoMetadata(latency)\` and (optionally) \`updateVideoServiceMetadata\`.
-7. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
-
-Clients never see these internals—only the MP4 stream.
-
----
-
-### 10  Provider-Node Endpoint (reference)
-
-\`\`\`
-POST http://<node-host>:<port>/video
-\`\`\`
-
-Same JSON as the public endpoint; returns an MP4 stream. No auth needed because only the orchestrator calls it.
-
----
-
-### 11  Changelog
-
-| Date (UTC) | Change |
-|------------|--------|
-| 2025-04-26 | Initial specification written. |
-
----
-
-**Next:** tell me which route you’d like documented next (images, completions, health, billing, …); or ask for a full compiled OpenAPI/Swagger file, markdown site, or PDF.
-`,
-  },
-  {
-    route: "/api/v1/image",
-    docs: `
-## Endpoint \`POST /api/v1/image\`
-
-Create a **PNG image** from a text prompt via the decentralized diffusion-model network.
-The Next .js router selects a healthy Stable Diffusion node, forwards the request, rewards the node, and streams the PNG back.
-
----
-
-### 1 URL
-\`\`\`
-POST https://<orchestrator-host>/api/v1/image
-\`\`\`
-
----
-
-### 2 Pre-flight (CORS)
-\`\`\`
-OPTIONS /api/v1/image
-\`\`\`
-
-| Header | Value |
-|--------|-------|
-| Access-Control-Allow-Origin | \`*\` |
-| Access-Control-Allow-Headers | \`Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer\` |
-| Access-Control-Allow-Methods | \`POST, OPTIONS\` |
-
----
-
-### 3 Request Headers
-
-| Header | Required | Description |
-|--------|----------|-------------|
-| **Authorization** | ✓ | \`Bearer <API_KEY>\` |
-| **X-User-Id** | ✓ | Internal user/customer id for metering. |
-| **X-Title** | — | Friendly service / product name (per-service analytics). |
-| **HTTP-Referer** | — | Originating page URL (analytics). |
-| **Content-Type** | ✓ | \`application/json\` |
-
----
-
-### 4 Request Body
-
-\`\`\`jsonc
-{
-  "prompt":             "an astronaut riding a horse",   // required
-  "negativePrompt":     "low-res, blurry",               // optional
-  "numInferenceSteps":  30,                              // optional (default 30)
-  "width":              512,                             // optional (default 512)
-  "height":             512,                             // optional (default 512)
-
-  // …any diffusers / Stable Diffusion runtime options
-}
-\`\`\`
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| \`prompt\` | \`string\` | ✓ | The positive text-to-image prompt. |
-| \`negativePrompt\` | \`string\` | — | Content to steer *away* from. |
-| \`numInferenceSteps\` | \`integer\` | — | Diffusion steps (quality vs. speed). |
-| \`width\`,\`height\` | \`integer\` | — | Output resolution in pixels (powers of 8). |
-| _…any other key_ | \`any\` | — | Passed straight to Diffusers pipeline. |
-
----
-
-### 5 Successful Response \`200 OK\`
-
-*Binary stream* – a PNG file.
-
-| Header | Value |
-|--------|-------|
-| \`Content-Type\` | \`image/png\` |
-| \`Access-Control-Allow-Origin\` | \`*\` |
-
-> The body is a **streaming PNG**; save it as a file or pipe it onward.
-
----
-
-### 6 Error Responses
-
-| HTTP status | JSON body | Cause |
-|-------------|-----------|-------|
-| **400** | \`{ "error": "Missing \\'prompt\\' field." }\` | \`prompt\` absent. |
-| **401** | \`{ "error": "Invalid API key" }\` | Bad/absent \`Authorization\`. |
-| **503** | \`{ "error": "No healthy image provision found" }\` | All image nodes failed health-check. |
-| **500** | \`{ "error": "Internal server error" }\` | Unhandled exception in router. |
-| **502-504** | \`{ "error": "Node error: …" }\` | Provider returned non-200; message forwarded. |
-
----
-
-### 7 Example cURL
-
-\`\`\`bash
-curl https://api.my-net.io/api/v1/image \\
-  -H "Authorization: Bearer sk-live-abc123" \\
-  -H "X-User-Id: user_42" \\
-  -H "Content-Type: application/json" \\
-  --output astronaut_horse.png \\
-  -d '{
-        "prompt": "an astronaut riding a horse",
-        "negativePrompt": "low-res, blurry",
-        "numInferenceSteps": 40,
-        "width": 640,
-        "height": 640
-      }'
-\`\`\`
-
----
-
-### 8 OpenAPI Snippet
-
-\`\`\`yaml
-paths:
-  /api/v1/image:
-    post:
-      summary: Generate a PNG image from a text prompt
-      operationId: createImage
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImageRequest'
-      responses:
-        '200':
-          description: PNG stream
-          content:
-            image/png: {}
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-components:
-  schemas:
-    ImageRequest:
-      type: object
-      required: [prompt]
-      properties:
-        prompt: { type: string }
-        negativePrompt: { type: string }
-        numInferenceSteps: { type: integer, minimum: 1 }
-        width:  { type: integer, minimum: 64 }
-        height: { type: integer, minimum: 64 }
-      additionalProperties: true
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-\`\`\`
-
----
-
-### 9 Internal Flow (router → node)
-
-1. **API-key check** \`validateApiKey\`.
-2. **Node selection** \`selectImageProvision("stable-diffusion-2-1-base")\` + three health probes.
-3. **Forward** JSON to \`http://<node>/image\`.
-4. **Provider** runs Diffusers-JS Stable Diffusion pipeline → PNG.
-5. **Stream** PNG back through the router with CORS headers.
-6. **Metrics** \`updateImageMetadata(latency)\` and, if \`X-Title\` present, \`updateImageServiceMetadata\`.
-7. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
-
-Clients are unaware of these internals.
-
----
-
-### 10 Provider-Node Endpoint (reference)
-
-\`\`\`
-POST http://<node-host>:<port>/image
-\`\`\`
-JSON body identical to public endpoint; returns a PNG stream. No auth—calls originate only from the orchestrator.
-
----
-
-### 11 Changelog
-
-| Date (UTC) | Change |
-|------------|--------|
-| 2025-04-26 | Initial specification drafted. |
-
----
-
-**Next:** tell me which route to document next (e.g. \`/api/v1/audio\`, \`/credits/charge\`, health probes) or if you need a consolidated OpenAPI file / HTML docs.
-`,
-  },
-  {
-    route: "/api/v1/m/caption",
-    docs: ``,
-  },
-  {
-    route: "/api/v1/m/detect",
-    docs: ``,
-  },
-  {
-    route: "/api/v1/m/point",
-    docs: ``,
-  },
-  {
-    route: "/api/v1/m/query",
-    docs: ``,
-  },
-  {
     route: "/api/v1/tts",
-    docs: `
-## Vision-Language (“Moon”) API group
-
-These endpoints let you run image-understanding tasks—captioning, object detection, object centroids, and visual Q & A—through your decentralized **Moon** nodes.
-
-All four routes share the same transport, auth, and CORS behaviour; the only differences are the request body and the JSON they return.
-
----
-
-### 0 Common contract
-
-| Item | Value |
-|------|-------|
-| **Base URL** | \`https://<orchestrator-host>/api/v1/m\` |
-| **Auth header** | \`Authorization: Bearer <API_KEY>\` |
-| **Mandatory header** | \`X-User-Id\` – internal customer id |
-| **Optional headers** | \`X-Title\`, \`HTTP-Referer\` |
-| **Content-Type** | \`application/json\` |
-| **Pre-flight** | \`OPTIONS /api/v1/m/*\` returns:<br>\`Access-Control-Allow-Origin: *\`<br>\`Access-Control-Allow-Methods: POST, OPTIONS\` |
-
-Error codes are consistent with earlier routes (\`400\`, \`401\`, \`503\`, \`500\`, plus propagated node errors).
-
----
-
-## 1 \`POST /api/v1/m/caption\`
-
-### Purpose
-Generate a **natural-language caption** for an input image.
-
-### Request body
-\`\`\`jsonc
-{
-  // Image (choose one)
-  "imageUrl":     "https://example.com/pic.jpg"  // remote or data URI
-  "imageBase64":  "<base64-string>",
-  "imageUint8":   [255, 216, 255, 224, …],
-
-  // Options
-  "length": "short" | "normal" | "long"   // default: "normal"
-}
-\`\`\`
-
-### Success \`200 OK\`
-\`\`\`json
-{ "caption": "A golden retriever catching a frisbee in mid-air." }
-\`\`\`
-
----
-
-## 2 \`POST /api/v1/m/detect\`
-
-### Purpose
-Detect **all bounding boxes** of a given object class.
-
-### Request body
-\`\`\`jsonc
-{
-  // Image  (one of …)
-  "imageUrl": "...",
-  "imageBase64": "...",
-  "imageUint8": [...],
-
-  // Required
-  "target": "car"            // object label
-}
-\`\`\`
-
-### Success \`200 OK\`
-\`\`\`json
-{
-  "objects": [
-    { "label": "car",
-      "box":   [x1, y1, x2, y2],   // pixel coords
-      "confidence": 0.92 }
-  ]
-}
-\`\`\`
-
----
-
-## 3 \`POST /api/v1/m/point\`
-
-### Purpose
-Return **centroid point(s)** for all instances of a target object.
-
-### Request body
-\`\`\`jsonc
-{
-  "imageUrl": "...",
-  "imageBase64": "...",
-  "imageUint8": [...],
-  "target": "person"
-}
-\`\`\`
-
-### Success \`200 OK\`
-\`\`\`json
-{
-  "points": [
-    { "x": 312, "y": 154 },
-    { "x": 488, "y": 160 }
-  ]
-}
-\`\`\`
-
----
-
-## 4 \`POST /api/v1/m/query\`
-
-### Purpose
-Ask a **free-form question** about an image (visual question answering).
-
-### Request body
-\`\`\`jsonc
-{
-  "imageUrl": "...",
-  "imageBase64": "...",
-  "imageUint8": [...],
-  "question": "How many bicycles are there?"
-}
-\`\`\`
-
-### Success \`200 OK\`
-\`\`\`json
-{ "answer": "There are three bicycles." }
-\`\`\`
-
----
-
-### Example cURL (caption)
-
-\`\`\`bash
-curl https://api.my-net.io/api/v1/m/caption \\
-  -H "Authorization: Bearer sk-live-abc123" \\
-  -H "X-User-Id: user_42" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-        "imageUrl":"https://images.example.com/dog.jpg",
-        "length":"short"
-      }'
-\`\`\`
-
----
-
-### OpenAPI snippet (shared components abbreviated)
-
-\`\`\`yaml
-components:
-  schemas:
-    ImageInput:
-      oneOf:
-        - type: object
-          required: [imageUrl]
-          properties: { imageUrl: { type: string, format: uri } }
-        - type: object
-          required: [imageBase64]
-          properties: { imageBase64: { type: string } }
-        - type: object
-          required: [imageUint8]
-          properties:
-            imageUint8:
-              type: array
-              items: { type: integer, minimum: 0, maximum: 255 }
-    CaptionRequest:
-      allOf:
-        - $ref: '#/components/schemas/ImageInput'
-        - type: object
-          properties:
-            length: { type: string, enum: [short, normal, long] }
-    CaptionResponse:
-      type: object
-      properties: { caption: { type: string } }
-    DetectRequest:
-      allOf:
-        - $ref: '#/components/schemas/ImageInput'
-        - type: object
-          required: [target]
-          properties: { target: { type: string } }
-    DetectResponse:
-      type: object
-      properties:
-        objects:
-          type: array
-          items:
-            type: object
-            properties:
-              label: { type: string }
-              box:   { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
-              confidence: { type: number }
-    PointRequest:  { allOf: [ { $ref: '#/components/schemas/DetectRequest' } ] }
-    PointResponse:
-      type: object
-      properties:
-        points:
-          type: array
-          items: { type: object, properties: { x: {type:number}, y:{type:number} } }
-    QueryRequest:
-      allOf:
-        - $ref: '#/components/schemas/ImageInput'
-        - type: object
-          required: [question]
-          properties: { question: { type: string } }
-    QueryResponse:
-      type: object
-      properties: { answer: { type: string } }
-\`\`\`
-
-*(Add four \`paths:\` entries referencing these schemas.)*
-
----
-
-### Internal flow (all four routes)
-
-1. **Key check** \`validateApiKey\`.
-2. **Node selection** \`selectMoonProvision()\` → health-probe (3 tries; bad nodes removed).
-3. **Forward** request to \`http://<node>/m/{caption\\|detect\\|point\\|query}\`.
-4. **Measure** latency; \`updateMoonMetadata(<endpoint>, latency)\`.
-5. **Per-service metrics** if \`X-Title\` present.
-6. **Reward** node owner \`rewardProvider(providerId, 0.01)\`.
-7. **Return** JSON with CORS headers.
-
----
-
-### Changelog
-
-| Date (UTC) | Change |
-|------------|--------|
-| 2025-04-26 | Initial specification for caption, detect, point, query. |
-
----
-
-**Next:** let me know if you want documentation for any remaining endpoints, a merged OpenAPI file, or HTML/PDF output.
-`,
-  },
-  {
-    route: "/api/v1/scrape",
     docs: `
 ## Endpoint \`POST /api/v1/tts\`
 
@@ -2962,7 +2504,7 @@ components:
 ## Endpoint \`POST /api/v1/chat/completions\`
 (OpenAI-compatible chat completions)
 
-The route mirrors the OpenAI \`/v1/chat/completions\` contract so you can point an *unchanged* OpenAI SDK or cURL script at **\`https://<orchestrator-host>/api/v1\`**.
+The route mirrors the OpenAI \`/v1/chat/completions\` endpoint so you can point an *unchanged* OpenAI SDK or cURL script at **\`https://<orchestrator-host>/api/v1\`**.
 Internally the request is forwarded to an Ollama-compatible node, parameters are translated, usage is metered, and a micro-payment is sent to the provider.
 
 ---
