@@ -501,8 +501,12 @@ export default $config({
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
+        tradersTable,
+        balancesTable,
         // wsConnectionsTable, // Not directly needed by matcher? Fanout handles WS
         marketUpdatesTopic,
+        coreWalletPk,
+        coreVaultAddress
       ],
       timeout: "60 seconds",
     }, { batch: { size: 10, window: "5 seconds" } });
@@ -517,7 +521,11 @@ export default $config({
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
+        tradersTable,
+        balancesTable,
         marketUpdatesTopic,
+        coreWalletPk,
+        coreVaultAddress
       ],
       timeout: "60 seconds",
     }, { batch: { size: 10, window: "5 seconds" } });
@@ -532,7 +540,11 @@ export default $config({
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
+        tradersTable,
+        balancesTable,
         marketUpdatesTopic,
+        coreWalletPk,
+        coreVaultAddress
       ],
       timeout: "60 seconds",
     }, { batch: { size: 10, window: "5 seconds" } });
@@ -547,7 +559,11 @@ export default $config({
         statsIntradayTable,
         statsLifetimeTable,
         marketsTable,
+        tradersTable,
+        balancesTable,
         marketUpdatesTopic,
+        coreWalletPk,
+        coreVaultAddress
       ],
       timeout: "60 seconds",
     }, { batch: { size: 10, window: "5 seconds" } });
