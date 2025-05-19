@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "./CXPTToken.sol"; // Your CXPTToken contract
 // Assuming SynthERC20.sol defines a contract that implements ISynthERC20
 // You might need to adjust path or define ISynthERC20 if SynthERC20.sol is complex

@@ -21,7 +21,7 @@ if (!DEPLOYER_PRIVATE_KEY) {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.24", // Match your contract pragma
+    version: "0.8.28", // Match your contract pragma
     settings: {
       optimizer: {
         enabled: true,
