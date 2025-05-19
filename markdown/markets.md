@@ -6,7 +6,7 @@
     *   `pending`: The amount of an asset locked for open orders or as margin for open positions.
     *   Total owned internally = `balance` + `pending`.
 3.  **Locking Purpose:** To ensure that a user has sufficient funds to cover their order if it gets filled or to meet margin requirements for derivative positions.
-4.  **Fees:** Trading fees (e.g., 0.5% or `FEE_BPS = 50` if it's 0.5%, your code has `FEE_BPS = 100` which is 1%) are typically calculated on the notional value of the trade and are usually deducted from the quote asset (`USDC`) balance. For simplicity in locking, the maximum potential fee might be included in the locked amount for certain order types.
+4.  **Fees:** Trading fees (e.g., 1% or `FEE_BPS = 100` if it's 1%) are typically calculated on the notional value of the trade and are usually deducted from the quote asset (`USDC`) balance. For simplicity in locking, the maximum potential fee might be included in the locked amount for certain order types.
 
 ---
 
@@ -21,11 +21,11 @@
         *   **MARKET Order:** Collateralizing market orders before execution is complex.
             *   *Simple Approach (Less Safe):* No specific pre-locking; order matches against available `USDC` balance at the moment of trade. This is risky if the balance changes.
             *   *Safer Approach:* Lock USDC based on a "worst-case" price (e.g., current best ask + slippage buffer) or require sufficient free USDC that can be immediately debited.
-            *   *Your API (`/api/v1/trade/route.ts`) for SPOT Market Buy doesn't explicitly show pre-locking of USDC. It seems to rely on the match engine to check available balance at the time of fill.*
+            *   *(`/api/v1/trade/route.ts`) for SPOT Market Buy doesn't explicitly show pre-locking of USDC. It seems to rely on the match engine to check available balance at the time of fill.*
     *   **`BalancesTable` Update (Conceptual for LIMIT Order):**
         *   `USDC.balance -= (locked_amount)`
         *   `USDC.pending += (locked_amount)`
-        *(Note: Your `/api/v1/trade/route.ts` for a BUY LIMIT order directly debits `USDC.balance` without moving to `pending`. This means the `balance` directly reflects what's available after accounting for the open limit buy order's cost. If the order is cancelled, this USDC needs to be credited back to `balance`.)*
+        *`/api/v1/trade/route.ts` for a BUY LIMIT order directly debits `USDC.balance` without moving to `pending`. This means the `balance` directly reflects what's available after accounting for the open limit buy order's cost. If the order is cancelled, this USDC needs to be credited back to `balance`.*
 
 *   **B. Placing a SELL Order (e.g., Sell sBTC for USDC):**
     *   **What's Locked:** The base `sASSET` (e.g., `sBTC`)
@@ -33,7 +33,7 @@
     *   **`BalancesTable` Update (Conceptual):**
         *   `sASSET.balance -= quantity`
         *   `sASSET.pending += quantity`
-        *(Note: Your `/api/v1/trade/route.ts` for a SPOT SELL order directly debits `sASSET.balance`. The `cancellationProcessor.ts` then adds back to `sASSET.balance` upon cancellation, implying the initial debit was the "lock".)*
+        *`/api/v1/trade/route.ts` for a SPOT SELL order directly debits `sASSET.balance`. The `cancellationProcessor.ts` then adds back to `sASSET.balance` upon cancellation, implying the initial debit was the "lock".*
 
 *   **C. Order Fulfillment (Trade Occurs):**
     *   **BUY Order:**
@@ -50,8 +50,7 @@
     *   **SELL Order:** Locked `sASSET` is released.
         *   `sASSET.pending -= remaining_locked_sasset_quantity`
         *   `sASSET.balance += remaining_locked_sasset_quantity`
-        *(Your `cancellationProcessor.ts` correctly handles this by adding back to `balance`.)*
-
+=
 ---
 
 **2. PERPETUAL Swaps (PERP) & FUTURES Markets (e.g., sBTC-PERP, sBTC-JUN24-FUT)**
@@ -72,7 +71,7 @@
 *   **B. Position Held Open:**
     *   **Maintenance Margin (MM):** Not explicitly "locked" by moving between `balance` and `pending` continuously, but the system monitors if the user's `USDC.balance` (plus any unrealized PnL on the position relative to margin) drops below MM requirements.
     *   **Funding Payments (Perps):** Directly debited/credited to `USDC.balance` periodically.
-    *   **Daily P&L Settlement (Perps - if implemented):** Unrealized P&L is realized and `USDC.balance` is adjusted. The `pending` margin amount usually remains unchanged unless a margin top-up or withdrawal occurs. Your `perpsDailySettle.ts` does this.
+    *   **Daily P&L Settlement (Perps):** Unrealized P&L is realized and `USDC.balance` is adjusted. The `pending` margin amount usually remains unchanged unless a margin top-up or withdrawal occurs. Your `perpsDailySettle.ts` does this.
 
 *   **C. Closing a Position (Partially or Fully):**
     *   When a position is reduced, a proportional amount of the Initial Margin held in `USDC.pending` is released back to `USDC.balance`.
@@ -88,7 +87,7 @@
     *   Final Realized P&L = `(settlement_price - avg_entry_price) * position_size * contract_size_in_base_asset`.
     *   This P&L is added/subtracted from `USDC.balance`.
     *   The Initial Margin held in `USDC.pending` for this futures position is released back to `USDC.balance`.
-    *   Your `futureExpiry.ts` correctly adjusts `USDC.balance` for P&L and implicitly the margin should be freed as the position is zeroed out (the `pending` collateral associated with the position itself, not just an open order, needs to be managed throughout the position's life or at closure/expiry).
+    *   `futureExpiry.ts` correctly adjusts `USDC.balance` for P&L and implicitly the margin should be freed as the position is zeroed out (the `pending` collateral associated with the position itself, not just an open order, needs to be managed throughout the position's life or at closure/expiry).
 
 ---
 
@@ -100,7 +99,6 @@
     *   **`BalancesTable` Update (Conceptual for LIMIT Order):**
         *   `USDC.balance -= total_premium_cost`
         *   `USDC.pending += total_premium_cost`
-        *(Similar to SPOT BUY, your API likely debits `USDC.balance` directly).*
 
 *   **B. SELLING/WRITING an Option (Short Call or Short Put):**
     *   **What's Locked (Collateral):**
@@ -131,7 +129,6 @@
         *   OR
         *   `USDC.pending -= remaining_locked_usdc_collateral` (for put)
         *   `USDC.balance += remaining_locked_usdc_collateral`
-        *(Your `cancellationProcessor.ts` handles this release from `pending` back to `balance` correctly based on the order details and market type.)*
 
 *   **E. Option Expiry:**
     *   **OTM (Out-of-the-Money):**
