@@ -115,41 +115,6 @@ export default $config({
       }
     });
 
-    // Moon Provision Pool Table
-    const moonProvisionPoolTable = new sst.aws.Dynamo("MoonProvisionPoolTable", {
-      fields: {
-        provisionId: "string",
-        randomValue: "number", // float in [0..1)
-        // provision endpoint: string, url used to make request to node and get response
-        // location: location object
-      },
-      primaryIndex: { hashKey: "provisionId" },
-      globalIndexes: {
-        ByRandom: { hashKey: "randomValue" }
-      }
-    });
-
-    // Video and Image Provision Pool Table
-    const mediaProvisionPoolTable = new sst.aws.Dynamo("MediaProvisionPoolTable", {
-      fields: {
-        provisionId: "string",
-        model: "string",
-        type: "string", // "image" or "video"
-        randomValue: "number", // float in [0..1)
-        // provision endpoint: string, url used to make request to node and get response
-        // location: location object
-      },
-      primaryIndex: { hashKey: "provisionId" },
-      globalIndexes: {
-        ByModelAndType: { hashKey: "model", rangeKey: "type" },
-        ByType: { hashKey: "type" },
-        ByModelAndTypeRandom: { 
-          hashKey: "model", 
-          rangeKey: "randomValue", 
-        }
-      }
-    });
-
     // TTS Provision Pool Table
     const ttsProvisionPoolTable = new sst.aws.Dynamo("TTSProvisionPoolTable", {
       fields: {
@@ -823,8 +788,6 @@ export default $config({
         llmProvisionPoolTable,
         embeddingsProvisionPoolTable,
         scrapingProvisionPoolTable,
-        moonProvisionPoolTable,
-        mediaProvisionPoolTable,
         ttsProvisionPoolTable,
         userTable,
         metadataTable,
