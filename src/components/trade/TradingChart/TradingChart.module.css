@@ -1,0 +1,97 @@
+/* src/components/trade/TradingChart/TradingChart.module.css */
+
+.chartContainerWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Designed to fill its parent container */
+  min-height: 300px; /* Minimum sensible height for a chart */
+  background-color: #171b26; /* Overall background for the chart area, matches TV's dark bg */
+  border: 1px solid #2a2f3b; /* Consistent border with other panels */
+  border-radius: 6px;
+  overflow: hidden; /* Important for chart resizing and layout */
+  position: relative; /* For positioning overlays like loading spinner */
+}
+
+.chartToolbar {
+  display: flex;
+  flex-wrap: wrap; /* Allow toolbar items to wrap on smaller screens */
+  align-items: center;
+  justify-content: space-between; /* Space out interval and type selectors */
+  padding: 6px 10px;
+  background-color: #1e222d; /* Slightly lighter toolbar background */
+  border-bottom: 1px solid #2a2f3b;
+  flex-shrink: 0; /* Toolbar should not shrink vertically */
+  gap: 10px; /* Gap between groups of buttons */
+}
+
+.intervalSelector,
+.chartTypeSelector {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Gap between buttons within a group */
+}
+
+.toolbarButton {
+  /* Leveraging styles from ui/Button/Button.tsx with variant="ghost" or "secondary" */
+  /* These are overrides or specific adjustments if needed */
+  padding: 4px 8px !important; 
+  font-size: 0.7rem !important; /* Small, clear text for toolbar */
+  min-width: 32px; /* Ensure buttons have some width */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+/* If Button component's variant="secondary" for active isn't distinct enough: */
+.toolbarButtonActive { /* You would apply this class conditionally */
+  background-color: #3e4556 !important;
+  color: #e0e0e0 !important;
+}
+
+.chartContainer {
+  flex-grow: 1; /* Chart area takes all remaining vertical space */
+  position: relative; /* For any absolute positioned elements inside, like watermarks if added */
+  /* The actual chart will be rendered into this div by the Lightweight Charts library */
+  width: 100%;
+  height: 100%; /* This was an issue: calc() was used before, now it's 100% of this container */
+                 /* The parent wrapper now calculates height based on toolbar */
+}
+
+.loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column; /* Stack spinner and text */
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(23, 27, 38, 0.85); /* Darker, more opaque overlay */
+  z-index: 10; /* Above the chart canvas but below modals */
+  color: #a0aec0;
+  gap: 10px;
+}
+.loadingOverlay p {
+    font-size: 0.85rem;
+}
+
+
+.noMarketMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #8690a2; /* Muted text color */
+  font-size: 0.9rem;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/*
+  Note on TradingView Lightweight Charts styling:
+  Most of the internal chart styling (grid lines, price scales, candle colors, etc.)
+  is controlled via the JavaScript options passed to `createChart` and `addSeries`.
+  This CSS module primarily styles the wrapper, toolbar, and any overlay elements.
+*/

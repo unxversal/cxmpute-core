@@ -1,0 +1,245 @@
+/* src/components/trade/OrderBook/OrderBook.module.css */
+.orderBookContainer {
+  display: flex;
+  flex-direction: column;
+  background-color: #171b26; /* Base panel background */
+  color: #d1d4dc;
+  height: 100%; /* Designed to fill parent height */
+  min-height: 300px; 
+  max-height: 600px; /* Max height to prevent overly long books; parent should control this */
+  border-radius: 6px;
+  border: 1px solid #2a2f3b; /* Consistent panel border */
+  overflow: hidden; 
+  font-size: 0.75rem; /* Base font size for density */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px; /* Compact header */
+  border-bottom: 1px solid #2a2f3b;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 0.8rem; /* Smaller title */
+  font-weight: 600;
+  color: #c0c5ce;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.aggregationControl {
+  position: relative;
+  display: inline-block; /* So arrow can be positioned relative to select */
+}
+
+.aggregationSelect {
+  background-color: #232731; /* Input-like background */
+  color: #d1d4dc;
+  border: 1px solid #3e4556;
+  border-radius: 4px;
+  padding: 5px 22px 5px 8px; /* Space for arrow */
+  font-size: 0.7rem; /* Small font for select */
+  margin-left: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  line-height: 1.3;
+}
+.aggregationSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.aggregationSelect:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 1px var(--cxmpute-purple, #91a8eb);
+}
+
+.selectArrow {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #8690a2;
+  width: 14px; /* Explicit size */
+  height: 14px;
+}
+
+.columnsHeader {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 25%; /* Price, Size, Total, Depth Bar space */
+  padding: 5px 8px; /* Compact header row */
+  font-size: 0.65rem; /* Very small header text */
+  color: #8690a2;
+  border-bottom: 1px solid #2a2f3b;
+  background-color: #1e222d; 
+  flex-shrink: 0;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.columnsHeader span { 
+  text-align: right; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.columnsHeader span:first-child { text-align: left; }
+.depthHeaderLabel {
+  /* Can be empty or contain text like "Depth" */
+  text-align: right; /* Or left if preferred for depth label */
+}
+
+
+.asksSection,
+.bidsSection {
+  flex-grow: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column; 
+  position: relative; /* For overlay messages */
+  scrollbar-width: thin;
+  scrollbar-color: #3e4556 #171b26; /* Scrollbar colors */
+}
+.asksSection::-webkit-scrollbar,
+.bidsSection::-webkit-scrollbar { width: 4px; }
+.asksSection::-webkit-scrollbar-track,
+.bidsSection::-webkit-scrollbar-track { background: #171b26; }
+.asksSection::-webkit-scrollbar-thumb,
+.bidsSection::-webkit-scrollbar-thumb { background-color: #3e4556; border-radius: 2px; }
+.asksSection::-webkit-scrollbar-thumb:hover,
+.bidsSection::-webkit-scrollbar-thumb:hover { background-color: #50586a; }
+
+.asksSection {
+  /* Asks data is reversed in JS, so CSS just needs to display it */
+}
+
+.orderRow, .orderRowSkeleton /* Grid layout for rows */ {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 25%; /* Price, Size, Total, Depth Bar space */
+  padding: 2px 8px; /* Very compact row padding */
+  transition: background-color 0.1s ease-out;
+  cursor: pointer;
+  border-bottom: 1px solid #1a1e28; /* Fainter separator for rows */
+  align-items: center; /* Vertically align content in cells */
+  min-height: 20px; /* Ensure rows have a minimum tap/click target */
+}
+.orderRow:last-child {
+  border-bottom: none;
+}
+.orderRow:hover {
+  background-color: rgba(62, 69, 86, 0.5); /* #3e4556 with alpha */
+}
+.orderRow[tabindex="0"]:focus-visible {
+  outline: 1px solid var(--cxmpute-purple, #91a8eb);
+  outline-offset: -1px; /* Outline inside */
+  background-color: rgba(74, 82, 101, 0.6); 
+}
+
+.priceCell, .sizeCell, .totalCell {
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: monospace; /* Monospace for numbers */
+}
+.priceCell {
+  text-align: left;
+  font-weight: 500;
+}
+.askPrice { color: #ff5a5a; }
+.bidPrice { color: #00c78b; }
+
+.sizeCell { color: #c0c5ce; }
+.totalCell { color: #8690a2; }
+
+.depthBarContainer {
+  height: 100%;
+  position: relative;
+  margin-left: 3px; /* Small gap from total to bar */
+  overflow: hidden; /* Clip depth bar if it exceeds due to rounding */
+}
+
+.depthBar {
+  position: absolute;
+  top: 15%; /* Make bar not full height of cell for visual separation */
+  bottom: 15%;
+  height: 70%; 
+  opacity: 0.15; /* More subtle */
+  transition: width 0.05s linear;
+  border-radius: 1px;
+}
+.bidDepthBar {
+  background-color: #00c78b;
+  right: 0; /* Bids grow from right */
+}
+.askDepthBar {
+  background-color: #ff5a5a;
+  left: 0; /* Asks grow from left */
+}
+
+.spreadInfo {
+  padding: 4px 12px; /* More compact spread */
+  text-align: center;
+  font-size: 0.7rem; /* Smaller spread font */
+  font-weight: 500;
+  color: #a0aec0;
+  border-top: 1px solid #2a2f3b;
+  border-bottom: 1px solid #2a2f3b;
+  background-color: #1e222d;
+  flex-shrink: 0; /* Prevent spread from shrinking */
+  line-height: 1.4; /* Ensure text isn't too cramped */
+}
+.spreadValue { }
+.spreadPercentage { margin-left: 5px; font-size: 0.65rem; color: #8690a2; }
+
+.noData, .noMarketMessage, .disconnectedMessage {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 10px;
+  color: #6b778c;
+  font-style: italic;
+  font-size: 0.8rem;
+  text-align: center; /* Ensure text is centered */
+}
+.noData { /* Specific to bid/ask sections */
+    width: 100%;
+    height: 100%; /* Fill its section if empty */
+}
+
+.disconnectedMessage, .noMarketMessage { /* For messages overlaying the whole book */
+    background-color: rgba(23, 27, 38, 0.85);
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 5; /* Above table content */
+}
+
+/* Skeleton row styling */
+.orderRowSkeleton {
+  /* Uses .orderRow grid structure */
+  height: 20px; /* Match min-height of actual rows */
+}
+.orderRowSkeleton .priceCell,
+.orderRowSkeleton .sizeCell,
+.orderRowSkeleton .totalCell,
+.orderRowSkeleton .depthBarContainer {
+    padding-top: 4px; /* Align skeleton content better */
+    padding-bottom: 4px;
+}
+.orderRowSkeleton .depthBarContainer .skeletonLoader > div {
+    background-color: #252a36 !important; /* Darker skeleton for depth bar */
+}
+.orderRowSkeleton .skeletonLoader > div {
+    background-color: #2a2f3b !important; /* Standard skeleton color */
+    height: 10px !important; /* Smaller skeleton lines */
+}

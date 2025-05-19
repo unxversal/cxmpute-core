@@ -1,0 +1,57 @@
+/* src/components/ui/SkeletonLoader/SkeletonLoader.module.css */
+.skeletonWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Spacing between multiple skeleton items */
+}
+
+.skeleton {
+  background-color: #2a2f3b; /* Darker base for skeleton */
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%; /* Start off-screen */
+  height: 100%;
+  width: 150%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(50, 58, 77, 0.8) 50%, /* Slightly lighter shimmer */
+    transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+.text {
+  height: 16px; /* Default height for a line of text */
+  margin-bottom: 8px;
+}
+.text:last-child {
+  margin-bottom: 0;
+  width: 80%; /* Make the last line shorter often */
+}
+
+.title {
+  height: 24px; /* Taller for titles */
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

@@ -1,0 +1,132 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/api/m/point/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import {
+  validateApiKey,
+  selectMoonProvision,
+  checkMoonHealth,
+  removeMoonProvision,
+  updateMoonMetadata,
+  updateMoonServiceMetadata,
+  rewardProvider,
+} from "@/lib/utils";
+
+/**
+ * Handle CORS preflight requests.
+ * Responds with a 200 and allows all origins, headers, and methods.
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-User-Id, X-Title, HTTP-Referer",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    },
+  });
+}
+
+/**
+ * Handles HTTP POST requests for the /m/point endpoint.
+ * 
+ * This function performs the following operations:
+ * 1. Authenticates the request using the authorization header and validates the API key.
+ * 2. Parses the request body to extract image data and a target field, returning errors for missing fields.
+ * 3. Attempts to select a healthy moon node to handle the request, with retries for unhealthy nodes.
+ * 4. Forwards the request to the selected moon node's /m/point endpoint and processes the response.
+ * 5. Updates moon metadata with the latency of the request.
+ * 6. Updates service metadata if a service title is provided.
+ * 7. Rewards the provider of the selected moon node.
+ * 8. Returns the response from the moon node as JSON, or an error response if an exception occurs.
+ * 
+ * @param req - The incoming HTTP request object.
+ * @returns A NextResponse object containing the result of the operation.
+ */
+
+export async function POST(req: NextRequest) {
+  try {
+    // 1) Auth
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Missing or invalid authorization header" }, { status: 401 });
+    }
+    const apiKey = authHeader.replace("Bearer ", "");
+    const userId = req.headers.get("X-User-Id") || "";
+    const serviceTitle = req.headers.get("X-Title") || null;
+    const serviceUrl = req.headers.get("HTTP-Referer") || null;
+
+    const { valid, reason } = await validateApiKey(userId, apiKey, 0);
+    if (!valid) {
+      return NextResponse.json({ error: reason ?? "Invalid API key" }, { status: 401 });
+    }
+
+    // 2) parse => { imageUrl?, imageBase64?, imageUint8?, target? }
+    const body = await req.json();
+    const { target, ...rest } = body;
+    if (!target) {
+      return NextResponse.json({ error: "Missing 'target' field." }, { status: 400 });
+    }
+    if (!body.imageUrl && !body.imageBase64 && !body.imageUint8) {
+      return NextResponse.json({ error: "Must provide imageUrl, imageBase64, or imageUint8" }, { status: 400 });
+    }
+
+    // 3) node
+    let isHealthy = false;
+    let attempts = 0;
+    let provision: any;
+    while (!isHealthy && attempts < 3) {
+      try {
+        provision = await selectMoonProvision();
+        isHealthy = await checkMoonHealth(provision.provisionEndpoint);
+        if (!isHealthy && attempts === 2) {
+          await removeMoonProvision(provision.provisionId);
+        }
+        attempts++;
+      } catch (err) {
+        console.error("Error selecting moon node for /m/point:", err);
+        return NextResponse.json({ error: "No moon node available" }, { status: 503 });
+      }
+    }
+    if (!isHealthy) {
+      return NextResponse.json({ error: "No healthy moon node found" }, { status: 503 });
+    }
+
+    // 4) forward
+    const startTime = Date.now();
+    const resp = await fetch(`${provision.provisionEndpoint}/m/point`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, ...rest }),
+    });
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      return NextResponse.json({ error: `Node error: ${errorText}` }, { status: resp.status });
+    }
+    const data = await resp.json();
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    // 5) update => "/m/point"
+    await updateMoonMetadata("/m/point", latency);
+
+    // 6) service
+    if (serviceTitle) {
+      await updateMoonServiceMetadata(serviceTitle, serviceUrl, "/m/point");
+    }
+
+    // 7) reward
+    await rewardProvider(provision.providerId, 0.01);
+
+    // 8) return JSON
+    return new NextResponse(JSON.stringify(data), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  } catch (err: any) {
+    console.error("Error in /m/point route:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

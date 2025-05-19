@@ -1,0 +1,29 @@
+.button {
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.9rem;
+    border: 2px solid black;
+    border-radius: 7px;
+    padding: 0.3rem 0.5rem;
+    background-color: white; /* This will be overridden by the inline style prop if provided */
+    box-shadow: 5px 5px 0px black;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .button:hover {
+    box-shadow: 0 0 0 black;
+    transform: translateY(3px) translateX(3px);
+  }
+  
+  .icon {
+    width: 24px;
+    height: 24px;
+    transition: all 0.3s ease-in-out;
+  }
+  

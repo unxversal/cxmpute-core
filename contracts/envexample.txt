@@ -1,0 +1,14 @@
+# /Users/rizzytwizzy/prod/cxmpute-core/contracts/.env
+
+# Your PRIVATE KEY for the wallet you'll use to deploy contracts
+# IMPORTANT: This key controls funds. Keep it secure! Use a dedicated deployer wallet.
+# Get this from MetaMask or your wallet provider (NEVER COMMIT THIS FILE)
+DEPLOYER_PRIVATE_KEY=0xyour_private_key_here_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# RPC URLs for Peaq networks
+# Find reliable public endpoints or use your own node/provider (e.g., OnFinality, Blast)
+PEAQ_RPC_URL=https://peaq-rpc.publicnode.com
+AGUNG_RPC_URL=https://rpcpc1-qa.agung.peaq.network # Example, find current official/reliable one
+
+# Optional: API Key for block explorer verification (if supported)
+# ETHERSCAN_API_KEY=YOUR_ETHERSCAN_API_KEY # Or PEAQSCAN equivalent if needed

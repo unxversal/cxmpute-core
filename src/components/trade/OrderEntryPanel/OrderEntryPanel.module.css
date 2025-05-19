@@ -1,0 +1,296 @@
+/* src/components/trade/OrderEntryPanel/OrderEntryPanel.module.css */
+.orderEntryContainer {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px; /* Slightly reduced padding */
+  background-color: #171b26; /* Matches other panels */
+  color: #d1d4dc;
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  height: 100%;
+  overflow-y: auto; /* Allow scrolling if content exceeds height */
+  scrollbar-width: thin;
+  scrollbar-color: #4a5265 #2a2f3b;
+}
+.orderEntryContainer::-webkit-scrollbar { width: 6px; }
+.orderEntryContainer::-webkit-scrollbar-track { background: #171b26; }
+.orderEntryContainer::-webkit-scrollbar-thumb { background-color: #3e4556; border-radius: 3px; }
+.orderEntryContainer::-webkit-scrollbar-thumb:hover { background-color: #5a6378; }
+
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px; /* Space below header */
+}
+
+.title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c0c5ce;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* --- Side Toggle (BUY/SELL) --- */
+.sideToggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0; /* No gap, use border for separation */
+  margin-bottom: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #2a2f3b; /* Border around the toggle group */
+}
+
+.sideButton {
+  padding: 10px 0; /* Vertical padding */
+  font-weight: 600;
+  font-size: 0.85rem; /* Slightly smaller */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  /* Uses Button component's variants, specific active styles below */
+}
+.sideButton:first-child {
+    border-top-left-radius: 5px; /* Match parent rounding */
+    border-bottom-left-radius: 5px;
+}
+.sideButton:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+/* Active styles for Buy/Sell Buttons (rely on variant props of Button.tsx) */
+/* If Button.tsx doesn't have 'primarySuccess' or 'primaryDanger', these won't apply as background directly */
+/* We can ensure specific styling here if needed */
+.buyActiveCss { /* Custom class to apply if Button variant isn't enough */
+  background-color: var(--cxmpute-green, #20a191) !important;
+  color: #ffffff !important;
+  border-color: var(--cxmpute-green, #20a191) !important;
+}
+.buyActiveCss:hover {
+  background-color: #1a8a7e !important;
+}
+
+.sellActiveCss {
+  background-color: var(--cxmpute-red, #d64989) !important;
+  color: #ffffff !important;
+  border-color: var(--cxmpute-red, #d64989) !important;
+}
+.sellActiveCss:hover {
+  background-color: #c03974 !important;
+}
+
+
+/* --- Order Type Tabs --- */
+.orderTypeTabs {
+  display: flex;
+  margin-bottom: 12px;
+  background-color: #232731;
+  border-radius: 6px;
+  padding: 3px; /* Padding around the buttons */
+  border: 1px solid #2a2f3b;
+  overflow-x: auto; /* Allow horizontal scroll if too many tabs */
+  scrollbar-width: none; /* Hide scrollbar for tabs */
+}
+.orderTypeTabs::-webkit-scrollbar { display: none; }
+
+
+.orderTypeButton {
+  flex: 1 1 auto; /* Allow shrinking but prefer own size */
+  min-width: 70px; /* Minimum width per tab */
+  padding: 6px 8px !important; /* Compact tabs */
+  font-size: 0.75rem !important;
+  color: #8690a2 !important;
+  white-space: nowrap;
+  /* Relies on Button variant="ghost" for base style */
+}
+
+.orderTypeButton.activeOrderType {
+  background-color: #3e4556 !important; /* Active tab background */
+  color: #e0e0e0 !important;
+  font-weight: 600 !important;
+}
+.orderTypeButton:not(.activeOrderType):hover {
+  background-color: #2a2f3b !important;
+  color: #c0c5ce !important;
+}
+.orderTypeButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
+/* --- Main Form --- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Reduced gap between form groups */
+  flex-grow: 1;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px; /* Reduced gap between label and input */
+}
+
+.formGroup label {
+  font-size: 0.75rem; /* Smaller labels */
+  color: #8690a2;
+  font-weight: 500;
+  display: flex; /* For icon alignment */
+  align-items: center;
+  gap: 4px;
+}
+.formGroup label svg {
+    opacity: 0.7;
+}
+
+.inputField {
+  padding: 9px 10px; /* Compact input fields */
+  background-color: #1e222d; /* Darker input field */
+  border: 1px solid #3e4556;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font-size: 0.875rem;
+  width: 100%;
+  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+.inputField:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 1px var(--cxmpute-purple, #91a8eb);
+}
+.inputField::placeholder {
+  color: #50586a;
+}
+.inputField[type="number"]::-webkit-outer-spin-button,
+.inputField[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.inputField[type="number"] {
+  -moz-appearance: textfield;
+}
+.inputField[type="date"] {
+    appearance: none; /* Better control over date input styling */
+    -webkit-appearance: none;
+}
+.inputField[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.6); /* Make calendar icon lighter on dark bg */
+    cursor: pointer;
+}
+
+
+/* --- Percentage Buttons for Quantity --- */
+.percentageButtons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Four buttons in a row */
+  gap: 6px;
+  margin-top: -4px; /* Pull closer to quantity input */
+  margin-bottom: 6px; /* Space before next element */
+}
+.percentageButton {
+  flex: 1;
+  font-size: 0.7rem !important;
+  padding: 4px 0px !important;
+  color: #8690a2 !important;
+  border-color: #3e4556 !important;
+  /* Uses Button component variant="outline" */
+}
+.percentageButton:hover {
+  color: #d1d4dc !important;
+  background-color: #3e4556 !important;
+}
+
+
+/* --- Order Summary Section --- */
+.orderSummary {
+  margin-top: auto; /* Push to bottom if form has extra space */
+  padding-top: 10px;
+  border-top: 1px solid #2a2f3b;
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Compact summary rows */
+  font-size: 0.75rem; /* Smaller summary text */
+  margin-bottom: 10px; /* Space before submit button */
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  color: #8690a2;
+  align-items: center; /* Align items vertically */
+}
+.summaryLabel {
+    display: flex;
+    align-items: center;
+}
+.summaryLabel .infoIcon { /* Styling for Info icon in Tooltip */
+    margin-left: 4px;
+    color: #6b778c;
+    cursor: help;
+    width: 12px; /* Ensure icon size is consistent */
+    height: 12px;
+}
+.summaryRow span:last-child { /* The value part */
+  color: #c0c5ce;
+  font-weight: 500;
+  font-family: monospace; /* Good for numerical values */
+}
+
+.totalRow .totalLabel {
+  font-weight: 600;
+  color: #c0c5ce;
+}
+.totalRow .totalValue {
+  font-weight: 600;
+  color: #e0e0e0 !important;
+}
+
+
+/* --- Submit Button --- */
+.submitButton {
+  margin-top: 10px;
+  width: 100%;
+  font-size: 0.95rem !important; /* Adjusted submit button text size */
+  padding: 0.65em 1em !important; /* Adjusted padding */
+  /* Uses Button component variants (primarySuccess/primaryDanger) */
+}
+.submitButton:disabled {
+    background-color: #2a2f3b !important; /* More distinct disabled state */
+    border-color: #3e4556 !important;
+    color: #6b778c !important;
+}
+
+
+/* Placeholder Text / Loading Overlay for Form Area */
+.placeholderText {
+    text-align: center;
+    color: #6b778c;
+    font-size: 0.85rem;
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.loadingOverlayForm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    flex-grow: 1;
+    color: #8690a2;
+    font-size: 0.85rem;
+}
+.errorTextSmall {
+    font-size: 0.75rem;
+    color: var(--cxmpute-red, #d64989);
+    margin-top: -5px; /* Pull closer to the input it relates to */
+}

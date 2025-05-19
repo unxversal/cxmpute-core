@@ -1,0 +1,220 @@
+/* src/components/trade/MarketInfoBar/MarketInfoBar.module.css */
+.infoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px; /* Slightly more compact padding */
+  background-color: #171b26; /* Base panel background for info bar */
+  border-bottom: 1px solid #2a2f3b; /* Separator line from other components */
+  color: #d1d4dc; /* Default light text */
+  flex-wrap: wrap; /* Allow sections to wrap on smaller screens */
+  gap: 12px 18px; /* Row gap, Column gap */
+  min-height: 50px; /* Ensure it has some height even when empty */
+}
+
+.marketTitleSection {
+  display: flex;
+  align-items: center; /* Vertically align all items in this section */
+  gap: 8px; /* Gap between elements like icon, symbol, price */
+  flex-shrink: 0; /* Prevent this section from shrinking excessively */
+  flex-grow: 1; /* Allow it to take some space before infoGrid pushes it */
+  min-width: 250px; /* Ensure it has enough space for symbol and price */
+}
+
+.underlyingPairDisplay {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #a0aec0; /* Muted color for the base pair part */
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mainIcon {
+  color: var(--cxmpute-purple, #91a8eb); /* Use a theme color for the main icon */
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.separator {
+  color: #3e4556; /* Darker separator color */
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 0 2px; /* Small padding around separator */
+}
+
+.marketSymbolDisplay {
+  font-size: 1.1rem; /* Main active instrument symbol size */
+  font-weight: 600;
+  color: #e0e0e0; /* Bright text for the active symbol */
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px; /* Limit width to prevent overly long symbols from breaking layout */
+}
+.marketSymbolDisplay[title]:hover { /* Show full title on hover */
+    cursor: help;
+}
+
+
+.priceDisplay {
+  font-size: 1.2rem; /* Prominent price display */
+  font-weight: 700;
+  transition: color 0.15s ease-in-out;
+  min-width: 70px;
+  text-align: left;
+  font-family: monospace;
+}
+.priceNeutral { 
+  color: #c0c5ce; 
+}
+.priceUp {
+  color: #00c78b; 
+}
+.priceDown {
+  color: #ff5a5a;
+}
+
+.change24h {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 500;
+  min-width: 60px; 
+  white-space: nowrap;
+}
+.change24h svg {
+  margin-right: 3px;
+}
+.change24hSkeleton > div { 
+  height: 16px !important;
+  background-color: #252a36 !important;
+}
+
+
+.infoGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px; /* Row gap, Column gap */
+  align-items: center;
+  justify-content: flex-end; /* Align info items to the right */
+  flex-shrink: 0; /* Prevent shrinking past content */
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align label and value to the start for each item */
+  min-width: 75px; /* Minimum width for each info item */
+  text-align: left; /* Ensure text within item is left-aligned */
+}
+
+.label {
+  font-size: 0.65rem;
+  color: #8690a2; /* Muted label color */
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px; /* Increased letter spacing for labels */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.label svg {
+  opacity: 0.7;
+  width: 10px; /* Smaller icons in labels */
+  height: 10px;
+}
+
+.value {
+  font-size: 0.825rem; /* Standardized value font size */
+  font-weight: 500;
+  color: #d0d4db;
+  min-height: 16px; 
+  font-family: monospace;
+  white-space: nowrap;
+}
+/* Skeleton styling within value and label */
+.value .skeletonLoader > div, 
+.label .skeletonLoader > div {
+  height: 0.9em !important; /* Relative to text size */
+  background-color: #252a36 !important;
+  margin-bottom: 0;
+}
+.label .skeletonLoader > div {
+  margin-bottom: 2px; /* Match label margin */
+}
+
+
+.skeletonTitle > div { /* For the main market symbol skeleton */
+  background-color: #333a4c !important;
+  height: 24px !important;
+  width: 130px !important;
+}
+
+.priceUpStrong { 
+  color: #00c78b;
+  font-weight: 600; /* Make funding rate a bit bolder */
+}
+.priceDownStrong {
+  color: #ff5a5a;
+  font-weight: 600;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1100px) { /* More aggressive stacking point */
+  .infoBar {
+    flex-direction: column;
+    align-items: stretch; 
+    gap: 10px; /* Reduced gap when stacked */
+  }
+  .marketTitleSection {
+    width: 100%;
+    justify-content: space-between; /* Spread title elements */
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2f3b; /* Separator when stacked */
+  }
+  .infoGrid {
+    width: 100%;
+    justify-content: space-between; /* Spread info items more evenly */
+    gap: 8px 15px; /* Tighter gaps */
+  }
+  .infoItem {
+    min-width: calc(33.33% - 10px); /* Try for 3 items per row */
+    align-items: center; /* Center align items when they stack more */
+  }
+  .infoItem .label, .infoItem .value {
+    width: 100%;
+    text-align: center;
+  }
+  .infoItem .label {
+    justify-content: center; /* Center label text and icon */
+  }
+}
+
+@media (max-width: 768px) {
+  .infoBar { padding: 8px 12px; }
+  .marketTitleSection { gap: 6px; }
+  .underlyingPairDisplay span { font-size: 0.75rem; }
+  .marketSymbolDisplay { font-size: 1rem; max-width: 120px; }
+  .priceDisplay { font-size: 1.1rem; }
+  .change24h { font-size: 0.75rem; }
+  .label { font-size: 0.6rem; }
+  .value { font-size: 0.75rem; }
+  .infoItem { min-width: calc(50% - 8px); } /* Two items per row */
+}
+
+@media (max-width: 480px) {
+  .infoItem { min-width: calc(50% - 6px); /* Still aim for two items if possible */ }
+  .marketTitleSection { flex-wrap: wrap; justify-content: flex-start; } /* Allow title elements to wrap */
+  .priceDisplay { order: -1; /* Try to keep price prominent */ min-width: unset;}
+  .infoGrid { justify-content: space-around; }
+
+}
+@media (max-width: 380px) {
+    .infoItem { min-width: 100%; align-items: flex-start; } /* One item per row */
+    .infoItem .label, .infoItem .value { text-align: left; }
+    .infoItem .label { justify-content: flex-start; }
+}

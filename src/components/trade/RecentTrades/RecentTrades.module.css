@@ -1,0 +1,132 @@
+/* src/components/trade/RecentTrades/RecentTrades.module.css */
+.recentTradesContainer {
+  display: flex;
+  flex-direction: column;
+  background-color: #171b26;
+  color: #d1d4dc;
+  padding: 10px 12px; /* Slightly more compact padding */
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  height: 100%; 
+  min-height: 200px;
+  overflow: hidden;
+}
+
+.title {
+  font-size: 0.85rem; /* Smaller title */
+  font-weight: 600;
+  color: #c0c5ce;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2f3b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0; /* Prevent title from shrinking */
+}
+
+.tableWrapper {
+  flex-grow: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4a5265 #232731; /* Slightly darker track */
+}
+.tableWrapper::-webkit-scrollbar {
+  width: 5px; /* Thinner scrollbar */
+}
+.tableWrapper::-webkit-scrollbar-track {
+  background: #1e222d; /* Darker track */
+  border-radius: 3px;
+}
+.tableWrapper::-webkit-scrollbar-thumb {
+  background-color: #3e4556; /* Scrollbar thumb color */
+  border-radius: 3px;
+}
+.tableWrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #50586a;
+}
+
+
+.tradesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem; /* Even smaller font for very dense info */
+}
+
+.tradesTable th,
+.tradesTable td {
+  padding: 4px 6px; /* Very compact padding */
+  text-align: right;
+  white-space: nowrap;
+  font-family: monospace; /* Monospace for numbers */
+}
+
+.tradesTable th {
+  color: #8690a2;
+  font-weight: 500;
+  text-transform: capitalize;
+  position: sticky;
+  top: 0;
+  background-color: #171b26; 
+  z-index: 1;
+  font-family: inherit; /* Use main font for headers */
+}
+.tradesTable th:first-child, /* Price column */
+.tradesTable td:first-child {
+  text-align: left; 
+}
+.tradesTable th:last-child, /* Time column */
+.tradesTable td:last-child {
+  text-align: left; 
+  width: 70px; /* Fixed width for time */
+}
+
+
+.priceHeader, .quantityHeader, .timeHeader {
+    padding-bottom: 6px; /* Space below header text */
+    font-size: 0.7rem;
+}
+
+
+.tradeRow:hover {
+    background-color: rgba(42, 47, 59, 0.4); 
+}
+
+
+.priceCell {
+  /* Default color is neutral, classes below override */
+  font-weight: 500;
+}
+.priceUp {
+  color: #00c78b; 
+}
+.priceDown {
+  color: #ff5a5a;
+}
+.priceNeutral {
+  color: #c0c5ce;
+}
+
+.quantityCell {
+  color: #c0c5ce;
+}
+
+.timeCell {
+  color: #8690a2;
+}
+
+.statusMessage {
+    text-align: center !important; /* Ensure text is centered */
+    padding: 20px 10px;
+    color: #6b778c;
+    font-style: italic;
+    font-size: 0.8rem;
+}
+.statusMessage td {
+    text-align: center !important;
+}
+
+/* Skeleton specific styling if needed inside cells */
+.tradeRow .skeletonLoader > div {
+    height: 1em !important; /* Match text line height */
+    background-color: #252a36 !important;
+}
