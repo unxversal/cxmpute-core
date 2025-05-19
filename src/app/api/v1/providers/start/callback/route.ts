@@ -131,19 +131,6 @@ async function addToAppropriatePool(
         }
       })
     );
-  } else if (service === "/m") {
-    // Add to moon pool
-    await docClient.send(
-      new PutCommand({
-        TableName: Resource.MoonProvisionPoolTable.name,
-        Item: {
-          provisionId,
-          randomValue,
-          provisionEndpoint,
-          location
-        }
-      })
-    );
   } else if (service.startsWith("/tts")) {
     // Parse model name if available
     const model = service.includes(":") ? service.split(":")[1] : undefined;
@@ -154,26 +141,6 @@ async function addToAppropriatePool(
         Item: {
           provisionId,
           model,
-          randomValue,
-          provisionEndpoint,
-          location
-        }
-      })
-    );
-  } else if (service.startsWith("/image") || service.startsWith("/video")) {
-    // Determine if it's image or video
-    const type = service.startsWith("/image") ? "image" : "video";
-    
-    // Parse model name if available
-    const model = service.includes(":") ? service.split(":")[1] : undefined;
-    
-    await docClient.send(
-      new PutCommand({
-        TableName: Resource.MediaProvisionPoolTable.name,
-        Item: {
-          provisionId,
-          model,
-          type,
           randomValue,
           provisionEndpoint,
           location
