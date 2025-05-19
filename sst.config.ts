@@ -22,6 +22,8 @@ export default $config({
     const coreVaultAddress = new sst.Secret("CoreVaultAddress");
     const coreFactoryAddress = new sst.Secret("CoreFactoryAddress");
 
+    const cxpttokenaddress = new sst.Secret("CxptTokenAddress");
+
     const cmcApiKey = new sst.Secret("CmcApiKey");
 
     // Provider Table
@@ -856,7 +858,8 @@ export default $config({
         cmcApiKey,
         coreFactoryAddress,
         klinesTable,
-        cancelledOrdersQueue
+        cancelledOrdersQueue,
+        cxpttokenaddress,
       ]
     });
   },

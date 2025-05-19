@@ -557,3 +557,113 @@ TradesTable (DDB Stream)    TradesStreamRouter (Lambda)    KlineAggregationQueue
     *   Populated by providers via `/api/v1/providers/start/callback`.
 
 ---
+
+# Contracts
+
+## Smart Contracts (Peaq Network)
+
+The Cxmpute Core platform leverages a suite of smart contracts deployed on the Peaq network to manage tokenized assets, collateral, and platform-specific functionalities. These contracts are written in Solidity and orchestrated by the backend for on-chain settlement in `REAL` trading mode.
+
+**Deployed Contract Addresses (Peaq Mainnet):**
+
+*   **`USDC_ADDRESS` (External):** `0xbba60da06c2c5424f03f7434542280fcad453d10`
+*   **`CXPTToken.sol`:** `0xBdA07f578d16c6Dca2F89665B34e9bab37C4Ab63`
+*   **`Vault.sol`:** `0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380`
+*   **`SynthFactory.sol`:** `0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470`
+
+**Deployed Synthetic Assets (sASSETs - SynthERC20 instances):**
+
+*   **sBTC:** `0x8212bc8Cf151c97183fA2a21F5b4c0eaC111693f`
+*   **sETH:** `0xF4E0ACfF0CC8a4b534799b4f899B636167A43f30`
+*   **sPEAQ:** `0x41388d95A15C90EC32cc3887C4de4D6834BB8150`
+*   **sAVAX:** `0x2e39F19e6891f040332Fc79EccEaaeAb16202058`
+*   **sSOL:** `0x64815DDb43a1Ef1DcFfDacBA9c26F4E60D613465`
+*   **sBNB:** `0x32E7242697bFf6853DA50d04245BBc054482aCAF`
+*   **sNEAR:** `0x132841950af7A04270B3315ed63A45FF97fc257e`
+*   **sOP:** `0x5f4573E3adE6e5b2fb9c32B135B2fA955D84541a`
+*   **sDOT:** `0x6C181Cb22d946B0ca48b7Ef43eC7DeE44DDeD302`
+
+### Contract Descriptions:
+
+1.  **`Vault.sol`**
+    *   **Address:** `0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380`
+    *   **Purpose:** The central treasury and operational hub for on-chain assets.
+    *   **Functionality:**
+        *   Securely holds USDC, which serves as the primary collateral.
+        *   Manages user deposits of USDC and supported synthetic assets (sASSETs) into the platform's custody.
+        *   Processes withdrawals of USDC or, optionally, mints and transfers `CXPTToken` to users.
+        *   Facilitates the on-chain exchange (minting/burning) of sASSETs against USDC.
+        *   Collects platform trading fees in USDC.
+    *   **Key Roles:**
+        *   `DEFAULT_ADMIN_ROLE`: `0x1387FCD853C362d83FDC361C4198158aCAC13fcD` (Deployer)
+        *   `ADMIN_ROLE`: `0x1387FCD853C362d83FDC361C4198158aCAC13fcD` (Deployer - for fee withdrawals)
+        *   `CORE_ROLE`: `0x1387FCD853C362d83FDC361C4198158aCAC13fcD` (Backend Signer - for deposits, withdrawals, exchanges, fee recording)
+        *   `GATEWAY_ROLE`: `0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470` (`SynthFactory` - for registering new synths)
+
+2.  **`SynthFactory.sol`**
+    *   **Address:** `0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470`
+    *   **Purpose:** Responsible for creating and registering new synthetic asset (sASSET) token contracts.
+    *   **Functionality:**
+        *   Allows the owner (admin) to deploy new `SynthERC20` contracts.
+        *   Automatically registers the newly created synth token with the `Vault.sol` contract.
+        *   Sets the `Vault.sol` contract as the `MINTER_ROLE` and `BURNER_ROLE` holder on the new `SynthERC20` token.
+    *   **Key Roles:**
+        *   `OWNER (Ownable)`: `0x1387FCD853C362d83FDC361C4198158aCAC13fcD` (Deployer - for calling `createSynth`)
+
+3.  **`SynthERC20.sol`** (Template for all sASSETs)
+    *   **Addresses:** See list above (e.g., sBTC: `0x8212bc8Cf151c97183fA2a21F5b4c0eaC111693f`)
+    *   **Purpose:** An ERC20-compliant token contract representing a specific synthetic asset (e.g., Synthetic Bitcoin - sBTC).
+    *   **Functionality:**
+        *   Standard ERC20 token operations (transfer, approve, balanceInquiry).
+        *   Minting and burning functions restricted by `MINTER_ROLE` and `BURNER_ROLE`.
+    *   **Key Roles (for each SynthERC20 instance):**
+        *   `DEFAULT_ADMIN_ROLE`: `0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470` (`SynthFactory` address, as it was the `owner()` of SynthFactory during `createSynth`)
+        *   `MINTER_ROLE`: `0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380` (`Vault` address)
+        *   `BURNER_ROLE`: `0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380` (`Vault` address)
+
+4.  **`CXPTToken.sol`**
+    *   **Address:** `0xBdA07f578d16c6Dca2F89665B34e9bab37C4Ab63`
+    *   **Purpose:** The native utility and governance token of the Cxmpute platform ($CXPT).
+    *   **Functionality:**
+        *   Standard ERC20 token.
+        *   Minted exclusively by the `Vault.sol` contract when users elect to withdraw their USDC funds in the form of $CXPT.
+    *   **Key Roles:**
+        *   `DEFAULT_ADMIN_ROLE`: `0x1387FCD853C362d83FDC361C4198158aCAC13fcD` (Deployer)
+        *   `MINTER_ROLE`: `0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380` (`Vault` address)
+
+### On-Chain Interactions Flow (REAL Mode Examples):
+
+*   **User Deposits USDC:**
+    1.  User approves `Vault.sol` to spend their USDC.
+    2.  Backend (with `CORE_ROLE`) calls `Vault.sol::depositUSDC(userWallet, amount)`, transferring USDC from user to Vault.
+*   **User Withdraws USDC as $CXPT:**
+    1.  Backend (with `CORE_ROLE`) calls `Vault.sol::withdraw(userWallet, amount, true)`.
+    2.  `Vault.sol` (with `MINTER_ROLE` on `CXPTToken.sol`) mints new $CXPT tokens directly to `userWallet`.
+*   **User Exchanges USDC for sBTC:**
+    1.  User approves `Vault.sol` to spend their USDC.
+    2.  Backend (with `CORE_ROLE`) calls `Vault.sol::exchangeUSDCToSAsset(userWallet, sBTC_address, usdcAmount, sbtcAmount)`.
+    3.  `Vault.sol` transfers USDC from `userWallet` to itself.
+    4.  `Vault.sol` (with `MINTER_ROLE` on sBTC contract) mints new sBTC tokens directly to `userWallet`.
+*   **Synth Creation (Admin Action):**
+    1.  Admin (owner of `SynthFactory.sol`) calls `SynthFactory.sol::createSynth("Synthetic PEAQ", "sPEAQ", 18)`.
+    2.  `SynthFactory.sol` deploys a new `SynthERC20.sol` contract for sPEAQ.
+    3.  `SynthFactory.sol` grants `MINTER_ROLE` and `BURNER_ROLE` on the new sPEAQ contract to `Vault.sol`.
+    4.  `SynthFactory.sol` (with `GATEWAY_ROLE` on `Vault.sol`) calls `Vault.sol::registerSynth(new_sPEAQ_address)`.
+
+### Role-Based Access Control Summary:
+
+The contracts utilize OpenZeppelin's `AccessControlEnumerable` for fine-grained permission management:
+
+*   **Deployer (`0x1387FCD853C362d83FDC361C4198158aCAC13fcD`):**
+    *   Holds `DEFAULT_ADMIN_ROLE` on `Vault` and `CXPTToken`.
+    *   Holds `ADMIN_ROLE` on `Vault`.
+    *   Is the `owner` of `SynthFactory`.
+    *   Is the initial `CORE_ROLE` holder on `Vault`.
+*   **Vault (`0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380`):**
+    *   Holds `MINTER_ROLE` on `CXPTToken`.
+    *   Holds `MINTER_ROLE` and `BURNER_ROLE` on all deployed `SynthERC20` (sASSET) contracts.
+*   **SynthFactory (`0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470`):**
+    *   Holds `GATEWAY_ROLE` on `Vault`.
+    *   Is the `DEFAULT_ADMIN_ROLE` holder for all deployed `SynthERC20` (sASSET) contracts (as it was the admin that initiated their creation).
+
+This system ensures that only authorized entities can perform critical operations like minting tokens, registering new assets, or managing platform fees.
