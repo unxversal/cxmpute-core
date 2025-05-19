@@ -53,8 +53,6 @@ async function getProvisionCounts() {
     { name: Resource.LLMProvisionPoolTable.name, type: "llm" },
     { name: Resource.EmbeddingsProvisionPoolTable.name, type: "embeddings" },
     { name: Resource.ScrapingProvisionPoolTable.name, type: "scraping" },
-    { name: Resource.MoonProvisionPoolTable.name, type: "moon" },
-    { name: Resource.MediaProvisionPoolTable.name, type: "media" },
     { name: Resource.TTSProvisionPoolTable.name, type: "tts" }
   ];
 
@@ -73,9 +71,6 @@ async function getProvisionCounts() {
     if (table.type === "llm" || table.type === "embeddings" || table.type === "tts") {
       const modelCounts = await getModelCounts(table.name);
       Object.assign(counts, modelCounts);
-    } else if (table.type === "media") {
-      const mediaTypeAndModelCounts = await getMediaCounts(table.name);
-      Object.assign(counts, mediaTypeAndModelCounts);
     } else {
       // For non-model tables, just use the total count
       counts[table.type] = response.Count || 0;
@@ -108,32 +103,6 @@ async function getModelCounts(tableName: string): Promise<Record<string, number>
   }
 
   return modelCounts;
-}
-
-/**
- * Gets the count of media provisions by model and type
- */
-async function getMediaCounts(tableName: string): Promise<Record<string, number>> {
-  const counts: Record<string, number> = {};
-  
-  // Get all items to count by model and type
-  const response = await docClient.send(
-    new ScanCommand({
-      TableName: tableName,
-      ProjectionExpression: "model, #type",
-      ExpressionAttributeNames: { "#type": "type" }
-    })
-  );
-
-  // Count by model and type
-  if (response.Items) {
-    for (const item of response.Items) {
-      const key = `${item.type}-${item.model}`; // e.g., "image-stable diffusion 2.1"
-      counts[key] = (counts[key] || 0) + 1;
-    }
-  }
-
-  return counts;
 }
 
 /**

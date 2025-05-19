@@ -121,8 +121,6 @@ async function removeFromAllPools(provisionId: string): Promise<void> {
     Resource.LLMProvisionPoolTable.name,
     Resource.EmbeddingsProvisionPoolTable.name,
     Resource.ScrapingProvisionPoolTable.name,
-    Resource.MoonProvisionPoolTable.name,
-    Resource.MediaProvisionPoolTable.name,
     Resource.TTSProvisionPoolTable.name
   ];
 
