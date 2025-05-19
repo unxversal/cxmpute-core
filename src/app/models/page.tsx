@@ -18,7 +18,7 @@ export default function ModelsPage() {
   const [filterText, setFilterText] = useState('');
 
   // new category selector  ────────────────┐
-  const [category, setCategory] = useState<'all' | 'embeddings' | 'text' | 'vision' | 'code' | 'video' | 'audio'>('all');
+  const [category, setCategory] = useState<'all' | 'embeddings' | 'text' | 'vision' | 'code' | 'audio'>('all');
   //                                          └───────────────────────────────────────┘
 
   // combined filter
@@ -107,7 +107,7 @@ export default function ModelsPage() {
 
           {/* new category buttons */}
           <div className={styles.categoryFilter}>
-            {(['all', 'embeddings', 'text', 'vision', 'code', 'video', 'audio'] as const).map((c) => (
+            {(['all', 'embeddings', 'text', 'vision', 'code', 'audio'] as const).map((c) => (
               <div
                 key={c}
                 className={`${styles.categoryButton} ${
@@ -122,7 +122,7 @@ export default function ModelsPage() {
                         : c === 'text' ? cxmputePurple 
                         : c === 'vision' ? cxmputeYellow 
                         : c === 'code' ? cxmputeRed
-                        : c === 'video' ? cxmputePurple
+                        //: c === 'video' ? cxmputePurple
                         : c === 'audio' ? cxmputeOrange
                         : cxmputeRed}
                 />
