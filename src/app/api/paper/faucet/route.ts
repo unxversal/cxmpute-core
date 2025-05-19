@@ -1,6 +1,6 @@
 // src/app/api/paper/faucet/route.ts
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   DynamoDBClient,
   // UpdateItemCommand as RawUpdateItemCommand, // Not needed if using DocClient consistently

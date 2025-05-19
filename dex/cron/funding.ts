@@ -11,11 +11,11 @@ import {
   import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
   import { Resource } from "sst";
   import {
-    MarketMeta,
     Position,
     TradingMode,
     PriceSnapshot,
     Trade,
+    InstrumentMarketMeta,
   } from "../../src/lib/interfaces";
   import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
   import { pk as pkHelper } from "../matchers/matchEngine"; // Use PK helpers from matchEngine
@@ -128,7 +128,7 @@ import {
     const now = Date.now();
     console.log(`[Funding] CRON starting at ${new Date(now).toISOString()}`);
   
-    let activePerpMarkets: (MarketMeta & { pk: string; sk: string })[] = [];
+    let activePerpMarkets: (InstrumentMarketMeta & { pk: string; sk: string; })[] = [];
     let lastEvaluatedKeyMarkets: Record<string, any> | undefined = undefined;
   
     try {
@@ -151,7 +151,7 @@ import {
         );
         if (Items) {
           activePerpMarkets = activePerpMarkets.concat(
-            Items.map((item) => unmarshall(item) as (MarketMeta & { pk: string; sk: string }))
+            Items.map((item) => unmarshall(item) as (InstrumentMarketMeta & { pk: string; sk: string; }))
           );
         }
         lastEvaluatedKeyMarkets = LastEvaluatedKey;
