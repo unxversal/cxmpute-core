@@ -57,37 +57,38 @@
 
 *Margin and P&L are typically handled in the quote currency (USDC).*
 
-*   **A. Opening a Position (BUY/Long or SELL/Short):**
-    *   **What's Locked:** `USDC` for Initial Margin (IM).
-    *   **Amount Locked:** `Initial Margin % * Notional Value`.
-        *   Notional Value = `quantity_contracts * contract_size_in_base_asset * entry_price`.
-        *   Example: If IM is 10% (for LIMIT) or 20% (for MARKET SELL, as per your `/api/v1/trade/route.ts`), and you want to long 1 sBTC contract (lot size 1) at $50,000:
-            *   LIMIT: Lock `0.10 * 1 * 50000 = 5000 USDC`.
-            *   MARKET SELL: Lock `0.20 * 1 * oracle_price_at_order_time = X USDC`.
-    *   **`BalancesTable` Update:**
-        *   `USDC.balance -= locked_margin_amount`
-        *   `USDC.pending += locked_margin_amount`
+1.  **Opening a BUY/Long Position (Perp/Future):**
+    *   **Action:** User places a BUY order.
+    *   **Locking:** The full USDC cost (`qty * price + fee`) is "locked."
+        *   Your API (`/api/v1/trade/route.ts`) does this by directly debiting `USDC.balance` for limit orders. For market orders, it seems the check happens at fill time in the `matchEngine`.
+    *   **`BalancesTable` (for LIMIT order via API):**
+        *   `USDC.balance -= (qty * price + fee)`
+        *   (No explicit `pending` increment shown in the BUY path of your API for the cost, it's a direct debit of available balance).
 
-*   **B. Position Held Open:**
-    *   **Maintenance Margin (MM):** Not explicitly "locked" by moving between `balance` and `pending` continuously, but the system monitors if the user's `USDC.balance` (plus any unrealized PnL on the position relative to margin) drops below MM requirements.
-    *   **Funding Payments (Perps):** Directly debited/credited to `USDC.balance` periodically.
-    *   **Daily P&L Settlement (Perps):** Unrealized P&L is realized and `USDC.balance` is adjusted. The `pending` margin amount usually remains unchanged unless a margin top-up or withdrawal occurs. Your `perpsDailySettle.ts` does this.
+2.  **Opening a SELL/Short Position (Perp/Future):**
+    *   **Action:** User places a SELL order.
+    *   **Locking:** A specific amount of `USDC` is locked as collateral.
+        *   LIMIT Sell: `(qty * contract_size * price) / 10` (10% of notional).
+        *   MARKET Sell: `(qty * contract_size * oracle_price_at_order_time) / 5` (20% of notional at oracle price).
+    *   **`BalancesTable` (as per your API):**
+        *   `USDC.balance -= locked_collateral_USDC`
+        *   `USDC.pending += locked_collateral_USDC`
 
-*   **C. Closing a Position (Partially or Fully):**
-    *   When a position is reduced, a proportional amount of the Initial Margin held in `USDC.pending` is released back to `USDC.balance`.
-    *   Realized P&L from the closed portion is added/subtracted from `USDC.balance`.
+3.  **During an Open Position:**
+    *   The `pending` USDC for short positions remains locked.
+    *   Funding payments (for PERPs) and P&L settlements (e.g., daily for PERPs) will directly adjust the `USDC.balance`.
+    *   The system needs a mechanism (liquidation engine, not detailed in provided files) to monitor if a position's losses are approaching the value of the locked collateral (for shorts) or if the account equity (for longs, though they are fully paid) can still cover ongoing negative funding.
 
-*   **D. Order Cancellation (for an order that would open/increase a position):**
-    *   Locked `USDC` (Initial Margin for that order) is released.
-        *   `USDC.pending -= locked_margin_amount_for_order`
-        *   `USDC.balance += locked_margin_amount_for_order`
+4.  **Closing a Position:**
+    *   **For Shorts:** When the short position is closed (partially or fully), a proportional amount of the `USDC.pending` collateral is released back to `USDC.balance`.
+    *   **For Longs:** Since it was fully paid, closing a long means receiving USDC (if price increased) or less USDC back (if price decreased) into `USDC.balance`. No "pending" collateral to release for the position itself.
+    *   Realized P&L is credited/debited to `USDC.balance`.
 
-*   **E. Contract Expiry (FUTURES):**
-    *   Position is cash-settled against the final settlement price.
-    *   Final Realized P&L = `(settlement_price - avg_entry_price) * position_size * contract_size_in_base_asset`.
-    *   This P&L is added/subtracted from `USDC.balance`.
-    *   The Initial Margin held in `USDC.pending` for this futures position is released back to `USDC.balance`.
-    *   `futureExpiry.ts` correctly adjusts `USDC.balance` for P&L and implicitly the margin should be freed as the position is zeroed out (the `pending` collateral associated with the position itself, not just an open order, needs to be managed throughout the position's life or at closure/expiry).
+5.  **Contract Expiry (FUTURES):**
+    *   Positions are cash-settled.
+    *   Final P&L is added/subtracted from `USDC.balance`.
+    *   For any remaining short positions, the `USDC.pending` collateral associated with them is released back to `USDC.balance`.
+    *   Your `futureExpiry.ts` handles the P&L part. The release of the `pending` collateral for shorts upon expiry needs to be explicitly handled there if not implicitly done by the position size going to zero and some other process cleaning up `pending` amounts for zeroed positions (which is less robust). It's better for the expiry CRON to manage this directly.
 
 ---
 
@@ -151,6 +152,15 @@
                 *   `USDC.balance += remaining_usdc_collateral_after_payout`
                 *   `USDC.pending -= original_locked_usdc_collateral`
                 *   Your revised `optionExpiry.ts` handles the USDC payout and the collateral release.
+*   **F. Contract Expiry (FUTURES):**
+    *   Position is cash-settled against the final settlement price.
+    *   Final Realized P&L = `(settlement_price - avg_entry_price) * position_size_in_base_units`.
+    *   This P&L is added/subtracted from `USDC.balance`.
+    *   **For Short Positions:** The collateral that was in `USDC.pending` for this futures position is released back to `USDC.balance`.
+        *   `USDC.balance += original_locked_collateral_for_short`
+        *   `USDC.pending -= original_locked_collateral_for_short`
+    *   **For Long Positions:** No specific "pending" collateral to release beyond the fact that their position is now settled and gone.
+    *   Your `futureExpiry.ts` currently adjusts `USDC.balance` for P&L. **It needs to be augmented to also handle the release of `USDC.pending` for short positions that are expiring.**
 
 ---
 
