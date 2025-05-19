@@ -319,27 +319,6 @@ export default function ModelDetailPage({
                 {/* Results Section */}
                 {(blobUrl !== null || response) && (
                   <div className={styles.resultsSection}>
-                    {blobUrl !== null && (
-                      <>
-                        {['image', 'video'].includes(model.Category) && <h3>Generated Media</h3>}
-                        {model.Category === 'audio' && <h3>Generated Audio</h3>}
-                        {['image', 'video'].includes(model.Category) && (
-                          <video
-                            src={blobUrl}
-                            controls
-                            width={512}
-                            className={styles.video}
-                            onLoadedMetadata={() => {
-                              const video = document.querySelector('video');
-                              if (video) {
-                                video.currentTime = 0;
-                                video.play();
-                              }
-                            }}
-                          />
-                        )}
-                      </>
-                    )}
 
                     {blobUrl && model.Category === 'audio' && (
                       <audio src={blobUrl} controls className={styles.audio} />
