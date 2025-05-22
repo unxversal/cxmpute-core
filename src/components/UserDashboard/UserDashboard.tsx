@@ -56,60 +56,60 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                         style={{ backgroundColor: "var(--cxmpute-green)" }}
                     >
                         <h2>Text-to-Speech</h2>
-                        <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <p>Generate human-like speech with multiple voice options.</p>
+                        <a className={styles.cardButtonContainer} href="/docs/text-to-speech" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                     <div 
                         className={styles.card}
                         style={{ backgroundColor: "var(--cxmpute-yellow)" }}
                     >
-                        <h2>Text-to-Speech</h2>
-                        <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <h2>Text-to-Text</h2>
+                        <p>Utilize SOTA open-source text generation models for cheaper, faster results. Multilinguality (over 100+ languages) supported.</p>
+                        <a className={styles.cardButtonContainer} href="/docs/text-to-text" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                     <div 
                         className={styles.card}
                         style={{ backgroundColor: "var(--cxmpute-purple)" }}
                     >
-                        <h2>Text-to-Speech</h2>
-                        <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <h2>Embeddings</h2>
+                        <p>Generate embeddings from a wide choice of models, varying in size, speed, and quality.</p>
+                        <a className={styles.cardButtonContainer} href="/docs/embeddings" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                     <div 
                         className={styles.card}
                         style={{ backgroundColor: "var(--cxmpute-red)" }}
                     >
-                        <h2>Text-to-Speech</h2>
-                        <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <h2>Scraping</h2>
+                        <p>Access our global network of residential proxies and scrape data from any website.</p>
+                        <a className={styles.cardButtonContainer} href="/docs/scraping" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                     <div 
                         className={styles.card}
                         style={{ backgroundColor: "var(--cxmpute-orange)" }}
                     >
-                        <h2>Text-to-Speech</h2>
-                        <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <h2>Tool Use + JSON</h2>
+                        <p>Use the latest and most capable models with tool use, function calling abilities, and JSON schema support.</p>
+                        <a className={styles.cardButtonContainer} href="/docs/tool-use" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                     <div 
                         className={styles.card}
                         style={{ backgroundColor: "var(--cxmpute-orange)" }}
                     >
-                        <h2>Text-to-Speech</h2>
+                        <h2>Multimodal</h2>
                         <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <div className={styles.cardButtonContainer}>
+                        <a className={styles.cardButtonContainer} href="/docs/multimodal" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
-                        </div>
+                        </a>
                     </div>
                 </div>
                 <div className={styles.graphContainer}>
