@@ -15,10 +15,9 @@ import { AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { SUPPORTED_SYNTH_ASSETS } from '@/lib/references';
-import { Resource } from 'sst';
 
-const VAULT_CONTRACT_ADDRESS = Resource.CoreVaultAddress.value;
-const FACTORY_CONTRACT_ADDRESS = Resource.CoreFactoryAddress.value;
+const VAULT_CONTRACT_ADDRESS = "0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380";
+const FACTORY_CONTRACT_ADDRESS = "0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470";
 
 const erc20AbiMinimal = [
   "function allowance(address owner, address spender) view returns (uint256)",

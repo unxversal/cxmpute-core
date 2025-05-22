@@ -10,7 +10,6 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import { Resource } from "sst";
 import { useAuth } from "./AuthContext";
 import { useTradingMode } from "./TradingModeContext";
 import { useMarketContext } from "./MarketContext"; // For activeInstrumentSymbol
@@ -44,7 +43,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
   undefined
 );
 
-const WS_API_URL = Resource.DexWsApi.url;
+const WS_API_URL = "prod.dex.cxmpute.cloud";
 
 const initialMarketSpecificDataState: WsMarketDataState = {
   depth: null,

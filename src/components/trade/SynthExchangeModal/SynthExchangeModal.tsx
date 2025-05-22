@@ -15,7 +15,6 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
 import { USDC_ASSET_INFO, SUPPORTED_SYNTH_ASSETS, USDC_ADDRESS } from '@/lib/references';
 import { ethers, MaxUint256 } from 'ethers';
-import { Resource } from 'sst'; // For Vault address
 import type { PriceSnapshot } from '@/lib/interfaces';
 
 
@@ -44,8 +43,8 @@ const erc20AbiMinimal = [
     "function decimals() view returns (uint8)"
 ];
 
-const VAULT_CONTRACT_ADDRESS = Resource.CoreVaultAddress.value;
-const FACTORY_CONTRACT_ADDRESS = Resource.CoreFactoryAddress.value;
+const VAULT_CONTRACT_ADDRESS = "0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380";
+const FACTORY_CONTRACT_ADDRESS = "0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470";
 const USDC_CONTRACT_ADDRESS = USDC_ADDRESS;
 
 

@@ -25,8 +25,8 @@ import type { TradingMode } from "@/lib/interfaces"; // For TradingMode type
 THEME_OPENAUTH.favicon = "https://i.postimg.cc/bNLm9f7T/3.png";
 THEME_OPENAUTH.logo = "https://i.postimg.cc/6qhxh1Kv/8.png";
 THEME_OPENAUTH.title = "cxmpute.cloud - login";
-THEME_OPENAUTH.background = 'white';
-THEME_OPENAUTH.primary = 'black';
+THEME_OPENAUTH.background = 'black';
+THEME_OPENAUTH.primary = 'white';
 
 const ddbDoc = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
     marshallOptions: { removeUndefinedValues: true } // Good practice

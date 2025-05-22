@@ -18,8 +18,15 @@ import {
     PriceSnapshot,
   } from "../../src/lib/interfaces";
   import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
-  import { pk as pkHelper } from "../matchers/matchEngine";
-  
+import { UUID } from "node:crypto";
+
+const pkHelper = {
+    marketMode: (market: string, mode: TradingMode) => `MARKET#${market.toUpperCase()}#${mode.toUpperCase()}`,
+    traderMode: (id: UUID, mode: TradingMode) => `TRADER#${id}#${mode.toUpperCase()}`,
+    globalMode: (mode: TradingMode) => `KEY#GLOBAL#${mode.toUpperCase()}`,
+    asset: (a: string) => `ASSET#${a.toUpperCase()}`,
+    marketMetaKey: (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`,
+};  
   // Internal types
   type MarketMetaWithKeys = MarketMeta & { pk: string; sk: string };
   type PositionWithKeys = Position & { pk: string; sk: string };

@@ -225,6 +225,16 @@ export default $config({
       },
     });
 
+    const balancesTable = new sst.aws.Dynamo("BalancesTable", {
+      fields: {
+        pk: "string",          // NEW: TRADER#<traderId>#<mode> (e.g., TRADER#uuid123#PAPER)
+        sk: "string",          // NEW: ASSET#<asset> (e.g., ASSET#USDC)
+        // Attributes: balance, pending remain as attributes
+      },
+      // NEW Primary Index using mode-partitioned keys
+      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
+    });
+
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: {
         handler: "auth/index.handler",
@@ -233,6 +243,7 @@ export default $config({
           tradersTable,
           userTable,
           authEmail,        // <-- makes Resource.AuthEmail.* available
+          balancesTable
         ],
       },
     });
@@ -259,17 +270,7 @@ export default $config({
 
     
 
-    const balancesTable = new sst.aws.Dynamo("BalancesTable", {
-      fields: {
-        pk: "string",          // NEW: TRADER#<traderId>#<mode> (e.g., TRADER#uuid123#PAPER)
-        sk: "string",          // NEW: ASSET#<asset> (e.g., ASSET#USDC)
-        // Attributes: balance, pending remain as attributes
-        balance: "number",
-        pending: "number",
-      },
-      // NEW Primary Index using mode-partitioned keys
-      primaryIndex: { hashKey: "pk", rangeKey: "sk" },
-    });
+    
 
     const tradesTable = new sst.aws.Dynamo("TradesTable", {
       fields: {
@@ -309,7 +310,6 @@ export default $config({
         // Let's list attributes that will form parts of our GSI keys for clarity,
         // even if not strictly required by SST `fields` if not part of table PK/SK.
         status: "string",               // Used as GSI PK in ByStatusMode
-        underlyingPairSymbol: "string", // Will be part of the constructed GSI PK for InstrumentsByUnderlying
         // The actual GSI keys `gsi1pk` and `gsi1sk` will be attributes you create in your items.
         gsi1pk: "string", // Attribute that will hold the HASH KEY value for InstrumentsByUnderlying GSI
         gsi1sk: "string", // Attribute that will hold the RANGE KEY value for InstrumentsByUnderlying GSI
@@ -351,7 +351,6 @@ export default $config({
       fields: {
         pk:      "string", // NEW: MARKET#<symbol>#<mode>
         sk:      "string", // Keep: TS#<minute_epoch_ms>
-        expireAt:"number", // Keep TTL
       },
       primaryIndex: { hashKey: "pk", rangeKey: "sk" },
       ttl: "expireAt",
@@ -377,7 +376,6 @@ export default $config({
       fields: {
         pk:       "string",            // Keep: WS#<connId>
         sk:       "string",            // Keep: META
-        expireAt: "number",            // Keep TTL
         channel:  "string",            // Attribute for GSI Hash Key
         // channelMode: "string",         // NEW: "REAL" or "PAPER" (nullable if not subscribed)
         // Attributes: traderId, channel etc. remain attributes
@@ -420,32 +418,31 @@ export default $config({
 
     /* ─── SQS FIFO order queues (Reused for both modes) ─────────────── */
     const marketOrdersQueue  = new sst.aws.Queue("MarketOrdersQueue",  {
-      fifo: { contentBasedDeduplication: true },
-      visibilityTimeout: "30 seconds",
+      fifo: { contentBasedDeduplication: true }, // Recommended for ordered processing of orders
+      visibilityTimeout: "60 seconds", // Needs to be longer than matcher Lambda timeout
     });
     const optionsOrdersQueue = new sst.aws.Queue("OptionsOrdersQueue", {
-      fifo: { contentBasedDeduplication: true },
-      visibilityTimeout: "30 seconds",
+      fifo: { contentBasedDeduplication: true }, // Recommended for ordered processing of orders
+      visibilityTimeout: "60 seconds", // Needs to be longer than matcher Lambda timeout
     });
     const perpsOrdersQueue   = new sst.aws.Queue("PerpsOrdersQueue",   {
-      fifo: { contentBasedDeduplication: true },
-      visibilityTimeout: "30 seconds",
+      fifo: { contentBasedDeduplication: true }, // Recommended for ordered processing of orders
+      visibilityTimeout: "60 seconds", // Needs to be longer than matcher Lambda timeout
     });
     const futuresOrdersQueue = new sst.aws.Queue("FuturesOrdersQueue", {
-      fifo: { contentBasedDeduplication: true },
-      visibilityTimeout: "30 seconds",
+      fifo: { contentBasedDeduplication: true }, // Recommended for ordered processing of orders
+      visibilityTimeout: "60 seconds", // Needs to be longer than matcher Lambda timeout
     });
 
     const cancelledOrdersQueue = new sst.aws.Queue("CancelledOrdersQueue", {
       fifo: true, // Recommended for ordered processing of cancellations for a market/trader
       // contentBasedDeduplication: true, // If using MessageDeduplicationId in router
-      visibilityTimeout: "60 seconds", // Adjust based on processor lambda timeout
     });
 
 
     const klineAggregationQueue = new sst.aws.Queue("KlineAggregationQueue", {
       // fifo: true, // Consider FIFO if strict order of trades for kline building is critical
-      // visibilityTimeout: "60 seconds", // Needs to be longer than klineAggregator Lambda timeout
+      visibilityTimeout: "60 seconds", // Needs to be longer than klineAggregator Lambda timeout
     });
 
     tradesTable.subscribe("TradesStreamRouterForAggregators", { // Or add to existing router
@@ -509,7 +506,7 @@ export default $config({
         coreVaultAddress
       ],
       timeout: "60 seconds",
-    }, { batch: { size: 10, window: "5 seconds" } });
+    });
 
     optionsOrdersQueue.subscribe({
       handler: "dex/matchers/options.handler",
@@ -528,7 +525,7 @@ export default $config({
         coreVaultAddress
       ],
       timeout: "60 seconds",
-    }, { batch: { size: 10, window: "5 seconds" } });
+    });
 
     perpsOrdersQueue.subscribe({
       handler: "dex/matchers/perps.handler",
@@ -547,7 +544,7 @@ export default $config({
         coreVaultAddress
       ],
       timeout: "60 seconds",
-    }, { batch: { size: 10, window: "5 seconds" } });
+    });
 
     futuresOrdersQueue.subscribe({
       handler: "dex/matchers/futures.handler",
@@ -566,7 +563,7 @@ export default $config({
         coreVaultAddress
       ],
       timeout: "60 seconds",
-    }, { batch: { size: 10, window: "5 seconds" } });
+    });
 
     /* ───  WebSocket API  ─────────────────────────────────────────────── */
     const wsApi = new sst.aws.ApiGatewayWebSocket("DexWsApi", {
@@ -606,7 +603,7 @@ export default $config({
         handler: "dex/cron/oracle.handler",
         timeout: "60 seconds",
         memory: "256 MB",
-        link: [pricesTable, marketsTable, cmcApiKey], // Reads market definitions (now includes mode)
+        link: [pricesTable, marketsTable, cmcApiKey, coreVaultAddress, coreWalletPk, coreFactoryAddress, ordersTable, tradesTable, positionsTable], // Reads market definitions (now includes mode)
       },
     });
 
@@ -718,6 +715,7 @@ export default $config({
           pricesTable,
           statsIntradayTable,
           marketUpdatesTopic, // To publish the summary
+          coreVaultAddress
         ],
         // No specific environment variables needed unless your pkHelper depends on them
       },
@@ -776,7 +774,7 @@ export default $config({
       schedule: "cron(5 1 1 * ? *)", 
       job: {
         handler: "dex/aggregators/dailyToMonthlyKlineCron.handler",
-        timeout: "20 minutes", // Processing a whole month of daily data for all markets can take time
+        timeout: "15 minutes", // Processing a whole month of daily data for all markets can take time
         memory: "1024 MB",     // Potentially more memory needed
         link: [
           klinesTable,    // Read daily klines, Write monthly klines

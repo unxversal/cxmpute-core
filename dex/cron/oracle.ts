@@ -5,7 +5,15 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import fetch from "node-fetch"; // Or your preferred HTTP client
 import { Resource } from "sst";
 import type { Trade, TradingMode } from "../../src/lib/interfaces";
-import { pk as pkHelper } from "../matchers/matchEngine"; // Use PK helpers
+import { UUID } from "node:crypto";
+
+const pkHelper = {
+    marketMode: (market: string, mode: TradingMode) => `MARKET#${market.toUpperCase()}#${mode.toUpperCase()}`,
+    traderMode: (id: UUID, mode: TradingMode) => `TRADER#${id}#${mode.toUpperCase()}`,
+    globalMode: (mode: TradingMode) => `KEY#GLOBAL#${mode.toUpperCase()}`,
+    asset: (a: string) => `ASSET#${a.toUpperCase()}`,
+    marketMetaKey: (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`,
+};
 
 // --- Configuration ---
 const CMC_API_KEY = Resource.CmcApiKey.value; // Access via SST Secret/Env Var

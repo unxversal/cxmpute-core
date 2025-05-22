@@ -13,10 +13,9 @@ import { ethers, MaxUint256 } from 'ethers'; // Using ethers v6
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner/LoadingSpinner';
-import { Resource } from 'sst';
 
-const USDC_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USDC_CONTRACT_ADDRESS || "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Replace with actual
-const VAULT_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS || Resource.CoreVaultAddress.value; // From SST linked resource or env
+const USDC_CONTRACT_ADDRESS = "0xbba60da06c2c5424f03f7434542280fcad453d10"; // Replace with actual
+const VAULT_CONTRACT_ADDRESS = "0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380"; // From SST linked resource or env
 
 const USDC_DECIMALS = 6; // Standard for USDC
 
@@ -47,14 +46,14 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   const [currentAllowance, setCurrentAllowance] = useState<bigint | null>(null);
 
   const usdcContract = useMemo(() => {
-    if (provider && USDC_CONTRACT_ADDRESS !== "0xReplaceWithActualUSDConPeaqAddress") {
+    if (provider && USDC_CONTRACT_ADDRESS !== "0xbba60da06c2c5424f03f7434542280fcad453d10") {
       return new ethers.Contract(USDC_CONTRACT_ADDRESS, erc20Abi, provider);
     }
     return null;
   }, [provider]);
 
   const usdcContractWithSigner = useMemo(() => {
-    if (signer && USDC_CONTRACT_ADDRESS !== "0xReplaceWithActualUSDConPeaqAddress") {
+    if (signer && USDC_CONTRACT_ADDRESS !== "0xbba60da06c2c5424f03f7434542280fcad453d10") {
       return new ethers.Contract(USDC_CONTRACT_ADDRESS, erc20Abi, signer);
     }
     return null;
@@ -100,7 +99,7 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
   };
 
   const proceedToNextStep = async () => {
-    if (!account || !VAULT_CONTRACT_ADDRESS || VAULT_CONTRACT_ADDRESS === "0xReplaceWithCoreVaultAddress") {
+    if (!account || !VAULT_CONTRACT_ADDRESS) {
         notify.error("Wallet not connected or Vault address not configured.");
         return;
     }
@@ -251,12 +250,12 @@ const DepositModal: React.FC<DepositModalProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {USDC_CONTRACT_ADDRESS === "0xReplaceWithActualUSDConPeaqAddress" && isOpen && (
+        {USDC_CONTRACT_ADDRESS === "0xbba60da06c2c5424f03f7434542280fcad453d10" && isOpen && (
              <div className={`${styles.notice} ${styles.errorNotice}`}>
                 <AlertCircle size={20} /> USDC Contract Address is not configured. Deposits are disabled.
             </div>
         )}
-        {VAULT_CONTRACT_ADDRESS === "0xReplaceWithCoreVaultAddress" && isOpen && (
+        {VAULT_CONTRACT_ADDRESS && isOpen && (
              <div className={`${styles.notice} ${styles.errorNotice}`}>
                 <AlertCircle size={20} /> Vault Contract Address is not configured. Deposits are disabled.
             </div>

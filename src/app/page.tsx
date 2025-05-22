@@ -12,9 +12,10 @@ const MAIN_DOMAIN = "cxmpute.cloud"; // Configure in .env
 export default async function RootPage() {
   const headersList = await headers();
   const host = headersList.get("host") || "";
+  console.log("Host:", host); // Debugging line to check the host
   const userSubject = await auth() as AuthenticatedUserSubject | false; // Cast for clarity
 
-  if (host.startsWith("trade.")) { // or host === TRADE_SUBDOMAIN
+  if (host !== "localhost:3000" && host.startsWith("trade.")) { // or host === TRADE_SUBDOMAIN
     if (userSubject) {
       // User is on trade.example.com and logged in
       return <TradePageContent />;

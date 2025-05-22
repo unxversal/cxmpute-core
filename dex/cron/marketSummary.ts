@@ -18,8 +18,15 @@ import type {
   StatsIntradayRow,
   WsMarketSummaryUpdate, // For SNS publishing
 } from "@/lib/interfaces"; // Adjust path as necessary
-import { pk as pkHelper } from "../matchers/matchEngine"; // Or your PK helper location
+import { UUID } from "node:crypto";
 
+const pkHelper = {
+    marketMode: (market: string, mode: TradingMode) => `MARKET#${market.toUpperCase()}#${mode.toUpperCase()}`,
+    traderMode: (id: UUID, mode: TradingMode) => `TRADER#${id}#${mode.toUpperCase()}`,
+    globalMode: (mode: TradingMode) => `KEY#GLOBAL#${mode.toUpperCase()}`,
+    asset: (a: string) => `ASSET#${a.toUpperCase()}`,
+    marketMetaKey: (marketSymbol: string, mode: TradingMode) => `MARKET#${marketSymbol.toUpperCase()}#${mode.toUpperCase()}`,
+};
 const ddb = new DynamoDBClient({});
 const sns = new SNSClient({});
 
