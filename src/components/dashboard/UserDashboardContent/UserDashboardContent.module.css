@@ -1,0 +1,220 @@
+/* src/components/dashboard/UserDashboardContent/UserDashboardContent.module.css */
+.dashboardContentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
+  gap: 20px;
+  width: 100%;
+  padding: 10px 0; /* Padding around the grid itself */
+}
+
+.infoCard {
+  background-color: #1e222d; /* Darker card background */
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Space between elements inside a card */
+}
+
+.cardTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #3e4556;
+  padding-bottom: 10px;
+}
+.cardTitle svg {
+    color: var(--cxmpute-purple); /* Theme color for icons in titles */
+}
+
+/* Key Management Card Styles */
+.keyManagementCard {
+  /* Specific styles if needed, for now uses .infoCard base */
+}
+.keyActionItem {
+  display: flex;
+  flex-direction: column; /* Stack p and button */
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #2a2f3b;
+}
+.keyActionItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.keyActionItem p {
+  font-size: 0.875rem;
+  color: #a0aec0;
+  line-height: 1.5;
+  margin: 0;
+}
+.keyActionItem > button { /* Target Button component directly */
+  align-self: flex-start; /* Align button to the left */
+}
+.traderAkDisplay {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #8a91a0;
+    background-color: #171b26;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: inline-flex; /* For copy icon alignment */
+    align-items: center;
+    gap: 8px;
+    max-width: fit-content;
+}
+.copyIconSmall {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+.copyIconSmall:hover {
+    opacity: 1;
+}
+.inputHintSmall {
+    font-size: 0.7rem;
+    color: #6b778c;
+    margin-top: 2px;
+}
+
+
+/* Stats & Referral Column Styles */
+.statsAndReferralColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Space between StatsCard and ReferralCard */
+}
+
+.statsCard {
+  /* Specific styles if needed */
+}
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 6px 0;
+}
+.statLabel {
+  color: #a0aec0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.statLabel svg {
+    color: #6b778c; /* Muted icon color in stats */
+}
+.statValue {
+  font-weight: 600;
+  color: #e0e0e0;
+  font-family: monospace;
+}
+.errorTextSmall {
+  font-size: 0.8rem;
+  color: var(--cxmpute-red);
+  text-align: center;
+}
+.fullWidthButton {
+    margin-top: auto; /* Push to bottom if card has space */
+}
+
+.referralCard {
+  /* Specific styles if needed */
+}
+.referralCard p {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin: 0 0 8px 0;
+}
+.referralCodeBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #171b26;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #2a2f3b;
+}
+.referralCodeText {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--cxmpute-yellow); /* Highlight referral code */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* Services Card Styles */
+.servicesCard {
+  grid-column: 1 / -1; /* Make services card span full width if grid has multiple columns */
+}
+.servicesCard p {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-bottom: 10px;
+}
+.serviceList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+.serviceItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #232731;
+  border-radius: 6px;
+  border: 1px solid #3e4556;
+  color: #c0c5ce;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, border-color 0.2s, transform 0.15s;
+  text-decoration: none;
+}
+.serviceItem:hover {
+  background-color: #2a2f3b;
+  border-color: #4a5265;
+  transform: translateY(-2px);
+  color: #e0e0e0;
+}
+.serviceItem svg {
+  color: #6b778c;
+  transition: transform 0.2s;
+}
+.serviceItem:hover svg {
+  transform: translateX(3px);
+  color: var(--cxmpute-purple);
+}
+
+@media (max-width: 768px) {
+    .dashboardContentGrid {
+        grid-template-columns: 1fr; /* Stack cards on smaller screens */
+    }
+    .headerActions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .headerInfo {
+        max-width: 100%;
+        text-align: center;
+        justify-content: center;
+    }
+    .headerButtons {
+        justify-content: center;
+        width: 100%;
+    }
+    .headerButtons > button {
+        flex-grow: 1;
+    }
+     .serviceList {
+        grid-template-columns: 1fr; /* Stack service items */
+    }
+}
