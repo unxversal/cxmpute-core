@@ -4,56 +4,53 @@
 import React from 'react';
 import Link from 'next/link';
 import styles from './DashboardToggle.module.css';
-import Button from '@/components/ui/Button/Button'; // Assuming your custom Button component
-import { User, Briefcase, TrendingUp } from 'lucide-react'; // Example icons
+import DashboardButton from '../DashboardButton/DashboardButton'; // Using our new DashboardButton
+import { User, Briefcase, TrendingUp } from 'lucide-react';
 
 export type DashboardViewType = "user" | "provider";
 
 interface DashboardToggleProps {
   activeView: DashboardViewType;
   onViewChange: (view: DashboardViewType) => void;
-  // Optional: if you need to disable provider view for non-providers (logic handled by parent)
   isProviderViewAvailable?: boolean;
 }
 
 const DashboardToggle: React.FC<DashboardToggleProps> = ({
   activeView,
   onViewChange,
-  isProviderViewAvailable = true, // Assume available by default
+  isProviderViewAvailable = true,
 }) => {
   return (
     <div className={styles.toggleContainer}>
-      <Button
-        variant={activeView === 'user' ? 'primary' : 'outline'}
+      <DashboardButton
+        variant={activeView === 'user' ? 'accentPurple' : 'secondary'} // User active: Purple, Inactive: Slate
         onClick={() => onViewChange('user')}
-        className={`${styles.toggleButton} ${activeView === 'user' ? styles.activeUser : ''}`}
+        className={styles.toggleButton} // General class for all toggle buttons
         iconLeft={<User size={16} />}
         aria-pressed={activeView === 'user'}
-      >
-        User
-      </Button>
+        text="User View"
+      />
 
-      <Button
-        variant={activeView === 'provider' ? 'primary' : 'outline'}
+      <DashboardButton
+        variant={activeView === 'provider' ? 'primary' : 'secondary'} // Provider active: Green, Inactive: Slate
         onClick={() => onViewChange('provider')}
-        className={`${styles.toggleButton} ${activeView === 'provider' ? styles.activeProvider : ''}`}
+        className={styles.toggleButton}
         iconLeft={<Briefcase size={16} />}
         disabled={!isProviderViewAvailable}
         title={!isProviderViewAvailable ? "Provider dashboard requires provider setup" : "Switch to Provider Dashboard"}
         aria-pressed={activeView === 'provider'}
-      >
-        Provider
-      </Button>
+        text="Provider View"
+      />
 
+      {/* Trader link remains distinct */}
       <Link href="/trade" passHref legacyBehavior>
         <a className={styles.linkButtonWrapper} target="_blank" rel="noopener noreferrer">
-          <Button
-            variant="outline" // Consistent style with inactive toggles
-            className={`${styles.toggleButton} ${styles.traderLink}`}
+          <DashboardButton
+            variant="accentYellow" // Yellow for Trader, distinct from active/inactive toggles
+            className={`${styles.toggleButton} ${styles.traderLinkButton}`}
             iconLeft={<TrendingUp size={16} />}
-          >
-            Trader
-          </Button>
+            text="Trading"
+          />
         </a>
       </Link>
     </div>

@@ -1,55 +1,82 @@
 /* src/components/dashboard/DashboardToggle/DashboardToggle.module.css */
 .toggleContainer {
   display: flex;
-  gap: 8px; /* Space between buttons */
-  padding: 8px;
-  background-color: #1e222d; /* Dark background for the toggle bar */
-  border-radius: 8px;
-  border: 1px solid #2a2f3b;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  gap: 10px; /* Space between buttons */
+  padding: 10px; /* Padding around the container */
+  background-color: #ffffff; /* White background for the toggle bar itself */
+  border-radius: 10px; /* Consistent rounded corners */
+  border: 2px solid #000000; /* Optional: Add a subtle border if needed */
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  width: fit-content; /* Adjust width to content */
+  margin: 0 auto; /* Center the toggle bar */
 }
 
 .toggleButton {
-  /* Base styling for buttons, leveraging Button component's variants */
-  flex-grow: 1; /* Allow buttons to grow and fill space if needed */
-  min-width: 120px; /* Minimum width for readability */
-  font-size: 0.875rem !important; /* Standardize font size */
-  padding: 0.5em 0.8em !important; /* Standardize padding */
-  text-transform: capitalize; /* Make it look less like a primary action */
+  /* DashboardButton already has base styles (font, padding, shadow, hover) */
+  /* This class is for any specific overrides or additional layout needs */
+  flex-grow: 1; /* Allow buttons to share space if container width is constrained */
+  min-width: 140px; /* Ensure buttons have a decent minimum width */
+  font-size: 0.9rem !important; /* Consistent font size for toggle buttons */
 }
 
-/* Active state styling - primarily relies on Button component's 'primary' variant */
-.toggleButton.activeUser {
-  /* background-color: var(--cxmpute-purple) !important; Using primary variant on Button */
-  /* color: #ffffff !important; */
-  /* border-color: var(--cxmpute-purple) !important; */
-}
-.toggleButton.activeProvider {
-  /* background-color: var(--cxmpute-green) !important; Using primary variant on Button */
-  /* color: #ffffff !important; */
-  /* border-color: var(--cxmpute-green) !important; */
-}
+/* 
+  Active state styling is now primarily handled by the 'variant' prop 
+  passed to DashboardButton. For example:
+  - Active User button uses variant="accentPurple"
+  - Active Provider button uses variant="primary" (green)
+  - Inactive buttons use variant="secondary" (slate)
 
-/* Styling for the Trader Link Button - ensure it looks consistent */
+  No need for .activeUser or .activeProvider classes here if DashboardButton variants handle it.
+*/
+
 .linkButtonWrapper {
-  text-decoration: none; /* Remove underline from link */
-  display: flex; /* Ensure the link wrapper behaves like a flex item for consistency */
+  text-decoration: none;
+  display: flex; /* Ensure link wrapper takes space like a button */
   flex-grow: 1;
 }
 
-.traderLink {
-  /* Ensure it matches the style of inactive toggle buttons */
-  color: var(--cxmpute-yellow) !important; /* Distinct color for trader link */
-  border-color: var(--cxmpute-yellow) !important;
-  /* background-color: transparent !important; */ /* Handled by variant='outline' */
-}
-.traderLink:hover {
-  background-color: rgba(248, 203, 70, 0.1) !important; /* Subtle yellow bg on hover */
+.traderLinkButton {
+  /* The variant="accentYellow" on DashboardButton will handle its main styling. */
+  /* This class is for any specific overrides if yellow variant isn't enough. */
+  /* For example, if you want a different text color for the trader button specifically */
+  /* color: #000 !important; */ /* If accentYellow has light text, override if needed */
 }
 
-/* Disabled state for provider button */
+/* Disabled state for provider button is handled by DashboardButton's disabled prop */
 .toggleButton:disabled {
-  /* Styling is mostly handled by Button component's disabled state */
-  /* You can add specific overrides if needed, e.g., more pronounced dimming */
-  opacity: 0.5 !important; /* Make it more clearly disabled */
+  /* DashboardButton's :disabled style will apply. */
+  /* You can add more specific overrides if needed here, e.g.
+  background-color: #e9ecef !important;
+  color: #adb5bd !important;
+  border-color: #dee2e6 !important;
+  box-shadow: 2px 2px 0px #dee2e6 !important; 
+  */
+}
+
+/* Responsive adjustments for the toggle container itself */
+@media (max-width: 768px) {
+  .toggleContainer {
+    flex-wrap: wrap; /* Allow buttons to wrap onto new lines */
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+  }
+  .toggleButton,
+  .linkButtonWrapper {
+    flex-grow: 0; /* Don't force buttons to fill width when wrapped */
+    min-width: 130px; /* Slightly smaller min-width */
+  }
+}
+
+@media (max-width: 480px) {
+  .toggleContainer {
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: stretch; /* Make buttons full width of container */
+    width: 100%;
+    max-width: 300px; /* Limit width when stacked */
+  }
+  .toggleButton,
+  .linkButtonWrapper {
+    width: 100%; /* Full width when stacked */
+  }
 }
