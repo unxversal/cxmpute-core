@@ -1,86 +1,102 @@
 /* src/components/dashboard/ViewApiKeyModal/ViewApiKeyModal.module.css */
-.modalContentWrapper {
+.modalContent {
   display: flex;
   flex-direction: column;
-  gap: 20px; /* Increased gap for better spacing */
-  color: #d1d4dc;
+  gap: 1.25rem; /* 20px */
 }
 
-.loadingContainer,
-.errorContainer {
-  padding: 20px;
-  text-align: center;
+.description {
   font-size: 0.9rem;
-  color: #8a91a0; /* Muted text for loading/error states */
-  border: 1px dashed #3e4556;
-  border-radius: 6px;
-  min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.errorContainer {
-    color: var(--cxmpute-red, #d64989);
-    border-color: var(--cxmpute-red, #d64989);
-}
-
-
-.infoText {
-  font-size: 0.875rem;
-  color: #a0aec0;
+  color: #a0aec0; /* Lighter gray for description */
   line-height: 1.6;
-  margin-bottom: 5px; /* Space below info text */
+}
+.description strong {
+  color: #e0e0e0; /* Brighter for emphasis */
 }
 
-.apiKeyDisplayContainer {
+.apiKeyDisplayArea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #171b26; /* Darker background for key area */
-  padding: 12px 16px;
+  background-color: #232731; /* Darker background for the key itself */
+  padding: 0.75rem 1rem; /* 12px 16px */
   border-radius: 6px;
-  border: 1px solid #2a2f3b;
-  gap: 10px;
+  border: 1px solid #3e4556;
+  font-family: monospace;
+  min-height: 40px; /* Ensure consistent height even when loading */
 }
 
 .apiKeyText {
-  font-family: monospace;
-  font-size: 0.9rem; /* Slightly smaller for keys */
-  color: #e0e0e0;
-  margin: 0;
-  word-break: break-all; /* Allow long keys to wrap if absolutely necessary */
+  color: #d1d4dc;
+  font-size: 0.9rem;
+  word-break: break-all; /* Allow long keys to wrap if needed, though masking helps */
   flex-grow: 1;
-  /* text-overflow: ellipsis; */ /* Can be problematic with show/hide */
-  /* overflow: hidden; */
-  white-space: pre-wrap; /* Allow wrapping of the key text */
+}
+
+.apiKeyText.masked {
+  /* Styles for masked text if not using CSS text-security (which is simpler) */
+  /* Example: letter-spacing: 2px; */
 }
 
 .keyActions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0; /* Prevent action buttons from shrinking */
+  gap: 0.5rem; /* 8px */
+  margin-left: 1rem; /* Space between key text and actions */
 }
 
-.actionButton {
-  /* Using Button component's variant="ghost" */
-  color: #8a91a0 !important;
-  padding: 6px !important; /* Make icon buttons smaller */
+.iconButton {
+  /* Button component handles base styles, this is for specific overrides */
+  padding: 0.3rem !important; /* Make icon buttons smaller */
+  color: #8a91a0 !important; /* Muted icon color */
 }
-.actionButton:hover {
-  color: #c0c5ce !important;
-  background-color: #2a2f3b !important;
-}
-.actionButton svg {
-  margin: 0 !important; /* Remove default icon margin from Button component if any */
+.iconButton:hover,
+.iconButton:focus {
+  color: #d1d4dc !important;
+  background-color: #333a4c !important;
 }
 
+.warningText {
+  display: flex;
+  align-items: flex-start; /* Align icon to top of text */
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--cxmpute-yellow, #f8cb46); /* Warning color */
+  background-color: rgba(248, 203, 70, 0.08); /* Subtle warning background */
+  padding: 0.6rem 0.8rem;
+  border-radius: 4px;
+  border: 1px solid rgba(248, 203, 70, 0.2);
+}
+.warningText svg {
+  flex-shrink: 0; /* Prevent icon from shrinking */
+  margin-top: 2px; /* Align icon nicely with first line of text */
+  color: var(--cxmpute-yellow, #f8cb46);
+}
 
 .modalFooterActions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 10px; /* Space above footer buttons */
-  padding-top: 15px;
-  border-top: 1px solid #333a4c;
+  gap: 0.75rem; /* 12px */
+  margin-top: 0.5rem; /* Space above footer */
+  padding-top: 1rem;
+  border-top: 1px solid #2a2f3b; /* Separator for footer */
+}
+
+/* Notice styles for when key is not available */
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 4px;
+  color: #c0c5ce;
+  font-size: 0.875rem;
+}
+.errorNotice {
+  background-color: rgba(214, 73, 137, 0.1);
+  border: 1px solid var(--cxmpute-red, #d64989);
+}
+.errorNotice svg {
+  color: var(--cxmpute-red, #d64989);
+  flex-shrink: 0;
 }
