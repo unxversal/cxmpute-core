@@ -34,10 +34,10 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 1200px; /* Match dashboard content max-width */
+  /* max-width: 1200px; */
   padding: 15px 0; /* Vertical padding for header */
   margin-bottom: 15px; /* Space below header before toggle/content */
-  border-bottom: 2px solid #e0e0e0; /* Separator for header */
+  /* border-bottom: 2px solid #e0e0e0;  */
 }
 
 .logoLink {

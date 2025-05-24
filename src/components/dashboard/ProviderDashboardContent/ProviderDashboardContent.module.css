@@ -1,5 +1,4 @@
 /* src/components/dashboard/ProviderDashboardContent/ProviderDashboardContent.module.css */
-/* Reusing structure from original ProviderDashboard.module.css */
 .providerDashboardContainer {
   width: 100%;
   display: flex;
@@ -8,217 +7,89 @@
   font-family: var(--font-roboto);
 }
 
-/* Hero Card Styles (using ThemeCard base) */
-.heroCard {
-  /* ThemeCard provides base style, can add specifics if needed */
-}
-.heroContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: stretch;
-  gap: 30px;
-  width: 100%;
-}
-.heroLeft {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  flex: 2;
-}
-.emailDisplay {
-  font-size: 0.9rem;
-  color: #555;
-  font-weight: 500;
-  margin-bottom: -10px;
-}
-.dashboardTitle {
-  font-size: 2.8rem;
-  font-weight: 900;
-  color: #000;
-  margin: 0;
-  line-height: 1.1;
-}
-.welcomeMessage {
-  font-size: 1.1rem;
-  color: #333;
-  font-weight: 500;
-  margin: 0;
-}
-.heroButtonContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 10px;
-}
-.heroRight {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-end; /* Align earnings to bottom */
-  text-align: right;
-  min-width: 280px;
-}
-.earningsSummarySection {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  width: 100%;
-}
-.sectionTitleSmall {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #222;
-  margin: 0;
-}
+/* Hero Card Styles */
+.heroCard {}
+.heroContent { display: flex; justify-content: space-between; align-items: stretch; gap: 30px; width: 100%; }
+.heroLeft { display: flex; flex-direction: column; gap: 15px; flex: 2; }
+.emailDisplay { font-size: 0.9rem; color: #555; font-weight: 500; margin-bottom: -10px; }
+.dashboardTitle { font-size: 2.8rem; font-weight: 900; color: #000; margin: 0; line-height: 1.1; }
+.welcomeMessage { font-size: 1.1rem; color: #333; font-weight: 500; margin: 0; }
+.heroButtonContainer { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.heroRight { flex: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; text-align: right; min-width: 280px; }
+.earningsSummarySection { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; width: 100%; }
+.sectionTitleSmall { font-size: 1.2rem; font-weight: 600; color: #222; margin: 0; }
 .earningsNumber {
-  font-size: 3.5rem;
-  font-weight: 900;
-  color: var(--cxmpute-green); /* Provider theme color */
+  font-size: 3.5rem; font-weight: 900; color: var(--cxmpute-green);
+  line-height: 1; margin: 0;
+  /* text-shadow: 2px 2px 0 #000; */ /* Shadow REMOVED */
+}
+.earningsNumberLoading { /* For the large earnings number when loading */
+  font-size: 3.5rem; /* Match size to avoid layout shift */
   line-height: 1;
   margin: 0;
-  text-shadow: 2px 2px 0 #000;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* If it's right-aligned */
+  color: #aaa; /* Muted color for loading spinner */
 }
-.cxptSymbol {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-left: 5px;
-    vertical-align: baseline;
+.spinningIconLarge { /* For the earnings number loading */
+    width: 36px !important; /* Adjust size as needed */
+    height: 36px !important;
+    animation: spin 1s linear infinite;
+    color: var(--cxmpute-green); /* Match text color */
 }
+.cxptSymbol { font-size: 1.5rem; font-weight: 600; margin-left: 5px; vertical-align: baseline; }
 
 
 /* Bottom Section Layout */
-.bottomSection {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr; /* Provisions list larger, earnings detail smaller */
-  gap: 25px;
-  width: 100%;
-}
-.fullHeightCard { /* To make cards in bottom section take available height */
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 300px; /* Minimum height for these cards */
-}
+.bottomSection { display: grid; grid-template-columns: 1.5fr 1fr; gap: 25px; width: 100%; }
+.fullHeightCard { display: flex; flex-direction: column; height: 100%; min-height: 320px; /* Increased min-height */ }
 
 /* Provisions List Card */
 .provisionsListContainer .cardTitle svg { color: var(--cxmpute-slate); }
 .provisionListScrollable {
-  flex-grow: 1; /* Allow list to take space within card */
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 5px; /* Padding inside scrollable area */
-  margin: -5px; /* Offset padding of parent for edge-to-edge scroll items */
-  scrollbar-width: thin;
-  scrollbar-color: #ccc #f0f0f0;
+  flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  padding: 5px; margin: -5px;
+  scrollbar-width: thin; scrollbar-color: #ccc #f0f0f0;
 }
 .provisionListScrollable::-webkit-scrollbar { width: 6px; }
 .provisionListScrollable::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px;}
 .provisionListScrollable::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 3px; }
 
 .provisionItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background-color: #f9f9f9; /* Lighter item background */
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  gap: 10px;
-  box-shadow: 2px 2px 0px #eee;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 15px; background-color: #f9f9f9; border: 1px solid #e0e0e0;
+  border-radius: 6px; gap: 10px; box-shadow: 2px 2px 0px #eee;
 }
-.provisionItem:hover {
-    border-color: #ccc;
-    background-color: #f0f8ff; /* Alice blue on hover */
-}
-.provisionInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 0.85rem;
-  color: #444;
-  overflow: hidden;
-}
-.provisionIcon {
-    margin-right: 5px;
-    color: #555;
-}
+.provisionItem:hover { border-color: #ccc; background-color: #f0f8ff; }
+.provisionInfo { display: flex; flex-direction: column; gap: 3px; font-size: 0.85rem; color: #444; overflow: hidden; }
+.provisionIcon { margin-right: 8px; color: #555; flex-shrink: 0;}
 .provisionId {
-  font-weight: 600;
-  color: #000;
-  font-family: "Montserrat", sans-serif;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
+  font-weight: 600; color: #000; font-family: "Montserrat", sans-serif;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center;
 }
-.provisionMeta {
-  font-size: 0.75rem;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.provisionItemSkeletonContainer { display: flex; flex-direction: column; gap: 10px; }
-.provisionItemSkeleton {
-  display: flex; justify-content: space-between; align-items: center; padding: 10px;
-  background-color: #f5f5f5; border-radius: 6px; height: 60px;
-}
-.provisionItemSkeleton > div:first-child { flex-grow: 1; margin-right: 10px; }
+.provisionMeta { font-size: 0.75rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 
 /* Earnings Detail Card */
 .earningsDetailContainer .cardTitle svg { color: var(--cxmpute-green); }
-.earningsListScrollable {
-  flex-grow: 1; overflow-y: auto; padding: 5px; margin: -5px;
-  scrollbar-width: thin; scrollbar-color: #ccc #f0f0f0;
-}
-.earningsListScrollable::-webkit-scrollbar { width: 6px; }
-.earningsListScrollable::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px;}
-.earningsListScrollable::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 3px; }
+.earningsListScrollable { /* Reusing class name from above */ }
 
 .earningsListHeader {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #555;
-    padding: 5px 8px;
-    border-bottom: 1px solid #ddd;
-    margin-bottom: 5px;
-    text-transform: uppercase;
+  display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 600;
+  color: #555; padding: 8px 8px; border-bottom: 1px solid #ddd; margin-bottom: 5px; text-transform: uppercase;
 }
 .earningRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 8px;
-  font-size: 0.85rem;
-  color: #333;
-  border-bottom: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; padding: 7px 8px; font-size: 0.85rem;
+  color: #333; border-bottom: 1px solid #f0f0f0;
 }
 .earningRow:last-child { border-bottom: none; }
 .earningRow span:first-child { color: #555; }
-.earningAmount {
-  font-weight: 600;
-  color: var(--cxmpute-green);
-  font-family: "Montserrat", sans-serif;
-}
-.graphPlaceholder {
-    flex-grow: 1; display: flex; align-items: center; justify-content: center;
-    color: #aaa; font-style: italic; font-size: 0.9rem;
-    background-color: #f5f5f5; border-radius: 4px; min-height: 150px;
-}
+.earningAmount { font-weight: 600; color: var(--cxmpute-green); font-family: "Montserrat", sans-serif; }
 
 
-/* Shared utility styles (copied from UserDashboardContent for consistency) */
-.keyActionItem {
-  display: flex;
-  flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid #eee;
-}
+/* Shared utility styles */
+.keyActionItem { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid #eee; }
 .keyActionItem:last-of-type { border-bottom: none; padding-bottom: 0; }
 .keyActionItem p { font-size: 0.875rem; color: #555; line-height: 1.5; margin: 0; }
 .keyActionItem > button { align-self: flex-start; }
@@ -233,25 +104,55 @@
 }
 .referralCodeBox button svg { color: #555; }
 
-
 .messageContainer {
   text-align: center; color: #777; font-size: 0.95rem; padding: 30px 15px; font-style: italic;
   flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;
 }
 .messageContainer svg { margin-bottom: 10px; width: 32px; height: 32px; }
 .errorIcon { color: var(--cxmpute-red); }
-.emptyIcon { color: #aaa; } /* More subtle empty icon */
+.emptyIcon { color: #aaa; }
 .errorTextSmall { font-size: 0.85rem; color: var(--cxmpute-red); }
-.noDataTextSmall { font-size: 0.85rem; color: #777; }
+.noDataTextSmall { font-size: 0.85rem; color: #777; text-align: center; padding: 10px;}
+
+.loadingPlaceholderContainer { /* For sections that load content */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 150px; /* Give it some space */
+    color: #aaa;
+    font-size: 0.9rem;
+}
+.loadingPlaceholderText { /* Generic loading text */
+    font-size: 0.9rem;
+    color: #999;
+}
+.spinningIcon {
+    animation: spin 1.2s linear infinite;
+    color: #aaa; /* Muted color for loading spinner */
+}
+.spinningIconLarge {
+    width: 36px !important;
+    height: 36px !important;
+    animation: spin 1.2s linear infinite;
+    color: var(--cxmpute-green);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 .modalTitleCustom { display: flex; align-items: center; gap: 10px; font-size: 1.6rem; }
 .titleIconDelete { color: var(--cxmpute-red); }
 
 .deleteConfirmContent { padding: 10px 0; }
 .confirmDeleteText { font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 10px; text-align: center; }
-.confirmDeleteText code {
-    font-family: "Montserrat", sans-serif; background-color: #e9ecef; padding: 2px 5px;
-    border-radius: 4px; font-size: 0.9em; color: #c92a2a;
+.codeStyled {
+  font-family: "Montserrat", sans-serif; background-color: #e9ecef; padding: 2px 5px;
+  border-radius: 4px; font-size: 0.9em; color: var(--cxmpute-red);
+  border: 1px solid #ddd;
 }
 .confirmDeleteWarning {
   font-size: 0.85rem; color: var(--cxmpute-red); font-weight: 600; text-align: center; margin-top: 5px;
@@ -266,7 +167,7 @@
   .heroRight { margin-top: 20px; }
   .heroButtonContainer { justify-content: center; }
   .earningsSummarySection { align-items: center; }
-  .bottomSection { grid-template-columns: 1fr; } /* Stack provisions and earnings details */
+  .bottomSection { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .dashboardTitle { font-size: 2rem; }
@@ -277,6 +178,5 @@
   .provisionItem > button { align-self: flex-start; margin-top: 5px; }
 }
 
-/* Ensure skeleton loader adapts to light theme if not globally configured */
-.skeletonLoader > div { background-color: #e0e0e0 !important; }
-.skeletonLoader > div::before { background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important; }
+/* REMOVED SkeletonLoader specific overrides as it's no longer used here */
+/* .inlineSkeleton .skeletonLoader > div { ... } */
