@@ -4,16 +4,16 @@
 import React, { useState } from 'react';
 import styles from './VirtualApiKeyRow.module.css';
 import type { ApiKeyInfo } from '@/lib/interfaces';
-import Button from '@/components/ui/Button/Button';
-import Tooltip from '@/components/ui/Tooltip/Tooltip';
+import DashboardButton from '../DashboardButton/DashboardButton'; // Updated import
+import Tooltip from '@/components/ui/Tooltip/Tooltip'; // Assuming dark tooltip is acceptable, or create themed one
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
-import { Copy, Edit3, Trash2, Eye, EyeOff, ListChecks, DollarSign, CheckCircle } from 'lucide-react';
+import { Copy, Edit3, Trash2, Eye, EyeOff, ListChecks, DollarSign, KeyRound, CheckCircle } from 'lucide-react';
 
 interface VirtualApiKeyRowProps {
-  apiKeyData: ApiKeyInfo & { name?: string }; // Assuming name is now part of ApiKeyInfo
-  onDelete: (keyString: string) => void;
-  onEdit: (keyData: ApiKeyInfo & { name?: string }) => void;
-  isDeleting?: boolean; // To show loading state on delete button if parent handles it
+  apiKeyData: ApiKeyInfo & { name?: string };
+  onDelete: (keyString: string) => void; // Parent handles confirmation & API call
+  onEdit: (keyData: ApiKeyInfo & { name?: string }) => void; // Parent opens edit modal
+  isDeleting?: boolean;
 }
 
 const maskApiKeyString = (key: string, show: boolean): string => {
@@ -45,9 +45,6 @@ const VirtualApiKeyRow: React.FC<VirtualApiKeyRowProps> = ({
   };
 
   const handleDelete = () => {
-    // Confirmation can be handled in the parent modal (VirtualApiKeysManagerModal)
-    // or by adding another confirmation step here if preferred.
-    // For now, directly call onDelete passed from parent.
     onDelete(apiKeyData.key);
   };
 
@@ -55,35 +52,34 @@ const VirtualApiKeyRow: React.FC<VirtualApiKeyRowProps> = ({
     onEdit(apiKeyData);
   };
   
-  const permittedRoutesSummary = apiKeyData.permittedRoutes.length > 2
-    ? `${apiKeyData.permittedRoutes.slice(0, 2).map(r => r.split('/').pop()).join(', ')} +${apiKeyData.permittedRoutes.length - 2} more`
-    : apiKeyData.permittedRoutes.map(r => r.split('/').pop()).join(', ') || 'None';
+  const permittedRoutesSummary = apiKeyData.permittedRoutes.length > 1
+    ? `${apiKeyData.permittedRoutes[0].split('/').pop()} +${apiKeyData.permittedRoutes.length - 1}`
+    : apiKeyData.permittedRoutes[0]?.split('/').pop() || 'None';
 
   return (
-    <div className={styles.keyRowContainer}>
+    <div className={`${styles.keyRowContainer} ${isDeleting ? styles.deletingState : ''}`}>
+      <div className={styles.keyIconArea}>
+        <KeyRound size={28} className={styles.mainKeyIcon}/>
+      </div>
       <div className={styles.keyDetails}>
         <div className={styles.keyNameAndString}>
-            <span className={styles.keyName} title={apiKeyData.name || 'Unnamed Key'}>
-                {apiKeyData.name || `Key: ${maskApiKeyString(apiKeyData.key, false).substring(0,12)}...`}
+            <span className={styles.keyName} title={apiKeyData.name || `Key: ${apiKeyData.key}`}>
+                {apiKeyData.name || `Virtual Key`}
             </span>
-            {!apiKeyData.name && (
-                <span className={styles.fullKeyStringSmall} title={apiKeyData.key}>
-                    ({maskApiKeyString(apiKeyData.key, showFullKey)})
-                </span>
-            )}
-            {apiKeyData.name && (
-                 <span className={styles.fullKeyStringSmall} title={apiKeyData.key}>
-                    ({maskApiKeyString(apiKeyData.key, showFullKey)})
-                </span>
-            )}
+            <span className={styles.fullKeyStringSmall} title={apiKeyData.key}>
+                (Key: {maskApiKeyString(apiKeyData.key, showFullKey)})
+            </span>
         </div>
 
         <div className={styles.keyMetaGrid}>
             <div className={styles.metaItem}>
                 <DollarSign size={14} className={styles.metaIcon} />
-                <Tooltip content={`Credits Left: ${apiKeyData.creditsLeft.toLocaleString()} / Limit: ${apiKeyData.creditLimit.toLocaleString()}`} position="top">
+                <Tooltip 
+                    content={`Credits Used: ${(apiKeyData.creditLimit - apiKeyData.creditsLeft).toLocaleString()} / Limit: ${apiKeyData.creditLimit.toLocaleString()}`} 
+                    position="top"
+                >
                     <span className={styles.metaText}>
-                        {apiKeyData.creditsLeft.toLocaleString()} / {apiKeyData.creditLimit.toLocaleString()} Credits
+                        {apiKeyData.creditsLeft.toLocaleString()} / {apiKeyData.creditLimit.toLocaleString()} credits
                     </span>
                 </Tooltip>
             </div>
@@ -92,10 +88,13 @@ const VirtualApiKeyRow: React.FC<VirtualApiKeyRowProps> = ({
                 <ListChecks size={14} className={styles.metaIcon} />
                  <Tooltip 
                     content={
-                        <ul className={styles.tooltipRouteList}>
-                            {apiKeyData.permittedRoutes.map(r => <li key={r}>{r}</li>)}
-                            {apiKeyData.permittedRoutes.length === 0 && <li>No routes permitted.</li>}
-                        </ul>
+                        <div className={styles.tooltipRouteListWrapper}>
+                            <strong>Permitted Routes:</strong>
+                            <ul className={styles.tooltipRouteList}>
+                                {apiKeyData.permittedRoutes.map(r => <li key={r}>{r}</li>)}
+                                {apiKeyData.permittedRoutes.length === 0 && <li>No routes permitted.</li>}
+                            </ul>
+                        </div>
                     }
                     position="top"
                  >
@@ -109,24 +108,30 @@ const VirtualApiKeyRow: React.FC<VirtualApiKeyRowProps> = ({
 
       <div className={styles.keyActions}>
         <Tooltip content={showFullKey ? "Hide Full Key" : "Show Full Key"} position="top">
-            <Button variant="ghost" size="sm" onClick={() => setShowFullKey(!showFullKey)} className={styles.iconButton}>
-            {showFullKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </Button>
+            <DashboardButton variant="ghost" size="sm" onClick={() => setShowFullKey(!showFullKey)} className={styles.actionButton}>
+                {showFullKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </DashboardButton>
         </Tooltip>
         <Tooltip content="Copy API Key" position="top">
-            <Button variant="ghost" size="sm" onClick={handleCopyKey} className={styles.iconButton} disabled={copied}>
-            {copied ? <CheckCircle size={16} color="var(--cxmpute-green)" /> : <Copy size={16} />}
-            </Button>
+            <DashboardButton variant="ghost" size="sm" onClick={handleCopyKey} className={styles.actionButton} disabled={copied}>
+                {copied ? <CheckCircle size={16} className={styles.copiedIcon}/> : <Copy size={16} />}
+            </DashboardButton>
         </Tooltip>
-        <Tooltip content="Edit Key Name/Limits/Routes" position="top">
-            <Button variant="ghost" size="sm" onClick={handleEdit} className={styles.iconButton}>
-            <Edit3 size={16} />
-            </Button>
+        <Tooltip content="Edit Name / Limits / Routes" position="top">
+            <DashboardButton variant="ghost" size="sm" onClick={handleEdit} className={styles.actionButton}>
+                <Edit3 size={16} />
+            </DashboardButton>
         </Tooltip>
         <Tooltip content="Delete API Key" position="top">
-            <Button variant="danger" size="sm" onClick={handleDelete} className={styles.iconButton} isLoading={isDeleting}>
-            <Trash2 size={16} />
-            </Button>
+            <DashboardButton 
+                variant="danger" // Makes the icon red by default due to DashboardButton variant styles
+                size="sm" 
+                onClick={handleDelete} 
+                className={`${styles.actionButton} ${styles.deleteButtonSpecial}`} // Special class for potential icon color override
+                isLoading={isDeleting}
+            >
+                <Trash2 size={16} />
+            </DashboardButton>
         </Tooltip>
       </div>
     </div>
