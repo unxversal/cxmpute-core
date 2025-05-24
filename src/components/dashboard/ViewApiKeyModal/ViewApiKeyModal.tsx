@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import styles from './ViewApiKeyModal.module.css';
+import styles from './ViewApiKey.module.css';
 import Modal from '@/components/ui/Modal/Modal';
 import Button from '@/components/ui/Button/Button';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';

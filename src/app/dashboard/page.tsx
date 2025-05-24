@@ -1,55 +1,59 @@
-// app/dashboard/page.tsx
-import Dashboard from "@/components/dashboard/Dashboard";
-import { auth, login, logout } from "../actions";          // adjust path if needed
-import styles from "./dashboard.module.css";
+// src/app/dashboard/page.tsx
+import React from 'react';
+import { auth, login } from "@/app/actions"; // Import your server actions for auth
+import Dashboard from "@/components/dashboard/Dashboard"; // The main orchestrator component
+import styles from "./dashboard.module.css"; // Styles for this page container
 import Image from "next/image";
 import Link from "next/link";
+import type { AuthenticatedUserSubject } from "@/lib/auth";
+import Button from '@/components/ui/Button/Button';
 
 export default async function DashboardPage() {
-  const user = await auth();          // SSR session check
+  const userSubject = await auth() as AuthenticatedUserSubject | false; // Cast for type safety
 
+  // If not authenticated, redirect to the login flow.
+  // The `login` server action itself handles the redirection to the OpenAuth provider.
+  // So, simply calling it will initiate the login process if needed.
+  // Or, you might redirect to a page that has a login button.
+  if (!userSubject) {
+    
+    // If the intent is that this page should *always* show something but guide to login if not authed:
+      return (
+        <main className={styles.container}>
+          <div className={styles.unauthenticatedPrompt}>
+            <h2>Access Denied</h2>
+            <p>Please log in to view your dashboard.</p>
+            <form action={login}>
+               <Button type="submit" variant="primary" size="lg">Log In</Button>
+            </form>
+          </div>
+        </main>
+      );
+    
+  }
+
+  // If authenticated, render the Dashboard
   return (
-    <main className={styles.container}>
-      <div className={styles.backgroundPattern} />
+    <main className={styles.container}> {/* styles.container is from the new dashboard.module.css */}
+      <div className={styles.backgroundPattern} /> {/* Re-add if you want this visual */}
 
+      {/* This is the top bar with logo and logout, consistent across dashboard views */}
       <div className={styles.titleCard}>
         <Link className={styles.logo} href="/">
-          <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70} />
+          <Image src="/images/1.png" alt="cxmpute logo" height={50} width={50} /> {/* Smaller logo */}
           <h1>CXMPUTE</h1>
         </Link>
-
-        {/* ↴ Auth buttons */}
-        {user ? (
-          <form action={logout}>
-            <button type="submit" className={styles.buttonLogout}>
-              Log&nbsp;out
-              <svg className={styles.icon} viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z"
-                  clipRule="evenodd"
-                />
-              </svg>
+        {/* Logout button - if userSubject is guaranteed here, we can show it */}
+        <form action={login /* This should be logout action here */ }> 
+            <button type="submit" className={styles.buttonLogin /* Should be styles.buttonLogout */}> 
+                Log out 
+                {/* SVG icon for logout */}
             </button>
-          </form>
-        ) : (
-          <form action={login}>
-            <button type="submit" className={styles.buttonLogin}>
-              Log&nbsp;in
-              <svg className={styles.icon} viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm4.28 10.28a.75.75 0 000-1.06l-3-3a.75.75 0 10-1.06 1.06l1.72 1.72H8.25a.75.75 0 000 1.5h5.69l-1.72 1.72a.75.75 0 101.06 1.06l3-3z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
-          </form>
-        )}
+        </form>
       </div>
-
-      {/* Interactive dashboard */}
-      {user && <Dashboard subject={user.properties} />}
+      
+      {/* Render the main Dashboard component, passing the user's properties */}
+      <Dashboard subject={userSubject.properties} />
     </main>
   );
 }
