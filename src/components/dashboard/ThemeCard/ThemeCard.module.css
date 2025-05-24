@@ -1,0 +1,61 @@
+/* src/components/dashboard/ThemeCard/ThemeCard.module.css */
+.themeCardBase {
+  background: #ffffff; /* Default white background */
+  border: 6px solid #000000; /* Chunky black border */
+  box-shadow: 12px 12px 0 #000000; /* Chunky black shadow */
+  border-radius: 10px; /* Consistent rounded corners */
+  padding: 20px; /* Default padding */
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out; /* Smooth transition */
+  display: flex;
+  flex-direction: column; /* Stack header and content */
+  font-family: var(--font-roboto); /* Ensure consistent font */
+  color: #000000; /* Default text color */
+  width: 100%; /* Take full width of its container by default */
+  box-sizing: border-box;
+}
+
+.themeCardBase:not(.noHover):hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000000; /* Enhanced shadow on hover */
+}
+
+.noHover:hover {
+    transform: none;
+    box-shadow: 12px 12px 0 #000000; /* Keep original shadow if no hover effect */
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px; /* Space between header and content */
+  min-height: 28px; /* Ensure header has some height even if empty */
+}
+
+.cardTitle {
+  font-size: 1.5rem; /* Prominent title */
+  font-weight: 700; /* Bold title */
+  color: #000000;
+  margin: 0; /* Remove default margin */
+  flex-grow: 1; /* Allow title to take available space */
+}
+
+.headerActionsContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between multiple action items in header */
+  flex-shrink: 0; /* Prevent actions from shrinking */
+}
+/* Buttons within headerActionsContainer should be DashboardButton and will get their own styling */
+
+.cardContent {
+  flex-grow: 1; /* Allow content to fill remaining space */
+  /* Add any specific styling for the content area if needed */
+  font-size: 0.95rem; /* Default content font size */
+  line-height: 1.6;
+}
+
+/* Example of how to use cardStyle prop for dynamic background colors,
+   similar to the original dashboard service cards:
+   <ThemeCard cardStyle={{ backgroundColor: 'var(--cxmpute-green)' }}>...</ThemeCard>
+*/

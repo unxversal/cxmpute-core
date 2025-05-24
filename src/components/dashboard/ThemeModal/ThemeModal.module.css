@@ -1,0 +1,109 @@
+/* src/components/dashboard/ThemeModal/ThemeModal.module.css */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3); /* Light, slightly opaque overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px; /* Padding for small screens, content will be centered */
+  font-family: var(--font-roboto); /* Ensure consistent font */
+}
+
+.modalContent {
+  background-color: #ffffff; /* White background for the modal */
+  color: #000000; /* Black text */
+  padding: 30px; /* Generous padding */
+  border-radius: 10px; /* Consistent with cards */
+  border: 6px solid #000000; /* Chunky black border */
+  box-shadow: 10px 10px 0 #000000; /* Chunky black shadow */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden; /* Let modalBody handle scrolling */
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out; /* For potential open/close animation */
+  outline: none; /* Remove default outline, we'll handle focus visibility */
+}
+.modalContent:focus-visible {
+  /* Optional: if you want an additional focus style on the modal itself */
+  /* box-shadow: 10px 10px 0 #000000, 0 0 0 3px var(--cxmpute-purple); */
+}
+
+
+/* Size variants */
+.sm { max-width: 450px; width: 95%; }
+.md { max-width: 650px; width: 95%; } /* Default size */
+.lg { max-width: 850px; width: 95%; }
+.xl { max-width: 1050px; width: 95%; }
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0; /* Lighter, less intrusive border */
+  margin-bottom: 20px; /* Space between header and body */
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.8rem; /* Larger title for prominence */
+  font-weight: 700;
+  color: #000000;
+}
+
+.closeButton {
+  /* Uses DashboardButton with variant="ghost" */
+  /* Adjustments if needed for specific positioning or look */
+  padding: 0.3em !important; /* Make it more compact for an icon-only button */
+  color: #555 !important; /* Darker gray for ghost in light theme */
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.closeButton:hover {
+  background-color: #f0f0f0 !important;
+  color: #000 !important;
+}
+.closeButton svg {
+    width: 20px;
+    height: 20px;
+}
+
+.modalBody {
+  flex-grow: 1;
+  overflow-y: auto; /* Scroll for content overflow */
+  /* Custom scrollbar for light theme */
+  scrollbar-width: thin;
+  scrollbar-color: #ccc #f0f0f0; /* thumb track */
+}
+.modalBody::-webkit-scrollbar {
+  width: 8px;
+}
+.modalBody::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+.modalBody::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+  border: 2px solid #f0f0f0; /* Creates padding around thumb */
+}
+.modalBody::-webkit-scrollbar-thumb:hover {
+  background-color: #bbb;
+}
+
+
+.modalFooter {
+  padding-top: 20px;
+  margin-top: 20px; /* Space between body and footer */
+  border-top: 2px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+/* Buttons in the footer will use DashboardButton component */
