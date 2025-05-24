@@ -43,7 +43,7 @@ const WebSocketContext = createContext<WebSocketContextType | undefined>(
   undefined
 );
 
-const WS_API_URL = "prod.dex.cxmpute.cloud";
+const WS_API_URL = "dex.cxmpute.cloud";
 
 const initialMarketSpecificDataState: WsMarketDataState = {
   depth: null,

@@ -3,11 +3,10 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './ViewApiKeyModal.module.css';
-import ThemeModal from '../ThemeModal/ThemeModal'; // Updated import
-import DashboardButton from '../DashboardButton/DashboardButton'; // Updated import
-import { notify } from '@/components/ui/NotificationToaster/NotificationToaster'; // Assuming this is still desired
-import { Copy, RefreshCcw, Eye, EyeOff, KeyRound } from 'lucide-react';
-import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state
+import ThemeModal from '../ThemeModal/ThemeModal';
+import DashboardButton from '../DashboardButton/DashboardButton';
+import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
+import { Copy, RefreshCcw, Eye, EyeOff, KeyRound, Loader } from 'lucide-react'; // Added Loader2
 
 export type ApiKeyType = "User AK" | "Provider AK" | "Trader AK";
 
@@ -18,7 +17,7 @@ interface ViewApiKeyModalProps {
   currentApiKey: string | null;
   onRefresh: () => Promise<void>;
   isLoadingRefresh: boolean;
-  isLoadingKey?: boolean;
+  isLoadingKey?: boolean; // To indicate if the key itself is being fetched initially
 }
 
 const maskApiKey = (key: string | null, showKey: boolean): string => {
@@ -64,7 +63,7 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
 
   const handleRefreshClick = async () => {
     await onRefresh();
-    setShowKey(false); // Optionally hide key again after refresh for security
+    setShowKey(false);
   };
 
   const modalTitle = (
@@ -76,21 +75,20 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
   const footerContent = (
     <>
       <DashboardButton
-        variant="secondary" // e.g., Slate background
+        variant="secondary"
         onClick={onClose}
         disabled={isLoadingRefresh}
         size="md"
-      >
-        Close
-      </DashboardButton>
+        text="Close"
+      />
       <DashboardButton
-        variant="danger" // Cxmpute Red for refresh
+        variant="danger"
         onClick={handleRefreshClick}
         isLoading={isLoadingRefresh}
         disabled={isLoadingRefresh || isLoadingKey || !currentApiKey}
-        iconLeft={<RefreshCcw size={16}/>}
+        iconLeft={isLoadingRefresh ? <Loader size={16} className={styles.spinningIconSmall}/> : <RefreshCcw size={16}/>}
         size="md"
-        text="Refresh Key" // Using text prop
+        text={isLoadingRefresh ? "Refreshing..." : "Refresh Key"}
       />
     </>
   );
@@ -99,15 +97,14 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
     <ThemeModal 
       isOpen={isOpen} 
       onClose={onClose} 
-      title={modalTitle as unknown as string} // Cast if ThemeModal expects string only
+      title={modalTitle as unknown as string}
       size="md" 
       footerContent={footerContent}
     >
       <div className={styles.modalContentWrapper}>
         {isLoadingKey && !currentApiKey ? (
           <div className={styles.loadingContainer}>
-            {/* Use a light-themed skeleton or spinner if preferred */}
-            <SkeletonLoader type="text" count={2} height="20px" />
+            <Loader size={28} className={styles.spinningIcon} />
             <p>Loading API Key...</p>
           </div>
         ) : !currentApiKey && !isLoadingKey ? (
@@ -121,7 +118,7 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
               If you suspect it has been compromised, refresh it immediately.
             </p>
             <div className={styles.apiKeyDisplayContainer}>
-              <pre className={styles.apiKeyTextValue}> {/* Renamed class for clarity */}
+              <pre className={styles.apiKeyTextValue}>
                 {maskApiKey(currentApiKey, showKey)}
               </pre>
               <div className={styles.keyActions}>

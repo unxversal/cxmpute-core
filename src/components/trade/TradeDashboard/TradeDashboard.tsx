@@ -39,9 +39,10 @@ const TradeDashboard: React.FC = (/* props: TradeDashboardProps */) => {
     // Wrap with providers that are specific to the trading dashboard's lifecycle
     // AuthProvider and TradingModeProvider are assumed to be further up the tree.
     <MarketProvider> {/* Manages underlyings, active instruments */}
+                <WebSocketProvider> {/* Manages WebSocket connection and live data streams */}
+
       <AccountProvider> {/* Manages user-specific balances, orders, positions, history */}
         <WalletProvider> {/* Manages external wallet connection (MetaMask, etc.) */}
-            <WebSocketProvider> {/* Manages WebSocket connection and live data streams */}
             <OrderEntryProvider> {/* Manages state for the order entry form and its interactions */}
                 <div className={styles.dashboardWrapper}>
                 <NotificationToaster /> {/* For global app notifications */}
@@ -68,9 +69,10 @@ const TradeDashboard: React.FC = (/* props: TradeDashboardProps */) => {
                 />
                 </div>
             </OrderEntryProvider>
-            </WebSocketProvider>
         </WalletProvider>
       </AccountProvider>
+                  </WebSocketProvider>
+
     </MarketProvider>
   );
 };

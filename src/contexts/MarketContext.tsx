@@ -80,7 +80,7 @@ export const MarketProvider = ({ children }: { children: ReactNode }) => {
         const params = new URLSearchParams({ mode, limit: "100" });
         if (nextToken) params.append("nextToken", nextToken);
         
-        const response = await fetch(`/api/public/underlyings?${params.toString()}`);
+        const response = await fetch(`/api/underlyings?${params.toString()}`);
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || `Failed to fetch underlying markets for ${mode} mode`);
@@ -157,7 +157,7 @@ export const MarketProvider = ({ children }: { children: ReactNode }) => {
         });
         // Note: Pagination for instruments list itself is not handled here, assuming API returns all for type
 
-        const response = await fetch(`/api/public/instruments?${params.toString()}`);
+        const response = await fetch(`/api/instruments?${params.toString()}`);
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || `Failed to fetch ${instrumentType} instruments for ${underlying.symbol}`);

@@ -11,7 +11,7 @@ import ViewApiKeyModal from '../ViewApiKeyModal/ViewApiKeyModal';
 import VirtualApiKeysManagerModal from '../VirtualApiKeysManagerModal/VirtualApiKeysManagerModal';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
-import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText } from 'lucide-react'; // Added more icons
+import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText, Speech, MessageCircleCode, ScanText, PocketKnife, BrainCircuit } from 'lucide-react'; // Added more icons
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
 
 // Define the structure of the subject properties this component expects
@@ -101,12 +101,12 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
   // Define service cards based on SystemProvisionReference or a custom list
   const serviceCardsData = [
-    { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Gift size={24}/>, color: cxmputePurple, docLink: "/docs/text-to-speech" }, // Gift as placeholder
-    { title: "Text-to-Text", description: "Utilize SOTA open-source text generation models for cheaper, faster results. Over 100+ languages supported.", icon: <Zap size={24}/>, color: cxmputeOrange, docLink: "/docs/text-to-text" },
-    { title: "Embeddings", description: "Generate text embeddings for semantic search, RAG, and classification.", icon: <Activity size={24}/>, color: cxmputeGreen, docLink: "/docs/embeddings" },
-    { title: "Web Scraping", description: "Leverage our distributed network to scrape web data efficiently and bypass blocks.", icon: <Settings size={24}/>, color: 'var(--cxmpute-red)', docLink: "/docs/scraping" }, // Settings as placeholder
-    { title: "Tool Use & JSON", description: "Utilize the latest and most capable models with tool use, function calling abilities, and JSON schema support.", icon: <HelpCircle size={24}/>, color: cxmputeYellow, docLink: "/docs/tool-use-json" }, // HelpCircle as placeholder
-    { title: "Advanced LLMs", description: "Explore models capable of reasoning, multimodal support, and finetunes for coding and math use cases.", icon: <FileText size={24}/>, color: cxmputePink, docLink: "/docs/advanced-llms" }, // FileText as placeholder
+    { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Speech size={24}/>, color: cxmputePurple, docLink: "/docs/text-to-speech" }, // Gift as placeholder
+    { title: "Text-to-Text", description: "Utilize SOTA open-source text generation models for cheaper, faster results. Over 100+ languages supported.", icon: <MessageCircleCode size={24}/>, color: cxmputeOrange, docLink: "/docs/text-to-text" },
+    { title: "Embeddings", description: "Generate text embeddings for semantic search, RAG, and classification.", icon: <Zap size={24}/>, color: cxmputeGreen, docLink: "/docs/embeddings" },
+    { title: "Web Scraping", description: "Leverage our distributed network to scrape web data efficiently and bypass blocks.", icon: <ScanText size={24}/>, color: 'var(--cxmpute-red)', docLink: "/docs/scraping" }, // Settings as placeholder
+    { title: "Tool Use & JSON", description: "Utilize the latest and most capable models with tool use, function calling abilities, and JSON schema support.", icon: <PocketKnife size={24}/>, color: cxmputeYellow, docLink: "/docs/tool-use-json" }, // HelpCircle as placeholder
+    { title: "Advanced LLMs", description: "Explore models capable of reasoning, multimodal support, and finetunes for coding and math use cases.", icon: <BrainCircuit size={24}/>, color: cxmputePink, docLink: "/docs/advanced-llms" }, // FileText as placeholder
   ];
 
 
@@ -174,11 +174,12 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
             <ThemeCard title="Rewards" className={styles.rewardsInfoCard}>
                  <BarChart3 size={20} />
-                 <p>Total CXPT Earned:</p>
+                 <p>Total Points Earned:</p>
                  {isLoadingSummary ? <SkeletonLoader width={100} height={30} /> : 
-                    <h2 className={styles.rewardsAmount}>{userSummary?.rewards.toLocaleString() || '0'} CXPT</h2>
+                    <h2 className={styles.rewardsAmount}>{userSummary?.rewards.toLocaleString() || '0'}</h2>
                  }
-                 <p className={styles.rewardsHint}>Rewards are typically distributed for platform activities and referrals. More details coming soon!</p>
+                 <p className={styles.rewardsHint}>Rewards are typically distributed for platform activities and referrals.</p>
+                  <DashboardButton text="Learn more about rewards" href="/docs/rewards" target="_blank" rel="noopener noreferrer" size="sm" style={{ marginTop: '10px' }} variant='primary'/>
             </ThemeCard>
         </div>
       </div>

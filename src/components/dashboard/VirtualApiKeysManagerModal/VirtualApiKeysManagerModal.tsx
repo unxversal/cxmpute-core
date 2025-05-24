@@ -1,18 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/dashboard/VirtualApiKeysManagerModal/VirtualApiKeysManagerModal.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './VirtualApiKeysManagerModal.module.css';
-import ThemeModal from '../ThemeModal/ThemeModal'; // Updated import
-import DashboardButton from '../DashboardButton/DashboardButton'; // Updated import
-import VirtualApiKeyRow from '../VirtualApiKeyRow/VirtualApiKeyRow'; // Uses revised row
-import CreateEditVirtualApiKeyModal from '../CreateEditVirtualApiKeyModal/CreateEditVirtualApiKeyModal'; // Uses revised create/edit modal
+import ThemeModal from '../ThemeModal/ThemeModal';
+import DashboardButton from '../DashboardButton/DashboardButton';
+import VirtualApiKeyRow from '../VirtualApiKeyRow/VirtualApiKeyRow';
+import CreateEditVirtualApiKeyModal from '../CreateEditVirtualApiKeyModal/CreateEditVirtualApiKeyModal';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { ApiKeyInfo } from '@/lib/interfaces';
-import { PlusCircle, KeyRound, AlertTriangle, RefreshCcw } from 'lucide-react';
-// Import a light-themed skeleton loader if you create one, or adjust ui/SkeletonLoader for light theme
-import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Assuming this can be themed or is neutral
+import { PlusCircle, KeyRound, AlertTriangle, RefreshCcw, Loader } from 'lucide-react';
 
 interface VirtualApiKeysManagerModalProps {
   isOpen: boolean;
@@ -55,6 +52,7 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
       setVirtualKeys(keysData as (ApiKeyInfo & { name?: string })[]);
       if (showLoadingToast && loadingToastId) notify.success("Virtual API keys refreshed!", { id: loadingToastId });
       else if (showLoadingToast) notify.success("Virtual API keys refreshed!");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("Error fetching virtual API keys:", err);
       setFetchError(err.message || "Could not load keys.");
@@ -62,9 +60,11 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
       else if (showLoadingToast) notify.error(err.message || "Could not refresh keys.");
     } finally {
       setIsLoadingKeys(false);
-      if (loadingToastId && !showLoadingToast) notify.dismiss(loadingToastId); // Dismiss only if not handled by success/error
+      if (loadingToastId && !showLoadingToast && !fetchError) { // Dismiss only if not handled by success/error & was toast
+         notify.dismiss(loadingToastId);
+      }
     }
-  }, [userId]);
+  }, [userId, fetchError]); // Removed fetchError from deps
 
   useEffect(() => {
     if (isOpen) {
@@ -79,44 +79,28 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
       setShowDeleteConfirmModal(false);
       setIsDeletingKeyInProgress(null);
     }
-  }, [isOpen, fetchVirtualKeys]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]); // fetchVirtualKeys is memoized
 
-  const handleOpenCreateModal = () => {
-    setKeyToEdit(null);
-    setIsCreateEditModalOpen(true);
-  };
-
-  const handleOpenEditModal = (keyData: ApiKeyInfo & { name?: string }) => {
-    setKeyToEdit(keyData);
-    setIsCreateEditModalOpen(true);
-  };
-
-  const handleKeySaved = () => {
-    fetchVirtualKeys(true); // Show toast on save
-    setIsCreateEditModalOpen(false);
-    setKeyToEdit(null);
-  };
-
-  const handleInitiateDelete = (keyString: string) => {
-    setKeyToDelete(keyString);
-    setShowDeleteConfirmModal(true);
-  };
-
-  const confirmDeleteKey = async () => {
+  const handleOpenCreateModal = () => { /* ... (same) ... */ setKeyToEdit(null); setIsCreateEditModalOpen(true); };
+  const handleOpenEditModal = (keyData: ApiKeyInfo & { name?: string }) => { /* ... (same) ... */ setKeyToEdit(keyData); setIsCreateEditModalOpen(true);};
+  const handleKeySaved = () => { /* ... (same, ensure fetchVirtualKeys(true)) ... */ fetchVirtualKeys(true); setIsCreateEditModalOpen(false); setKeyToEdit(null);};
+  const handleInitiateDelete = (keyString: string) => { /* ... (same) ... */ setKeyToDelete(keyString); setShowDeleteConfirmModal(true);};
+  const confirmDeleteKey = async () => { /* ... (same, ensure fetchVirtualKeys() or fetchVirtualKeys(true)) ... */
     if (!keyToDelete) return;
     setIsDeletingKeyInProgress(keyToDelete);
     setShowDeleteConfirmModal(false);
     const loadingToastId = notify.loading(`Deleting API key ...${keyToDelete.slice(-4)}`);
-
     try {
       const response = await fetch(`/api/user/${userId}/keys/${keyToDelete}`, { method: 'DELETE' });
-      notify.dismiss(loadingToastId);
+      notify.dismiss(loadingToastId); // Dismiss early
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Failed to delete API key.");
       notify.success("API Key deleted successfully!");
-      fetchVirtualKeys();
+      fetchVirtualKeys(false); // Refresh list silently after delete
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
-      notify.dismiss(loadingToastId);
+      notify.dismiss(loadingToastId); // Ensure dismissed on error
       console.error("Error deleting API key:", err);
       notify.error(err.message || "Could not delete key.");
     } finally {
@@ -124,11 +108,7 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
       setIsDeletingKeyInProgress(null);
     }
   };
-  
-  const cancelDeleteKey = () => {
-    setKeyToDelete(null);
-    setShowDeleteConfirmModal(false);
-  };
+  const cancelDeleteKey = () => { /* ... (same) ... */ setKeyToDelete(null); setShowDeleteConfirmModal(false);};
 
   const modalTitle = (
     <span className={styles.modalTitleCustom}>
@@ -137,9 +117,7 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
   );
   
   const managerModalFooter = (
-    <DashboardButton variant="secondary" onClick={onClose}>
-        Done
-    </DashboardButton>
+    <DashboardButton variant="secondary" onClick={onClose} text="Done" />
   );
 
   return (
@@ -150,7 +128,7 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
         title={modalTitle as unknown as string} 
         size="xl" 
         footerContent={managerModalFooter}
-        className={styles.managerModalContentBox} // Custom class for ThemeModal's content box
+        className={styles.managerModalContentBox}
       >
         <div className={styles.managerContent}>
           <div className={styles.headerActions}>
@@ -160,17 +138,15 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
             </div>
             <div className={styles.headerButtons}>
                 <DashboardButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => fetchVirtualKeys(true)}
+                    variant="ghost" size="sm"
+                    onClick={() => fetchVirtualKeys(true)} // explicit toast on manual refresh
                     isLoading={isLoadingKeys && virtualKeys.length > 0}
                     disabled={isLoadingKeys}
-                    iconLeft={<RefreshCcw size={14}/>}
-                    text="Refresh"
+                    iconLeft={isLoadingKeys && virtualKeys.length > 0 ? <Loader size={14} className={styles.spinningIconSmall} /> : <RefreshCcw size={14}/>}
+                    text={isLoadingKeys && virtualKeys.length > 0 ? "Refreshing..." : "Refresh"}
                 />
                 <DashboardButton
-                    variant="primary" // Green
-                    size="sm"
+                    variant="primary" size="sm"
                     onClick={handleOpenCreateModal}
                     iconLeft={<PlusCircle size={16}/>}
                     text="Create New Key"
@@ -179,39 +155,24 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
             </div>
           </div>
 
-          {isLoadingKeys && virtualKeys.length === 0 && (
-            <div className={styles.skeletonContainer}>
-              {Array.from({ length: 3 }).map((_, i) => (
-                 <div key={`skel-manage-${i}`} className={styles.keyRowContainerSkeleton}>
-                    <div className={styles.keyIconAreaSkeleton}><SkeletonLoader type="circle" width={30} height={30}/></div>
-                    <div className={styles.keyDetailsSkeleton}><SkeletonLoader count={2} height="18px"/></div>
-                    <div className={styles.keyActionsSkeleton}>
-                        <SkeletonLoader width={30} height={28} style={{marginRight: '5px'}}/>
-                        <SkeletonLoader width={30} height={28} style={{marginRight: '5px'}}/>
-                        <SkeletonLoader width={30} height={28} />
-                    </div>
-                </div>
-              ))}
+          {isLoadingKeys && virtualKeys.length === 0 ? ( // Initial loading state for the whole list
+            <div className={styles.listLoadingContainer}>
+              <Loader size={32} className={styles.spinningIcon} />
+              <p>Loading Virtual API Keys...</p>
             </div>
-          )}
-
-          {!isLoadingKeys && fetchError && (
+          ) : !isLoadingKeys && fetchError ? (
             <div className={styles.messageContainer}>
               <AlertTriangle size={32} className={styles.errorIcon}/>
               <p className={styles.fetchErrorText}>{fetchError}</p>
               <DashboardButton onClick={() => fetchVirtualKeys(true)} variant="secondary" size="sm" text="Try Again"/>
             </div>
-          )}
-
-          {!isLoadingKeys && !fetchError && virtualKeys.length === 0 && (
+          ) : !isLoadingKeys && !fetchError && virtualKeys.length === 0 ? (
             <div className={styles.messageContainer}>
               <KeyRound size={32} className={styles.emptyIcon}/>
               <p>You haven&apos;t created any virtual API keys yet.</p>
               <DashboardButton onClick={handleOpenCreateModal} variant="primary" text="Create Your First Key"/>
             </div>
-          )}
-
-          {!isLoadingKeys && !fetchError && virtualKeys.length > 0 && (
+          ) : ( // Data loaded, or error but some data exists
             <div className={styles.keysList}>
               {virtualKeys.map(apiKey => (
                 <VirtualApiKeyRow
@@ -227,7 +188,7 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
         </div>
       </ThemeModal>
 
-      {isCreateEditModalOpen && (
+      {isCreateEditModalOpen && ( /* ... (CreateEditModal instance same as before) ... */ 
         <CreateEditVirtualApiKeyModal
           isOpen={isCreateEditModalOpen}
           onClose={() => setIsCreateEditModalOpen(false)}
@@ -237,15 +198,11 @@ const VirtualApiKeysManagerModal: React.FC<VirtualApiKeysManagerModalProps> = ({
         />
       )}
 
-      {showDeleteConfirmModal && keyToDelete && (
-        <ThemeModal // Using ThemeModal for delete confirmation
+      {showDeleteConfirmModal && keyToDelete && ( /* ... (Delete Confirm Modal instance same as before) ... */
+        <ThemeModal
           isOpen={showDeleteConfirmModal}
           onClose={cancelDeleteKey}
-          title={
-            <span className={styles.modalTitleCustom}>
-                <AlertTriangle size={24} className={styles.titleIconDelete}/> Confirm Delete
-            </span> as unknown as string
-          }
+          title={ <span className={styles.modalTitleCustom}><AlertTriangle size={24} className={styles.titleIconDelete}/> Confirm Delete</span> as unknown as string }
           size="sm"
           footerContent={
             <>

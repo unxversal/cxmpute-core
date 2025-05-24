@@ -567,7 +567,7 @@ export default $config({
 
     /* ───  WebSocket API  ─────────────────────────────────────────────── */
     const wsApi = new sst.aws.ApiGatewayWebSocket("DexWsApi", {
-      domain: $interpolate`${$app.stage}.dex.cxmpute.cloud`,
+      domain: $interpolate`dex.cxmpute.cloud`,
     });
 
     wsApi.route("$connect",    {
