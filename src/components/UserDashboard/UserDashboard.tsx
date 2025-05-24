@@ -26,7 +26,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     <h1>User Dashboard</h1>
                     <h2>Welcome to cxmpute.cloud! Get started below:</h2>
                     <div className={styles.buttonContainer}>
-                        <a href="/docs" target="_blank" rel="noopener noreferrer">
+                        <a href="/docs/user" target="_blank" rel="noopener noreferrer">
                             <Button text="Documentation" backgroundColor="var(--cxmpute-purple)" />
                         </a>
                         <a >

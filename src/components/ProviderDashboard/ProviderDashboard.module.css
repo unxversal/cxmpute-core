@@ -66,7 +66,7 @@
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(2, auto);
     gap: 20px; /* space between items */
-    width: 50%;
+    width: 100%;
 }
 
 .card, .graphContainer{
@@ -87,7 +87,7 @@
 .bottom{
     display: flex;
     width: 100%;
-    gap: 20px;
+    gap: 40px;
     justify-content: space-between;
 }
 
@@ -101,4 +101,12 @@
     flex-direction: column;
     gap: 10px;
     justify-content: space-between;
+}
+
+.provisionsContainer{
+    width: 50%;
+}
+
+.provisionsContainer h1{
+    padding: 20px;
 }

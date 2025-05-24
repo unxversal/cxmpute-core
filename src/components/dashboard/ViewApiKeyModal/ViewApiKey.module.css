@@ -1,0 +1,86 @@
+/* src/components/dashboard/ViewApiKeyModal/ViewApiKeyModal.module.css */
+.modalContentWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Increased gap for better spacing */
+  color: #d1d4dc;
+}
+
+.loadingContainer,
+.errorContainer {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #8a91a0; /* Muted text for loading/error states */
+  border: 1px dashed #3e4556;
+  border-radius: 6px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.errorContainer {
+    color: var(--cxmpute-red, #d64989);
+    border-color: var(--cxmpute-red, #d64989);
+}
+
+
+.infoText {
+  font-size: 0.875rem;
+  color: #a0aec0;
+  line-height: 1.6;
+  margin-bottom: 5px; /* Space below info text */
+}
+
+.apiKeyDisplayContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #171b26; /* Darker background for key area */
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #2a2f3b;
+  gap: 10px;
+}
+
+.apiKeyText {
+  font-family: monospace;
+  font-size: 0.9rem; /* Slightly smaller for keys */
+  color: #e0e0e0;
+  margin: 0;
+  word-break: break-all; /* Allow long keys to wrap if absolutely necessary */
+  flex-grow: 1;
+  /* text-overflow: ellipsis; */ /* Can be problematic with show/hide */
+  /* overflow: hidden; */
+  white-space: pre-wrap; /* Allow wrapping of the key text */
+}
+
+.keyActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0; /* Prevent action buttons from shrinking */
+}
+
+.actionButton {
+  /* Using Button component's variant="ghost" */
+  color: #8a91a0 !important;
+  padding: 6px !important; /* Make icon buttons smaller */
+}
+.actionButton:hover {
+  color: #c0c5ce !important;
+  background-color: #2a2f3b !important;
+}
+.actionButton svg {
+  margin: 0 !important; /* Remove default icon margin from Button component if any */
+}
+
+
+.modalFooterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px; /* Space above footer buttons */
+  padding-top: 15px;
+  border-top: 1px solid #333a4c;
+}
