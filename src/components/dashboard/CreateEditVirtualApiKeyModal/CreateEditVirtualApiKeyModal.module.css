@@ -1,0 +1,141 @@
+/* src/components/dashboard/CreateEditVirtualApiKeyModal/CreateEditVirtualApiKeyModal.module.css */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #d1d4dc;
+}
+
+.keyInfoDisplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background-color: #232731; /* Slightly different background for this info */
+  border: 1px solid #3e4556;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #a0aec0;
+}
+.keyInfoDisplay strong {
+  color: #c0c5ce;
+}
+.keyInfoDisplay span {
+  font-family: monospace;
+}
+.keyInfoDisplay svg {
+    color: var(--cxmpute-yellow, #f8cb46);
+    flex-shrink: 0;
+}
+
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formGroup label {
+  font-size: 0.9rem; /* Slightly larger labels */
+  color: #a0aec0;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.formGroup label svg {
+    color: var(--cxmpute-purple);
+    opacity: 0.8;
+}
+
+.inputField {
+  padding: 10px 12px;
+  background-color: #1e222d; /* Darker input field */
+  border: 1px solid #3e4556;
+  border-radius: 4px;
+  color: #d1d4dc;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.inputField:focus {
+  outline: none;
+  border-color: var(--cxmpute-purple, #91a8eb);
+  box-shadow: 0 0 0 1px var(--cxmpute-purple, #91a8eb);
+}
+.inputField::placeholder {
+  color: #50586a;
+}
+.inputField[type="number"]::-webkit-outer-spin-button,
+.inputField[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none; margin: 0;
+}
+.inputField[type="number"] { -moz-appearance: textfield; }
+
+.inputHint {
+    font-size: 0.75rem;
+    color: #6b778c;
+    margin-top: 2px;
+}
+
+.routesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px 15px; /* Row and column gap */
+  padding: 10px;
+  background-color: #1e222d;
+  border: 1px solid #2a2f3b;
+  border-radius: 4px;
+  max-height: 200px; /* Scrollable if many routes */
+  overflow-y: auto;
+}
+
+.routeCheckboxItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkboxInput {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--cxmpute-green, #20a191); /* Theme checkbox color */
+  cursor: pointer;
+}
+
+.checkboxLabel {
+  font-size: 0.85rem;
+  color: #c0c5ce;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  flex-direction: column; /* Stack name and full path */
+  line-height: 1.2;
+}
+.fullRoutePath {
+    font-size: 0.7rem;
+    color: #6b778c;
+    font-family: monospace;
+}
+
+.formErrorMessage {
+  color: var(--cxmpute-red, #d64989);
+  font-size: 0.875rem;
+  background-color: rgba(214, 73, 137, 0.1);
+  border: 1px solid var(--cxmpute-red, #d64989);
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+.modalFooterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #333a4c;
+}

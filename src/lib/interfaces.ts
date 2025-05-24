@@ -64,9 +64,10 @@ export interface Location {
 
 export interface ApiKeyInfo {
   key: string;
+  name?: string; // Optional name/label for the key
   creditLimit: number;
   creditsLeft: number;
-  permittedRoutes: string[]; // ex: ["/chat/completions", "/embeddings"]
+  permittedRoutes: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
