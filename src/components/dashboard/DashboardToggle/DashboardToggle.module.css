@@ -1,0 +1,55 @@
+/* src/components/dashboard/DashboardToggle/DashboardToggle.module.css */
+.toggleContainer {
+  display: flex;
+  gap: 8px; /* Space between buttons */
+  padding: 8px;
+  background-color: #1e222d; /* Dark background for the toggle bar */
+  border-radius: 8px;
+  border: 1px solid #2a2f3b;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.toggleButton {
+  /* Base styling for buttons, leveraging Button component's variants */
+  flex-grow: 1; /* Allow buttons to grow and fill space if needed */
+  min-width: 120px; /* Minimum width for readability */
+  font-size: 0.875rem !important; /* Standardize font size */
+  padding: 0.5em 0.8em !important; /* Standardize padding */
+  text-transform: capitalize; /* Make it look less like a primary action */
+}
+
+/* Active state styling - primarily relies on Button component's 'primary' variant */
+.toggleButton.activeUser {
+  /* background-color: var(--cxmpute-purple) !important; Using primary variant on Button */
+  /* color: #ffffff !important; */
+  /* border-color: var(--cxmpute-purple) !important; */
+}
+.toggleButton.activeProvider {
+  /* background-color: var(--cxmpute-green) !important; Using primary variant on Button */
+  /* color: #ffffff !important; */
+  /* border-color: var(--cxmpute-green) !important; */
+}
+
+/* Styling for the Trader Link Button - ensure it looks consistent */
+.linkButtonWrapper {
+  text-decoration: none; /* Remove underline from link */
+  display: flex; /* Ensure the link wrapper behaves like a flex item for consistency */
+  flex-grow: 1;
+}
+
+.traderLink {
+  /* Ensure it matches the style of inactive toggle buttons */
+  color: var(--cxmpute-yellow) !important; /* Distinct color for trader link */
+  border-color: var(--cxmpute-yellow) !important;
+  /* background-color: transparent !important; */ /* Handled by variant='outline' */
+}
+.traderLink:hover {
+  background-color: rgba(248, 203, 70, 0.1) !important; /* Subtle yellow bg on hover */
+}
+
+/* Disabled state for provider button */
+.toggleButton:disabled {
+  /* Styling is mostly handled by Button component's disabled state */
+  /* You can add specific overrides if needed, e.g., more pronounced dimming */
+  opacity: 0.5 !important; /* Make it more clearly disabled */
+}
