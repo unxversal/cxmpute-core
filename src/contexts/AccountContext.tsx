@@ -172,7 +172,7 @@ export const AccountProvider = ({ children }: { children: ReactNode }) => {
     setLoading("points", true); setError("points", null);
     try {
       // API uses authenticated traderId (validated against path param)
-      const response = await fetch(`/api/traders/${traderId}/paper-points`); 
+      const response = await fetch(`/api/trades/${traderId}/paper-points`); 
       if (!response.ok) throw new Error((await response.json()).error || response.statusText);
       const pointsData: PaperPoints = await response.json();
       setData(prev => ({ ...prev, paperPoints: pointsData }));
