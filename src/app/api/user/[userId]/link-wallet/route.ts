@@ -33,15 +33,17 @@ export async function OPTIONS() {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   let authenticatedUser: AuthenticatedUserSubject;
+  const aparams = await params;
+
   try {
     authenticatedUser = await requireAuth();
-    if (authenticatedUser.properties.id !== params.userId && authenticatedUser.properties.traderId !== params.userId) {
+    if (authenticatedUser.properties.id !== aparams.userId && authenticatedUser.properties.traderId !== aparams.userId) {
       // Check against both 'id' (UserTable PK) and 'traderId' (TradersTable PK from subject)
       // as params.userId should match the traderId for TradersTable.
-      console.warn(`WalletLink API AuthZ Error: User ${authenticatedUser.properties.id} (trader: ${authenticatedUser.properties.traderId}) tried to link wallet for ${params.userId}`);
+      console.warn(`WalletLink API AuthZ Error: User ${authenticatedUser.properties.id} (trader: ${authenticatedUser.properties.traderId}) tried to link wallet for ${aparams.userId}`);
       return NextResponse.json({ error: "Forbidden: Cannot link wallet for another user." }, { status: 403 });
     }
   } catch (authError: any) {
@@ -51,7 +53,7 @@ export async function POST(
   }
 
   // params.userId IS the traderId for TradersTable, as per our auth subject structure
-  const traderIdToUpdate = params.userId; 
+  const traderIdToUpdate = aparams.userId; 
 
   try {
     const body = await req.json();

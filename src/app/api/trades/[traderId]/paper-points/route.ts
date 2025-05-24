@@ -18,9 +18,13 @@ const pkTraderPaperMode = (traderId: string) => `TRADER#${traderId}#PAPER`;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { traderId: string } }
+  { params }: { params: Promise<{ traderId: string }> }
 ) {
   let authenticatedTraderId: string;
+
+  // Await the params promise to get the traderId
+  const aparams = await params;
+  
   try {
     const authResult = await requireAuth();
     authenticatedTraderId = authResult.properties.traderId;
@@ -29,8 +33,8 @@ export async function GET(
     }
 
     // Authorization: Ensure the authenticated user is requesting their own paper points
-    if (params.traderId !== authenticatedTraderId) {
-      console.warn(`PaperPoints API AuthZ Error: User ${authenticatedTraderId} tried to access points for ${params.traderId}`);
+    if (aparams.traderId !== authenticatedTraderId) {
+      console.warn(`PaperPoints API AuthZ Error: User ${authenticatedTraderId} tried to access points for ${aparams.traderId}`);
       return NextResponse.json({ error: "Forbidden: Cannot access another user's paper points." }, { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } });
     }
 
@@ -69,7 +73,7 @@ export async function GET(
     return NextResponse.json(paperPoints, { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } });
 
   } catch (error: any) {
-    console.error(`GET /api/traders/${params.traderId}/paper-points error:`, error);
+    console.error(`GET /api/traders/${aparams.traderId}/paper-points error:`, error);
     return NextResponse.json(
       { error: "Internal server error fetching paper points." },
       { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }

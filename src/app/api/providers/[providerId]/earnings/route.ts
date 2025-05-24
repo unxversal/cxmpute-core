@@ -17,9 +17,9 @@ function getDateStr(offsetDays = 0) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { providerId: string } }
+  { params }: { params: Promise<{ providerId: string }> }
 ) {
-  const { providerId } = params;
+  const { providerId } = await params;
   if (!providerId) {
     return NextResponse.json({ error: "Missing providerId" }, { status: 400 });
   }

@@ -10,9 +10,9 @@ const docClient = DynamoDBDocumentClient.from(raw);
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { providerId: string; provisionId: string } }
+  { params }: { params: Promise<{ providerId: string; provisionId: string }> }
 ) {
-  const { providerId, provisionId } = params;
+  const { providerId, provisionId } = await params;
   if (!providerId || !provisionId) {
     return NextResponse.json({ error: "Missing IDs" }, { status: 400 });
   }

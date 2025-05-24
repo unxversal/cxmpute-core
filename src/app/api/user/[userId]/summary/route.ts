@@ -8,9 +8,9 @@ const doc = DynamoDBDocumentClient.from(raw);
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { userId: string } },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
-  const { userId } = params;
+  const { userId } = await params;
 
   const res = await doc.send(
     new GetCommand({

@@ -72,18 +72,21 @@ export async function GET(
 // --- DELETE /api/orders/:orderId (Cancel specific order) ---
 export async function DELETE(
   req: NextRequest, // Changed _req to req as it might be used for logging body if needed
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   let authenticatedUser: AuthenticatedUserSubject;
+
+  const paramss = await params; // Await the params promise to get the orderId
+
   try {
     authenticatedUser = await requireAuth(); // Use your existing auth helper
   } catch (authError: any) {
     if (authError instanceof NextResponse) return authError; // Auth error is already a NextResponse
-    console.error(`DELETE /api/orders/${params.orderId} - Auth Error:`, authError.message);
+    console.error(`DELETE /api/orders/${paramss.orderId} - Auth Error:`, authError.message);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } });
   }
 
-  const orderIdToCancel = params.orderId;
+  const orderIdToCancel = paramss.orderId;
 
   try {
     // 1. Find the order using the GSI to get its full PK/SK and current state

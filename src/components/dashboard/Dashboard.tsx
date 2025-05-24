@@ -4,10 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import styles from './dashboard.module.css'; // Main dashboard container styles
 import DashboardToggle, { DashboardViewType } from './DashboardToggle/DashboardToggle';
-import UserDashboardContent from './UserDashboardContent/UserDashboardContent'; // Corrected path
-import ProviderDashboardContent from './ProviderDashboardContent/ProviderDashboardContent'; // Corrected path
+import UserDashboardContent from './UserDashboardContent/UserDashboardContent'; // Path to themed user content
+import ProviderDashboardContent from './ProviderDashboardContent/ProviderDashboardContent'; // Path to themed provider content
 import type { AuthenticatedUserSubject } from '@/lib/auth';
-import LoadingSpinner from '../ui/LoadingSpinner/LoadingSpinner'; // For initial loading state
+import SkeletonLoader from '../ui/SkeletonLoader/SkeletonLoader'; // Light-themed skeleton for page load
 
 // Props for the main Dashboard component
 interface DashboardProps {
@@ -15,36 +15,33 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ subject }) => {
-  const [activeDashboardView, setActiveDashboardView] = useState<DashboardViewType>("user");
-  const [isLoading, setIsLoading] = useState(true); // For initial setup/hydration
+  // Default to 'user' view, or 'provider' if user has a providerId but no strong user-specific landing reason
+  const initialView: DashboardViewType = subject.providerId ? "provider" : "user";
+  const [activeDashboardView, setActiveDashboardView] = useState<DashboardViewType>(initialView);
+  const [isClientHydrated, setIsClientHydrated] = useState(false);
 
-  // A simple effect to remove initial loading state after mount
   useEffect(() => {
-    setIsLoading(false);
+    setIsClientHydrated(true);
   }, []);
 
   const handleViewChange = (view: DashboardViewType) => {
     setActiveDashboardView(view);
   };
 
-  // Determine if the provider view should be available.
-  // This logic might become more complex (e.g., check a 'isProviderRegistered' flag on subject)
-  // For now, we assume if a providerId exists, they are a provider.
+  // Provider view is available if subject has a providerId.
   const isProviderViewAvailable = !!subject.providerId;
 
-
-  if (isLoading) {
+  if (!isClientHydrated) {
     return (
-      <div className={styles.loadingContainer}>
-        <LoadingSpinner size={48} />
-        <p>Loading Dashboard...</p>
+      <div className={styles.pageLoadingContainer}>
+        <SkeletonLoader type="rectangle" width="80%" height="60px" style={{ marginBottom: '20px' }}/>
+        <SkeletonLoader type="rectangle" width="100%" height="400px" />
       </div>
     );
   }
 
   return (
-    <div className={styles.dashboardContainer}>
-      {/* The DashboardToggle now sits above the content */}
+    <div className={styles.dashboardContainer}> {/* This is the main flex column from module */}
       <div className={styles.toggleSection}>
         <DashboardToggle
           activeView={activeDashboardView}
@@ -60,12 +57,13 @@ const Dashboard: React.FC<DashboardProps> = ({ subject }) => {
         {activeDashboardView === 'provider' && isProviderViewAvailable && (
           <ProviderDashboardContent subject={subject} />
         )}
+        {/* Fallback if provider view is selected but not available (e.g., direct URL manipulation attempt) */}
         {activeDashboardView === 'provider' && !isProviderViewAvailable && (
             <div className={styles.accessDeniedCard}>
                 <h3>Provider Dashboard Not Accessible</h3>
                 <p>You have not registered as a provider. Please complete provider onboarding to access this section.</p>
-                {/* Optional: Add a button/link to provider onboarding flow if you have one */}
-                {/* <Button onClick={() => { /* Navigate to provider signup * / }}>Become a Provider</Button> */}
+                {/* You might want a button here to guide them to a provider signup/info page */}
+                {/* Example: <DashboardButton variant="primary" text="Become a Provider" href="/provider-signup" /> */}
             </div>
         )}
       </div>

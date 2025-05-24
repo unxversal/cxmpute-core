@@ -9,14 +9,16 @@ const table = Resource.UserTable.name;
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { userId: string } },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
+  
   const newAk = uuidv4().replace(/-/g, "");
+  const { userId } = await params;
 
   await doc.send(
     new UpdateCommand({
       TableName: table,
-      Key: { userId: params.userId },
+      Key: { userId },
       UpdateExpression: "SET userAk = :a",
       ExpressionAttributeValues: { ":a": newAk },
     }),

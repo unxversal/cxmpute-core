@@ -8,14 +8,16 @@ const doc = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { providerId: string } },
+  { params }: { params: Promise<{ providerId: string }> },
 ) {
   const newAk = uuidv4().replace(/-/g, "");
+
+  const { providerId } = await params;
 
   await doc.send(
     new UpdateCommand({
       TableName: Resource.ProviderTable.name,
-      Key: { providerId: params.providerId },
+      Key: { providerId },
       UpdateExpression: "SET apiKey = :a",
       ExpressionAttributeValues: { ":a": newAk },
     }),

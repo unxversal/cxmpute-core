@@ -61,3 +61,23 @@
     padding: 15px 10px; /* Reduce padding on small screens */
   }
 }
+
+.pageLoadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Align to top */
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 15px; /* More padding for loading state */
+  min-height: 60vh; /* Ensure it takes visible space */
+}
+/* Style for SkeletonLoader if its default dark theme clashes */
+.pageLoadingContainer :global(.skeleton) { /* Target nested skeleton divs */
+    background-color: #e0e0e0 !important; 
+}
+.pageLoadingContainer :global(.skeleton::before) {
+    background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important;
+}

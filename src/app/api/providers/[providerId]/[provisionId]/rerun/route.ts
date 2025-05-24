@@ -23,9 +23,9 @@ const docClient = DynamoDBDocumentClient.from(raw);
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { providerId: string; provisionId: string } }
+  { params }: { params: Promise<{ providerId: string; provisionId: string }> }
 ) {
-  const { providerId, provisionId } = params;
+  const { providerId, provisionId } = await params;
   if (!providerId || !provisionId) {
     return NextResponse.json({ error: "Missing providerId or provisionId" }, { status: 400 });
   }

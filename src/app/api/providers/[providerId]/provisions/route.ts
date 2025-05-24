@@ -27,23 +27,25 @@ export async function OPTIONS() {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { providerId: string } }
+  { params }: { params: Promise<{ providerId: string }> }
 ) {
   let authenticatedUser: AuthenticatedUserSubject;
+  const aparams = await params;
+
   try {
     authenticatedUser = await requireAuth();
     // Authorization: Ensure the authenticated provider is requesting their own provisions
-    if (authenticatedUser.properties.providerId !== params.providerId) {
-      console.warn(`Provisions API AuthZ Error: User ${authenticatedUser.properties.id} (provider: ${authenticatedUser.properties.providerId}) tried to access provisions for ${params.providerId}`);
+    if (authenticatedUser.properties.providerId !== aparams.providerId) {
+      console.warn(`Provisions API AuthZ Error: User ${authenticatedUser.properties.id} (provider: ${authenticatedUser.properties.providerId}) tried to access provisions for ${aparams.providerId}`);
       return NextResponse.json({ error: "Forbidden: Cannot access another provider's provisions." }, { status: 403 });
     }
   } catch (authError: any) {
     if (authError instanceof NextResponse) return authError;
-    console.error(`GET /api/providers/${params.providerId}/provisions - Auth Error:`, authError.message);
+    console.error(`GET /api/providers/${aparams.providerId}/provisions - Auth Error:`, authError.message);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { providerId } = params;
+  const { providerId } = await params;
 
   try {
     const queryInput: QueryCommandInput = {

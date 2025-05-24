@@ -13,15 +13,15 @@ const table = Resource.UserTable.name;
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { userId: string } },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
-  const { userId } = params;
+  const { userId } = await params;
   const res = await doc.send(new GetCommand({ TableName: table, Key: { userId } }));
   return NextResponse.json(res.Item?.apiKeys ?? []);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { userId: string } }) {
-  const { userId } = params;
+export async function POST(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
   const body = await req.json();
 
   const newKey = {

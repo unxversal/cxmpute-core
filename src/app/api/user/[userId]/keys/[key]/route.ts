@@ -23,12 +23,14 @@ const USER_TABLE_NAME = Resource.UserTable.name;
 // --- PUT Handler (Edit API Key Metadata) ---
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { userId: string; key: string } }
+  { params }: { params: Promise<{ userId: string; key: string }> }
 ) {
   let authenticatedUser: AuthenticatedUserSubject;
+  const aparams = await params;
+
   try {
     authenticatedUser = await requireAuth();
-    if (authenticatedUser.properties.id !== params.userId) {
+    if (authenticatedUser.properties.id !== aparams.userId) {
       return NextResponse.json({ error: "Forbidden: Cannot edit keys for another user." }, { status: 403 });
     }
   } catch (authError: any) {
@@ -36,7 +38,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId, key: keyString } = params;
+  const { userId, key: keyString } = await params;
 
   try {
     const body = await req.json() as Partial<Pick<ApiKeyInfo, "name" | "creditLimit" | "permittedRoutes">>;
@@ -123,12 +125,13 @@ export async function PUT(
 // --- DELETE Handler (Existing - no changes needed based on current plan) ---
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { userId: string; key: string } }
+  { params }: { params: Promise<{ userId: string; key: string }> }
 ) {
   let authenticatedUser: AuthenticatedUserSubject;
+  const aparams = await params;
   try {
     authenticatedUser = await requireAuth();
-    if (authenticatedUser.properties.id !== params.userId) {
+    if (authenticatedUser.properties.id !== aparams.userId) {
       return NextResponse.json({ error: "Forbidden: Cannot delete keys for another user." }, { status: 403 });
     }
   } catch (authError: any) {
@@ -136,7 +139,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId, key: keyString } = params;
+  const { userId, key: keyString } = await params;
 
   try {
     // Fetch existing list
