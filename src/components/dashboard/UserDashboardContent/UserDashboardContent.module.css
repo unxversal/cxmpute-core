@@ -1,220 +1,245 @@
 /* src/components/dashboard/UserDashboardContent/UserDashboardContent.module.css */
-.dashboardContentGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive columns */
-  gap: 20px;
+.userDashboardContainer {
   width: 100%;
-  padding: 10px 0; /* Padding around the grid itself */
-}
-
-.infoCard {
-  background-color: #1e222d; /* Darker card background */
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #2a2f3b;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Space between elements inside a card */
+  gap: 25px; /* Gap between major sections */
+  font-family: var(--font-roboto);
 }
 
-.cardTitle {
+/* Hero Card Styles (using ThemeCard base) */
+.heroCard {
+  /* ThemeCard provides base border/shadow. Add specific background if not default white */
+  /* background-color: #fff; */ /* Example if default is not white */
+}
+.heroContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch; /* Make left and right sections equal height */
+  gap: 30px;
+  width: 100%;
+}
+
+.heroLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Reduced gap */
+  flex: 2; /* Takes more space */
+}
+.emailDisplay {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 500;
+  margin-bottom: -10px; /* Pull up slightly */
+}
+.dashboardTitle {
+  font-size: 2.8rem; /* Original was 100px, adjusted for better fit */
+  font-weight: 900;
+  color: #000;
+  margin: 0;
+  line-height: 1.1;
+}
+.welcomeMessage {
   font-size: 1.1rem;
-  font-weight: 600;
-  color: #e0e0e0;
-  margin: 0 0 5px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #3e4556;
-  padding-bottom: 10px;
-}
-.cardTitle svg {
-    color: var(--cxmpute-purple); /* Theme color for icons in titles */
-}
-
-/* Key Management Card Styles */
-.keyManagementCard {
-  /* Specific styles if needed, for now uses .infoCard base */
-}
-.keyActionItem {
-  display: flex;
-  flex-direction: column; /* Stack p and button */
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid #2a2f3b;
-}
-.keyActionItem:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-.keyActionItem p {
-  font-size: 0.875rem;
-  color: #a0aec0;
-  line-height: 1.5;
+  color: #333;
+  font-weight: 500;
   margin: 0;
 }
-.keyActionItem > button { /* Target Button component directly */
-  align-self: flex-start; /* Align button to the left */
+.heroButtonContainer {
+  display: flex;
+  flex-wrap: wrap; /* Allow buttons to wrap */
+  gap: 12px; /* Gap between buttons */
+  margin-top: 10px;
 }
-.traderAkDisplay {
-    font-family: monospace;
-    font-size: 0.85rem;
-    color: #8a91a0;
-    background-color: #171b26;
-    padding: 6px 10px;
-    border-radius: 4px;
-    display: inline-flex; /* For copy icon alignment */
+/* DashboardButton styles will apply directly */
+
+.heroRight {
+  flex: 1; /* Takes less space */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* Align content to the right */
+  justify-content: space-between; /* Space out top buttons and credits */
+  text-align: right;
+  min-width: 280px; /* Ensure it has enough space */
+}
+/* TopButtonsContainer from original is removed as toggle is now separate */
+.creditsSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-top: auto; /* Push to bottom of its flex container */
+  padding-top: 20px;
+}
+.sectionTitleSmall {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+}
+.creditsNumber {
+  font-size: 3.5rem; /* Original was 80px */
+  font-weight: 900;
+  color: var(--cxmpute-yellow); /* Themed color */
+  line-height: 1;
+  margin: 0;
+  text-shadow: 2px 2px 0 #000; /* Example playful shadow */
+}
+
+/* Bottom Section Styles */
+.bottomSection {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* Services larger, secondary info smaller */
+  gap: 25px;
+  width: 100%;
+}
+
+.serviceCardsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.sectionTitle {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #000;
+  padding-bottom: 8px;
+  border-bottom: 3px solid #eee;
+  margin-bottom: 5px;
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+.serviceCard { /* Uses ThemeCard base */
+  min-height: 220px; /* Ensure cards have a decent height */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Push button to bottom */
+  color: #000; /* Ensure text is black on colored backgrounds */
+}
+.serviceCardIconWrapper {
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0,0,0,0.1); /* Darken the icon background slightly */
+    border-radius: 50%;
+    display: flex;
     align-items: center;
-    gap: 8px;
-    max-width: fit-content;
+    justify-content: center;
+    margin-bottom: 12px;
 }
-.copyIconSmall {
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+.serviceCardIconWrapper svg {
+    color: #fff; /* White icon on colored bg */
+    width: 24px;
+    height: 24px;
 }
-.copyIconSmall:hover {
-    opacity: 1;
+.serviceCardTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: inherit; /* Inherit from card (should be black or white for contrast) */
 }
-.inputHintSmall {
-    font-size: 0.7rem;
-    color: #6b778c;
-    margin-top: 2px;
+.serviceCardDescription {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 15px;
+  flex-grow: 1;
+  color: inherit;
+}
+.serviceCardButtonContainer {
+  margin-top: auto; /* Push button to the bottom */
+}
+.serviceCardButtonContainer > * { /* Target DashboardButton */
+    /* Ensure buttons inside service cards are styled for contrast if needed */
+    /* e.g., if card bg is dark, button text should be light */
 }
 
 
-/* Stats & Referral Column Styles */
-.statsAndReferralColumn {
+.secondaryInfoContainer {
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Space between StatsCard and ReferralCard */
+    gap: 20px;
 }
-
-.statsCard {
-  /* Specific styles if needed */
+.referralInfoCard, .rewardsInfoCard {
+    /* Uses ThemeCard base */
 }
-.statItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.9rem;
-  padding: 6px 0;
-}
-.statLabel {
-  color: #a0aec0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.statLabel svg {
-    color: #6b778c; /* Muted icon color in stats */
-}
-.statValue {
-  font-weight: 600;
-  color: #e0e0e0;
-  font-family: monospace;
-}
-.errorTextSmall {
-  font-size: 0.8rem;
-  color: var(--cxmpute-red);
-  text-align: center;
-}
-.fullWidthButton {
-    margin-top: auto; /* Push to bottom if card has space */
-}
-
-.referralCard {
-  /* Specific styles if needed */
-}
-.referralCard p {
-    font-size: 0.875rem;
-    color: #a0aec0;
-    margin: 0 0 8px 0;
-}
-.referralCodeBox {
+.codeBox {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #171b26;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid #2a2f3b;
+  background-color: #f0f0f0; /* Light background for code */
+  padding: 8px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-top: 5px;
 }
-.referralCodeText {
-  font-family: monospace;
+.codeBox span {
+  font-family: "Montserrat", sans-serif;
   font-size: 0.9rem;
-  color: var(--cxmpute-yellow); /* Highlight referral code */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-
-/* Services Card Styles */
-.servicesCard {
-  grid-column: 1 / -1; /* Make services card span full width if grid has multiple columns */
-}
-.servicesCard p {
-    font-size: 0.875rem;
-    color: #a0aec0;
-    margin-bottom: 10px;
-}
-.serviceList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 12px;
-}
-.serviceItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background-color: #232731;
-  border-radius: 6px;
-  border: 1px solid #3e4556;
-  color: #c0c5ce;
-  font-weight: 500;
-  font-size: 0.9rem;
-  transition: background-color 0.2s, border-color 0.2s, transform 0.15s;
-  text-decoration: none;
-}
-.serviceItem:hover {
-  background-color: #2a2f3b;
-  border-color: #4a5265;
-  transform: translateY(-2px);
-  color: #e0e0e0;
-}
-.serviceItem svg {
-  color: #6b778c;
-  transition: transform 0.2s;
-}
-.serviceItem:hover svg {
-  transform: translateX(3px);
   color: var(--cxmpute-purple);
+  font-weight: 600;
+}
+.codeBox button svg { /* For copy icon */
+  color: #555;
+}
+.rewardsAmount {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--cxmpute-green);
+    margin: 5px 0;
+}
+.rewardsHint {
+    font-size: 0.8rem;
+    color: #444;
+    line-height: 1.4;
 }
 
-@media (max-width: 768px) {
-    .dashboardContentGrid {
-        grid-template-columns: 1fr; /* Stack cards on smaller screens */
-    }
-    .headerActions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .headerInfo {
-        max-width: 100%;
-        text-align: center;
-        justify-content: center;
-    }
-    .headerButtons {
-        justify-content: center;
-        width: 100%;
-    }
-    .headerButtons > button {
-        flex-grow: 1;
-    }
-     .serviceList {
-        grid-template-columns: 1fr; /* Stack service items */
-    }
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .heroContent {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .heroLeft, .heroRight {
+    width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+  .heroRight {
+      margin-top: 20px;
+  }
+  .heroButtonContainer {
+    justify-content: center;
+  }
+  .creditsSection {
+      align-items: center;
+  }
+  .bottomSection {
+    grid-template-columns: 1fr; /* Stack sections */
+  }
+  .cardsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboardTitle { font-size: 2rem; }
+  .welcomeMessage { font-size: 1rem; }
+  .creditsNumber { font-size: 2.8rem; }
+  .sectionTitle { font-size: 1.3rem; }
+  .serviceCardTitle { font-size: 1.1rem; }
+  .serviceCardDescription { font-size: 0.8rem; }
+}
+
+/* Ensure skeleton loader adapts to light theme if not globally configured */
+.skeletonLoader > div {
+    background-color: #e0e0e0 !important; 
+}
+.skeletonLoader > div::before {
+    background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important;
 }

@@ -1,29 +1,37 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/dashboard/UserDashboardContent/UserDashboardContent.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './UserDashboardContent.module.css';
-import Button from '@/components/ui/Button/Button';
+import DashboardButton from '../DashboardButton/DashboardButton'; // New themed button
+import ThemeCard from '../ThemeCard/ThemeCard'; // New themed card
 import ViewApiKeyModal from '../ViewApiKeyModal/ViewApiKeyModal';
 import VirtualApiKeysManagerModal from '../VirtualApiKeysManagerModal/VirtualApiKeysManagerModal';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
-import type { AuthenticatedUserSubject } from '@/lib/auth'; // User subject type
-import { SystemProvisionReference } from '@/lib/references'; // For listing services
-import Link from 'next/link';
-import { Wallet, KeyRound, BarChart3, Copy, Gift, Zap, ChevronRight } from 'lucide-react';
-import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
+import type { AuthenticatedUserSubject } from '@/lib/auth';
+import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText } from 'lucide-react'; // Added more icons
+import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
-  subject: AuthenticatedUserSubject['properties']; // Pass only the 'properties' part
+  subject: AuthenticatedUserSubject['properties'];
 }
 
 interface UserSummary {
   apiKeys: any[]; // Define more strictly if ApiKeyInfo is stable
   credits: number;
-  rewards: number; // Assuming this is CXPT or similar platform token
+  rewards: number;
 }
+
+// Helper to get themed colors (from original UserDashboard.tsx)
+const cxmputeGreen = "var(--cxmpute-green, #20a191)";
+const cxmputePink = "var(--cxmpute-pink, #fe91e8)";
+const cxmputeYellow = "var(--cxmpute-yellow, #f8cb46)";
+const cxmputePurple = "var(--cxmpute-purple, #91a8eb)";
+const cxmputeOrange = "var(--cxmpute-orange, #f76707)";
+const cxmputeSlate = "var(--cxmpute-slate, #d4d4cb)";
 
 const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
   const [userSummary, setUserSummary] = useState<UserSummary | null>(null);
@@ -43,7 +51,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
     try {
       const response = await fetch(`/api/user/${subject.id}/summary`);
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || "Failed to load user summary.");
       }
       const data = await response.json();
@@ -55,7 +63,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
     } catch (error: any) {
       console.error("Error fetching user summary:", error);
       setSummaryError(error.message || "Could not load summary data.");
-      setUserSummary({ apiKeys: [], credits: 0, rewards: 0 }); // Set defaults on error
+      setUserSummary({ apiKeys: [], credits: 0, rewards: 0 });
     } finally {
       setIsLoadingSummary(false);
     }
@@ -63,12 +71,11 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
   useEffect(() => {
     fetchUserSummaryData();
-    setCurrentUserAk(subject.userAk); // Initialize or update if subject prop changes
+    setCurrentUserAk(subject.userAk);
   }, [subject.userAk, fetchUserSummaryData]);
 
-
-  const handleRefreshUserAk = async (): Promise<string | null> => {
-    if (!subject.id) return null;
+  const handleRefreshUserAk = async () => { /* ... (same as before) ... */
+    if (!subject.id) return;
     setIsRefreshingUserAk(true);
     const loadingToastId = notify.loading("Refreshing User API Key...");
     try {
@@ -76,130 +83,115 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
       const data = await response.json();
       notify.dismiss(loadingToastId);
       if (!response.ok) throw new Error(data.error || 'Failed to refresh User AK');
-      
-      setCurrentUserAk(data.userAk); // Update state with the new key
+      setCurrentUserAk(data.userAk);
       notify.success("User API Key refreshed successfully!");
-      return data.userAk;
     } catch (error: any) {
       notify.dismiss(loadingToastId);
       notify.error(error.message || "Failed to refresh key.");
-      return null;
     } finally {
       setIsRefreshingUserAk(false);
     }
   };
 
-  const handleCopyReferralCode = () => {
-    navigator.clipboard.writeText(subject.id)
-      .then(() => notify.success("Referral Code (User ID) copied!"))
-      .catch(() => notify.error("Failed to copy referral code."));
+  const handleCopyReferralCode = (codeToCopy: string, type: string) => {
+    navigator.clipboard.writeText(codeToCopy)
+      .then(() => notify.success(`${type} copied to clipboard!`))
+      .catch(() => notify.error(`Failed to copy ${type}.`));
   };
-  
-  // Memoize distinct service categories from SystemProvisionReference
-  const serviceCategories = useMemo(() => {
-    const categories = new Set<string>();
-    SystemProvisionReference.forEach(service => {
-        // Map endpoint to a more user-friendly category name
-        if (service.endpoint.includes("chat") || service.endpoint.includes("text") ) categories.add("Language & Vision Models");
-        else if (service.endpoint.includes("embeddings")) categories.add("Embeddings");
-        else if (service.endpoint.includes("image")) categories.add("Image Generation");
-        else if (service.endpoint.includes("video")) categories.add("Video Generation");
-        else if (service.endpoint.includes("tts")) categories.add("Text-to-Speech (TTS)");
-        else if (service.endpoint.includes("scrape")) categories.add("Web Scraping");
-        else if (service.endpoint.includes("/m/")) categories.add("Multimodal Tools");
-        else categories.add("Other Compute Services");
-    });
-    return Array.from(categories);
-  }, []);
+
+  // Define service cards based on SystemProvisionReference or a custom list
+  const serviceCardsData = [
+    { title: "LLMs & Vision", description: "Access a wide range of powerful language and vision models for various AI tasks.", icon: <Zap size={24}/>, color: cxmputePurple, docLink: "/docs/language-vision" },
+    { title: "Embeddings", description: "Generate text embeddings for semantic search, RAG, and classification.", icon: <Activity size={24}/>, color: cxmputeOrange, docLink: "/docs/embeddings" },
+    { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Gift size={24}/>, color: cxmputeGreen, docLink: "/docs/text-to-speech" }, // Gift as placeholder
+    { title: "Web Scraping", description: "Leverage our distributed network to scrape web data efficiently and bypass blocks.", icon: <Settings size={24}/>, color: 'var(--cxmpute-red)', docLink: "/docs/scraping" }, // Settings as placeholder
+    { title: "Tool Use & JSON", description: "Utilize models with advanced function calling and structured JSON output capabilities.", icon: <HelpCircle size={24}/>, color: cxmputeYellow, docLink: "/docs/tool-use-json" }, // HelpCircle as placeholder
+    { title: "More Services", description: "Explore image generation, video processing, and other upcoming compute services.", icon: <FileText size={24}/>, color: cxmputePink, docLink: "/services" }, // FileText as placeholder
+  ];
 
 
   return (
-    <div className={styles.dashboardContentGrid}>
-      {/* Column 1: Key Info & Actions */}
-      <div className={`${styles.infoCard} ${styles.keyManagementCard}`}>
-        <h3 className={styles.cardTitle}><KeyRound size={20}/> API Key Management</h3>
-        <div className={styles.keyActionItem}>
-          <p>Your primary User API Key for direct platform access.</p>
-          <Button variant="secondary" size="sm" onClick={() => setIsViewUserAkModalOpen(true)}>
-            View User AK
-          </Button>
-        </div>
-        <div className={styles.keyActionItem}>
-          <p>Manage virtual API keys with custom credit limits and permissions.</p>
-          <Button variant="secondary" size="sm" onClick={() => setIsVirtualKeysModalOpen(true)}>
-            Manage Virtual Keys
-          </Button>
-        </div>
-         <div className={styles.keyActionItem}>
-            <p>Your unique Trader API Key for DEX access.</p>
-            <span className={styles.traderAkDisplay} title={subject.traderAk}>
-                {subject.traderAk ? `${subject.traderAk.substring(0,4)}...${subject.traderAk.slice(-4)}` : 'N/A'}
-                {subject.traderAk && <Copy size={14} onClick={() => navigator.clipboard.writeText(subject.traderAk).then(()=>notify.success("Trader AK Copied!"))} className={styles.copyIconSmall}/>}
-            </span>
-            <p className={styles.inputHintSmall}>
-                This key is linked to your User AK. Refreshing User AK also refreshes this key.
-            </p>
-        </div>
-      </div>
-
-      {/* Column 2: Credits & Rewards */}
-      <div className={styles.statsAndReferralColumn}>
-        <div className={`${styles.infoCard} ${styles.statsCard}`}>
-            <h3 className={styles.cardTitle}><BarChart3 size={20}/> Account Stats</h3>
-            <div className={styles.statItem}>
-                <span className={styles.statLabel}><Zap size={14}/> Credits Remaining:</span>
-                {isLoadingSummary ? <SkeletonLoader width={80} height={20}/> : 
-                <span className={styles.statValue}>{userSummary?.credits.toLocaleString() || '0'}</span>}
+    <div className={styles.userDashboardContainer}>
+      {/* Hero Section - using ThemeCard */}
+      <ThemeCard className={styles.heroCard}>
+        <div className={styles.heroContent}>
+          <div className={styles.heroLeft}>
+            <h3 className={styles.emailDisplay}>{subject.email}</h3>
+            <h1 className={styles.dashboardTitle}>User Dashboard</h1>
+            <h2 className={styles.welcomeMessage}>Welcome to Cxmpute! Manage your account and explore services.</h2>
+            <div className={styles.heroButtonContainer}>
+              <DashboardButton href="/docs" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
+              <DashboardButton onClick={() => setIsVirtualKeysModalOpen(true)} variant="accentOrange" iconLeft={<KeyRound size={16}/>} text="Manage API Keys" />
+              {/* "Manage Account" could link to a future profile settings page */}
+              <DashboardButton href="#" iconLeft={<Settings size={16}/>} text="Manage Account" disabled title="Account management coming soon"/>
             </div>
-            <div className={styles.statItem}>
-                <span className={styles.statLabel}><Gift size={14}/> CXPT Rewards:</span>
-                {isLoadingSummary ? <SkeletonLoader width={80} height={20}/> : 
-                <span className={styles.statValue}>{userSummary?.rewards.toLocaleString() || '0'} CXPT</span>}
+          </div>
+          <div className={styles.heroRight}>
+            {/* Top buttons are now part of DashboardToggle, so removed from here */}
+            <div className={styles.creditsSection}>
+              <h2 className={styles.sectionTitleSmall}>Your Credits</h2>
+              {isLoadingSummary ? <SkeletonLoader width={100} height={40} /> : 
+                <h1 className={styles.creditsNumber}>{userSummary?.credits.toLocaleString() || '0'}</h1>
+              }
+              <DashboardButton variant="accentYellow" text="Load Credits" disabled/>
             </div>
-            {summaryError && <p className={styles.errorTextSmall}>{summaryError}</p>}
-            <Button variant="primary" size="sm" className={styles.fullWidthButton} disabled>
-                Load Credits (Coming Soon)
-            </Button>
+          </div>
         </div>
+      </ThemeCard>
 
-        <div className={`${styles.infoCard} ${styles.referralCard}`}>
-            <h3 className={styles.cardTitle}><Wallet size={20} /> Referral Code</h3>
-            <p>Share your User ID to invite others:</p>
-            <div className={styles.referralCodeBox}>
-                <span className={styles.referralCodeText} title={subject.id}>{subject.id}</span>
-                <Button variant="ghost" size="sm" onClick={handleCopyReferralCode} iconLeft={<Copy size={14}/>} >
-                    Copy Referral Code
-                </Button>
-            </div>
-        </div>
-      </div>
-      
-
-      {/* Row 2 (Full Width): Services List */}
-      <div className={`${styles.infoCard} ${styles.servicesCard}`}>
-        <h3 className={styles.cardTitle}>Explore Cxmpute Services</h3>
-        <p>Access a wide range of decentralized compute services. Click to learn more.</p>
-        <div className={styles.serviceList}>
-            {serviceCategories.map(categoryName => (
-                <Link href={`/docs/${categoryName.toLowerCase().replace(/ & | /g, '-').replace(/[^\w-]+/g, '')}`} key={categoryName} passHref legacyBehavior>
-                    <a className={styles.serviceItem}>
-                        <span>{categoryName}</span>
-                        <ChevronRight size={16} />
-                    </a>
-                </Link>
+      {/* Bottom Section: Service Cards & Graph/Stats Placeholder */}
+      <div className={styles.bottomSection}>
+        <div className={styles.serviceCardsContainer}>
+            <h2 className={styles.sectionTitle}>Explore Our Services</h2>
+            <div className={styles.cardsGrid}>
+            {serviceCardsData.map(card => (
+                <ThemeCard key={card.title} cardStyle={{ backgroundColor: card.color }} className={styles.serviceCard}>
+                    <div className={styles.serviceCardIconWrapper}>{card.icon}</div>
+                    <h3 className={styles.serviceCardTitle}>{card.title}</h3>
+                    <p className={styles.serviceCardDescription}>{card.description}</p>
+                    <div className={styles.serviceCardButtonContainer}>
+                        <DashboardButton href={card.docLink} target="_blank" rel="noopener noreferrer" variant="secondary" text="Learn More" size="sm" />
+                    </div>
+                </ThemeCard>
             ))}
+            </div>
+        </div>
+
+        <div className={styles.secondaryInfoContainer}>
+             <ThemeCard title="Referral Codes" className={styles.referralInfoCard}>
+                 <p>Your User ID (for referrals):</p>
+                 <div className={styles.codeBox}>
+                     <span>{subject.id}</span>
+                     <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
+                 </div>
+                 <p>Your Trader ID (for DEX):</p>
+                 <div className={styles.codeBox}>
+                     <span>{subject.traderId}</span>
+                     <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.traderId, "Trader ID")} iconLeft={<Copy size={14}/>} />
+                 </div>
+            </ThemeCard>
+
+            <ThemeCard title="Rewards" className={styles.rewardsInfoCard}>
+                 <BarChart3 size={20} />
+                 <p>Total CXPT Earned:</p>
+                 {isLoadingSummary ? <SkeletonLoader width={100} height={30} /> : 
+                    <h2 className={styles.rewardsAmount}>{userSummary?.rewards.toLocaleString() || '0'} CXPT</h2>
+                 }
+                 <p className={styles.rewardsHint}>Rewards are typically distributed for platform activities and referrals. More details coming soon!</p>
+            </ThemeCard>
         </div>
       </div>
-      
+
       {/* Modals */}
       {isViewUserAkModalOpen && (
         <ViewApiKeyModal
           isOpen={isViewUserAkModalOpen}
           onClose={() => setIsViewUserAkModalOpen(false)}
           apiKeyType="User AK"
-          currentApiKey={currentUserAk} // Use state that can be updated
+          currentApiKey={currentUserAk}
           onRefresh={handleRefreshUserAk}
           isLoadingRefresh={isRefreshingUserAk}
+          isLoadingKey={isLoadingSummary && !currentUserAk}
         />
       )}
 
