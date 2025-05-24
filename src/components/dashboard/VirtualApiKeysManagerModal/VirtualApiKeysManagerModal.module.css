@@ -3,137 +3,167 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  color: #d1d4dc;
-  min-height: 300px; /* Ensure modal has some base height */
+  color: #000000; /* Default text color for light theme */
+  padding: 5px; /* Add slight padding to the content area inside the modal */
+}
+.managerModalContentBox { /* Target ThemeModal's content box specifically for this manager */
+    padding: 25px !important; /* Override default ThemeModal padding if needed */
+}
+
+.modalTitleCustom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.6rem;
+}
+.titleIcon {
+    color: var(--cxmpute-purple);
+}
+.titleIconDelete {
+    color: var(--cxmpute-red);
 }
 
 .headerActions {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start; /* Align items to the start if they wrap */
-  gap: 16px; /* Gap between info and buttons */
-  padding-bottom: 16px;
-  border-bottom: 1px solid #2a2f3b;
-  flex-wrap: wrap; /* Allow wrapping on smaller modal widths */
+  align-items: flex-start; /* Changed for better wrapping */
+  gap: 15px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #e0e0e0; /* Lighter border */
+  flex-wrap: wrap; /* Allow wrapping */
 }
 
 .headerInfo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.875rem;
-    color: #a0aec0;
-    flex-grow: 1; /* Allow info text to take space */
-    max-width: 60%; /* Prevent it from taking all space if buttons are few */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #333;
+  line-height: 1.5;
+  flex: 1 1 300px; /* Allow to grow and wrap */
 }
 .headerInfo svg {
-    color: var(--cxmpute-purple);
-    flex-shrink: 0;
+  color: var(--cxmpute-purple);
+  flex-shrink: 0;
 }
 
 .headerButtons {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-shrink: 0; /* Prevent buttons from being squished */
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
 }
+/* Buttons here will use DashboardButton styles */
+
 
 .skeletonContainer {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 10px 0;
 }
-/* Styles for skeleton representation of a key row */
-.keyRowContainerSkeleton {
+.keyRowContainerSkeleton { /* Matches VirtualApiKeyRow structure */
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background-color: #232731;
-  border: 1px solid #3e4556;
-  border-radius: 6px;
-  gap: 16px;
-  height: 70px; /* Approximate height of a VirtualApiKeyRow */
+  padding: 15px 20px;
+  background-color: #f9f9f9;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  gap: 15px;
+  height: 86px; /* Approximate height of a VirtualApiKeyRow */
+  box-sizing: border-box;
+}
+.keyIconAreaSkeleton .skeletonLoader > div {
+    background-color: #dcdcdc !important;
+}
+.keyIconAreaSkeleton .skeletonLoader > div::before {
+    background: linear-gradient(to right, transparent 0%, #ebebeb 50%, transparent 100%) !important;
 }
 .keyDetailsSkeleton {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  flex-grow: 1; display: flex; flex-direction: column; gap: 10px;
 }
-.keyActionsSkeleton {
-    flex-shrink: 0;
-}
+.keyDetailsSkeleton .skeletonLoader > div { background-color: #e0e0e0 !important; }
+.keyDetailsSkeleton .skeletonLoader > div::before { background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important; }
+
+.keyActionsSkeleton { flex-shrink: 0; display: flex; gap: 5px; }
+.keyActionsSkeleton .skeletonLoader > div { background-color: #dcdcdc !important; border-radius: 4px !important; }
+.keyActionsSkeleton .skeletonLoader > div::before { background: linear-gradient(to right, transparent 0%, #ebebeb 50%, transparent 100%) !important; }
 
 
-.errorMessageContainer,
-.emptyStateContainer {
+.messageContainer { /* For error and empty states */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 30px 20px;
-  color: #8a91a0;
-  font-size: 0.9rem;
-  flex-grow: 1; /* Take remaining space if list is empty */
+  padding: 40px 20px;
+  color: #555; /* Darker gray */
+  font-size: 1rem;
+  flex-grow: 1;
   gap: 15px;
+  background-color: #f9f5f2; /* Main page bg slightly lighter */
+  border-radius: 8px;
+  border: 2px dashed #ccc;
 }
-.errorMessageContainer svg {
-    color: var(--cxmpute-red, #d64989);
-    margin-bottom: 5px;
+.messageContainer svg {
+  margin-bottom: 10px;
+  width: 40px;
+  height: 40px;
 }
-.errorMessageContainer p {
-    color: var(--cxmpute-red, #d64989);
-}
+.errorIcon { color: var(--cxmpute-red); }
+.emptyIcon { color: var(--cxmpute-slate); }
+.fetchErrorText { color: var(--cxmpute-red); font-weight: 500; }
 
 
 .keysList {
   display: flex;
   flex-direction: column;
-  gap: 12px; /* Space between each VirtualApiKeyRow */
-  max-height: 50vh; /* Or a fixed height like 400px */
+  gap: 15px; /* Space between each VirtualApiKeyRow */
+  max-height: calc(80vh - 250px); /* Adjust based on typical modal height */
+  min-height: 100px; /* Ensure it has some height even with few keys */
   overflow-y: auto;
-  padding-right: 5px; /* For scrollbar */
-  margin-right: -5px; /* Compensate for scrollbar padding */
+  padding: 5px; /* Padding around the list itself */
+  background-color: #f9f5f2; /* Slightly off-white background for list area */
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
   
-  /* Custom scrollbar for dark theme */
+  /* Light theme scrollbar */
   scrollbar-width: thin;
-  scrollbar-color: #4a5265 #2a2f3b;
+  scrollbar-color: #b0b0b0 #e0e0e0;
 }
-.keysList::-webkit-scrollbar {
-  width: 6px;
-}
-.keysList::-webkit-scrollbar-track {
-  background: #1e222d; /* Darker track */
-  border-radius: 3px;
-}
-.keysList::-webkit-scrollbar-thumb {
-  background-color: #3e4556; /* Scrollbar thumb color */
-  border-radius: 3px;
-}
-.keysList::-webkit-scrollbar-thumb:hover {
-  background-color: #50586a;
-}
+.keysList::-webkit-scrollbar { width: 8px; }
+.keysList::-webkit-scrollbar-track { background: #e9ecef; border-radius: 4px; }
+.keysList::-webkit-scrollbar-thumb { background-color: #ced4da; border-radius: 4px; border: 2px solid #e9ecef; }
+.keysList::-webkit-scrollbar-thumb:hover { background-color: #adb5bd; }
 
-/* Delete Confirmation Modal Specifics */
-.confirmDeleteText {
-  font-size: 0.95rem;
-  color: #c0c5ce;
-  line-height: 1.5;
-  margin-bottom: 8px;
+
+/* Delete Confirmation Modal Styles */
+.deleteConfirmContent {
+    padding: 10px 0; /* Add some padding to the content of delete modal */
 }
-.confirmDeleteText strong {
-    font-family: monospace;
+.confirmDeleteText {
+  font-size: 1rem;
+  color: #333;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.confirmDeleteText code {
+    font-family: "Montserrat", sans-serif;
+    background-color: #e9ecef;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #c92a2a; /* Danger color for key part */
 }
 .confirmDeleteWarning {
-  font-size: 0.8rem;
-  color: var(--cxmpute-yellow, #f8cb46);
-  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--cxmpute-red); /* Stronger warning color */
+  font-weight: 600;
+  text-align: center;
+  margin-top: 5px;
+  background-color: rgba(214, 73, 137, 0.08);
+  padding: 8px;
+  border-radius: 4px;
 }
-.deleteModalFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
+/* .deleteModalFooter is handled by ThemeModal's footerContent prop */
