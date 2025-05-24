@@ -3,16 +3,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import styles from './ProviderDashboardContent.module.css';
-import Button from '@/components/ui/Button/Button';
+import styles from './ProviderDashboardContent.module.css'; // Will use revised CSS
+import DashboardButton from '../DashboardButton/DashboardButton';
+import ThemeCard from '../ThemeCard/ThemeCard';
 import ViewApiKeyModal from '../ViewApiKeyModal/ViewApiKeyModal';
+import ThemeModal from '../ThemeModal/ThemeModal'; // For delete confirmation
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
 import Link from 'next/link';
-import { DollarSign, Server, KeyRound, Copy, Trash2, AlertTriangle, Power } from 'lucide-react';
+import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, HelpCircle, FileText } from 'lucide-react';
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
-import Modal from '@/components/ui/Modal/Modal'; // For delete confirmation
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -20,14 +21,13 @@ interface ProviderDashboardProps {
 
 interface ProviderEarningsData {
   total: number;
-  earnings: RewardEntry[]; // Past 30 days
+  earnings: RewardEntry[];
 }
 
 const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject }) => {
   const [earningsData, setEarningsData] = useState<ProviderEarningsData | null>(null);
   const [provisions, setProvisions] = useState<ProvisionRecord[]>([]);
-  const [isLoadingEarnings, setIsLoadingEarnings] = useState(true);
-  const [isLoadingProvisions, setIsLoadingProvisions] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState({ earnings: true, provisions: true });
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [isViewProviderAkModalOpen, setIsViewProviderAkModalOpen] = useState(false);
@@ -35,14 +35,16 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
   const [currentProviderAk, setCurrentProviderAk] = useState<string | null>(subject.providerAk);
 
   const [provisionToDelete, setProvisionToDelete] = useState<ProvisionRecord | null>(null);
-  const [isDeletingProvision, setIsDeletingProvision] = useState<string | null>(null);
-
+  const [isDeletingProvisionId, setIsDeletingProvisionId] = useState<string | null>(null);
 
   const fetchProviderDashboardData = useCallback(async (showLoadingToast = false) => {
-    if (!subject.providerId) return;
+    if (!subject.providerId) {
+        setFetchError("Provider ID not found in your account.");
+        setIsLoadingData({ earnings: false, provisions: false });
+        return;
+    }
 
-    setIsLoadingEarnings(true);
-    setIsLoadingProvisions(true);
+    setIsLoadingData({ earnings: true, provisions: true });
     setFetchError(null);
     let loadingToastId: string | undefined;
     if (showLoadingToast) {
@@ -52,46 +54,61 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
     try {
       const [earningsRes, provisionsRes] = await Promise.all([
         fetch(`/api/providers/${subject.providerId}/earnings`),
-        fetch(`/api/providers/${subject.providerId}/provisions`) // NEW API Endpoint
+        fetch(`/api/providers/${subject.providerId}/provisions`)
       ]);
+
+      let earningsError = null;
+      let provisionsError = null;
 
       if (!earningsRes.ok) {
         const errData = await earningsRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to load earnings data.");
+        earningsError = errData.error || "Failed to load earnings data.";
+        console.error("Earnings fetch error:", earningsError);
+        setEarningsData({ total: 0, earnings: [] }); // Set default on error
+      } else {
+        const earningsJson = await earningsRes.json();
+        setEarningsData(earningsJson);
       }
-      const earningsJson = await earningsRes.json();
-      setEarningsData(earningsJson);
 
       if (!provisionsRes.ok) {
         const errData = await provisionsRes.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to load provisions data.");
+        provisionsError = errData.error || "Failed to load provisions data.";
+        console.error("Provisions fetch error:", provisionsError);
+        setProvisions([]); // Set default on error
+      } else {
+        const provisionsJson = await provisionsRes.json();
+        setProvisions(provisionsJson.items || provisionsJson || []);
       }
-      const provisionsJson = await provisionsRes.json(); // Assuming it returns { items: ProvisionRecord[] } or ProvisionRecord[]
-      setProvisions(provisionsJson.items || provisionsJson || []);
       
-      if (showLoadingToast) notify.success("Provider data refreshed!");
+      if (earningsError || provisionsError) {
+          const combinedError = [earningsError, provisionsError].filter(Boolean).join(' ');
+          setFetchError(combinedError);
+          if (showLoadingToast) notify.error(combinedError || "Failed to refresh some data.", { id: loadingToastId });
+      } else if (showLoadingToast) {
+          notify.success("Provider data refreshed!", { id: loadingToastId });
+      }
 
     } catch (error: any) {
       console.error("Error fetching provider dashboard data:", error);
-      setFetchError(error.message || "Could not load provider data.");
-      if (showLoadingToast) notify.error(error.message || "Could not refresh data.");
-      // Set defaults on error to prevent breaking UI
+      const errorMessage = error.message || "Could not load provider data.";
+      setFetchError(errorMessage);
+      if (showLoadingToast) notify.error(errorMessage, { id: loadingToastId });
       if (!earningsData) setEarningsData({ total: 0, earnings: [] });
       if (provisions.length === 0) setProvisions([]);
     } finally {
-      setIsLoadingEarnings(false);
-      setIsLoadingProvisions(false);
-      if (loadingToastId) notify.dismiss(loadingToastId);
+      setIsLoadingData({ earnings: false, provisions: false });
+      if (loadingToastId && !showLoadingToast) notify.dismiss(loadingToastId);
     }
-  }, [subject.providerId, earningsData, provisions.length]); // Added missing deps
+  }, [subject.providerId, earningsData, provisions.length]); // Dependencies updated
 
   useEffect(() => {
     fetchProviderDashboardData();
     setCurrentProviderAk(subject.providerAk);
-  }, [subject.providerAk, fetchProviderDashboardData]);
+  }, [subject.providerId, subject.providerAk, fetchProviderDashboardData]);
 
-  const handleRefreshProviderAk = async (): Promise<string | null> => {
-    if (!subject.providerId) return null;
+
+  const handleRefreshProviderAk = async () => { /* ... (same as UserDashboardContent) ... */
+    if (!subject.providerId) return;
     setIsRefreshingProviderAk(true);
     const loadingToastId = notify.loading("Refreshing Provider API Key...");
     try {
@@ -99,23 +116,14 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
       const data = await response.json();
       notify.dismiss(loadingToastId);
       if (!response.ok) throw new Error(data.error || 'Failed to refresh Provider AK');
-      
       setCurrentProviderAk(data.providerAk);
       notify.success("Provider API Key refreshed successfully!");
-      return data.providerAk;
     } catch (error: any) {
       notify.dismiss(loadingToastId);
       notify.error(error.message || "Failed to refresh key.");
-      return null;
     } finally {
       setIsRefreshingProviderAk(false);
     }
-  };
-  
-  const handleCopyReferralCode = () => {
-    navigator.clipboard.writeText(subject.providerId)
-      .then(() => notify.success("Referral Code (Provider ID) copied!"))
-      .catch(() => notify.error("Failed to copy referral code."));
   };
 
   const initiateDeleteProvision = (provision: ProvisionRecord) => {
@@ -125,146 +133,160 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
   const confirmDeleteProvision = async () => {
     if (!provisionToDelete || !currentProviderAk) return;
     
-    setIsDeletingProvision(provisionToDelete.provisionId);
+    setIsDeletingProvisionId(provisionToDelete.provisionId);
     const loadingToastId = notify.loading(`Deleting provision ${provisionToDelete.provisionId.substring(0,6)}...`);
 
     try {
-        // This API expects providerAk in the body for auth, not just path param
         const response = await fetch(`/api/providers/delete`, {
-            method: 'POST', // or DELETE if your route supports it
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 provisionId: provisionToDelete.provisionId,
                 providerAk: currentProviderAk, 
             }),
         });
-        const result = await response.json();
         notify.dismiss(loadingToastId);
-        if (!response.ok) {
-            throw new Error(result.error || "Failed to delete provision.");
-        }
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Failed to delete provision.");
         notify.success(`Provision ${provisionToDelete.provisionId.substring(0,6)} deleted successfully.`);
-        fetchProviderDashboardData(); // Refresh list
+        fetchProviderDashboardData();
     } catch (err: any) {
         notify.dismiss(loadingToastId);
         console.error("Error deleting provision:", err);
         notify.error(err.message || "Could not delete provision.");
     } finally {
         setProvisionToDelete(null);
-        setIsDeletingProvision(null);
+        setIsDeletingProvisionId(null);
     }
   };
 
 
   return (
-    <div className={styles.dashboardContentGrid}>
-      {/* Provider Actions & Info Column */}
-      <div className={`${styles.infoCard} ${styles.providerActionsCard}`}>
-        <h3 className={styles.cardTitle}><KeyRound size={20}/> Provider Settings</h3>
-        <div className={styles.keyActionItem}>
-          <p>Your primary Provider API Key for node authentication.</p>
-          <Button variant="secondary" size="sm" onClick={() => setIsViewProviderAkModalOpen(true)}>
-            View Provider AK
-          </Button>
-        </div>
-        <div className={styles.keyActionItem}>
-            <p>Share your Provider ID for referrals or support.</p>
-            <div className={styles.referralCodeBox}>
-                <span className={styles.referralCodeText} title={subject.providerId}>{subject.providerId}</span>
-               <Button variant="ghost" size="sm" onClick={handleCopyReferralCode} iconLeft={<Copy size={14}/>}>
-                    Copy Referral Code
-                </Button>
+    <div className={styles.providerDashboardContainer}>
+      {/* Hero Section - using ThemeCard */}
+      <ThemeCard className={styles.heroCard}>
+        <div className={styles.heroContent}>
+          <div className={styles.heroLeft}>
+            <h3 className={styles.emailDisplay}>{subject.email}</h3>
+            <h1 className={styles.dashboardTitle}>Provider Dashboard</h1>
+            <h2 className={styles.welcomeMessage}>Manage your compute provisions and track earnings.</h2>
+            <div className={styles.heroButtonContainer}>
+              <DashboardButton href="/docs/provider" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Provider Docs" />
+              <DashboardButton onClick={() => setIsViewProviderAkModalOpen(true)} variant="accentOrange" iconLeft={<KeyRound size={16}/>} text="View Provider AK" />
+              <DashboardButton href="/maximize" target="_blank" rel="noopener noreferrer" variant="accentYellow" iconLeft={<HelpCircle size={16}/>} text="Maximize Earnings" />
             </div>
+          </div>
+          <div className={styles.heroRight}>
+            {/* Top buttons are handled by DashboardToggle, removed from here */}
+            <div className={styles.earningsSummarySection}>
+              <h2 className={styles.sectionTitleSmall}>Total Earnings</h2>
+              {isLoadingData.earnings ? <SkeletonLoader width={120} height={40} /> :
+                <h1 className={styles.earningsNumber}>
+                  {(earningsData?.total || 0).toLocaleString()} <span className={styles.cxptSymbol}>CXPT</span>
+                </h1>
+              }
+              {/* Withdraw functionality might be added here later */}
+              <DashboardButton text="Withdraw (Coming Soon)" disabled />
+            </div>
+          </div>
         </div>
-        <Link href="/download" passHref legacyBehavior>
-            <a className={styles.fullWidthLinkButton}>
-                <Button variant="primary" size="md" className={styles.fullWidthButton} iconLeft={<Power size={16}/>}>
-                    Download Provider App / Add New Provision
-                </Button>
-            </a>
-        </Link>
-      </div>
+      </ThemeCard>
 
-      {/* Earnings Card */}
-      <div className={`${styles.infoCard} ${styles.earningsCard}`}>
-        <h3 className={styles.cardTitle}><DollarSign size={20}/> Earnings</h3>
-        {isLoadingEarnings ? (
-          <>
-            <SkeletonLoader width="60%" height="24px" style={{ marginBottom: '10px' }} />
-            <SkeletonLoader count={3} height="16px" />
-          </>
-        ) : fetchError ? (
-          <p className={styles.errorTextSmall}>{fetchError}</p>
-        ) : earningsData ? (
-          <>
-            <div className={styles.totalEarnings}>
-              Total Earned: <span className={styles.earningsValue}>{earningsData.total.toLocaleString()} CXPT</span>
-            </div>
-            <h4 className={styles.subHeading}>Recent Earnings (Last 30 Days):</h4>
-            {earningsData.earnings.length > 0 ? (
-              <ul className={styles.earningsList}>
-                {earningsData.earnings.slice(-7).reverse().map(entry => ( // Show last 7 days
-                  <li key={entry.day}>
-                    <span>{new Date(entry.day + "T00:00:00Z").toLocaleDateString(undefined, { month:'short', day:'numeric'})}:</span>
-                    <span>{entry.amount.toLocaleString()} CXPT</span>
-                  </li>
+      {/* Bottom Section: Provisions & Earnings Graph/Details */}
+      <div className={styles.bottomSection}>
+        <div className={styles.provisionsListContainer}>
+          <ThemeCard title="My Provisions" className={styles.fullHeightCard}
+            headerActions={
+                <DashboardButton
+                    variant="ghost" size="sm"
+                    onClick={() => fetchProviderDashboardData(true)}
+                    isLoading={isLoadingData.provisions && provisions.length > 0}
+                    disabled={isLoadingData.provisions}
+                    iconLeft={<RefreshCcw size={14} />}
+                    text="Refresh"
+                />
+            }
+          >
+            {isLoadingData.provisions && provisions.length === 0 ? (
+              <div className={styles.provisionItemSkeletonContainer}>
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={`skel-prov-${i}`} className={styles.provisionItemSkeleton}>
+                    <div><SkeletonLoader count={1} width="60%" height="18px"/><SkeletonLoader count={1} width="80%" height="14px"/></div>
+                    <SkeletonLoader width={80} height={30}/>
+                  </div>
                 ))}
-              </ul>
+              </div>
+            ) : fetchError && provisions.length === 0 ? (
+              <div className={styles.messageContainer}>
+                <AlertTriangle size={28} className={styles.errorIcon} /> <p>{fetchError}</p>
+              </div>
+            ) : provisions.length === 0 ? (
+              <div className={styles.messageContainer}>
+                <Server size={28} className={styles.emptyIcon}/>
+                <p>No active provisions found.</p>
+                <Link href="/download" passHref legacyBehavior>
+                    <a><DashboardButton variant="primary" text="Add Your First Provision"/></a>
+                </Link>
+              </div>
             ) : (
-              <p className={styles.noDataText}>No earnings recorded yet.</p>
+              <div className={styles.provisionListScrollable}>
+                {provisions.map(provision => (
+                  <div key={provision.provisionId} className={styles.provisionItem}>
+                    <div className={styles.provisionInfo}>
+                      <span className={styles.provisionId} title={provision.provisionId}>
+                        <Server size={16} className={styles.provisionIcon}/> {provision.provisionId.substring(0, 10)}...
+                      </span>
+                      <span className={styles.provisionMeta}>
+                        Type: {provision.deviceDiagnostics?.type || 'N/A'}
+                        {provision.deviceDiagnostics?.compute.gpu && ` | GPU: ${provision.deviceDiagnostics.compute.gpu.name.substring(0,12)}...`}
+                      </span>
+                      <span className={styles.provisionMeta}>
+                        Location: {provision.location?.city || 'Unknown City'}, {provision.location?.country || 'Unknown Country'}
+                      </span>
+                      {/* Placeholder for assigned models/services */}
+                      {/* <span className={styles.provisionMeta}>Services: LLM, Embeddings</span> */}
+                    </div>
+                    <DashboardButton
+                      variant="danger" size="sm"
+                      onClick={() => initiateDeleteProvision(provision)}
+                      isLoading={isDeletingProvisionId === provision.provisionId}
+                      disabled={!!isDeletingProvisionId}
+                      iconLeft={<Trash2 size={14}/>}
+                      text="Delete"
+                    />
+                  </div>
+                ))}
+              </div>
             )}
-          </>
-        ) : null}
+          </ThemeCard>
+        </div>
+
+        <div className={styles.earningsDetailContainer}>
+          <ThemeCard title="Earnings Breakdown" className={styles.fullHeightCard}>
+            {isLoadingData.earnings ? <SkeletonLoader count={5} height="20px" /> :
+             fetchError && !earningsData ? <p className={styles.errorTextSmall}>{fetchError}</p> :
+             earningsData && earningsData.earnings.length > 0 ? (
+              <div className={styles.earningsListScrollable}>
+                <div className={styles.earningsListHeader}>
+                    <span>Date</span>
+                    <span>Amount (CXPT)</span>
+                </div>
+                {earningsData.earnings.slice().reverse().map(entry => ( // Show newest first
+                  <div key={entry.day} className={styles.earningRow}>
+                    <span>{new Date(entry.day + "T00:00:00Z").toLocaleDateString(undefined, {year:'2-digit', month:'short', day:'numeric'})}</span>
+                    <span className={styles.earningAmount}>+{entry.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.noDataTextSmall}>No recent earnings to display.</p>
+            )}
+            {/* Placeholder for earnings chart */}
+            {/* <div className={styles.graphPlaceholder}>Earnings Chart Coming Soon</div> */}
+          </ThemeCard>
+        </div>
       </div>
 
-      {/* Provisions Card - Spans full width if only two columns, or takes its place in 3-col */}
-      <div className={`${styles.infoCard} ${styles.provisionsCard}`}>
-        <h3 className={styles.cardTitle}><Server size={20}/> My Provisions ({provisions.length})</h3>
-        {isLoadingProvisions ? (
-          <div className={styles.provisionList}>
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={`skel-prov-${i}`} className={styles.provisionItemSkeleton}>
-                <SkeletonLoader count={2} />
-                <SkeletonLoader width={80} height={28} />
-              </div>
-            ))}
-          </div>
-        ) : fetchError && provisions.length === 0 ? ( // Show error only if no provisions loaded
-            <div className={styles.errorMessageContainer}>
-              <AlertTriangle size={24} /> <p>{fetchError}</p>
-            </div>
-        ) : provisions.length === 0 ? (
-          <p className={styles.noDataText}>No active provisions found. Download the app to start providing!</p>
-        ) : (
-          <div className={styles.provisionList}>
-            {provisions.map(provision => (
-              <div key={provision.provisionId} className={styles.provisionItem}>
-                <div className={styles.provisionInfo}>
-                  <span className={styles.provisionId} title={provision.provisionId}>ID: {provision.provisionId.substring(0, 12)}...</span>
-                  <span className={styles.provisionMeta}>
-                    Type: {provision.deviceDiagnostics?.type || 'N/A'}
-                    {provision.deviceDiagnostics?.compute?.gpu && ` (${provision.deviceDiagnostics.compute.gpu.name.substring(0,15)}...)`}
-                  </span>
-                  <span className={styles.provisionMeta}>
-                    Location: {provision.location?.city || 'N/A'}, {provision.location?.country || 'N/A'}
-                  </span>
-                </div>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => initiateDeleteProvision(provision)}
-                  isLoading={isDeletingProvision === provision.provisionId}
-                  disabled={!!isDeletingProvision}
-                  iconLeft={<Trash2 size={14}/>}
-                >
-                  Delete
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
       {/* Modals */}
       {isViewProviderAkModalOpen && (
         <ViewApiKeyModal
@@ -274,26 +296,35 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
           currentApiKey={currentProviderAk}
           onRefresh={handleRefreshProviderAk}
           isLoadingRefresh={isRefreshingProviderAk}
+          isLoadingKey={isLoadingData.earnings && !currentProviderAk}
         />
       )}
       {provisionToDelete && (
-        <Modal
+        <ThemeModal
           isOpen={!!provisionToDelete}
           onClose={() => setProvisionToDelete(null)}
-          title={`Confirm Delete Provision`}
+          title={
+            <span className={styles.modalTitleCustom}>
+                <AlertTriangle size={22} className={styles.titleIconDelete}/> Confirm Delete Provision
+            </span> as unknown as string
+          }
           size="sm"
+          footerContent={
+            <>
+                <DashboardButton variant="secondary" onClick={() => setProvisionToDelete(null)} disabled={!!isDeletingProvisionId} text="Cancel"/>
+                <DashboardButton variant="danger" onClick={confirmDeleteProvision} isLoading={!!isDeletingProvisionId} disabled={!!isDeletingProvisionId} text="Yes, Delete"/>
+            </>
+          }
         >
-            <p className={styles.confirmDeleteText}>
-                Are you sure you want to delete provision <strong>{provisionToDelete.provisionId.substring(0,8)}...</strong>?
+          <div className={styles.deleteConfirmContent}>
+            <p>
+                Are you sure you want to delete provision <code className={styles.codeStyled}>{provisionToDelete.provisionId.substring(0,12)}...</code>?
             </p>
-            <p className={styles.confirmDeleteWarning}>
-                This will remove it from the network. This action cannot be undone.
+            <p className={styles.deleteConfirmWarning}>
+                This will remove it from all service pools and it will stop earning rewards. This action cannot be undone.
             </p>
-            <div className={styles.deleteModalFooter}>
-                <Button variant="outline" onClick={() => setProvisionToDelete(null)} disabled={!!isDeletingProvision}>Cancel</Button>
-                <Button variant="danger" onClick={confirmDeleteProvision} isLoading={!!isDeletingProvision} disabled={!!isDeletingProvision}>Yes, Delete Provision</Button>
-            </div>
-        </Modal>
+          </div>
+        </ThemeModal>
       )}
     </div>
   );

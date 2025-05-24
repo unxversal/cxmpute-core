@@ -1,239 +1,282 @@
 /* src/components/dashboard/ProviderDashboardContent/ProviderDashboardContent.module.css */
-.dashboardContentGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
+/* Reusing structure from original ProviderDashboard.module.css */
+.providerDashboardContainer {
   width: 100%;
-  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  font-family: var(--font-roboto);
 }
 
-.infoCard {
-  background-color: #1e222d;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #2a2f3b;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+/* Hero Card Styles (using ThemeCard base) */
+.heroCard {
+  /* ThemeCard provides base style, can add specifics if needed */
+}
+.heroContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 30px;
+  width: 100%;
+}
+.heroLeft {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  flex: 2;
 }
-
-.cardTitle {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #e0e0e0;
-  margin: 0 0 5px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #3e4556;
-  padding-bottom: 10px;
-}
-.cardTitle svg {
-  color: var(--cxmpute-green); /* Provider theme color */
-}
-
-/* Provider Actions Card */
-.providerActionsCard .keyActionItem {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid #2a2f3b;
-}
-.providerActionsCard .keyActionItem:last-of-type { /* Last specific type to remove border */
-    border-bottom: none;
-    padding-bottom: 0;
-}
-.providerActionsCard .keyActionItem p {
-  font-size: 0.875rem;
-  color: #a0aec0;
-  line-height: 1.5;
-  margin: 0;
-}
-.providerActionsCard .keyActionItem > button {
-  align-self: flex-start;
-}
-.referralCodeBox {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: #171b26;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid #2a2f3b;
-}
-.referralCodeText {
-  font-family: monospace;
+.emailDisplay {
   font-size: 0.9rem;
-  color: var(--cxmpute-green); /* Provider theme highlight */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.referralCodeBox button svg {
-    color: #8a91a0;
-}
-.fullWidthLinkButton {
-    text-decoration: none; /* Remove underline from link */
-    display: block; /* Make link take full width */
-    margin-top: auto; /* Push to bottom if card has space */
-}
-.fullWidthButton {
-    width: 100%;
-}
-
-
-/* Earnings Card */
-.earningsCard {
-  /* Specific styles if needed */
-}
-.totalEarnings {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #e0e0e0;
-  text-align: center;
-  margin-bottom: 5px;
-}
-.earningsValue {
-  color: var(--cxmpute-green);
-  font-family: monospace;
-}
-.subHeading {
-  font-size: 0.8rem;
-  color: #8a91a0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 10px 0 5px 0;
+  color: #555;
   font-weight: 500;
+  margin-bottom: -10px;
 }
-.earningsList {
-  list-style: none;
-  padding: 0;
+.dashboardTitle {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #000;
   margin: 0;
-  font-size: 0.85rem;
-  max-height: 150px; /* Limit height for scroll */
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #3e4556 #1e222d;
+  line-height: 1.1;
 }
-.earningsList::-webkit-scrollbar { width: 4px; }
-.earningsList::-webkit-scrollbar-track { background: #1e222d; }
-.earningsList::-webkit-scrollbar-thumb { background-color: #3e4556; border-radius: 2px; }
-
-.earningsList li {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  color: #a0aec0;
-}
-.earningsList li span:last-child {
+.welcomeMessage {
+  font-size: 1.1rem;
+  color: #333;
   font-weight: 500;
-  color: #c0c5ce;
-  font-family: monospace;
+  margin: 0;
 }
-
-/* Provisions Card */
-.provisionsCard {
-  /* grid-column: 1 / -1; If it should span full width in a 2-column layout */
+.heroButtonContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
 }
-.provisionList {
+.heroRight {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 300px; /* Example max height */
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #3e4556 #1e222d;
+  align-items: flex-end;
+  justify-content: flex-end; /* Align earnings to bottom */
+  text-align: right;
+  min-width: 280px;
 }
-.provisionList::-webkit-scrollbar { width: 4px; }
-.provisionList::-webkit-scrollbar-track { background: #1e222d; }
-.provisionList::-webkit-scrollbar-thumb { background-color: #3e4556; border-radius: 2px; }
+.earningsSummarySection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+.sectionTitleSmall {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+}
+.earningsNumber {
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--cxmpute-green); /* Provider theme color */
+  line-height: 1;
+  margin: 0;
+  text-shadow: 2px 2px 0 #000;
+}
+.cxptSymbol {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-left: 5px;
+    vertical-align: baseline;
+}
+
+
+/* Bottom Section Layout */
+.bottomSection {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr; /* Provisions list larger, earnings detail smaller */
+  gap: 25px;
+  width: 100%;
+}
+.fullHeightCard { /* To make cards in bottom section take available height */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 300px; /* Minimum height for these cards */
+}
+
+/* Provisions List Card */
+.provisionsListContainer .cardTitle svg { color: var(--cxmpute-slate); }
+.provisionListScrollable {
+  flex-grow: 1; /* Allow list to take space within card */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 5px; /* Padding inside scrollable area */
+  margin: -5px; /* Offset padding of parent for edge-to-edge scroll items */
+  scrollbar-width: thin;
+  scrollbar-color: #ccc #f0f0f0;
+}
+.provisionListScrollable::-webkit-scrollbar { width: 6px; }
+.provisionListScrollable::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px;}
+.provisionListScrollable::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 3px; }
 
 .provisionItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  background-color: #232731;
-  border-radius: 4px;
-  border: 1px solid #2a2f3b;
+  padding: 12px 15px;
+  background-color: #f9f9f9; /* Lighter item background */
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
   gap: 10px;
+  box-shadow: 2px 2px 0px #eee;
+}
+.provisionItem:hover {
+    border-color: #ccc;
+    background-color: #f0f8ff; /* Alice blue on hover */
 }
 .provisionInfo {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 0.8rem;
-  color: #a0aec0;
-  overflow: hidden; /* For text ellipsis */
+  font-size: 0.85rem;
+  color: #444;
+  overflow: hidden;
+}
+.provisionIcon {
+    margin-right: 5px;
+    color: #555;
 }
 .provisionId {
-  font-weight: 500;
-  color: #c0c5ce;
-  font-family: monospace;
+  font-weight: 600;
+  color: #000;
+  font-family: "Montserrat", sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
 }
 .provisionMeta {
   font-size: 0.75rem;
+  color: #666;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.provisionItemSkeletonContainer { display: flex; flex-direction: column; gap: 10px; }
 .provisionItemSkeleton {
+  display: flex; justify-content: space-between; align-items: center; padding: 10px;
+  background-color: #f5f5f5; border-radius: 6px; height: 60px;
+}
+.provisionItemSkeleton > div:first-child { flex-grow: 1; margin-right: 10px; }
+
+
+/* Earnings Detail Card */
+.earningsDetailContainer .cardTitle svg { color: var(--cxmpute-green); }
+.earningsListScrollable {
+  flex-grow: 1; overflow-y: auto; padding: 5px; margin: -5px;
+  scrollbar-width: thin; scrollbar-color: #ccc #f0f0f0;
+}
+.earningsListScrollable::-webkit-scrollbar { width: 6px; }
+.earningsListScrollable::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px;}
+.earningsListScrollable::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 3px; }
+
+.earningsListHeader {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #555;
+    padding: 5px 8px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+.earningRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background-color: #232731;
-  border-radius: 4px;
-  border: 1px solid #2a2f3b;
-  gap: 10px;
-  height: 60px; /* Approx height of a provision item */
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+}
+.earningRow:last-child { border-bottom: none; }
+.earningRow span:first-child { color: #555; }
+.earningAmount {
+  font-weight: 600;
+  color: var(--cxmpute-green);
+  font-family: "Montserrat", sans-serif;
+}
+.graphPlaceholder {
+    flex-grow: 1; display: flex; align-items: center; justify-content: center;
+    color: #aaa; font-style: italic; font-size: 0.9rem;
+    background-color: #f5f5f5; border-radius: 4px; min-height: 150px;
 }
 
-.noDataText, .errorMessageContainer {
-  text-align: center;
-  color: #6b778c;
-  font-size: 0.9rem;
-  padding: 20px 0;
-  font-style: italic;
-  flex-grow: 1;
+
+/* Shared utility styles (copied from UserDashboardContent for consistency) */
+.keyActionItem {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  flex-direction: column; gap: 8px; padding: 10px 0; border-bottom: 1px solid #eee;
 }
-.errorMessageContainer svg {
-    color: var(--cxmpute-red);
-}
-.errorTextSmall { /* Consistent with UserDashboardContent */
-  font-size: 0.8rem;
-  color: var(--cxmpute-red);
-  text-align: center;
-}
+.keyActionItem:last-of-type { border-bottom: none; padding-bottom: 0; }
+.keyActionItem p { font-size: 0.875rem; color: #555; line-height: 1.5; margin: 0; }
+.keyActionItem > button { align-self: flex-start; }
 
-/* Delete Confirmation Modal Styles (reused from VirtualApiKeysManagerModal) */
-.confirmDeleteText {
-  font-size: 0.95rem;
-  color: #c0c5ce;
-  line-height: 1.5;
-  margin-bottom: 8px;
+.referralCodeBox {
+  display: flex; align-items: center; justify-content: space-between;
+  background-color: #f0f0f0; padding: 8px 10px; border-radius: 5px; border: 1px solid #ccc;
 }
-.confirmDeleteText strong {
-    font-family: monospace;
+.referralCodeText {
+  font-family: "Montserrat", sans-serif; font-size: 0.9rem; color: var(--cxmpute-purple); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.referralCodeBox button svg { color: #555; }
+
+
+.messageContainer {
+  text-align: center; color: #777; font-size: 0.95rem; padding: 30px 15px; font-style: italic;
+  flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;
+}
+.messageContainer svg { margin-bottom: 10px; width: 32px; height: 32px; }
+.errorIcon { color: var(--cxmpute-red); }
+.emptyIcon { color: #aaa; } /* More subtle empty icon */
+.errorTextSmall { font-size: 0.85rem; color: var(--cxmpute-red); }
+.noDataTextSmall { font-size: 0.85rem; color: #777; }
+
+.modalTitleCustom { display: flex; align-items: center; gap: 10px; font-size: 1.6rem; }
+.titleIconDelete { color: var(--cxmpute-red); }
+
+.deleteConfirmContent { padding: 10px 0; }
+.confirmDeleteText { font-size: 1rem; color: #333; line-height: 1.6; margin-bottom: 10px; text-align: center; }
+.confirmDeleteText code {
+    font-family: "Montserrat", sans-serif; background-color: #e9ecef; padding: 2px 5px;
+    border-radius: 4px; font-size: 0.9em; color: #c92a2a;
 }
 .confirmDeleteWarning {
-  font-size: 0.8rem;
-  color: var(--cxmpute-yellow, #f8cb46);
-  font-weight: 500;
+  font-size: 0.85rem; color: var(--cxmpute-red); font-weight: 600; text-align: center; margin-top: 5px;
+  background-color: rgba(214, 73, 137, 0.08); padding: 8px; border-radius: 4px;
 }
-.deleteModalFooter {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
+.deleteModalFooter { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+
+
+@media (max-width: 992px) {
+  .heroContent { flex-direction: column; align-items: center; text-align: center; }
+  .heroLeft, .heroRight { width: 100%; align-items: center; text-align: center; }
+  .heroRight { margin-top: 20px; }
+  .heroButtonContainer { justify-content: center; }
+  .earningsSummarySection { align-items: center; }
+  .bottomSection { grid-template-columns: 1fr; } /* Stack provisions and earnings details */
 }
+@media (max-width: 600px) {
+  .dashboardTitle { font-size: 2rem; }
+  .welcomeMessage { font-size: 1rem; }
+  .earningsNumber { font-size: 2.8rem; }
+  .sectionTitle { font-size: 1.3rem; }
+  .provisionItem { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .provisionItem > button { align-self: flex-start; margin-top: 5px; }
+}
+
+/* Ensure skeleton loader adapts to light theme if not globally configured */
+.skeletonLoader > div { background-color: #e0e0e0 !important; }
+.skeletonLoader > div::before { background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important; }
