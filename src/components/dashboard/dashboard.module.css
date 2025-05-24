@@ -1,179 +1,63 @@
-/* ───────── base card & container (unchanged) ───────── */
-.container {
+/* src/components/dashboard/dashboard.module.css */
+.dashboardContainer {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  max-width: 650px;
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  text-align: center;
-}
-
-.contentCard {
-  padding: 20px;
+  gap: 20px; /* Gap between toggle and content */
   width: 100%;
-  border: 2px solid black;
-  border-radius: 7px;
-  box-shadow: 5px 5px 0 black;
-  background: #fff;
+  max-width: 1200px; /* Max width for the dashboard content area */
+  margin: 0 auto; /* Center the dashboard */
+  padding: 20px 0; /* Vertical padding for the overall dashboard page */
+}
+
+.loadingContainer {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-}
-
-/* ───────── grid (≤2 cols responsive) ───────── */
-.grid {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 680px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ───────── selector buttons ───────── */
-.switchButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.switchBtn {
-  border: 2px solid black;
-  border-radius: 7px;
-  padding: 4px 10px;
-  background: var(--cxmpute-purple, #91a8eb);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 black;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.switchBtn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.switchBtn:not(:disabled):hover {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 black;
-}
-
-/* ───────── key block ───────── */
-.keysBlock h3 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
-}
-
-.keyRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.8rem;
-}
-
-.masked {
-  -webkit-text-security: disc;
-  text-security: disc;
-  filter: blur(4px);
-  user-select: none;
-}
-
-/* copy / trash / refresh */
-.iconBtn {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-/* ───────── provision rows ───────── */
-.provisionRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.8rem;
-  word-break: break-all;
-}
-
-/* ───────── create-key box ───────── */
-.createBox {
-  margin-top: 6px;
-  cursor: pointer;
-}
-
-.createBox[open] summary {
-  margin-bottom: 10px;
-}
-
-.createForm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.createForm input,
-.createForm select {
-  border: 1px solid #bbb;
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 0.85rem;
-}
-
-/* ───────── modal confirm ───────── */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0 0 0 / 0.4);
-  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  gap: 15px;
+  min-height: 300px; /* Ensure it takes some space */
+  color: #a0aec0;
 }
 
-.modal {
-  background: #fff;
-  padding: 20px 24px;
-  border: 2px solid black;
-  border-radius: 8px;
-  box-shadow: 4px 4px 0 black;
-  max-width: 320px;
-}
-
-.modalBtns {
+.toggleSection {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
+  justify-content: center; /* Center the toggle component */
+  margin-bottom: 10px; /* Space below the toggle */
+  width: 100%;
 }
 
-.modalBtns button {
-  border: 2px solid black;
-  border-radius: 6px;
-  padding: 4px 12px;
-  background: var(--cxmpute-green, #20a191);
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 black;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+.contentSection {
+  width: 100%;
+  /* The UserDashboardContent and ProviderDashboardContent will manage their own grid layouts */
 }
 
-.modalBtns button:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 black;
+.accessDeniedCard {
+  background-color: #1e222d; /* Consistent card background */
+  padding: 25px 30px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  color: #d1d4dc;
+  text-align: center;
+}
+.accessDeniedCard h3 {
+  font-size: 1.2rem;
+  color: var(--cxmpute-yellow); /* Or a warning color */
+  margin-bottom: 10px;
+}
+.accessDeniedCard p {
+  font-size: 0.9rem;
+  color: #a0aec0;
+  margin-bottom: 15px;
+}
+
+/* Media query for smaller screens if toggle buttons need to stack or justify differently */
+@media (max-width: 600px) {
+  .toggleSection {
+    /* Example: If toggle buttons should stack or wrap on very small screens */
+    /* This depends on the DashboardToggle.module.css handling its internal flex-wrap */
+  }
+  .dashboardContainer {
+    padding: 15px 10px; /* Reduce padding on small screens */
+  }
 }
