@@ -1,0 +1,111 @@
+/* src/components/dashboard/ViewApiKeyModal/ViewApiKeyModal.module.css */
+.modalContentWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px; /* Consistent gap */
+  color: #000000; /* Default dark text for light theme */
+}
+
+.modalTitleCustom { /* For styling the title if passed as a node */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.6rem; /* Match ThemeModal title size if needed */
+}
+.titleIcon {
+    color: var(--cxmpute-yellow); /* Example accent for key icon */
+}
+
+
+.loadingContainer,
+.errorContainer {
+  padding: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555; /* Darker gray for light theme */
+  border: 2px dashed #ccc; /* Lighter dashed border */
+  border-radius: 6px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column; /* Stack spinner and text */
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9; /* Very light background for these states */
+}
+.errorContainer {
+  color: var(--cxmpute-red, #d64989); /* Use theme red */
+  border-color: var(--cxmpute-red, #d64989);
+  background-color: rgba(214, 73, 137, 0.05); /* Very light red tint */
+}
+/* Ensure SkeletonLoader inside loadingContainer adapts if needed */
+.loadingContainer .skeletonLoader > div {
+    background-color: #e0e0e0 !important; /* Light skeleton base */
+}
+.loadingContainer .skeletonLoader > div::before {
+    background: linear-gradient(to right, transparent 0%, #f0f0f0 50%, transparent 100%) !important; /* Light shimmer */
+}
+.loadingContainer p {
+    margin-top: 10px;
+}
+
+
+.infoText {
+  font-size: 0.9rem;
+  color: #333; /* Darker text for info */
+  line-height: 1.6;
+  margin-bottom: 0; /* Adjusted margin */
+  background-color: #f0f8ff; /* Alice blue or similar very light accent */
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #cfe2f3; /* Light blue border */
+}
+
+.apiKeyDisplayContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f5f5f5; /* Light gray background for key area */
+  padding: 12px 16px;
+  border-radius: 7px; /* Match button radius */
+  border: 2px solid #000; /* Chunky border */
+  gap: 10px;
+  /* No heavy shadow needed for internal elements of a modal typically */
+}
+
+.apiKeyTextValue { /* Renamed from apiKeyText */
+  font-family: "Montserrat", sans-serif; /* Consistent with DashboardButton */
+  font-size: 0.95rem; 
+  color: #000000;
+  margin: 0;
+  word-break: break-all;
+  flex-grow: 1;
+  white-space: pre-wrap;
+  font-weight: 500; /* Slightly less bold than button text */
+}
+
+.keyActions {
+  display: flex;
+  align-items: center;
+  gap: 6px; /* Tighter gap for icon buttons */
+  flex-shrink: 0;
+}
+
+.actionButton {
+  /* Uses DashboardButton with variant="ghost" */
+  /* Further overrides if ghost variant isn't perfect for this context */
+  border-color: transparent !important; /* Ensure truly ghost */
+  box-shadow: none !important;
+  color: #555 !important; /* Dark gray icons */
+  padding: 6px !important;
+}
+.actionButton:hover {
+  background-color: #e9ecef !important; /* Light hover for ghost buttons */
+  color: #000 !important;
+}
+.actionButton svg {
+  margin: 0 !important;
+}
+
+/* The modalFooterActions div is now part of ThemeModal's footerContent prop.
+   DashboardButton styles will apply to buttons passed there.
+   No specific modalFooterActions styles needed here unless overriding. */

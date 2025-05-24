@@ -2,13 +2,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import styles from './ViewApiKey.module.css';
-import Modal from '@/components/ui/Modal/Modal';
-import Button from '@/components/ui/Button/Button';
-import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
-import { Eye, EyeOff, Copy, RefreshCcw, AlertTriangle } from 'lucide-react';
-import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader';
-import Tooltip from '@/components/ui/Tooltip/Tooltip';
+import styles from './ViewApiKeyModal.module.css';
+import ThemeModal from '../ThemeModal/ThemeModal'; // Updated import
+import DashboardButton from '../DashboardButton/DashboardButton'; // Updated import
+import { notify } from '@/components/ui/NotificationToaster/NotificationToaster'; // Assuming this is still desired
+import { Copy, RefreshCcw, Eye, EyeOff, KeyRound } from 'lucide-react';
+import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state
 
 export type ApiKeyType = "User AK" | "Provider AK" | "Trader AK";
 
@@ -16,11 +15,18 @@ interface ViewApiKeyModalProps {
   isOpen: boolean;
   onClose: () => void;
   apiKeyType: ApiKeyType;
-  currentApiKey: string | null; // Null if initially loading or not set
-  onRefresh: () => Promise<string | null>; // Returns new key or null on error
-  isLoadingRefresh: boolean; // Parent component manages loading state for refresh
-  isApiKeyLoading?: boolean; // Optional: if the key itself is being fetched when modal opens
+  currentApiKey: string | null;
+  onRefresh: () => Promise<void>;
+  isLoadingRefresh: boolean;
+  isLoadingKey?: boolean;
 }
+
+const maskApiKey = (key: string | null, showKey: boolean): string => {
+  if (!key) return 'N/A';
+  if (showKey) return key;
+  if (key.length <= 8) return '****'.padEnd(key.length, '*');
+  return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+};
 
 const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
   isOpen,
@@ -29,20 +35,19 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
   currentApiKey,
   onRefresh,
   isLoadingRefresh,
-  isApiKeyLoading = false, // Default to false
+  isLoadingKey = false,
 }) => {
-  const [isKeyVisible, setIsKeyVisible] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
-  // Reset visibility when modal opens or key changes
   useEffect(() => {
-    if (isOpen) {
-      setIsKeyVisible(false);
+    if (!isOpen) {
       setCopied(false);
+      setShowKey(false);
     }
-  }, [isOpen, currentApiKey]);
+  }, [isOpen]);
 
-  const handleCopyToClipboard = () => {
+  const handleCopy = () => {
     if (currentApiKey) {
       navigator.clipboard.writeText(currentApiKey)
         .then(() => {
@@ -51,103 +56,100 @@ const ViewApiKeyModal: React.FC<ViewApiKeyModalProps> = ({
           setTimeout(() => setCopied(false), 2000);
         })
         .catch(err => {
-          console.error("Failed to copy API key:", err);
-          notify.error("Failed to copy key.");
+          console.error('Failed to copy API key:', err);
+          notify.error('Failed to copy key.');
         });
     }
   };
 
-  const handleRefreshKey = async () => {
-    const newKey = await onRefresh(); // Parent handles API call and updates its state
-    if (newKey) {
-      notify.success(`${apiKeyType} has been refreshed successfully!`);
-      // The currentApiKey prop will update via parent, triggering re-render
-    } else {
-      // Error notification should be handled by the parent component's onRefresh logic
-      // Or, we can add a generic one here if onRefresh doesn't always notify
-      // notify.error(`Failed to refresh ${apiKeyType}.`);
-    }
+  const handleRefreshClick = async () => {
+    await onRefresh();
+    setShowKey(false); // Optionally hide key again after refresh for security
   };
 
-  const displayApiKey = currentApiKey
-    ? isKeyVisible ? currentApiKey : `${currentApiKey.substring(0, 4)}••••••••••••••••••••••••${currentApiKey.substring(currentApiKey.length - 4)}`
-    : 'Not available';
+  const modalTitle = (
+    <span className={styles.modalTitleCustom}>
+      <KeyRound size={24} className={styles.titleIcon} /> View Your {apiKeyType}
+    </span>
+  );
 
-  const modalTitle = `View Your ${apiKeyType}`;
+  const footerContent = (
+    <>
+      <DashboardButton
+        variant="secondary" // e.g., Slate background
+        onClick={onClose}
+        disabled={isLoadingRefresh}
+        size="md"
+      >
+        Close
+      </DashboardButton>
+      <DashboardButton
+        variant="danger" // Cxmpute Red for refresh
+        onClick={handleRefreshClick}
+        isLoading={isLoadingRefresh}
+        disabled={isLoadingRefresh || isLoadingKey || !currentApiKey}
+        iconLeft={<RefreshCcw size={16}/>}
+        size="md"
+        text="Refresh Key" // Using text prop
+      />
+    </>
+  );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="md">
-      <div className={styles.modalContent}>
-        {isApiKeyLoading ? (
-          <div className={styles.apiKeyDisplayArea}>
-            <SkeletonLoader width="100%" height="40px" />
+    <ThemeModal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={modalTitle as unknown as string} // Cast if ThemeModal expects string only
+      size="md" 
+      footerContent={footerContent}
+    >
+      <div className={styles.modalContentWrapper}>
+        {isLoadingKey && !currentApiKey ? (
+          <div className={styles.loadingContainer}>
+            {/* Use a light-themed skeleton or spinner if preferred */}
+            <SkeletonLoader type="text" count={2} height="20px" />
+            <p>Loading API Key...</p>
           </div>
-        ) : !currentApiKey ? (
-          <div className={`${styles.notice} ${styles.errorNotice}`}>
-            <AlertTriangle size={18} /> Key not available or not yet generated.
+        ) : !currentApiKey && !isLoadingKey ? (
+           <div className={styles.errorContainer}>
+            <p>API Key not available or failed to load.</p>
           </div>
         ) : (
           <>
-            <p className={styles.description}>
-              This is your <strong>{apiKeyType}</strong>. Keep it secure and do not share it publicly.
-              {apiKeyType === "Trader AK" && " This key is used to authenticate with the DEX API and WebSocket services."}
-              {apiKeyType === "User AK" && " This key is used for general platform API access."}
-              {apiKeyType === "Provider AK" && " This key is used by your provider nodes to connect to the Cxmpute network."}
+            <p className={styles.infoText}>
+              This is your primary {apiKeyType}. Keep it secure and do not share it publicly.
+              If you suspect it has been compromised, refresh it immediately.
             </p>
-
-            <div className={styles.apiKeyDisplayArea}>
-              <span className={`${styles.apiKeyText} ${!isKeyVisible ? styles.masked : ''}`}>
-                {displayApiKey}
-              </span>
+            <div className={styles.apiKeyDisplayContainer}>
+              <pre className={styles.apiKeyTextValue}> {/* Renamed class for clarity */}
+                {maskApiKey(currentApiKey, showKey)}
+              </pre>
               <div className={styles.keyActions}>
-                <Tooltip content={isKeyVisible ? "Hide key" : "Show key"} position="top">
-                  <Button
-                    variant="ghost" size="sm"
-                    onClick={() => setIsKeyVisible(!isKeyVisible)}
-                    aria-label={isKeyVisible ? "Hide API key" : "Show API key"}
-                    className={styles.iconButton}
-                  >
-                    {isKeyVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </Button>
-                </Tooltip>
-                <Tooltip content={copied ? "Copied!" : "Copy to clipboard"} position="top">
-                  <Button
-                    variant="ghost" size="sm"
-                    onClick={handleCopyToClipboard}
-                    disabled={!currentApiKey}
-                    aria-label="Copy API key to clipboard"
-                    className={styles.iconButton}
-                  >
-                    <Copy size={18} />
-                  </Button>
-                </Tooltip>
+                <DashboardButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowKey(!showKey)}
+                  className={styles.actionButton}
+                  title={showKey ? "Hide key" : "Show key"}
+                  iconLeft={showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                />
+                <DashboardButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopy}
+                  disabled={!currentApiKey || copied}
+                  className={styles.actionButton}
+                  title="Copy key"
+                  iconLeft={<Copy size={16}/>}
+                >
+                  {copied ? 'Copied!' : null}
+                </DashboardButton>
               </div>
-            </div>
-            <div className={styles.warningText}>
-              <AlertTriangle size={16} />
-              Refreshing this key will invalidate the current one immediately. Update any applications or services using the old key.
             </div>
           </>
         )}
-        
-        <div className={styles.modalFooterActions}>
-          <Button variant="secondary" onClick={onClose} disabled={isLoadingRefresh}>
-            Close
-          </Button>
-          {currentApiKey && ( // Only show refresh if a key exists
-             <Button
-                variant="danger"
-                onClick={handleRefreshKey}
-                isLoading={isLoadingRefresh}
-                disabled={isLoadingRefresh || isApiKeyLoading || !currentApiKey}
-                iconLeft={<RefreshCcw size={16}/>}
-              >
-                Refresh {apiKeyType}
-             </Button>
-          )}
-        </div>
       </div>
-    </Modal>
+    </ThemeModal>
   );
 };
 
