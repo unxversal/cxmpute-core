@@ -140,9 +140,10 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
       </ThemeCard>
 
       {/* Bottom Section: Service Cards & Graph/Stats Placeholder */}
+      <h2 className={styles.sectionTitle}>Explore Our Services</h2>
+
       <div className={styles.bottomSection}>
         <div className={styles.serviceCardsContainer}>
-            <h2 className={styles.sectionTitle}>Explore Our Services</h2>
             <div className={styles.cardsGrid}>
             {serviceCardsData.map(card => (
                 <ThemeCard key={card.title} cardStyle={{ backgroundColor: card.color }} className={styles.serviceCard}>

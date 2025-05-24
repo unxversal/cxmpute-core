@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 20px; /* Gap between toggle and content */
   width: 100%;
-  max-width: 1200px; /* Max width for the dashboard content area */
+  max-width: 1200px; 
   margin: 0 auto; /* Center the dashboard */
   padding: 20px 0; /* Vertical padding for the overall dashboard page */
 }

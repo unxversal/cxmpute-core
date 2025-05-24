@@ -1,17 +1,14 @@
 // src/components/dashboard/CreateEditVirtualApiKeyModal/CreateEditVirtualApiKeyModal.tsx
 "use client";
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useCallback } from 'react'; // Added useCallback
 import styles from './CreateEditVirtualApiKeyModal.module.css';
-import ThemeModal from '../ThemeModal/ThemeModal'; // Updated import
-import DashboardButton from '../DashboardButton/DashboardButton'; // Updated import
+import ThemeModal from '../ThemeModal/ThemeModal';
+import DashboardButton from '../DashboardButton/DashboardButton';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { ApiKeyInfo } from '@/lib/interfaces';
 import { KeyRound, ShieldCheck, DollarSign, ListChecks, AlertTriangle, Edit } from 'lucide-react';
 
-// Assuming AVAILABLE_ROUTES is defined in references or passed as prop
-// For now, keeping it local as in the previous version.
-// Consider moving to src/lib/references.ts if used elsewhere.
 const AVAILABLE_ROUTES = [
   "/api/v1/chat/completions", "/api/v1/embeddings", "/api/v1/image",
   "/api/v1/tts", "/api/v1/video", "/api/v1/scrape",
@@ -43,7 +40,7 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
   useEffect(() => {
     if (isOpen) {
       if (isEditMode && existingKeyData) {
-        setKeyName(existingKeyData.name || `Key ending in ...${existingKeyData.key.slice(-4)}`);
+        setKeyName(existingKeyData.name || ''); // Default to empty if name is undefined
         setCreditLimit(existingKeyData.creditLimit.toString());
         setSelectedRoutes(existingKeyData.permittedRoutes || []);
       } else {
@@ -61,8 +58,12 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
     );
   };
 
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  // useCallback for handleSubmit to ensure stable reference for the footer button's onClick
+  const handleSubmit = useCallback(async (event?: FormEvent) => { // Make event optional
+    if (event) event.preventDefault(); // Prevent default only if called from form's onSubmit
+    
+    console.log("handleSubmit called in CreateEditVirtualApiKeyModal"); // For debugging
+
     setFormError(null);
 
     const limitNum = parseInt(creditLimit, 10);
@@ -105,11 +106,10 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
     } catch (err: any) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} API key:`, err);
       setFormError(err.message || 'An unexpected error occurred.');
-      // notify.error(err.message || 'An unexpected error occurred.'); // Form error is shown in modal
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [creditLimit, keyName, selectedRoutes, isEditMode, userId, existingKeyData, onKeySaved, onClose]); // Added dependencies
 
   const modalTitleString = isEditMode ? "Edit API Key Metadata" : "Create New Virtual API Key";
   const modalTitleNode = (
@@ -124,20 +124,28 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
       <DashboardButton type="button" variant="secondary" onClick={onClose} disabled={isLoading}>
         Cancel
       </DashboardButton>
-      <DashboardButton type="submit" variant="primary" isLoading={isLoading} disabled={isLoading} iconLeft={<ShieldCheck size={16} />} text={isEditMode ? 'Save Changes' : 'Create API Key'} />
+      {/* This button now directly calls handleSubmit */}
+      <DashboardButton 
+        type="button" // Changed from submit to button
+        variant="primary" 
+        isLoading={isLoading} 
+        disabled={isLoading} 
+        iconLeft={<ShieldCheck size={16} />} 
+        text={isEditMode ? 'Save Changes' : 'Create API Key'}
+        onClick={() => handleSubmit()} // Directly call the submit handler
+      />
     </>
   );
-
 
   return (
     <ThemeModal 
         isOpen={isOpen} 
         onClose={onClose} 
-        title={modalTitleNode as unknown as string} // Cast if ThemeModal title prop expects string
+        title={modalTitleNode as unknown as string}
         size="lg" 
-        footerContent={footerContent} // Pass buttons to ThemeModal footer
+        footerContent={footerContent}
     >
-      {/* Form is now direct child of ThemeModal's body */}
+      {/* The form still has onSubmit for Enter key submission in input fields */}
       <form onSubmit={handleSubmit} className={styles.form}>
         {isEditMode && existingKeyData && (
           <div className={styles.keyInfoDisplay}>
@@ -173,7 +181,7 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
             value={creditLimit}
             onChange={(e) => setCreditLimit(e.target.value)}
             min="1"
-            required
+            required // HTML5 validation
           />
           <p className={styles.inputHint}>Max credits this key can use. Deducted from your main balance.</p>
         </div>
@@ -185,7 +193,7 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
               <div key={route} className={styles.routeCheckboxItem}>
                 <input
                   type="checkbox"
-                  id={`route-${route.replace(/\//g, '-')}`} // Make ID more CSS-friendly
+                  id={`route-${route.replace(/\//g, '-')}`}
                   value={route}
                   checked={selectedRoutes.includes(route)}
                   onChange={() => handleRouteToggle(route)}
@@ -203,7 +211,11 @@ const CreateEditVirtualApiKeyModal: React.FC<CreateEditVirtualApiKeyModalProps> 
 
         {formError && <p className={styles.formErrorMessage}><AlertTriangle size={16}/> {formError}</p>}
         
-        {/* Footer buttons are now passed via footerContent to ThemeModal */}
+        {/* 
+          Submit button is now rendered by ThemeModal's footerContent.
+          If you wanted it inside the form for semantic purity or specific layout,
+          you would remove it from footerContent and place it here.
+        */}
       </form>
     </ThemeModal>
   );
