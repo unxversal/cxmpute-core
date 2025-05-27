@@ -1,0 +1,1 @@
+// runs initial diagnostics and stores with node-localstorage
