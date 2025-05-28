@@ -92,7 +92,7 @@ export default function Dashboard() {
                     {currentDolphin}
                 </Text>
                 
-                <Box flexDirection='column' justifyContent='flex-start' marginLeft={1} marginRight={1}>
+                <Box flexDirection='column' justifyContent='center' marginLeft={1} marginRight={1}>
                     <Box borderStyle="bold" borderColor={currentColor} justifyContent="center"> 
                         <Text bold>
                             PROVIDER/REFERRAL ID: b2d74ec941cc42e499c1ac6026b0e224
