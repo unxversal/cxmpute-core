@@ -1,20 +1,19 @@
 // source/components/Splash.tsx
 import React, { useState, useEffect } from 'react';
 import { Text, Box } from 'ink';
-import Spinner from 'ink-spinner'; // Import the Spinner component
-import { generateFigletText } from '../lib/utils.js';
+import Spinner from 'ink-spinner';
+import { generateFigletText } from '../lib/utils.js'; // Assuming utils.ts is in lib
 
-const colors = ['#f8cb46' , '#d64989', '#f76707']
+const colors = ['#f8cb46', '#d64989', '#f76707']; // Yellow, Pink, Orange
 
 export default function Splash() {
     const [figletArt, setFigletArt] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [currentColor, setCurrentColor] = useState(colors[0]); // State for figlet color
+    const [currentColor, setCurrentColor] = useState(colors[0]);
 
     useEffect(() => {
         let isMounted = true;
 
-        // Set an initial random color for figlet art
         setCurrentColor(colors[Math.floor(Math.random() * colors.length)]);
 
         generateFigletText('cxmpute.cloud\nprovider')
@@ -25,55 +24,51 @@ export default function Splash() {
             })
             .catch(err => {
                 if (isMounted) {
-                    console.error("Failed to generate figlet text:", err);
-                    setError("Could not load art.");
+                    console.error("Splash: Figlet error:", err);
+                    setError("Art generation failed."); // Keep it simple for splash
                 }
             });
 
         return () => {
-            isMounted = false; // Cleanup function
+            isMounted = false;
         };
-    }, []); // Empty dependency array means this runs once on mount
+    }, []);
 
     if (error) {
+        // Fallback if figlet fails, still show a loading message
         return (
-            <Box padding={1} alignItems="center" justifyContent="center" width="100%" height="100%">
-                <Text color="red">{error}</Text>
+            <Box padding={2} flexDirection="column" alignItems="center" justifyContent="center">
+                <Text color="red" bold>Cxmpute.Cloud Provider</Text>
+                <Text><Spinner type="dots" /> Loading...</Text>
             </Box>
         );
     }
 
     if (!figletArt) {
-        // Initial loading state for the whole splash screen before figlet art is ready
+        // While figlet is loading
         return (
-            <Box padding={1} alignItems="center" justifyContent="center" width="100%" height="100%">
-                <Text>
-                    <Spinner type="dots" />
-                    {' Initializing...'}
-                </Text>
+            <Box padding={2} alignItems="center" justifyContent="center">
+                <Text><Spinner type="dots" /> Initializing...</Text>
             </Box>
         );
     }
 
     return (
-        <Box 
-            flexDirection="column" 
-            padding={2} // Increased padding for better centering
-            width="100%" 
-            height="100%" // Make it take full height
+        <Box
+            flexDirection="column"
+            padding={2}
+            alignItems="flex-start" // Center content horizontally
+            justifyContent="center" // Center content vertically
+            width="100%"
+            height="100%" // Try to take full available space
         >
-            {/* Figlet Art */}
-            <Box marginBottom={2}> 
+            <Box marginBottom={1}>
                 <Text color={currentColor}>{figletArt}</Text>
             </Box>
-
-            {/* Loading Text with Spinner */}
             <Box>
                 <Text>
-                    <Text color="cyan"> {/* Optional: color the spinner */}
-                        <Spinner type="dots" /> 
-                    </Text>
-                    {' Loading Cxmpute Provider...'}
+                    <Text color="cyan"><Spinner type="dots" /></Text>
+                    {' Running initial diagnostics...'}
                 </Text>
             </Box>
         </Box>
