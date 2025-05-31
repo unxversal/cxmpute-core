@@ -1,4 +1,5 @@
 import figlet from 'figlet';
+import ollama from 'ollama'; 
 
 export async function generateFigletText(text: string): Promise<string> {
 
@@ -16,6 +17,46 @@ export async function generateFigletText(text: string): Promise<string> {
             }
         });
     });
+}
+
+/**
+ * Checks if the Ollama service is responsive by trying to list models.
+ */
+export async function checkOllama(): Promise<{ ok: boolean; version?: string; error?: string }> {
+    try {
+        // ollama.list() is a light command to check connectivity and basic function.
+        // The response includes model details, but we're just checking if it succeeds.
+        // To get the version, ollama.ps() or a specific version endpoint might be better
+        // but ollama.list() proves it's running.
+        // For actual version, you might need to hit the /api/version endpoint if ollama-js doesn't expose it directly
+        // or parse it from `ollama --version` if that's preferred.
+        // For now, we'll just confirm it's alive.
+        await ollama.list(); // Throws an error if Ollama server is not reachable or has issues
+        
+        // If you need to get the version, one way is to call the /api/version endpoint directly
+        // as ollama-js doesn't seem to have a dedicated version function.
+        // This requires knowing the default Ollama port (11434).
+        let version = "unknown";
+        try {
+            const response = await fetch('http://127.0.0.1:11434/api/version');
+            if (response.ok) {
+                const data = await response.json();
+                version = data.version || "unknown";
+            }
+        } catch (fetchError) {
+            // console.warn("Could not fetch Ollama version directly, but list command succeeded.")
+        }
+
+        return { ok: true, version };
+    } catch (error: any) {
+        let errorMessage = "Ollama service not responsive or not installed.";
+        if (error.cause && error.cause.code === 'ECONNREFUSED') {
+            errorMessage = "Ollama service is not running (Connection refused).";
+        } else if (error.message) {
+            errorMessage = `Ollama error: ${error.message}`;
+        }
+        return { ok: false, error: errorMessage };
+    }
 }
 
 export const DOLPHIN_ANSI_ONE = [

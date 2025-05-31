@@ -45,7 +45,8 @@ export interface UserSessionData {
         state: string;
         city: string;
     };
-    // other fields from setup
+    deviceName: string; // Added this field
+    // installedSoftware?: { ollama?: boolean }; // Optional: if you track this
 }
 
 export interface DashboardStats {

@@ -1,29 +1,34 @@
 #!/usr/bin/env node
 import React from 'react';
 import {render} from 'ink';
-import meow from 'meow';
+// import meow from 'meow';
 import App from './app.js';
 
-const cli = meow(
-	`
-	Usage
-	  $ cxmpute-provider
+// const cli = meow(
+// 	`
+// 	Usage
+// 	  $ cxmpute-provider
 
-	Options
-		--name  Your name
+// 	Description
+// 	  Starts the Cxmpute Provider CLI to connect your device to the network.
 
-	Examples
-	  $ cxmpute-provider --name=Jane
-	  Hello, Jane
-`,
-	{
-		importMeta: import.meta,
-		flags: {
-			name: {
-				type: 'string',
-			},
-		},
-	},
-);
+// 	Options
+// 	  --help     Show this help message
+// 	  --version  Show version information
 
-render(<App name={cli.flags.name} />);
+// 	Examples
+// 	  $ cxmpute-provider
+// `,
+// 	{
+// 		importMeta: import.meta,
+// 		flags: {
+//             // Remove name flag if not used
+// 			// name: {
+// 			// 	type: 'string',
+// 			// },
+// 		},
+// 	},
+// );
+
+// Pass flags if App component expects them, otherwise, just <App />
+render(<App /* name={cli.flags.name} */ />);

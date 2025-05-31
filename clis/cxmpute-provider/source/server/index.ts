@@ -1,185 +1,141 @@
-/* eslint-disable import/no-extraneous-dependencies */
+// source/server/index.ts
 import express from 'express';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import cors from 'cors';
+import portfinder from 'portfinder';
+import { tunnelmole } from 'tunnelmole';
+import http from 'http'; // For server instance type
+
+// Import your API route handlers
+import baseApiRouter from './api/index.js'; // Assuming this is your main '/api/v1' router
+import embeddingsRouter from './api/embeddings.js';
+import ttsRouter from './api/tts.js';
+import scrapeRouter from './api/scrape.js';
+import ollamaManagerRouter from './api/ollamaManager.js';
 
 import * as middlewares from './middlewares.js';
-import api from './api/index.js';
 import MessageResponse from './interfaces/MessageResponse.js';
-import portfinder from 'portfinder';
-import embeddings from './api/embeddings.js';
-import tts from './api/tts.js';
-import scrape from './api/scrape.js';
-import ollamaManager from './api/ollamaManager.js'; 
-import { tunnelmole } from 'tunnelmole';
-import { ChildProcess } from 'child_process';
-import os from 'os';
-import fs from 'fs';
 
-require('dotenv').config();
+// Load environment variables (if not already loaded at app entry point)
+// import dotenv from 'dotenv';
+// dotenv.config();
 
-type Server = 'ollama' | 'embeddings' | 'tts' | 'scrape' ;
+type EnabledServerType = 'ollama' | 'embeddings' | 'tts' | 'scrape'; // 'ollama' implies chat completions
 
-const app = express();
-
-// Express middleware
-app.use(morgan('dev'));
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
-
-// A simple test route
-app.get<{}, MessageResponse>('/', (_req, res) => {
-  res.json({
-    message: '🐬🌈✨👋🌎🌍🌏✨🌈🐬',
-  });
-});
-
-// Health check for orchestration heartbeat
-app.get('/heartbeat', (_req, res) => {
-  // simple 200 OK signals "I’m alive"
-  res.sendStatus(200);
-});
-
-// Not Found / Error handler
-app.use(middlewares.notFound);
-app.use(middlewares.errorHandler);
-
-app.use('/ollama', ollamaManager);
-
-// CLI command and optional params
-const command = process.argv[2];
-const paramsArg = process.argv[3];
-
-// The main HTTP server reference
-let server: any = null;
-
-// Moondream process + model path references
-let moondreamProcess: ChildProcess | null = null;
-let moondreamModelPath: string | null = null;
-
-/**
- * Stop the Moondream server process if it's running, and delete the model file if we downloaded it.
- */
-function stopMoondreamServer() {
-  if (moondreamProcess) {
-    moondreamProcess.kill();
-    moondreamProcess = null;
-    console.log(JSON.stringify({ status: 'moondream_stopped' }));
-  }
-
-  // If we have a moondreamModelPath in a temp directory, remove it
-  if (moondreamModelPath && moondreamModelPath.startsWith(os.tmpdir()) && fs.existsSync(moondreamModelPath)) {
-    try {
-      fs.unlinkSync(moondreamModelPath);
-      console.log(JSON.stringify({ status: 'moondream_model_deleted', path: moondreamModelPath }));
-    } catch (err) {
-      console.error('Error deleting Moondream model file:', err);
-    }
-  }
-
-  moondreamModelPath = null;
+interface StartServerParams {
+    port?: number;
+    enabledServices: EnabledServerType[];
+    // llmModels: string[]; // These are managed by ollamaManager.ts or used by chat.ts
+    // embeddingsModels: string[]; // Managed by ollamaManager.ts or used by embeddings.ts
 }
 
-/**
- * Start the Express server on the specified or found port,
- * plus optionally start other services like Moondream.
- */
-const startServer = async (params?: any) => {
-  let port = params?.port
+interface StartServerResult {
+    url: string; // tunnelmole URL
+    localPort: number;
+    serverInstance: http.Server;
+}
 
-  if (!port) {
-    port = await portfinder.getPortPromise({
-      port: 12000,
+let currentServerInstance: http.Server | null = null;
+
+export async function startLocalServer(params: StartServerParams): Promise<StartServerResult> {
+    if (currentServerInstance) {
+        // Consider how to handle this - maybe return existing info or throw error
+        // For now, let's assume App.tsx prevents calling start if already running.
+        throw new Error('Server is already running.');
+    }
+
+    const app = express();
+
+    // Express middleware
+    app.use(morgan('dev'));
+    app.use(helmet());
+    app.use(cors());
+    app.use(express.json());
+
+    // Base routes
+    app.get<{}, MessageResponse>('/', (_req, res) => {
+        res.json({ message: '🐬 Cxmpute Provider Node Active 🌈' });
     });
-  }
+    app.get('/heartbeat', (_req, res) => res.sendStatus(200));
 
-  // Use tunnelmole to expose the server publicly
-  const url = await tunnelmole({ port });
+    // Ollama management routes are always available if server runs
+    app.use('/ollama', ollamaManagerRouter);
 
-  if (server) {
-    console.log(JSON.stringify({ status: 'already_running', url }));
-    return;
-  }
-
-  const serversToStart = params?.servers;
-
-  // Conditionally add routes / start services based on params.servers
-  if (serversToStart) {
-    for (const serve of params.servers as Server[]) {
-      switch (serve) {
-        case 'ollama':
-          app.use('/api/v1/', api);
-          break;
-        case 'embeddings':
-          app.use('/api/v1/embeddings', embeddings);
-          break;
-        case 'tts':
-          app.use('/api/v1/tts', tts);
-          break;
-        case 'scrape':
-          app.use('/api/v1/scrape', scrape);
-          break;
-        default:
-          console.error(
-            JSON.stringify({ status: 'error', message: `Unknown server type: ${serve}` }),
-          );
-      }
+    // Conditionally add routes based on enabledServices
+    if (params.enabledServices) {
+        for (const service of params.enabledServices) {
+            switch (service) {
+                case 'ollama': // This typically means chat completions endpoint
+                    app.use('/api/v1', baseApiRouter); // baseApiRouter includes /chat/completions
+                    break;
+                case 'embeddings':
+                    app.use('/api/v1/embeddings', embeddingsRouter);
+                    break;
+                case 'tts':
+                    app.use('/api/v1/tts', ttsRouter);
+                    break;
+                case 'scrape':
+                    app.use('/api/v1/scrape', scrapeRouter);
+                    break;
+                default:
+                    console.warn(`Unknown service type in startLocalServer: ${service}`);
+            }
+        }
     }
-  }
 
-  // Start Express
-  server = app.listen(port, () => {
-    console.log(JSON.stringify({ status: 'started', url, params }));
-  });
-};
+    // Error handling middleware (should be last)
+    app.use(middlewares.notFound);
+    app.use(middlewares.errorHandler);
 
-/**
- * Stop the Express server, plus any additional services (like Moondream).
- */
-const stopServer = (params?: any) => {
-  if (!server) {
-    console.log(JSON.stringify({ status: 'not_running' }));
-    return;
-  }
+    const portToUse = params.port || await portfinder.getPortPromise({ port: 12000 });
 
-  // Stop Moondream if it was started
-  stopMoondreamServer();
+    return new Promise<StartServerResult>((resolve, reject) => {
+        currentServerInstance = app.listen(portToUse, async () => {
+            try {
+                const tunnelUrl = await tunnelmole({ port: portToUse });
+                // console.log(`Server started locally on port ${portToUse}, public URL: ${tunnelUrl}`);
+                resolve({
+                    url: tunnelUrl,
+                    localPort: portToUse,
+                    serverInstance: currentServerInstance!,
+                });
+            } catch (tunnelError) {
+                console.error("Tunnelmole failed:", tunnelError);
+                currentServerInstance?.close(); // Close local server if tunnel fails
+                currentServerInstance = null;
+                reject(new Error(`Failed to create public tunnel: ${(tunnelError as Error).message}`));
+            }
+        });
 
-  server.close(() => {
-    server = null;
-    console.log(JSON.stringify({ status: 'stopped', params }));
-  });
-};
-
-// Parse the `paramsArg` if provided
-let params = {};
-if (paramsArg) {
-  try {
-    params = JSON.parse(paramsArg);
-  } catch (e) {
-    console.error(JSON.stringify({ status: 'error', message: 'Invalid params JSON' }));
-    process.exit(1);
-  }
+        currentServerInstance.on('error', (err) => {
+            console.error('Local server error:', err);
+            currentServerInstance = null;
+            reject(new Error(`Local server failed to start: ${err.message}`));
+        });
+    });
 }
 
-// Handle commands from CLI
-switch (command) {
-  case 'start':
-    startServer(params);
-    break;
-  case 'stop':
-    stopServer(params);
-    break;
-  case 'status':
-    console.log(JSON.stringify({ status: server ? 'running' : 'stopped' }));
-    break;
-  case undefined:
-    // If no command is provided, start the server (backward compatibility)
-    startServer(params);
-    break;
-  default:
-    console.error(JSON.stringify({ status: 'error', message: `Unknown command: ${command}` }));
-    process.exit(1);
+export async function stopLocalServer(): Promise<void> {
+    return new Promise((resolve) => {
+        if (currentServerInstance) {
+            currentServerInstance.close((err) => {
+                if (err) {
+                    console.error('Error stopping local server:', err);
+                    // Don't reject here, as we still want to mark it as stopped
+                }
+                currentServerInstance = null;
+                // console.log('Local server stopped.');
+                resolve();
+            });
+        } else {
+            // console.log('Local server was not running.');
+            resolve();
+        }
+        // Note: Tunnelmole itself doesn't have a direct 'stop' API from client side.
+        // It stops when the local server it's pointing to stops responding or process exits.
+    });
 }
+
+// Removed old CLI command parsing logic (switch block)
+// This file now only exports startLocalServer and stopLocalServer
