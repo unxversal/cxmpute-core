@@ -165,11 +165,6 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
                      <span>{subject.id}</span>
                      <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
                  </div>
-                 <p>Your Trader ID (for DEX):</p>
-                 <div className={styles.codeBox}>
-                     <span>{subject.traderId}</span>
-                     <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.traderId, "Trader ID")} iconLeft={<Copy size={14}/>} />
-                 </div>
             </ThemeCard>
 
             <ThemeCard title="Rewards" className={styles.rewardsInfoCard}>

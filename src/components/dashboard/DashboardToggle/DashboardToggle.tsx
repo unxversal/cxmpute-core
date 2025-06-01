@@ -2,10 +2,9 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
 import styles from './DashboardToggle.module.css';
 import DashboardButton from '../DashboardButton/DashboardButton'; // Using our new DashboardButton
-import { User, Briefcase, TrendingUp } from 'lucide-react';
+import { User, Briefcase } from 'lucide-react';
 
 export type DashboardViewType = "user" | "provider";
 
@@ -41,18 +40,6 @@ const DashboardToggle: React.FC<DashboardToggleProps> = ({
         aria-pressed={activeView === 'provider'}
         text="Provider View"
       />
-
-      {/* Trader link remains distinct */}
-      <Link href="/trade" passHref legacyBehavior>
-        <a className={styles.linkButtonWrapper} target="_blank" rel="noopener noreferrer">
-          <DashboardButton
-            variant="accentYellow" // Yellow for Trader, distinct from active/inactive toggles
-            className={`${styles.toggleButton} ${styles.traderLinkButton}`}
-            iconLeft={<TrendingUp size={16} />}
-            text="Trading"
-          />
-        </a>
-      </Link>
     </div>
   );
 };
