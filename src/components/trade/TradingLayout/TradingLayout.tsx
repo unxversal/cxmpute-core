@@ -35,17 +35,6 @@ const TradingLayout: React.FC<TradingLayoutProps> = ({
 
       {/* Main Content Grid */}
       <main className={styles.mainContent}>
-        {/* Left Column: Order Book & Recent Trades */}
-        <aside className={`${styles.column} ${styles.leftColumn}`}>
-          <section className={`${styles.panel} ${styles.orderBookPanel}`} aria-labelledby="orderbook-title">
-            {/* <h2 id="orderbook-title" className="sr-only">Order Book</h2> */}
-            {orderBookArea}
-          </section>
-          <section className={`${styles.panel} ${styles.recentTradesPanel}`} aria-labelledby="recenttrades-title">
-            {/* <h2 id="recenttrades-title" className="sr-only">Recent Trades</h2> */}
-            {recentTradesArea}
-          </section>
-        </aside>
 
         {/* Center Column: Market Info, Chart & Order Entry */}
         <section className={`${styles.column} ${styles.centerColumn}`}>
@@ -62,6 +51,20 @@ const TradingLayout: React.FC<TradingLayoutProps> = ({
             {orderEntryArea}
           </section>
         </section>
+        
+        {/* Left Column: Order Book & Recent Trades */}
+        <aside className={`${styles.column} ${styles.leftColumn}`}>
+          <section className={`${styles.panel} ${styles.orderBookPanel}`} aria-labelledby="orderbook-title">
+            {/* <h2 id="orderbook-title" className="sr-only">Order Book</h2> */}
+            {orderBookArea}
+          </section>
+          <section className={`${styles.panel} ${styles.recentTradesPanel}`} aria-labelledby="recenttrades-title">
+            {/* <h2 id="recenttrades-title" className="sr-only">Recent Trades</h2> */}
+            {recentTradesArea}
+          </section>
+        </aside>
+
+        
 
         {/* Right Column: Account Information */}
         <aside className={`${styles.column} ${styles.rightColumn}`}>

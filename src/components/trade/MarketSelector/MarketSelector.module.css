@@ -14,8 +14,9 @@
   padding: 8px 12px; /* Slightly more compact */
   background-color: #232731; /* Darker than panel for contrast */
   color: #d1d4dc;
-  border: 1px solid #3e4556;
   border-radius: 6px;
+  border: none;
+  outline: none;
   cursor: pointer;
   text-align: left;
   transition: background-color 0.2s ease, border-color 0.2s ease;

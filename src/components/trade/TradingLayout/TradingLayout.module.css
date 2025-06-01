@@ -28,7 +28,7 @@
   /* Define a 3-column layout for larger screens */
   /* Adjust fr units based on desired relative widths */
   /* Left col (OrderBook/Trades), Center col (Chart/OrderEntry), Right col (Account) */
-  grid-template-columns: 0.75fr 2fr 1fr; /* Example: OrderBook smaller, Chart largest */
+  grid-template-columns:  2fr 0.75fr 1fr; /* Example: OrderBook smaller, Chart largest */
   /* A common alternative: grid-template-columns: 260px 1fr 300px; for fixed sidebars */
   grid-template-rows: 1fr; /* Single row that fills height */
   gap: 8px; /* Gap between columns */
