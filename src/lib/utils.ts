@@ -8,14 +8,15 @@ import {
   GetCommand,
   PutCommand,
   DeleteCommand,
-  GetItemCommand
+  // GetItemCommand // No longer needed for TradersTable
 } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
-import { ApiKeyInfo, ProviderRecord, TraderRecord } from "@/lib/interfaces";
-import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { ApiKeyInfo, ProviderRecord } from "@/lib/interfaces"; // Removed TraderRecord
+// import { marshall, unmarshall } from "@aws-sdk/util-dynamodb"; // No longer needed if not using raw GetItemCommand for TradersTable
 
-const ddb = new DynamoDBClient({});
-const TRADERS_TABLE_NAME = Resource.TradersTable.name;
+// const ddb = new DynamoDBClient({}); // This instance was not used.
+// const TRADERS_TABLE_NAME = Resource.TradersTable.name; // TRADERS_TABLE_NAME removed
+
 /** 
  * Export a single docClient or separate clients if needed 
  */
@@ -73,59 +74,66 @@ export async function validateApiKey(
     }
 
     // 4) Check if route is permitted
-    const requiredRoute = "/chat/completions";
+    // TODO: This route check is hardcoded. Make it dynamic if needed, e.g., pass the requested route.
+    const requiredRoute = "/chat/completions"; // Example, make this dynamic
     if (!ak.permittedRoutes.includes(requiredRoute)) {
-      return { valid: false, reason: "Route not permitted" };
+      return { valid: false, reason: "Route not permitted for this API key" };
     }
 
     // 5) Deduct credits
     const newUserCredits = userCredits - creditsNeeded;
     const newApiKeyCredits = ak.creditsLeft - creditsNeeded;
-    user.credits = newUserCredits;
-    user.apiKeys[akIndex] = {
+    user.credits = newUserCredits; // This modification happens in memory first
+    user.apiKeys[akIndex] = { // This modification happens in memory first
       ...ak,
       creditsLeft: newApiKeyCredits,
     };
 
     // 6) Concurrency check & update
+    // For updating an item within an array (apiKeys), a simple Put with ConditionExpression
+    // on the parent item's attributes might be complex or insufficient if other parts of UserTable change.
+    // A more robust way is to update only the specific array element if DynamoDB supports it directly,
+    // or use an optimistic locking version attribute on the UserTable.
+    // The current approach with `contains(JSON_STRING(user.apiKeys), :akSegment)` is a bit hacky
+    // and might fail if other keys in the array change simultaneously.
+    // A truly robust solution would involve a transaction or a more targeted update expression for the array element.
+    // For now, keeping the existing logic but acknowledging its limitations.
     try {
       await docClient.send(
-        new PutCommand({
+        new PutCommand({ // Using PutCommand to overwrite the whole user item after in-memory modification
           TableName: Resource.UserTable.name,
-          Item: user,
-          ConditionExpression: `
-            #credits = :oldCredits AND
-            contains(JSON_STRING(user.apiKeys), :akSegment)
-          `,
+          Item: user, // The modified user object
+          ConditionExpression: `#credits = :oldUserCreditsValue AND apiKeys[${akIndex}].creditsLeft = :oldApiKeyCreditsLeftValue`,
           ExpressionAttributeNames: {
             "#credits": "credits",
           },
           ExpressionAttributeValues: {
-            ":oldCredits": userCredits,
-            ":akSegment": `"key":"${apiKey}","creditsLeft":${ak.creditsLeft}`,
+            ":oldUserCreditsValue": userCredits, // Credits on the user item before deduction
+            ":oldApiKeyCreditsLeftValue": ak.creditsLeft, // Credits on the specific API key before deduction
           },
         })
       );
     } catch (err) {
-      if (err instanceof ConditionalCheckFailedException) {
+      if (err instanceof ConditionalCheckFailedException || (err as any).name === 'ConditionalCheckFailedException') {
         return {
           valid: false,
-          reason: "User or API key changed concurrently; please retry",
+          reason: "User data or API key credits changed concurrently; please retry.",
         };
       }
-      throw err;
+      console.error("Error updating user credits after API key validation:", err);
+      throw err; // Re-throw other errors
     }
 
     // 7) Return success
-    return { valid: true, user };
+    return { valid: true, user }; // Return the modified user object
   } catch (error) {
     console.error("Error validating API key:", error);
-    return { valid: false, reason: "Internal error" };
+    return { valid: false, reason: "Internal error during API key validation" };
   }
 }
 
 /**
- * Picks a random provision for the given model, using "ByModelRandom" GSI
+ * Picks a random provision for the given model from LLMProvisionPoolTable, using "ByModelRandom" GSI
  */
 export async function selectProvision(model: string) {
   const r = Math.random();
@@ -162,13 +170,13 @@ export async function selectProvision(model: string) {
   }
 
   if (!response.Items || response.Items.length === 0) {
-    throw new Error(`No provisions available for model: ${model}`);
+    throw new Error(`No LLM provisions available for model: ${model}`);
   }
 
   return response.Items[0];
 }
 
-/** Checks if a provision is healthy with a 10s timeout on /heartbeat */
+/** Checks if a provision (generic, e.g., LLM node) is healthy with a 10s timeout on /heartbeat */
 export async function checkProvisionHealth(provisionEndpoint: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds
@@ -181,7 +189,7 @@ export async function checkProvisionHealth(provisionEndpoint: string) {
     });
     return response.ok;
   } catch (error) {
-    console.error("Heartbeat check failed:", error);
+    console.error("Heartbeat check failed for provision:", error);
     return false;
   } finally {
     clearTimeout(timeoutId);
@@ -200,14 +208,14 @@ export async function removeProvision(provisionId: string) {
       })
     );
   } catch (error) {
-    console.error("Error removing provision:", error);
+    console.error("Error removing LLM provision:", error);
   }
 }
 
-/** Update daily metadata record for an endpoint */
+/** Update daily metadata record for an endpoint (e.g., LLM usage) */
 export async function updateMetadata(
-  endpoint: string,
-  model: string,
+  endpoint: string, // e.g., "/chat/completions"
+  model: string,    // e.g., "llama3"
   inputTokens: number,
   outputTokens: number,
   latency: number,
@@ -215,27 +223,62 @@ export async function updateMetadata(
 ) {
   const dateStr = getTodayDateString();
   try {
-    // 1) Fetch existing item
     const existing = await docClient.send(
       new GetCommand({
         TableName: Resource.MetadataTable.name,
         Key: {
-          endpoint,
+          endpoint, // Store combined with model if needed, or use model as part of key
           dayTimestamp: dateStr,
         },
       })
     );
 
+    // Construct payload for LLM specific metrics if applicable
+    const llmMetricsUpdate = endpoint.includes("chat") || endpoint.includes("llm") ? {
+      model: model,
+      tokensInInc: inputTokens,
+      tokensOutInc: outputTokens,
+      averageTpsInc: tps, // This needs to be averaged correctly
+    } : {};
+
+
     if (existing.Item) {
       const current = existing.Item;
       const oldTotalRequests = current.totalNumRequests ?? 0;
       const oldAvgLatency = current.averageLatency ?? 0;
-      const oldAvgTps = current.LLM?.averageTps ?? 0;
+      
+      const newAvgLatency = oldTotalRequests > 0
+        ? (oldAvgLatency * oldTotalRequests + latency) / (oldTotalRequests + 1)
+        : latency;
 
-      const newAvgLatency =
-        (oldAvgLatency * oldTotalRequests + latency) / (oldTotalRequests + 1);
-      const newAvgTps =
-        (oldAvgTps * oldTotalRequests + tps) / (oldTotalRequests + 1);
+      const updateExpressionParts = [
+        "totalNumRequests = if_not_exists(totalNumRequests, :zero) + :one",
+        "averageLatency = :newAvgLatency",
+      ];
+      const expressionAttributeValues: Record<string, any> = {
+        ":one": 1,
+        ":newAvgLatency": newAvgLatency,
+        ":zero": 0,
+      };
+      
+      if (llmMetricsUpdate.model) { // If LLM metrics are being updated
+        updateExpressionParts.push(
+          "LLM.model = :model",
+          "LLM.tokensIn = if_not_exists(LLM.tokensIn, :zero) + :incIn",
+          "LLM.tokensOut = if_not_exists(LLM.tokensOut, :zero) + :incOut"
+          // Averaging TPS correctly requires knowing the old total TPS sum and request count or weighting by tokens
+          // Simple average: LLM.averageTps = :newAvgTps (calculate newAvgTps similar to latency)
+        );
+        expressionAttributeValues[":model"] = llmMetricsUpdate.model;
+        expressionAttributeValues[":incIn"] = llmMetricsUpdate.tokensInInc;
+        expressionAttributeValues[":incOut"] = llmMetricsUpdate.tokensOutInc;
+        // Add :newAvgTps calculation if doing simple average for TPS
+        const oldAvgTps = current.LLM?.averageTps ?? 0;
+        const newAvgTps = oldTotalRequests > 0 ? (oldAvgTps * oldTotalRequests + tps) / (oldTotalRequests + 1) : tps;
+        updateExpressionParts.push("LLM.averageTps = :newAvgTps");
+        expressionAttributeValues[":newAvgTps"] = newAvgTps;
+      }
+
 
       await docClient.send(
         new UpdateCommand({
@@ -244,42 +287,30 @@ export async function updateMetadata(
             endpoint,
             dayTimestamp: dateStr,
           },
-          UpdateExpression: `
-            SET
-              totalNumRequests = totalNumRequests + :one,
-              averageLatency = :newAvgLatency,
-              LLM.model = :model,
-              LLM.tokensIn = LLM.tokensIn + :incIn,
-              LLM.tokensOut = LLM.tokensOut + :incOut,
-              LLM.averageTps = :newAvgTps
-          `,
-          ExpressionAttributeValues: {
-            ":one": 1,
-            ":newAvgLatency": newAvgLatency,
-            ":model": model,
-            ":incIn": inputTokens,
-            ":incOut": outputTokens,
-            ":newAvgTps": newAvgTps,
-          },
+          UpdateExpression: `SET ${updateExpressionParts.join(", ")}`,
+          ExpressionAttributeValues: expressionAttributeValues,
         })
       );
     } else {
       // Insert a new record
+      const newItem: Record<string, any> = {
+        endpoint,
+        dayTimestamp: dateStr,
+        totalNumRequests: 1,
+        averageLatency: latency,
+      };
+      if (llmMetricsUpdate.model) {
+        newItem.LLM = {
+          model: llmMetricsUpdate.model,
+          tokensIn: llmMetricsUpdate.tokensInInc,
+          tokensOut: llmMetricsUpdate.tokensOutInc,
+          averageTps: tps, // Initial TPS is just the current one
+        };
+      }
       await docClient.send(
         new PutCommand({
           TableName: Resource.MetadataTable.name,
-          Item: {
-            endpoint,
-            dayTimestamp: dateStr,
-            totalNumRequests: 1,
-            averageLatency: latency,
-            LLM: {
-              model,
-              tokensIn: inputTokens,
-              tokensOut: outputTokens,
-              averageTps: tps,
-            },
-          },
+          Item: newItem,
         })
       );
     }
@@ -288,11 +319,11 @@ export async function updateMetadata(
   }
 }
 
-// For daily usage: 7-day array, or indefinite. We'll keep it simple:
+
 interface ServiceMetadataItem {
   serviceName: string;
   serviceUrl?: string;
-  [key: string]: any;
+  [key: string]: any; // For dynamic endpoint/model keys
 }
 interface EndpointUsage {
   totalNumRequests: number;
@@ -301,7 +332,7 @@ interface EndpointUsage {
     numRequests: number;
   }>;
 }
-interface ModelUsage {
+interface ModelUsage { // For LLM services
   totalInputTokens: number;
   totalOutputTokens: number;
   totals: Array<{
@@ -312,16 +343,17 @@ interface ModelUsage {
 }
 
 /**
- * Upsert service metadata. For endpoint != '/chat/completions', we do endpoint usage.
- * For endpoint == '/chat/completions', we do model usage.
+ * Upsert service metadata.
+ * - If endpoint is for LLM (e.g., "/chat/completions"), tracks model usage (input/output tokens).
+ * - Otherwise, tracks general endpoint usage (number of requests).
  */
 export async function updateServiceMetadata(
   serviceName: string,
   serviceUrl: string | null,
-  endpoint: string,
-  model: string,
-  inputTokens: number,
-  outputTokens: number
+  endpoint: string, // The specific API endpoint hit, e.g., "/chat/completions", "/embeddings"
+  model: string,    // The specific AI model used, e.g., "llama3", "nomic-embed-text"
+  inputTokens: number, // Relevant for LLMs and some embedding models
+  outputTokens: number // Relevant for LLMs
 ) {
   const day = getTodayDateString();
 
@@ -334,64 +366,62 @@ export async function updateServiceMetadata(
     );
     let item = existingResp.Item as ServiceMetadataItem | undefined;
 
-    // If doesn't exist, create
     if (!item) {
       item = {
         serviceName,
         serviceUrl: serviceUrl ?? undefined,
       };
     }
-    // Update serviceUrl if missing
     if (!item.serviceUrl && serviceUrl) {
       item.serviceUrl = serviceUrl;
     }
 
-    if (endpoint !== "/chat/completions") {
-      // Endpoint-based usage
-      if (!item[endpoint]) {
-        const endpointUsage: EndpointUsage = {
-          totalNumRequests: 0,
-          requests: [],
-        };
-        item[endpoint] = endpointUsage;
-      }
-      const epUsage = item[endpoint] as EndpointUsage;
-      epUsage.totalNumRequests += 1;
+    // Determine if this is an LLM-like endpoint where token counts are primary
+    const isLlmEndpoint = endpoint.includes("chat") || endpoint.includes("llm"); // Adjust this condition as needed
 
-      const existingDay = epUsage.requests.find((r) => r.dayTimestamp === day);
-      if (existingDay) {
-        existingDay.numRequests += 1;
-      } else {
-        epUsage.requests.push({ dayTimestamp: day, numRequests: 1 });
-      }
-    } else {
-      // Model-based usage
+    if (isLlmEndpoint) {
+      // Track usage by model name for LLM services
       if (!item[model]) {
-        const modelUsage: ModelUsage = {
+        item[model] = {
           totalInputTokens: 0,
           totalOutputTokens: 0,
           totals: [],
-        };
-        item[model] = modelUsage;
+        } as ModelUsage;
       }
-      const mUsage = item[model] as ModelUsage;
-      mUsage.totalInputTokens += inputTokens;
-      mUsage.totalOutputTokens += outputTokens;
+      const modelUsageStats = item[model] as ModelUsage;
+      modelUsageStats.totalInputTokens += inputTokens;
+      modelUsageStats.totalOutputTokens += outputTokens;
 
-      const existingDay = mUsage.totals.find((r) => r.dayTimestamp === day);
-      if (existingDay) {
-        existingDay.numInputTokens += inputTokens;
-        existingDay.numOutputTokens += outputTokens;
+      const existingDayStats = modelUsageStats.totals.find((r) => r.dayTimestamp === day);
+      if (existingDayStats) {
+        existingDayStats.numInputTokens += inputTokens;
+        existingDayStats.numOutputTokens += outputTokens;
       } else {
-        mUsage.totals.push({
+        modelUsageStats.totals.push({
           dayTimestamp: day,
           numInputTokens: inputTokens,
           numOutputTokens: outputTokens,
         });
       }
+    } else {
+      // For other endpoints (embeddings, tts, scrape), track by endpoint path
+      if (!item[endpoint]) {
+        item[endpoint] = {
+          totalNumRequests: 0,
+          requests: [],
+        } as EndpointUsage;
+      }
+      const endpointUsageStats = item[endpoint] as EndpointUsage;
+      endpointUsageStats.totalNumRequests += 1;
+
+      const existingDayStats = endpointUsageStats.requests.find((r) => r.dayTimestamp === day);
+      if (existingDayStats) {
+        existingDayStats.numRequests += 1;
+      } else {
+        endpointUsageStats.requests.push({ dayTimestamp: day, numRequests: 1 });
+      }
     }
 
-    // Write it back
     await docClient.send(
       new PutCommand({
         TableName: Resource.ServiceMetadataTable.name,
@@ -405,9 +435,10 @@ export async function updateServiceMetadata(
 
 /** Check if day is within last 30 days */
 function isWithinLast30Days(day: string): boolean {
-  const dayDate = new Date(day + "T00:00:00Z");
+  const dayDate = new Date(day + "T00:00:00Z"); // Ensure UTC context
   const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30); // Use UTC for comparison
+  thirtyDaysAgo.setUTCHours(0,0,0,0); // Start of the day UTC
   return dayDate >= thirtyDaysAgo;
 }
 
@@ -424,7 +455,7 @@ export async function rewardProvider(providerId: string, reward: number) {
       })
     );
     if (!getResp.Item) {
-      console.warn("Provider not found for providerId:", providerId);
+      console.warn("Provider not found for reward, providerId:", providerId);
       return;
     }
     const provider = getResp.Item as ProviderRecord;
@@ -435,19 +466,24 @@ export async function rewardProvider(providerId: string, reward: number) {
 
     const existingToday = updatedRewards.find((r) => r.day === dateStr);
     if (existingToday) {
-      existingToday.amount += reward;
+      existingToday.amount = parseFloat((existingToday.amount + reward).toFixed(6)); // Avoid floating point issues
     } else {
-      updatedRewards.push({ day: dateStr, amount: reward });
+      updatedRewards.push({ day: dateStr, amount: parseFloat(reward.toFixed(6)) });
     }
 
+    // Sort rewards by date to ensure consistency if needed, though filter should handle old ones.
+    updatedRewards.sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime());
+    
+    // Recalculate totalRewards based on the filtered & updated list
     const newTotal = updatedRewards.reduce((sum, r) => sum + r.amount, 0);
     provider.rewards = updatedRewards;
-    provider.totalRewards = newTotal;
+    provider.totalRewards = parseFloat(newTotal.toFixed(6));
+
 
     await docClient.send(
       new PutCommand({
         TableName: Resource.ProviderTable.name,
-        Item: provider,
+        Item: provider, // Put the entire modified provider item
       })
     );
   } catch (error) {
@@ -459,1139 +495,156 @@ export async function rewardProvider(providerId: string, reward: number) {
 /*                         Embeddings Provision Logic                         */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Picks a random embeddings node from `EmbeddingsProvisionPoolTable`
- * using the "ByModelRandom" GSI (model, randomValue).
- */
 export async function selectEmbeddingsProvision(model: string) {
     const r = Math.random();
-    const gsiName = "ByModelRandom"; // from your sst config
-  
-    // 1) Query for randomValue > r
+    const gsiName = "ByModelRandom";
     let response = await docClient.send(
       new QueryCommand({
-        TableName: Resource.EmbeddingsProvisionPoolTable.name,
-        IndexName: gsiName,
+        TableName: Resource.EmbeddingsProvisionPoolTable.name, IndexName: gsiName,
         KeyConditionExpression: "model = :m AND randomValue > :r",
-        ExpressionAttributeValues: {
-          ":m": model,
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: true,
+        ExpressionAttributeValues: { ":m": model, ":r": r, }, Limit: 1, ScanIndexForward: true,
       })
     );
-  
-    // 2) If none found, query randomValue < r
     if (!response.Items || response.Items.length === 0) {
       response = await docClient.send(
         new QueryCommand({
-          TableName: Resource.EmbeddingsProvisionPoolTable.name,
-          IndexName: gsiName,
+          TableName: Resource.EmbeddingsProvisionPoolTable.name, IndexName: gsiName,
           KeyConditionExpression: "model = :m AND randomValue < :r",
-          ExpressionAttributeValues: {
-            ":m": model,
-            ":r": r,
-          },
-          Limit: 1,
-          ScanIndexForward: false,
+          ExpressionAttributeValues: { ":m": model, ":r": r, }, Limit: 1, ScanIndexForward: false,
         })
       );
     }
-  
-    if (!response.Items || response.Items.length === 0) {
-      throw new Error(`No embeddings provisions available for model: ${model}`);
-    }
+    if (!response.Items || response.Items.length === 0) throw new Error(`No embeddings provisions available for model: ${model}`);
     return response.Items[0];
-  }
-  
-  /**
-   * Check if an embeddings node is healthy
-   */
-  export async function checkEmbeddingsHealth(endpoint: string): Promise<boolean> {
-    try {
-      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-      return resp.ok;
-    } catch (err) {
-      console.error("Embeddings node heartbeat failed:", err);
-      return false;
-    }
-  }
-  
-  /**
-   * Remove an unhealthy embeddings node from the table
-   */
-  export async function removeEmbeddingsProvision(provisionId: string) {
-    try {
-      await docClient.send(
-        new DeleteCommand({
-          TableName: Resource.EmbeddingsProvisionPoolTable.name,
-          Key: { provisionId },
-        })
-      );
-    } catch (err) {
-      console.error("Error removing embeddings provision:", err);
-    }
-  }
-  
-  /* -------------------------------------------------------------------------- */
-  /*                          Metadata & Service Logging                        */
-  /* -------------------------------------------------------------------------- */
-  
-  /**
-   * Update daily metadata for /embeddings, similar to your chat approach.
-   * We'll store it under endpoint="/embeddings".
-   */
-  export async function updateEmbeddingsMetadata(
-    latency: number
-  ) {
+}
+export async function checkEmbeddingsHealth(endpoint: string): Promise<boolean> {
+    try { const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" }); return resp.ok; }
+    catch (err) { console.error("Embeddings node heartbeat failed:", err); return false; }
+}
+export async function removeEmbeddingsProvision(provisionId: string) {
+    try { await docClient.send(new DeleteCommand({ TableName: Resource.EmbeddingsProvisionPoolTable.name, Key: { provisionId }, })); }
+    catch (err) { console.error("Error removing embeddings provision:", err); }
+}
+export async function updateEmbeddingsMetadata(latency: number) {
     const dateStr = getTodayDateString();
-    // Freed to handle how you like, here's a short example:
     try {
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.MetadataTable.name,
-          Key: {
-            endpoint: "/embeddings",
-            dayTimestamp: dateStr,
-          },
-        })
-      );
-  
+      const getResp = await docClient.send(new GetCommand({ TableName: Resource.MetadataTable.name, Key: { endpoint: "/embeddings", dayTimestamp: dateStr, }, }));
       if (!getResp.Item) {
-        // Insert
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              endpoint: "/embeddings",
-              dayTimestamp: dateStr,
-              totalNumRequests: 1,
-              averageLatency: latency,
-            },
-          })
-        );
+        await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { endpoint: "/embeddings", dayTimestamp: dateStr, totalNumRequests: 1, averageLatency: latency, }, }));
       } else {
-        // Update existing
-        const oldItem = getResp.Item;
-        const oldCount = oldItem.totalNumRequests ?? 0;
-        const oldLat = oldItem.averageLatency ?? 0;
-        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-
-  
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              ...oldItem,
-              totalNumRequests: oldCount + 1,
-              averageLatency: newAvgLat
-            },
-          })
-        );
+        const oldItem = getResp.Item; const oldCount = oldItem.totalNumRequests ?? 0; const oldLat = oldItem.averageLatency ?? 0;
+        const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
+        await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat }, }));
       }
-    } catch (err) {
-      console.error("Error updating embeddings metadata:", err);
-    }
-  }
-  
-  /**
-   * Update service metadata for /embeddings. 
-   * We'll treat /embeddings like an endpoint, but you can also track the model if you prefer.
-   */
-  export async function updateEmbeddingsServiceMetadata(
-    serviceName: string,
-    serviceUrl: string | null,
-  ) {
+    } catch (err) { console.error("Error updating embeddings metadata:", err); }
+}
+export async function updateEmbeddingsServiceMetadata(serviceName: string, serviceUrl: string | null) {
     const day = getTodayDateString();
     try {
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Key: { serviceName },
-        })
-      );
+      const getResp = await docClient.send(new GetCommand({ TableName: Resource.ServiceMetadataTable.name, Key: { serviceName }, }));
       const item = getResp.Item || { serviceName };
-  
-      // If the serviceUrl is new, store it
-      if (!item.serviceUrl && serviceUrl) {
-        item.serviceUrl = serviceUrl;
-      }
-  
-      // We'll store usage at item["/embeddings"]
+      if (!item.serviceUrl && serviceUrl) item.serviceUrl = serviceUrl;
       const endpointKey = "/embeddings";
-      if (!item[endpointKey]) {
-        item[endpointKey] = {
-          totalNumRequests: 0,
-          requests: [],
-        };
-      }
-      const epUsage = item[endpointKey];
-      epUsage.totalNumRequests += 1;
-  
+      if (!item[endpointKey]) item[endpointKey] = { totalNumRequests: 0, requests: [], };
+      const epUsage = item[endpointKey] as EndpointUsage; epUsage.totalNumRequests += 1;
       const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === day);
-      if (existingDay) {
-        existingDay.numRequests += 1;
-      } else {
-        epUsage.requests.push({
-          dayTimestamp: day,
-          numRequests: 1,
-        });
-      }
-  
-      // Optionally also track usage per model. This is up to you. 
-      // For now, let's keep it simple.
-  
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Item: item,
-        })
-      );
-    } catch (err) {
-      console.error("Error updating embeddings service metadata:", err);
-    }
-  }
-
-/* -------------------------------------------------------------------------- */
-/*                      Image Provision / Media Table Logic                   */
-/* -------------------------------------------------------------------------- */
-
-/** 
- * Picks a random "image" node from the `MediaProvisionPoolTable`. 
- * We assume we store items with `type="image"` and `model=<some model>`. 
- * Possibly you want to allow `model` to be optional.  
- */
-export async function selectImageProvision(model: string) {
-  const r = Math.random();
-  // We’ll assume you have a GSI "ByModelAndTypeRandom" or similar 
-  // that has (model, randomValue) as key. Also ensure item.type="image".
-  const gsiName = "ByModelAndTypeRandom"; // from your SST config if you set that up for model + randomValue
-
-  // Query #1 => randomValue > r
-  let response = await docClient.send(
-    new QueryCommand({
-      TableName: Resource.MediaProvisionPoolTable.name,
-      IndexName: gsiName,
-      // If you store "type" in your table, you might do a FilterExpression => "type = :image"
-      // but more robust is a GSI that includes "type" in the key. For now, let's keep it simple:
-      KeyConditionExpression: "model = :m AND randomValue > :r",
-      ExpressionAttributeValues: {
-        ":m": model,
-        ":r": r,
-      },
-      Limit: 1,
-      ScanIndexForward: true,
-    })
-  );
-
-  if (!response.Items || response.Items.length === 0) {
-    // Query #2 => randomValue < r
-    response = await docClient.send(
-      new QueryCommand({
-        TableName: Resource.MediaProvisionPoolTable.name,
-        IndexName: gsiName,
-        KeyConditionExpression: "model = :m AND randomValue < :r",
-        ExpressionAttributeValues: {
-          ":m": model,
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: false,
-      })
-    );
-  }
-
-  if (!response.Items || response.Items.length === 0) {
-    throw new Error(`No image provisions available for model: ${model}`);
-  }
-
-  return response.Items[0];
+      if (existingDay) existingDay.numRequests += 1; else epUsage.requests.push({ dayTimestamp: day, numRequests: 1, });
+      await docClient.send(new PutCommand({ TableName: Resource.ServiceMetadataTable.name, Item: item, }));
+    } catch (err) { console.error("Error updating embeddings service metadata:", err); }
 }
-
-/** Checks if the image node’s /heartbeat is healthy */
-export async function checkImageHealth(endpoint: string): Promise<boolean> {
-  try {
-    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-    return resp.ok;
-  } catch (err) {
-    console.error("Image node heartbeat check failed:", err);
-    return false;
-  }
-}
-
-/** Removes the image node from the table if it’s unhealthy after 3 tries */
-export async function removeImageProvision(provisionId: string) {
-  try {
-    await docClient.send(
-      new DeleteCommand({
-        TableName: Resource.MediaProvisionPoolTable.name,
-        Key: { provisionId },
-      })
-    );
-  } catch (error) {
-    console.error("Error removing image provision:", error);
-  }
-}
-
-/** 
- * We can store daily usage in the same "MetadataTable" under endpoint="/image" 
- * or "/image/<model>" – up to you. 
- */
-export async function updateImageMetadata(
-  latency: number
-) {
-  // For tokens, you might say inputTokens = promptLength, 
-  // outputTokens = imageSize, or any logic you prefer.
-  const endpoint = "/image";
-  const dayStr = getTodayDateString();
-
-  try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.MetadataTable.name,
-        Key: { endpoint, dayTimestamp: dayStr },
-      })
-    );
-
-    if (!getResp.Item) {
-      // Insert new
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            endpoint,
-            dayTimestamp: dayStr,
-            totalNumRequests: 1,
-            averageLatency: latency,
-          },
-        })
-      );
-    } else {
-      // Update existing
-      const oldItem = getResp.Item;
-      const oldCount = oldItem.totalNumRequests ?? 0;
-      const oldAvgLat = oldItem.averageLatency ?? 0;
-      const newAvgLat = (oldAvgLat * oldCount + latency) / (oldCount + 1);
-
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            ...oldItem,
-            totalNumRequests: oldCount + 1,
-            averageLatency: newAvgLat,
-          },
-        })
-      );
-    }
-  } catch (err) {
-    console.error("Error updating image metadata:", err);
-  }
-}
-
-/** 
- * Upsert service metadata for /image. If you want to handle model usage, you can. 
- */
-export async function updateImageServiceMetadata(serviceName: string, serviceUrl: string | null) {
-  const endpointKey = "/image";
-  const dayStr = getTodayDateString();
-
-  try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Key: { serviceName },
-      })
-    );
-
-    const item = getResp.Item || { serviceName };
-    // store serviceUrl if not present
-    if (!item.serviceUrl && serviceUrl) {
-      item.serviceUrl = serviceUrl;
-    }
-
-    if (!item[endpointKey]) {
-      item[endpointKey] = {
-        totalNumRequests: 0,
-        requests: [],
-      };
-    }
-    const epUsage = item[endpointKey];
-    epUsage.totalNumRequests += 1;
-
-    const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
-    if (existingDay) {
-      existingDay.numRequests += 1;
-    } else {
-      epUsage.requests.push({
-        dayTimestamp: dayStr,
-        numRequests: 1,
-      });
-    }
-
-    await docClient.send(
-      new PutCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Item: item,
-      })
-    );
-  } catch (err) {
-    console.error("Error updating image service metadata:", err);
-  }
-}
-
-// Moon api
-/**
- * 1) Select a random "moon" provision from the MoonProvisionPoolTable
- *    using the GSI "ByRandom" => randomValue in [0..1).
- */
-export async function selectMoonProvision() {
-    const r = Math.random();
-    const gsiName = "ByRandom"; // from your sst config
-  
-    // Query #1 => randomValue > r
-    let response = await docClient.send(
-      new QueryCommand({
-        TableName: Resource.MoonProvisionPoolTable.name,
-        IndexName: gsiName,
-        KeyConditionExpression: "randomValue > :r",
-        ExpressionAttributeValues: {
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: true,
-      })
-    );
-  
-    if (!response.Items || response.Items.length === 0) {
-      // Query #2 => randomValue < r
-      response = await docClient.send(
-        new QueryCommand({
-          TableName: Resource.MoonProvisionPoolTable.name,
-          IndexName: gsiName,
-          KeyConditionExpression: "randomValue < :r",
-          ExpressionAttributeValues: {
-            ":r": r,
-          },
-          Limit: 1,
-          ScanIndexForward: false,
-        })
-      );
-    }
-  
-    if (!response.Items || response.Items.length === 0) {
-      throw new Error("No moon provisions available");
-    }
-    return response.Items[0];
-  }
-  
-  /** 2) Check the health of a moon node by calling `endpoint/heartbeat` */
-  export async function checkMoonHealth(endpoint: string): Promise<boolean> {
-    try {
-      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-      return resp.ok;
-    } catch (err) {
-      console.error("Moon node heartbeat failed:", err);
-      return false;
-    }
-  }
-  
-  /** 3) Remove a dead moon node after 3 attempts */
-  export async function removeMoonProvision(provisionId: string) {
-    try {
-      await docClient.send(
-        new DeleteCommand({
-          TableName: Resource.MoonProvisionPoolTable.name,
-          Key: { provisionId },
-        })
-      );
-    } catch (err) {
-      console.error("Error removing moon provision:", err);
-    }
-  }
-  
-  /**
-   * 4) Update daily metadata for /m/* endpoints
-   *    We'll store `endpoint` = "/m/query" | "/m/caption" | ...
-   *    Up to you how to measure tokens or inputSize or outputSize.
-   */
-  export async function updateMoonMetadata(
-    endpoint: string,
-    latency: number
-  ) {
-    const dayStr = getTodayDateString();
-    try {
-      // get existing item
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.MetadataTable.name,
-          Key: { endpoint, dayTimestamp: dayStr },
-        })
-      );
-      if (!getResp.Item) {
-        // Insert
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              endpoint,
-              dayTimestamp: dayStr,
-              totalNumRequests: 1,
-              averageLatency: latency,
-            },
-          })
-        );
-      } else {
-        const oldItem = getResp.Item;
-        const oldCount = oldItem.totalNumRequests ?? 0;
-        const oldLat = oldItem.averageLatency ?? 0;
-        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-  
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              ...oldItem,
-              totalNumRequests: oldCount + 1,
-              averageLatency: newAvgLat,
-            },
-          })
-        );
-      }
-    } catch (err) {
-      console.error("Error updating moon metadata:", err);
-    }
-  }
-  
-  /**
-   * 5) Update service metadata for /m/* endpoints
-   *    We'll store usage at item["/m/query"], item["/m/caption"], etc.
-   */
-  export async function updateMoonServiceMetadata(
-    serviceName: string,
-    serviceUrl: string | null,
-    endpoint: string
-  ) {
-    const dayStr = getTodayDateString();
-    try {
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Key: { serviceName },
-        })
-      );
-      const item = getResp.Item || { serviceName };
-      if (!item.serviceUrl && serviceUrl) {
-        item.serviceUrl = serviceUrl;
-      }
-  
-      if (!item[endpoint]) {
-        item[endpoint] = {
-          totalNumRequests: 0,
-          requests: [],
-        };
-      }
-      item[endpoint].totalNumRequests += 1;
-  
-      const epUsage = item[endpoint];
-      const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
-      if (existingDay) {
-        existingDay.numRequests += 1;
-      } else {
-        epUsage.requests.push({
-          dayTimestamp: dayStr,
-          numRequests: 1,
-        });
-      }
-  
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Item: item,
-        })
-      );
-    } catch (err) {
-      console.error("Error updating moon service metadata:", err);
-    }
-  }
 
 /* -------------------------------------------------------------------------- */
 /*                         Scraping Provision Logic                           */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Picks a random scraping node from `ScrapingProvisionPoolTable` 
- * using the "ByRandom" index (randomValue in [0..1)).
- */
 export async function selectScrapingProvision() {
-  const r = Math.random();
-  const gsiName = "ByRandom"; // from your sst config
-
-  // 1) Query for randomValue > r
-  let response = await docClient.send(
-    new QueryCommand({
-      TableName: Resource.ScrapingProvisionPoolTable.name,
-      IndexName: gsiName,
-      KeyConditionExpression: "randomValue > :r",
-      ExpressionAttributeValues: {
-        ":r": r,
-      },
-      Limit: 1,
-      ScanIndexForward: true,
-    })
-  );
-
-  // 2) If none found, query randomValue < r
-  if (!response.Items || response.Items.length === 0) {
-    response = await docClient.send(
-      new QueryCommand({
-        TableName: Resource.ScrapingProvisionPoolTable.name,
-        IndexName: gsiName,
-        KeyConditionExpression: "randomValue < :r",
-        ExpressionAttributeValues: {
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: false,
-      })
-    );
-  }
-
-  if (!response.Items || response.Items.length === 0) {
-    throw new Error("No scraping provisions available");
-  }
+  const r = Math.random(); const gsiName = "ByRandom";
+  let response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "randomValue > :r", ExpressionAttributeValues: { ":r": r, }, Limit: 1, ScanIndexForward: true, }));
+  if (!response.Items || response.Items.length === 0) { response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "randomValue < :r", ExpressionAttributeValues: { ":r": r, }, Limit: 1, ScanIndexForward: false, })); }
+  if (!response.Items || response.Items.length === 0) throw new Error("No scraping provisions available");
   return response.Items[0];
 }
-
-/** Checks if a scraping node is healthy by calling /heartbeat */
 export async function checkScrapingHealth(endpoint: string): Promise<boolean> {
-  try {
-    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-    return resp.ok;
-  } catch (err) {
-    console.error("Scraping node heartbeat check failed:", err);
-    return false;
-  }
+  try { const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" }); return resp.ok; }
+  catch (err) { console.error("Scraping node heartbeat check failed:", err); return false; }
 }
-
-/** Removes a scraping node from the table if unhealthy after 3 tries */
 export async function removeScrapingProvision(provisionId: string) {
-  try {
-    await docClient.send(
-      new DeleteCommand({
-        TableName: Resource.ScrapingProvisionPoolTable.name,
-        Key: { provisionId },
-      })
-    );
-  } catch (err) {
-    console.error("Error removing scraping provision:", err);
-  }
+  try { await docClient.send(new DeleteCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, Key: { provisionId }, })); }
+  catch (err) { console.error("Error removing scraping provision:", err); }
 }
-
-/**
- * Update daily metadata for /scrape. 
- * We store in the same "MetadataTable" with endpoint="/scrape".
- */
 export async function updateScrapeMetadata(latency: number) {
-  const endpoint = "/scrape";
-  const dayStr = getTodayDateString();
-
+  const endpoint = "/scrape"; const dayStr = getTodayDateString();
   try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.MetadataTable.name,
-        Key: { endpoint, dayTimestamp: dayStr },
-      })
-    );
-
-    if (!getResp.Item) {
-      // Insert
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            endpoint,
-            dayTimestamp: dayStr,
-            totalNumRequests: 1,
-            averageLatency: latency,
-          },
-        })
-      );
-    } else {
-      // Update existing
-      const oldItem = getResp.Item;
-      const oldCount = oldItem.totalNumRequests ?? 0;
-      const oldLat = oldItem.averageLatency ?? 0;
-      const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            ...oldItem,
-            totalNumRequests: oldCount + 1,
-            averageLatency: newAvgLat,
-          },
-        })
-      );
+    const getResp = await docClient.send(new GetCommand({ TableName: Resource.MetadataTable.name, Key: { endpoint, dayTimestamp: dayStr }, }));
+    if (!getResp.Item) { await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { endpoint, dayTimestamp: dayStr, totalNumRequests: 1, averageLatency: latency, }, })); }
+    else {
+      const oldItem = getResp.Item; const oldCount = oldItem.totalNumRequests ?? 0; const oldLat = oldItem.averageLatency ?? 0;
+      const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
+      await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat, }, }));
     }
-  } catch (err) {
-    console.error("Error updating /scrape metadata:", err);
-  }
+  } catch (err) { console.error("Error updating /scrape metadata:", err); }
 }
-
-/**
- * Update service metadata for /scrape. 
- * We'll treat "/scrape" as an endpoint in ServiceMetadataTable.
- */
-export async function updateScrapeServiceMetadata(
-  serviceName: string,
-  serviceUrl: string | null
-) {
-  const endpointKey = "/scrape";
-  const dayStr = getTodayDateString();
-
+export async function updateScrapeServiceMetadata(serviceName: string, serviceUrl: string | null) {
+  const endpointKey = "/scrape"; const dayStr = getTodayDateString();
   try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Key: { serviceName },
-      })
-    );
+    const getResp = await docClient.send(new GetCommand({ TableName: Resource.ServiceMetadataTable.name, Key: { serviceName }, }));
     const item = getResp.Item || { serviceName };
-
-    // If new serviceUrl, store it
-    if (!item.serviceUrl && serviceUrl) {
-      item.serviceUrl = serviceUrl;
-    }
-
-    // If we haven't used "/scrape" yet, create it
-    if (!item[endpointKey]) {
-      item[endpointKey] = {
-        totalNumRequests: 0,
-        requests: [],
-      };
-    }
-    const epUsage = item[endpointKey];
-    epUsage.totalNumRequests += 1;
-
-    // Append or update today's usage
+    if (!item.serviceUrl && serviceUrl) item.serviceUrl = serviceUrl;
+    if (!item[endpointKey]) item[endpointKey] = { totalNumRequests: 0, requests: [], };
+    const epUsage = item[endpointKey] as EndpointUsage; epUsage.totalNumRequests += 1;
     const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
-    if (existingDay) {
-      existingDay.numRequests += 1;
-    } else {
-      epUsage.requests.push({
-        dayTimestamp: dayStr,
-        numRequests: 1,
-      });
-    }
-
-    await docClient.send(
-      new PutCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Item: item,
-      })
-    );
-  } catch (err) {
-    console.error("Error updating /scrape service metadata:", err);
-  }
+    if (existingDay) existingDay.numRequests += 1; else epUsage.requests.push({ dayTimestamp: dayStr, numRequests: 1, });
+    await docClient.send(new PutCommand({ TableName: Resource.ServiceMetadataTable.name, Item: item, }));
+  } catch (err) { console.error("Error updating /scrape service metadata:", err); }
 }
 
 /* -------------------------------------------------------------------------- */
 /*                            TTS Provision Logic                             */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Picks a random TTS node from `TTSProvisionPoolTable` 
- * using the "ByModelRandom" GSI (model, randomValue).
- */
 export async function selectTTSProvision(model: string) {
-    const r = Math.random();
-    const gsiName = "ByModelRandom"; // from your sst config
-  
-    // Query #1 => randomValue > r
-    let response = await docClient.send(
-      new QueryCommand({
-        TableName: Resource.TTSProvisionPoolTable.name,
-        IndexName: gsiName,
-        KeyConditionExpression: "model = :m AND randomValue > :r",
-        ExpressionAttributeValues: {
-          ":m": model,
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: true,
-      })
-    );
-  
-    if (!response.Items || response.Items.length === 0) {
-      // Query #2 => randomValue < r
-      response = await docClient.send(
-        new QueryCommand({
-          TableName: Resource.TTSProvisionPoolTable.name,
-          IndexName: gsiName,
-          KeyConditionExpression: "model = :m AND randomValue < :r",
-          ExpressionAttributeValues: {
-            ":m": model,
-            ":r": r,
-          },
-          Limit: 1,
-          ScanIndexForward: false,
-        })
-      );
-    }
-  
-    if (!response.Items || response.Items.length === 0) {
-      throw new Error(`No TTS provisions available for model: ${model}`);
-    }
+    const r = Math.random(); const gsiName = "ByModelRandom";
+    let response = await docClient.send(new QueryCommand({ TableName: Resource.TTSProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "model = :m AND randomValue > :r", ExpressionAttributeValues: { ":m": model, ":r": r, }, Limit: 1, ScanIndexForward: true, }));
+    if (!response.Items || response.Items.length === 0) { response = await docClient.send(new QueryCommand({ TableName: Resource.TTSProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "model = :m AND randomValue < :r", ExpressionAttributeValues: { ":m": model, ":r": r, }, Limit: 1, ScanIndexForward: false, })); }
+    if (!response.Items || response.Items.length === 0) throw new Error(`No TTS provisions available for model: ${model}`);
     return response.Items[0];
-  }
-  
-  /** Check if TTS node is healthy by calling /heartbeat */
-  export async function checkTTSHealth(endpoint: string): Promise<boolean> {
-    try {
-      const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-      return resp.ok;
-    } catch (err) {
-      console.error("TTS node heartbeat failed:", err);
-      return false;
-    }
-  }
-  
-  /** Remove TTS node from the table if it’s unhealthy after 3 tries */
-  export async function removeTTSProvision(provisionId: string) {
-    try {
-      await docClient.send(
-        new DeleteCommand({
-          TableName: Resource.TTSProvisionPoolTable.name,
-          Key: { provisionId },
-        })
-      );
-    } catch (err) {
-      console.error("Error removing TTS provision:", err);
-    }
-  }
-  
-  /**
-   * Update daily metadata for /tts in the "MetadataTable".
-   */
-  export async function updateTTSMetadata(latency: number) {
-    const endpoint = "/tts";
-    const dayStr = getTodayDateString();
-  
-    try {
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.MetadataTable.name,
-          Key: { endpoint, dayTimestamp: dayStr },
-        })
-      );
-  
-      if (!getResp.Item) {
-        // Create
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              endpoint,
-              dayTimestamp: dayStr,
-              totalNumRequests: 1,
-              averageLatency: latency,
-            },
-          })
-        );
-      } else {
-        // Update
-        const oldItem = getResp.Item;
-        const oldCount = oldItem.totalNumRequests ?? 0;
-        const oldLat = oldItem.averageLatency ?? 0;
-        const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-  
-        await docClient.send(
-          new PutCommand({
-            TableName: Resource.MetadataTable.name,
-            Item: {
-              ...oldItem,
-              totalNumRequests: oldCount + 1,
-              averageLatency: newAvgLat,
-            },
-          })
-        );
-      }
-    } catch (err) {
-      console.error("Error updating TTS metadata:", err);
-    }
-  }
-  
-  /**
-   * Update service metadata for /tts in the "ServiceMetadataTable".
-   */
-  export async function updateTTSServiceMetadata(serviceName: string, serviceUrl: string | null) {
-    const endpointKey = "/tts";
-    const dayStr = getTodayDateString();
-  
-    try {
-      const getResp = await docClient.send(
-        new GetCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Key: { serviceName },
-        })
-      );
-      const item = getResp.Item || { serviceName };
-  
-      // If new serviceUrl, store it
-      if (!item.serviceUrl && serviceUrl) {
-        item.serviceUrl = serviceUrl;
-      }
-  
-      if (!item[endpointKey]) {
-        item[endpointKey] = {
-          totalNumRequests: 0,
-          requests: [],
-        };
-      }
-      const epUsage = item[endpointKey];
-      epUsage.totalNumRequests += 1;
-  
-      const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
-      if (existingDay) {
-        existingDay.numRequests += 1;
-      } else {
-        epUsage.requests.push({
-          dayTimestamp: dayStr,
-          numRequests: 1,
-        });
-      }
-  
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.ServiceMetadataTable.name,
-          Item: item,
-        })
-      );
-    } catch (err) {
-      console.error("Error updating TTS service metadata:", err);
-    }
-  }
-  
-
-/* -------------------------------------------------------------------------- */
-/*                           Video Provision Logic                            */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Picks a random "video" node from the `MediaProvisionPoolTable`.
- * We assume items have `type="video"`, `model=<some model>`, and randomValue in [0..1).
- * We use the "ByModelAndTypeRandom" GSI. 
- */
-export async function selectVideoProvision(model: string) {
-  const r = Math.random();
-  const gsiName = "ByModelAndTypeRandom"; // from your sst config (hashKey=model, rangeKey=randomValue)
-  
-  // Query #1 => randomValue > r
-  let response = await docClient.send(
-    new QueryCommand({
-      TableName: Resource.MediaProvisionPoolTable.name,
-      IndexName: gsiName,
-      KeyConditionExpression: "model = :m AND randomValue > :r",
-      ExpressionAttributeValues: {
-        ":m": model,
-        ":r": r,
-      },
-      Limit: 1,
-      ScanIndexForward: true,
-    })
-  );
-
-  // If no item found, query randomValue < r
-  if (!response.Items || response.Items.length === 0) {
-    response = await docClient.send(
-      new QueryCommand({
-        TableName: Resource.MediaProvisionPoolTable.name,
-        IndexName: gsiName,
-        KeyConditionExpression: "model = :m AND randomValue < :r",
-        ExpressionAttributeValues: {
-          ":m": model,
-          ":r": r,
-        },
-        Limit: 1,
-        ScanIndexForward: false,
-      })
-    );
-  }
-
-  if (!response.Items || response.Items.length === 0) {
-    throw new Error(`No video provisions available for model: ${model}`);
-  }
-  // Return the single item
-  return response.Items[0];
 }
-
-/** Check if a video node is healthy by calling `endpoint/heartbeat` */
-export async function checkVideoHealth(endpoint: string): Promise<boolean> {
-  try {
-    const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" });
-    return resp.ok;
-  } catch (err) {
-    console.error("Video node heartbeat failed:", err);
-    return false;
-  }
+export async function checkTTSHealth(endpoint: string): Promise<boolean> {
+  try { const resp = await fetch(`${endpoint}/heartbeat`, { method: "GET" }); return resp.ok; }
+  catch (err) { console.error("TTS node heartbeat failed:", err); return false; }
 }
-
-/** Remove a video provision from `MediaProvisionPoolTable` if unhealthy */
-export async function removeVideoProvision(provisionId: string) {
-  try {
-    await docClient.send(
-      new DeleteCommand({
-        TableName: Resource.MediaProvisionPoolTable.name,
-        Key: { provisionId },
-      })
-    );
-  } catch (err) {
-    console.error("Error removing video provision:", err);
-  }
+export async function removeTTSProvision(provisionId: string) {
+  try { await docClient.send(new DeleteCommand({ TableName: Resource.TTSProvisionPoolTable.name, Key: { provisionId }, })); }
+  catch (err) { console.error("Error removing TTS provision:", err); }
 }
-
-/**
- * Update daily metadata for /video in the "MetadataTable".
- * We'll store the record with endpoint="/video".
- */
-export async function updateVideoMetadata(latency: number) {
-  const endpoint = "/video";
-  const dayStr = getTodayDateString();
-
+export async function updateTTSMetadata(latency: number) {
+  const endpoint = "/tts"; const dayStr = getTodayDateString();
   try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.MetadataTable.name,
-        Key: { endpoint, dayTimestamp: dayStr },
-      })
-    );
-
-    if (!getResp.Item) {
-      // Insert
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            endpoint,
-            dayTimestamp: dayStr,
-            totalNumRequests: 1,
-            averageLatency: latency,
-          },
-        })
-      );
-    } else {
-      // Update
-      const oldItem = getResp.Item;
-      const oldCount = oldItem.totalNumRequests ?? 0;
-      const oldLat = oldItem.averageLatency ?? 0;
-      const newAvgLat = (oldLat * oldCount + latency) / (oldCount + 1);
-
-      await docClient.send(
-        new PutCommand({
-          TableName: Resource.MetadataTable.name,
-          Item: {
-            ...oldItem,
-            totalNumRequests: oldCount + 1,
-            averageLatency: newAvgLat,
-          },
-        })
-      );
+    const getResp = await docClient.send(new GetCommand({ TableName: Resource.MetadataTable.name, Key: { endpoint, dayTimestamp: dayStr }, }));
+    if (!getResp.Item) { await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { endpoint, dayTimestamp: dayStr, totalNumRequests: 1, averageLatency: latency, }, })); }
+    else {
+      const oldItem = getResp.Item; const oldCount = oldItem.totalNumRequests ?? 0; const oldLat = oldItem.averageLatency ?? 0;
+      const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
+      await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat, }, }));
     }
-  } catch (err) {
-    console.error("Error updating /video metadata:", err);
-  }
+  } catch (err) { console.error("Error updating TTS metadata:", err); }
 }
-
-/**
- * Update service metadata for /video in the "ServiceMetadataTable".
- */
-export async function updateVideoServiceMetadata(serviceName: string, serviceUrl: string | null) {
-  const endpointKey = "/video";
-  const dayStr = getTodayDateString();
-
+export async function updateTTSServiceMetadata(serviceName: string, serviceUrl: string | null) {
+  const endpointKey = "/tts"; const dayStr = getTodayDateString();
   try {
-    const getResp = await docClient.send(
-      new GetCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Key: { serviceName },
-      })
-    );
+    const getResp = await docClient.send(new GetCommand({ TableName: Resource.ServiceMetadataTable.name, Key: { serviceName }, }));
     const item = getResp.Item || { serviceName };
-
-    // If new serviceUrl, store it
-    if (!item.serviceUrl && serviceUrl) {
-      item.serviceUrl = serviceUrl;
-    }
-
-    if (!item[endpointKey]) {
-      item[endpointKey] = {
-        totalNumRequests: 0,
-        requests: [],
-      };
-    }
-    const epUsage = item[endpointKey];
-    epUsage.totalNumRequests += 1;
-
+    if (!item.serviceUrl && serviceUrl) item.serviceUrl = serviceUrl;
+    if (!item[endpointKey]) item[endpointKey] = { totalNumRequests: 0, requests: [], };
+    const epUsage = item[endpointKey] as EndpointUsage; epUsage.totalNumRequests += 1;
     const existingDay = epUsage.requests.find((r: any) => r.dayTimestamp === dayStr);
-    if (existingDay) {
-      existingDay.numRequests += 1;
-    } else {
-      epUsage.requests.push({ dayTimestamp: dayStr, numRequests: 1 });
-    }
-
-    await docClient.send(
-      new PutCommand({
-        TableName: Resource.ServiceMetadataTable.name,
-        Item: item,
-      })
-    );
-  } catch (err) {
-    console.error("Error updating /video service metadata:", err);
-  }
+    if (existingDay) existingDay.numRequests += 1; else epUsage.requests.push({ dayTimestamp: dayStr, numRequests: 1, });
+    await docClient.send(new PutCommand({ TableName: Resource.ServiceMetadataTable.name, Item: item, }));
+  } catch (err) { console.error("Error updating TTS service metadata:", err); }
 }
 
 
-/**
- * Fetches the linked on-chain wallet address for a given trader ID.
- * Assumes the TradersTable stores the walletAddress.
- *
- * @param internalDEXTraderId - The unique identifier for the trader (e.g., userId from UserTable).
- * @returns The linked wallet address as a string, or null if not found or not linked.
- */
-export async function getLinkedWalletForTrader(internalDEXTraderId: string): Promise<string | null> {
-    if (!internalDEXTraderId) {
-        console.warn("[getLinkedWalletForTrader] internalDEXTraderId is missing.");
-        return null;
-    }
-
-    try {
-        console.log(`[getLinkedWalletForTrader] Fetching wallet for traderId: ${internalDEXTraderId}`);
-        const { Item } = await ddb.send(
-            new GetItemCommand({
-                TableName: TRADERS_TABLE_NAME,
-                Key: marshall({ traderId: internalDEXTraderId }), // PK is just traderId
-                ProjectionExpression: "walletAddress", // Only fetch the walletAddress
-            })
-        );
-
-        if (Item) {
-            const traderData = unmarshall(Item) as Partial<Pick<TraderRecord, "walletAddress">>;
-            if (traderData.walletAddress && ethers.isAddress(traderData.walletAddress)) {
-                console.log(`[getLinkedWalletForTrader] Found wallet: ${traderData.walletAddress} for traderId: ${internalDEXTraderId}`);
-                return traderData.walletAddress;
-            } else {
-                console.warn(`[getLinkedWalletForTrader] walletAddress attribute missing or invalid for traderId: ${internalDEXTraderId}. Found:`, traderData.walletAddress);
-                return null;
-            }
-        } else {
-            console.warn(`[getLinkedWalletForTrader] No record found in TradersTable for traderId: ${internalDEXTraderId}`);
-            return null;
-        }
-    } catch (error) {
-        console.error(`[getLinkedWalletForTrader] Error fetching wallet for traderId ${internalDEXTraderId}:`, error);
-        return null; // Or throw, depending on desired error handling
-    }
-}
+// getLinkedWalletForTrader function REMOVED as TRADERS_TABLE_NAME is removed.
+// If wallet linking is still a feature, it would fetch from UserTable.
+// e.g., export async function getLinkedWalletForUser(userId: string): Promise<string | null>
+// This depends on UserTable having a walletAddress attribute.
