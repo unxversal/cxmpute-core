@@ -290,7 +290,7 @@ export default function Setup({onSetupComplete}: SetupProps) {
     }
     
     return (
-        <Box flexDirection="column" padding={1} borderStyle="round" borderColor="cyan" width="100%">
+        <Box flexDirection="column" padding={1} borderStyle="round" borderColor="cyan">
             <Box justifyContent="center" marginBottom={1}><Text bold color="yellow">Cxmpute Provider Setup</Text></Box>
             <Text dimColor>Please follow the steps to register your device. Use arrow keys and Enter.</Text>
             <Newline/>

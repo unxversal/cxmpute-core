@@ -123,6 +123,14 @@ const app = issuer({
     // ensureUser now returns an object without traderId
     const { userId, providerId, userAks, providerAk, userAk, walletAddress } = await ensureUser(value.claims.email);
     
+    console.log("ensureUser")
+    console.log("userId", userId) 
+    console.log("providerId", providerId)
+    console.log("userAks", userAks)
+    console.log("providerAk", providerAk)
+    console.log("userAk", userAk)
+    console.log("walletAddress", walletAddress)
+    
     // Subject no longer includes traderId, traderAk
     return ctx.subject("user", {
       id: userId,

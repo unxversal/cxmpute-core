@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    console.log("Request body", body);
+
     // 1. Verify the provision exists
     const provisionResp = await docClient.send(
       new GetCommand({
@@ -92,6 +94,8 @@ export async function POST(req: NextRequest) {
     for (const service of startedServices) {
       await addToAppropriatePool(service, provisionId, providedUrl, location);
     }
+
+    console.log("Successfully registered", startedServices.length, "services for provision", provisionId);
 
     // 4. Return success
     return NextResponse.json({ 

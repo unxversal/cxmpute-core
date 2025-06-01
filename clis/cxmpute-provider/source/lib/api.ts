@@ -59,6 +59,7 @@ interface OrchestratorEndPayload {
 
 export async function registerDevice(payload: RegisterDevicePayload): Promise<RegisterDeviceResponse> {
     console.log("API Payload - registerDevice:", payload);
+    console.log("CXMPUTE_API_BASE_URL", CXMPUTE_API_BASE_URL);
     try {
         const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/new`, {
             method: 'POST',
@@ -67,10 +68,13 @@ export async function registerDevice(payload: RegisterDevicePayload): Promise<Re
         });
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
+            console.error("API Error - registerDevice:", errorData);
             throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
         }
-        console.log("API Response - registerDevice:", await response.json());
-        return await response.json() as RegisterDeviceResponse;
+
+        const res = await response.json();
+        console.log("API Response - registerDevice:", res);
+        return res as RegisterDeviceResponse;
     } catch (error: any) {
         console.error("API Error - registerDevice:", error);
         return { success: false, message: error.message || "Network error during registration." };

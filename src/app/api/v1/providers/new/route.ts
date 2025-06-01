@@ -11,7 +11,7 @@ import {
   PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
-import { ProviderRecord, ProvisionRecord, DeviceDiagnostics, Location } from "@/lib/interfaces";
+import { ProviderRecord, ProvisionRecord, Location } from "@/lib/interfaces";
 
 /**
  * 1) Create the raw DynamoDBClient
@@ -46,14 +46,14 @@ export async function POST(req: NextRequest) {
       providerId,
       providerAk,      // The provider’s API key
       provisionId,
-      provisionSpecs,  // e.g. { compute: {...}, type: "gpu" }
+      deviceDiagnostics,
       location         // e.g. { country, state, city }
     } = body || {};
 
     // Basic required fields check
-    if (!providerId || !providerAk || !provisionId || !provisionSpecs || !location) {
+    if (!providerId || !providerAk || !provisionId || !deviceDiagnostics || !location) {
       return NextResponse.json({
-        error: "Missing required fields: providerId, providerAk, provisionId, provisionSpecs, location"
+        error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location"
       }, { status: 400 });
     }
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const newProvision: ProvisionRecord = {
       provisionId,
       providerId,
-      deviceDiagnostics: provisionSpecs as DeviceDiagnostics,
+      deviceDiagnostics,
       location: location as Location
     };
 
@@ -92,8 +92,10 @@ export async function POST(req: NextRequest) {
 
     // 5) TODO: Call out to peaq here to add the provision
 
+    console.log("New provision:", newProvision);
+
     // 5) Return success
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true, deviceId: provisionId }, { status: 200 });
 
   } catch (err: any) {
     console.error("Error in /providers/new route:", err);

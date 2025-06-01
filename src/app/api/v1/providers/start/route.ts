@@ -110,11 +110,16 @@ async function getModelCounts(tableName: string): Promise<Record<string, number>
  */
 async function calculateServices(deviceDiagnostics: DeviceDiagnostics): Promise<string[]> {
   // Get available resources
-  const availableVRAM = deviceDiagnostics.compute.gpu?.memory || 0;
+  const totalVRAM = deviceDiagnostics.compute.memory?.total || 0;
+  // MODIFICATION: Use 80% of total VRAM for allocation calculations
+  const availableVRAM = Math.floor(totalVRAM * 0.8); 
   const availableStorage = deviceDiagnostics.compute.storage?.free || 0;
   
-  // Determine the tier based on VRAM
+  // Determine the tier based on the (adjusted) availableVRAM
   const tier = determineVRAMTier(availableVRAM);
+
+  console.log("availableVRAM", availableVRAM);
+  console.log("tier", tier);
   
   // Get current provision counts
   const currentCounts = await getProvisionCounts();
@@ -127,7 +132,7 @@ async function calculateServices(deviceDiagnostics: DeviceDiagnostics): Promise<
     // Only consider services in this tier or lower
     if (serviceTier > tier) return false;
     
-    // Check if we have enough VRAM and storage
+    // Check if we have enough VRAM and storage (using the adjusted availableVRAM)
     return (
       service.vramRequired <= availableVRAM && 
       service.storageRequired <= availableStorage
@@ -189,7 +194,7 @@ async function calculateServices(deviceDiagnostics: DeviceDiagnostics): Promise<
   }
 
   const selectedServices: string[] = [];
-  let remainingVRAM = availableVRAM;
+  let remainingVRAM = availableVRAM; // Initial remaining VRAM is the adjusted 80%
   let remainingStorage = availableStorage;
   
   // Use lowest fulfillment services first, or a tied random one
@@ -298,6 +303,8 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    console.log("Request body", body);
+
     // 1. Verify the provision exists
     const provisionResp = await docClient.send(
       new GetCommand({
@@ -336,6 +343,8 @@ export async function POST(req: NextRequest) {
 
     // 3. Calculate services to spin up
     const servicesToSpinUp = await calculateServices(availableResources as DeviceDiagnostics);
+
+    console.log("Services to spin up:", servicesToSpinUp);
 
     // 4. Return the services to spin up
     return NextResponse.json({ 

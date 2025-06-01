@@ -158,7 +158,7 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
     setIsDeletingProvisionId(provisionToDelete.provisionId);
     const loadingToastId = notify.loading(`Deleting provision ${provisionToDelete.provisionId.substring(0,6)}...`);
     try {
-      const response = await fetch(`/api/providers/delete`, {
+      const response = await fetch(`/api/v1/providers/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

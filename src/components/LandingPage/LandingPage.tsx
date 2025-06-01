@@ -40,13 +40,13 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><a href="/download" target="_blank">
+            <li><a href="/download" >
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
             </a></li>
-            <li><a href="/docs" target="_blank">
+            <li><a href="/docs" >
               <Button text="DOCUMENTATION" backgroundColor={cxmputePurple}/>
             </a></li>
-            <li><a href="/dashboard" target="_blank">
+            <li><a href="/dashboard" >
               <Button text=" DASHBOARD" backgroundColor={cxmputeGreen}/>
             </a></li>
           </ul>

@@ -232,7 +232,7 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
     }
 
 	return (
-		<Box flexDirection="column" width="100%" padding={1}>
+		<Box padding={1}>
 			{currentScreen === 'setup' && !userSession && diagnostics && (
 				<Setup onSetupComplete={handleSetupComplete} />
 			)}
@@ -243,7 +243,7 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
                     earningsToday={dashboardStats?.earningsToday ?? 0}
                     earningsTotal={dashboardStats?.earningsTotal ?? 0}
                     referralsCount={dashboardStats?.referralsCount ?? 0}
-                    deviceTier={determineVRAMTierString(diagnostics.compute.gpu?.memory)}
+                    deviceTier={determineVRAMTierString(diagnostics.compute.memory.free)}
                     // notifications={[]} // Add actual notifications if you have them
                     generalError={appError}
                     isLoading={isLoading && nodeStatus !== 'on'} // Show dashboard loading if node isn't fully 'on' yet or data is fetching

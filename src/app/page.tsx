@@ -1,34 +1,29 @@
 // src/app/page.tsx (Root Page - Server Component)
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { auth } from "@/app/actions"; // Your server-side auth function
-import LandingPage from "@/components/LandingPage/LandingPage"; // Your extracted landing page
-import TradePageContent from "@/components/trade/TradePageContent"; // The trading dashboard wrapper
-import type { AuthenticatedUserSubject } from "@/lib/auth";
+import LandingPage from "@/components/LandingPage/LandingPage"; // Your main landing page component
 
-// Define your main domain and trade subdomain
-const MAIN_DOMAIN = "cxmpute.cloud"; // Configure in .env
+// const MAIN_DOMAIN = "cxmpute.cloud"; // Example: If you need to reference it. Not used in this version.
 
 export default async function RootPage() {
-  const headersList = await headers();
-  const host = headersList.get("host") || "";
-  console.log("Host:", host); // Debugging line to check the host
-  const userSubject = await auth() as AuthenticatedUserSubject | false; // Cast for clarity
+  // const headersList = await headers(); // Kept for potential other uses, remove if unused
+  // const host = headersList.get("host") || "";
+  // console.log("Host for RootPage:", host); // Debugging: Can be removed
 
-  if (host !== "localhost:3000" && host.startsWith("trade.")) { // or host === TRADE_SUBDOMAIN
-    if (userSubject) {
-      // User is on trade.example.com and logged in
-      return <TradePageContent />;
-    } else {
-      // User is on trade.example.com but NOT logged in
-      // Redirect to the main domain's dashboard/login page
-      const mainDomainUrl = headersList.get("x-forwarded-proto") === "https" ? "https://" : "http://";
-      redirect(`${mainDomainUrl}${MAIN_DOMAIN}/dashboard`); // Redirect to example.com/dashboard
-    }
+  // --- User Flow Option 1: Always show LandingPage ---
+  // The LandingPage component itself can have links to /dashboard or login prompts.
+  // This is generally simpler for the root page.
+  return <LandingPage />;
+
+  // --- User Flow Option 2: Redirect authenticated users to /dashboard ---
+  // If you prefer to send logged-in users directly to their dashboard
+  // and only show the LandingPage to logged-out users, use this block instead.
+  // Comment out the `return <LandingPage />;` line above if you use this.
+  /*
+  if (userSubject) {
+    // User is authenticated, redirect them to their dashboard.
+    redirect("/dashboard");
   } else {
-    // User is on example.com (or any other non-trade subdomain)
-    // This part no longer needs to check auth for rendering the landing page itself.
-    // Specific sections *within* LandingPage (if any) that require auth would handle it internally or be passed userSubject.
+    // User is not authenticated, show the landing page.
     return <LandingPage />;
   }
+  */
 }

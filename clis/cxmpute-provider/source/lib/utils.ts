@@ -32,23 +32,12 @@ export async function checkOllama(): Promise<{ ok: boolean; version?: string; er
         // or parse it from `ollama --version` if that's preferred.
         // For now, we'll just confirm it's alive.
         await ollama.list(); // Throws an error if Ollama server is not reachable or has issues
-        
-        // If you need to get the version, one way is to call the /api/version endpoint directly
-        // as ollama-js doesn't seem to have a dedicated version function.
-        // This requires knowing the default Ollama port (11434).
-        let version = "unknown";
-        try {
-            const response = await fetch('http://127.0.0.1:11434/api/version');
-            if (response.ok) {
-                const data = await response.json();
-                version = data.version || "unknown";
-            }
-        } catch (fetchError) {
-            // console.warn("Could not fetch Ollama version directly, but list command succeeded.")
-        }
 
-        return { ok: true, version };
+        console.log("Ollama service is responsive.");
+
+        return { ok: true };
     } catch (error: any) {
+        console.log("Ollama service is not responsive. Error", error);
         let errorMessage = "Ollama service not responsive or not installed.";
         if (error.cause && error.cause.code === 'ECONNREFUSED') {
             errorMessage = "Ollama service is not running (Connection refused).";
