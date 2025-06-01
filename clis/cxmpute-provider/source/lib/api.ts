@@ -3,6 +3,7 @@ import type { DeviceDiagnostics, DashboardStats } from './interfaces.js';
 
 // Ensure your .env file has this or define it directly
 const CXMPUTE_API_BASE_URL = process.env['CXMPUTE_API_URL'] || 'https://cxmpute.cloud/api';
+console.log("CXMPUTE_API_BASE_URL", CXMPUTE_API_BASE_URL);
 
 interface RegisterDevicePayload {
     deviceDiagnostics: DeviceDiagnostics;
@@ -57,6 +58,7 @@ interface OrchestratorEndPayload {
 
 
 export async function registerDevice(payload: RegisterDevicePayload): Promise<RegisterDeviceResponse> {
+    console.log("API Payload - registerDevice:", payload);
     try {
         const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/new`, {
             method: 'POST',
@@ -67,6 +69,7 @@ export async function registerDevice(payload: RegisterDevicePayload): Promise<Re
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
         }
+        console.log("API Response - registerDevice:", await response.json());
         return await response.json() as RegisterDeviceResponse;
     } catch (error: any) {
         console.error("API Error - registerDevice:", error);
@@ -126,6 +129,7 @@ export async function notifyOrchestratorRerun(providerId: string, deviceId: stri
 
 
 export async function requestServicesFromOrchestrator(payload: OrchestratorStartPayload): Promise<OrchestratorStartResponse> {
+    console.log("API: requestServicesFromOrchestrator", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,11 +141,14 @@ export async function requestServicesFromOrchestrator(payload: OrchestratorStart
     }
 
     const res = await response.json();
+
+    console.log("API: requestServicesFromOrchestrator", res);
     
     return res as OrchestratorStartResponse;
 }
 
 export async function sendStartCallbackToOrchestrator(payload: OrchestratorCallbackPayload): Promise<void> {
+    console.log("API: sendStartCallbackToOrchestrator", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/start/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -151,9 +158,12 @@ export async function sendStartCallbackToOrchestrator(payload: OrchestratorCallb
         const errText = await response.text();
         throw new Error(`Orchestrator callback failed: ${errText || response.statusText}`);
     }
+
+    console.log("API: sendStartCallbackToOrchestrator", await response.json());
 }
 
 export async function notifyOrchestratorEnd(payload: OrchestratorEndPayload): Promise<void> {
+    console.log("API: notifyOrchestratorEnd", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,4 +173,5 @@ export async function notifyOrchestratorEnd(payload: OrchestratorEndPayload): Pr
         const errText = await response.text();
         throw new Error(`Orchestrator end notification failed: ${errText || response.statusText}`);
     }
+    console.log("API: notifyOrchestratorEnd", await response.json());
 }
