@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol"; // For burning uTokens
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol"; // uToken itself is Ownable by CorePool or LendAdmin for init
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../common/libraries/SafeDecimalMath.sol"; // For exchange rate math

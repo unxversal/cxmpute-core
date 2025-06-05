@@ -4,46 +4,40 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// IERC20 and SafeERC20 are not directly needed here if CorePool handles all token movements based on approvals.
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./CorePool.sol"; // For interacting with CorePool
 import "./LendRiskController.sol"; // For risk parameters and health checks
 import "../common/interfaces/IOracleRelayer.sol"; // For prices
-import "../common/libraries/SafeDecimalMath.sol"; // If complex ratio math is done here
+// SafeDecimalMath is not strictly needed here if Math.mulDiv covers needs.
 
 /**
  * @title LendLiquidationEngine
  * @author Unxversal Team
- * @notice Handles the liquidation of undercollateralized borrow positions in the Unxversal Lend protocol.
- * @dev Allows anyone (keepers/liquidators) to repay a portion of a borrower's debt
- *      and seize collateral at a discount (liquidation bonus).
+ * @notice Handles liquidation of undercollateralized borrows in Unxversal Lend.
+ * @dev Keepers call `liquidate`. Liquidator repays borrower's debt and seizes collateral at a bonus.
+ *      Liquidator must approve CorePool for the debt asset they are repaying.
  */
 contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
-    using SafeERC20 for IERC20;
-    using SafeDecimalMath for uint256; // Using our decimal math library
-
     CorePool public corePool;
     LendRiskController public riskController;
     IOracleRelayer public oracle;
 
     // Max percentage of a single borrowed asset's outstanding balance that can be repaid in one liquidation call.
-    // e.g., 5000 for 50%. (0-10000 BPS)
-    uint256 public closeFactorBps;
+    uint256 public closeFactorBps; // e.g., 5000 for 50% (0-10000 BPS)
 
     event LiquidationCall(
         address indexed liquidator,
         address indexed borrower,
         address indexed debtAssetRepaid,
-        uint256 amountDebtRepaid, // In debt asset's native decimals
+        uint256 amountDebtRepaid,       // In debt asset's native decimals
         address indexed collateralAssetSeized,
         uint256 amountCollateralSeized, // In collateral asset's native decimals
         uint256 debtRepaidUsdValue,     // USD value of debt repaid (1e18 scaled)
-        uint256 collateralSeizedUsdValue // USD value of collateral seized (1e18 scaled)
+        uint256 collateralSeizedUsdValue // USD value of collateral seized (1e18 scaled, includes bonus)
     );
 
-    // Admin parameter change events
     event CorePoolSet(address indexed poolAddress);
     event RiskControllerSet(address indexed controllerAddress);
     event OracleSet(address indexed oracleAddress);
@@ -55,10 +49,10 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         address _oracleAddress,
         address _initialOwner
     ) Ownable(_initialOwner) {
-        setCorePool(_corePoolAddress);
-        setRiskController(_riskControllerAddress);
-        setOracle(_oracleAddress);
-        // closeFactorBps should be set by owner post-deployment.
+        setCorePool(_corePoolAddress); // Emits
+        setRiskController(_riskControllerAddress); // Emits
+        setOracle(_oracleAddress); // Emits
+        // closeFactorBps is set by owner post-deployment
     }
 
     // --- Admin Functions ---
@@ -80,10 +74,6 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         emit OracleSet(_newOracleAddress);
     }
 
-    /**
-     * @notice Sets the close factor, determining max portion of a debt that can be liquidated at once.
-     * @param _newCloseFactorBps New close factor in BPS (e.g., 5000 for 50%). Must be > 0 and <= 10000.
-     */
     function setCloseFactor(uint256 _newCloseFactorBps) external onlyOwner {
         require(_newCloseFactorBps > 0 && _newCloseFactorBps <= LendRiskController.BPS_DENOMINATOR,
             "LLE: Invalid close factor");
@@ -91,64 +81,65 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         emit CloseFactorSet(_newCloseFactorBps);
     }
 
-    function pauseEngine() external onlyOwner { _pause(); }
+    function pauseEngine() external onlyOwner { _pause(); } // Pauses new liquidations
     function unpauseEngine() external onlyOwner { _unpause(); }
 
 
     // --- Liquidation Function ---
     /**
      * @notice Liquidates an unhealthy borrow position.
-     * @dev The caller (liquidator) repays some of the `borrower`'s debt in `debtAssetToRepay`
-     *      and receives `collateralAssetToSeize` from the borrower's supplies at a discount.
-     *      Liquidator must first approve this contract to spend `amountToRepay` of `debtAssetToRepay`.
      * @param borrower The address of the account to liquidate.
      * @param debtAssetToRepay The address of the underlying token for the debt being repaid.
      * @param collateralAssetToSeize The address of the underlying token for the collateral being seized.
      * @param amountToRepay The amount of `debtAssetToRepay` the liquidator wishes to repay.
-     *                      This will be capped by the `closeFactorBps` and the borrower's actual debt.
+     *                      The liquidator (`msg.sender`) must have approved `CorePool` to spend this amount.
      */
     function liquidate(
         address borrower,
         address debtAssetToRepay,
         address collateralAssetToSeize,
         uint256 amountToRepay // In native decimals of debtAssetToRepay
-    ) external nonReentrant whenNotPaused {
+    ) external nonReentrant whenNotPaused { // Note: whenNotPaused applies to this engine. CorePool might have its own pause state.
+        // Check if dependencies are set
         require(address(corePool) != address(0), "LLE: CorePool not set");
         require(address(riskController) != address(0), "LLE: RiskController not set");
         require(address(oracle) != address(0), "LLE: Oracle not set");
         require(closeFactorBps > 0, "LLE: Close factor not set");
         require(amountToRepay > 0, "LLE: Repay amount is zero");
 
-        // 1. Verify borrower is liquidatable
+        // 1. Verify borrower is liquidatable (via RiskController)
         require(riskController.isAccountLiquidatable(borrower), "LLE: Account not liquidatable");
 
-        // 2. Get market configs for debt and collateral assets
+        // 2. Get market configs from RiskController
         LendRiskController.MarketRiskConfig memory debtConfig = riskController.marketRiskConfigs(debtAssetToRepay);
         LendRiskController.MarketRiskConfig memory collConfig = riskController.marketRiskConfigs(collateralAssetToSeize);
         require(debtConfig.isListed, "LLE: Debt asset not listed");
         require(collConfig.isListed && collConfig.canBeCollateral, "LLE: Collateral asset not valid");
 
-        // 3. Accrue interest for both markets in CorePool before proceeding
-        corePool.accrueInterest(debtAssetToRepay);
-        corePool.accrueInterest(collateralAssetToSeize); // Important if exchange rate of collateral uToken matters
+        // 3. Accrue interest for relevant markets in CorePool before reading balances
+        // Note: CorePool's repayBorrowBehalfByEngine and seizeAndTransferCollateral should handle their own accruals.
+        // It's safer for CorePool to manage its accruals internally before any state change.
+        // So, this engine doesn't need to explicitly call accrueInterest if CorePool's methods do.
+        // Let's assume CorePool's relevant methods (called below) handle accrual.
 
         // 4. Determine actual amount of debt to repay
+        // Query CorePool for current borrow balance (after its internal accrual)
         (, uint256 borrowerDebtBalance) = corePool.getUserSupplyAndBorrowBalance(borrower, debtAssetToRepay);
         require(borrowerDebtBalance > 0, "LLE: Borrower has no debt for this asset");
 
         uint256 maxRepayableByCloseFactor = Math.mulDiv(borrowerDebtBalance, closeFactorBps, LendRiskController.BPS_DENOMINATOR);
         uint256 actualAmountDebtToRepay = Math.min(amountToRepay, maxRepayableByCloseFactor);
-        actualAmountDebtToRepay = Math.min(actualAmountDebtToRepay, borrowerDebtBalance); // Cannot repay more than exists
+        actualAmountDebtToRepay = Math.min(actualAmountDebtToRepay, borrowerDebtBalance);
         require(actualAmountDebtToRepay > 0, "LLE: Calculated repay amount is zero");
 
         // 5. Calculate USD value of the debt being repaid
         uint256 debtAssetPrice = oracle.getPrice(debtConfig.oracleAssetId); // 1e18 scaled USD per whole unit
         uint256 debtRepaidUsdValue = Math.mulDiv(actualAmountDebtToRepay, debtAssetPrice, (10**debtConfig.underlyingDecimals));
+        require(debtRepaidUsdValue > 0, "LLE: Debt repaid USD value is zero");
 
-        // 6. Calculate USD value of collateral to seize (debt repaid + bonus)
-        // Liquidation bonus is specific to the collateral asset being seized
+        // 6. Calculate USD value of collateral to seize (debt repaid + bonus from collateral asset's config)
         uint256 liquidationBonusBps = collConfig.liquidationBonusBps;
-        require(liquidationBonusBps > 0, "LLE: Liquidation bonus not set for collateral");
+        require(liquidationBonusBps > 0, "LLE: Liquidation bonus not set for collateral"); // Bonus should typically be > 0
 
         uint256 bonusValueUsd = Math.mulDiv(debtRepaidUsdValue, liquidationBonusBps, LendRiskController.BPS_DENOMINATOR);
         uint256 totalCollateralToSeizeUsdValue = debtRepaidUsdValue + bonusValueUsd;
@@ -159,44 +150,31 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         uint256 amountCollateralToSeize = Math.mulDiv(totalCollateralToSeizeUsdValue, (10**collConfig.underlyingDecimals), collateralAssetPrice);
         require(amountCollateralToSeize > 0, "LLE: Calculated seize amount is zero");
 
-        // 8. Liquidator repays the debt: Pull `debtAssetToRepay` from liquidator to CorePool (actually to uToken of debt asset)
-        // The `_repayBorrowInternal` in CorePool handles moving tokens to the uToken.
-        // Liquidator must have approved this LendLiquidationEngine contract.
-        IERC20(debtAssetToRepay).safeTransferFrom(_msgSender(), address(corePool), actualAmountDebtToRepay);
-        // CorePool needs a way to attribute this incoming transfer to the borrower's repayment.
-        // This direct transfer to CorePool is problematic.
-        // CorePool's repayBorrowBehalf expects CorePool to pull from payer.
-        // So, liquidator approves CorePool, then this engine calls CorePool.repayBorrowBehalf.
-        
-        // **Revised Debt Repayment Flow:**
-        // Liquidator (msg.sender) must approve CorePool for `actualAmountDebtToRepay` of `debtAssetToRepay`.
-        // This Engine then calls `corePool.repayBorrowBehalf(borrower, debtAssetToRepay, actualAmountDebtToRepay)`
-        // with `msg.sender` implicitly being this Engine if it holds tokens, which it shouldn't.
-        // The `repayBorrowBehalf` in `CorePool` expects `msg.sender` to be the payer.
-        // So, liquidator calls `debtAsset.approve(address(corePool), amount)`.
-        // This engine then calls `corePool.repayBorrowBehalfByEngine(liquidator, borrower, debtAsset, amount)`
-        // where `repayBorrowBehalfByEngine` is a new function in CorePool only callable by this engine,
-        // and it uses `liquidator` as the payer for `safeTransferFrom`.
+        // 8. Liquidator (msg.sender) must have approved CorePool for `actualAmountDebtToRepay` of `debtAssetToRepay`.
+        // This engine calls CorePool to execute the repayment on behalf of the liquidator.
+        corePool.repayBorrowBehalfByEngine(
+            _msgSender(),               // liquidator (payer)
+            borrower,                   // borrower whose debt is reduced
+            debtAssetToRepay,
+            actualAmountDebtToRepay
+        );
+        // Note: repayBorrowBehalfByEngine in CorePool handles:
+        // - Accruing interest for the debt market.
+        // - Pulling `actualAmountDebtToRepay` of `debtAssetToRepay` from `liquidator` to the debt asset's `uToken`.
+        // - Updating `borrower`'s borrow balance and market's `totalBorrowsPrincipal`.
 
-        // For V1, let's make it simpler: Liquidator calls `debtAsset.approve(address(this_engine), amount)`.
-        // This engine pulls tokens, then calls `CorePool.reduceBorrowBalanceForLiquidation` AND
-        // transfers the repaid debt tokens to the respective uToken contract.
-        IERC20(debtAssetToRepay).safeTransferFrom(_msgSender(), address(this), actualAmountDebtToRepay); // Engine gets tokens
-        IERC20(debtAssetToRepay).safeApprove(collConfig.uTokenAddress, actualAmountDebtToRepay); // Approve uToken of debt
-        uToken(payable(debtConfig.uTokenAddress)).fetchUnderlyingFrom(address(this), actualAmountDebtToRepay); // uToken pulls from engine
-
-
-        // 9. CorePool updates borrower's debt balance
-        corePool.reduceBorrowBalanceForLiquidation(borrower, debtAssetToRepay, actualAmountDebtToRepay);
-
-        // 10. CorePool transfers seized collateral (underlying) from borrower's uToken holdings to liquidator
-        // This requires a new function in CorePool.
+        // 9. CorePool transfers seized collateral (underlying) from borrower's uToken holdings to liquidator
         corePool.seizeAndTransferCollateral(
             borrower,
-            _msgSender(), // liquidator
+            _msgSender(), // liquidator (recipient of collateral)
             collateralAssetToSeize,
             amountCollateralToSeize
         );
+        // Note: seizeAndTransferCollateral in CorePool handles:
+        // - Accruing interest for the collateral market.
+        // - Calculating uTokens to burn from borrower based on `amountCollateralToSeize` and exchange rate.
+        // - Burning those uTokens from borrower.
+        // - Transferring `amountCollateralToSeize` of `collateralAssetToSeize` (underlying) from its uToken to `liquidator`.
 
         emit LiquidationCall(
             _msgSender(), borrower, debtAssetToRepay, actualAmountDebtToRepay,
