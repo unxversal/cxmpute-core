@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol"; // For burning uTokens
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol"; // uToken itself is Ownable by CorePool or LendAdmin for init
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../common/libraries/SafeDecimalMath.sol"; // For exchange rate math
@@ -25,6 +26,7 @@ interface ICorePool {
  */
 contract uToken is ERC20, ERC20Burnable, Ownable {
     using SafeDecimalMath for uint256;
+    using SafeERC20 for IERC20;
 
     IERC20 public immutable underlying; // The underlying asset (e.g., USDC, WETH)
     ICorePool public corePool;       // The CorePool contract managing this uToken market
@@ -178,8 +180,6 @@ contract uToken is ERC20, ERC20Burnable, Ownable {
         uint256 borrows = corePool.totalBorrowsCurrent(address(this)); // Current total borrows for this uToken's market
         uint256 reserves = corePool.totalReserves(address(this)); // Current reserves for this market
 
-        // exchangeRate = (cash + borrows - reserves) * 1e18 / totalSupply
-        // (cash + borrows - reserves) is the total underlying asset value backing the uTokens
         uint256 totalAssetValue = cash + borrows;
         if (totalAssetValue < reserves) { // Should not happen if reserves are derived from interest
             totalAssetValue = 0;
@@ -187,9 +187,9 @@ contract uToken is ERC20, ERC20Burnable, Ownable {
             totalAssetValue -= reserves;
         }
         
-        return totalAssetValue.multiplyDecimal(_totalSupply); // multiplyDecimal is x * y / 1e18. We want (X * 1e18) / Y
-                                                              // So, (totalAssetValue * EXCHANGE_RATE_PRECISION) / _totalSupply
-        // Using Math.mulDiv directly for clarity:
+        // exchangeRate = (cash + borrows - reserves) * 1e18 / totalSupply
+        // (cash + borrows - reserves) is the total underlying asset value backing the uTokens
+        // Using Math.mulDiv for clarity: (totalAssetValue * EXCHANGE_RATE_PRECISION) / _totalSupply
         return Math.mulDiv(totalAssetValue, EXCHANGE_RATE_PRECISION, _totalSupply);
     }
 
