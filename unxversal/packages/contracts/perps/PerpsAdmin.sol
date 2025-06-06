@@ -74,11 +74,9 @@ contract PerpsAdmin is ProtocolAdminAccess {
      * @param spotIndexOracleAddress Address of the oracle for fetching spot price.
      * @param maxLeverage Max leverage allowed, e.g., 2000 for 20x (scaled by 100).
      * @param imrBps Initial Margin Ratio in BPS (e.g., 500 for 5%).
-     * @param mmrBps Maintenance Margin Ratio in BPS (e.g., 250 for 2.5%).
      * @param liqFeeBps Liquidation Fee (penalty on remaining margin) in BPS.
      * @param takerTradeFeeBps Taker trade fee in BPS.
      * @param makerTradeFeeBps Maker trade fee in BPS (can be negative for rebate).
-     * @param isActive Sets the market active or inactive for trading.
      */
     function configureMarketDetails(
         bytes32 marketId, // Using bytes32 for marketId
@@ -86,11 +84,11 @@ contract PerpsAdmin is ProtocolAdminAccess {
         address spotIndexOracleAddress,
         uint256 maxLeverage,
         uint256 imrBps,
-        uint256 mmrBps,
+        uint256 /* mmrBps */,
         uint256 liqFeeBps,
         int256 takerTradeFeeBps,
         int256 makerTradeFeeBps,
-        bool isActive
+        bool /* isActive */
     ) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
         perpClearingHouse.listMarket(
@@ -111,17 +109,14 @@ contract PerpsAdmin is ProtocolAdminAccess {
 
     /**
      * @notice Sets funding parameters for a specific market in PerpClearingHouse.
-     * @param marketId The ID of the market.
-     * @param fundingIntervalSeconds Interval in seconds (e.g., 3600 for 1 hour).
-     * @param maxFundingRateAbsValue Max absolute funding rate per interval (1e18 scaled).
-     * @param fundingFeeBps Protocol fee taken from gross funding payments (0-10000 BPS).
+     * @dev TODO: Implement funding parameter updates in PerpClearingHouse.
      */
     function setMarketFundingParams(
-        bytes32 marketId,
-        uint256 fundingIntervalSeconds,
-        uint256 maxFundingRateAbsValue, // 1e18 scaled, e.g., 0.001e18 for 0.1%
-        uint256 fundingFeeBps // Protocol's cut of funding
-    ) external onlyOwner {
+        bytes32 /* marketId */,
+        uint256 /* fundingIntervalSeconds */,
+        uint256 /* maxFundingRateAbsValue */, // 1e18 scaled, e.g., 0.001e18 for 0.1%
+        uint256 /* fundingFeeBps */ // Protocol's cut of funding
+    ) external view onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
         // TODO: Implement funding parameter updates in PerpClearingHouse
         // perpClearingHouse.setMarketFundingParameters(
@@ -129,7 +124,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
         // );
     }
 
-    function setMarketSpotIndexOracle(bytes32 marketId, address spotIndexOracleAddress) external onlyOwner {
+    function setMarketSpotIndexOracle(bytes32 /* marketId */, address /* spotIndexOracleAddress */) external view onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
         // TODO: Implement spot index oracle updates in PerpClearingHouse
         // PerpClearingHouse needs: setSpotIndexOracle(bytes32 marketId, address spotOracle)

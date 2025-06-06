@@ -192,7 +192,7 @@ contract OptionFeeSwitch is Ownable, ReentrancyGuard {
     }
 
     // --- Internal Functions ---
-    function _swapToUSDC(address token, uint256 amount) internal returns (uint256 usdcReceived) {
+    function _swapToUSDC(address /* token */, uint256 amount) internal pure returns (uint256 usdcReceived) {
         // This is a simplified swap implementation
         // In production, this would integrate with the unxversal DEX or a router
         // For now, we'll just return the amount as-is (would need actual DEX integration)

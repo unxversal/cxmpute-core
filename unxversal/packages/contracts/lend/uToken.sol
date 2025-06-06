@@ -234,7 +234,7 @@ contract uToken is ERC20, ERC20Burnable, Ownable {
 
     // --- Admin Functions ---
     
-    function setCorePool(address _newCorePoolAddress) external onlyOwner {
+    function setCorePool(address _newCorePoolAddress) external view onlyOwner {
         require(_newCorePoolAddress != address(0), "uToken: Zero CorePool");
         // Note: This changes the immutable-like behavior, but provides upgrade flexibility
         // In production, consider making corePool truly immutable

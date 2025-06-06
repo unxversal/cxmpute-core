@@ -88,7 +88,7 @@ contract OptionsAdmin is ProtocolAdminAccess {
 
     // --- Protocol Pause ---
     // Assumes OptionNFT and CollateralVault implement Pausable and are owned by this admin.
-    function pauseOptionsProtocol() external onlyOwner {
+    function pauseOptionsProtocol() external view onlyOwner {
         if (address(optionNFT) != address(0) && !optionNFT.paused()) {
             // optionNFT.pause(); // OptionNFT needs pause()
         }
@@ -97,7 +97,7 @@ contract OptionsAdmin is ProtocolAdminAccess {
         }
     }
 
-    function unpauseOptionsProtocol() external onlyOwner {
+    function unpauseOptionsProtocol() external view onlyOwner {
         if (address(optionNFT) != address(0) && optionNFT.paused()) {
             // optionNFT.unpause();
         }
