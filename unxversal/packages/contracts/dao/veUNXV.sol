@@ -6,7 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/Checkpoints.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import "@openzeppelin/contracts/utils/structs/Checkpoints.sol";
 import "@openzeppelin/contracts/interfaces/IERC5805.sol";
 
 /**
@@ -18,6 +19,10 @@ import "@openzeppelin/contracts/interfaces/IERC5805.sol";
 contract VeUNXV is ReentrancyGuard, IERC5805 {
     using SafeERC20 for IERC20;
     using Checkpoints for Checkpoints.Trace224;
+
+    // --- Events ---
+    event Deposit(address indexed provider, uint256 value, uint256 locktime, uint256 deposit_type, uint256 ts);
+    event Withdraw(address indexed provider, uint256 value, uint256 ts);
 
     // --- Structs ---
     struct LockedBalance {
@@ -161,16 +166,19 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
             expiry
         ));
         
-        bytes32 digest = ECDSA.toTypedDataHash(
-            keccak256(abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes(name)),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(this)
-            )),
+        bytes32 domainSeparator = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes(name)),
+            keccak256(bytes("1")),
+            block.chainid,
+            address(this)
+        ));
+        
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            domainSeparator,
             structHash
-        );
+        ));
         
         address signer = ECDSA.recover(digest, v, r, s);
         require(signer != address(0), "veUNXV: Invalid signature");
@@ -244,15 +252,20 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
 
         // Update voting power
         uint256 votes = balanceOfAt(delegator, block.number);
+        require(votes <= type(uint224).max, "veUNXV: votes exceed uint224 max");
         
         if (oldDelegate != address(0)) {
-            _delegateCheckpoints[oldDelegate].push(uint32(block.number), 
-                _subtract(_delegateCheckpoints[oldDelegate].latest(), votes));
+            uint224 oldVotes = uint224(_delegateCheckpoints[oldDelegate].latest());
+            uint224 votesToSubtract = uint224(votes);
+            uint224 newVotes = oldVotes >= votesToSubtract ? oldVotes - votesToSubtract : 0;
+            _delegateCheckpoints[oldDelegate].push(uint32(block.number), newVotes);
         }
         
         if (delegatee != address(0)) {
-            _delegateCheckpoints[delegatee].push(uint32(block.number), 
-                _add(_delegateCheckpoints[delegatee].latest(), votes));
+            uint224 oldVotes = uint224(_delegateCheckpoints[delegatee].latest());
+            uint224 votesToAdd = uint224(votes);
+            uint224 newVotes = oldVotes + votesToAdd;
+            _delegateCheckpoints[delegatee].push(uint32(block.number), newVotes);
         }
 
         emit DelegateChanged(delegator, oldDelegate, delegatee);
@@ -263,12 +276,15 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
         if (delegatee == address(0)) delegatee = user;
 
         uint256 newVotes = _calculateVotingPower(newLocked);
+        require(newVotes <= type(uint224).max, "veUNXV: votes exceed uint224 max");
         
         // Update delegate's voting power
-        _delegateCheckpoints[delegatee].push(uint32(block.number), newVotes);
+        _delegateCheckpoints[delegatee].push(uint32(block.number), uint224(newVotes));
         
         // Update total supply
-        _totalCheckpoints.push(uint32(block.number), _totalSupply());
+        uint256 totalSupply = _totalSupply();
+        require(totalSupply <= type(uint224).max, "veUNXV: total supply exceeds uint224 max");
+        _totalCheckpoints.push(uint32(block.number), uint224(totalSupply));
     }
 
     function _calculateVotingPower(LockedBalance memory lock) internal view returns (uint256) {
@@ -292,10 +308,15 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
     }
 
     function _add(uint256 a, uint256 b) internal pure returns (uint224) {
-        return uint224(a + b);
+        uint256 result = a + b;
+        require(result <= type(uint224).max, "veUNXV: value exceeds uint224 range");
+        return uint224(result);
     }
 
     function _subtract(uint256 a, uint256 b) internal pure returns (uint224) {
-        return uint224(a - b);
+        require(a >= b, "veUNXV: subtraction underflow");
+        uint256 result = a - b;
+        require(result <= type(uint224).max, "veUNXV: value exceeds uint224 range");
+        return uint224(result);
     }
 }
