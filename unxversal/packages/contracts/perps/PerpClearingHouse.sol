@@ -14,705 +14,673 @@ import "../common/interfaces/IOracleRelayer.sol";
 import "./libraries/FundingRateLib.sol";
 import "./interfaces/IPerpsFeeCollector.sol";
 import "./interfaces/ISpotPriceOracle.sol";
+import "./interfaces/IPerpClearingHouse.sol";
 
 /**
  * @title PerpClearingHouse
  * @author Unxversal Team
- * @notice Central clearinghouse for perpetual futures. Manages markets, trader accounts, margin,
- *         positions, PnL, trade settlement, and funding rates. Uses USDC as collateral.
- * @dev All position sizes are in USD Notional. Relies on off-chain order matching.
+ * @notice Central clearinghouse for perpetual futures with cross-margin accounts, funding rates, and liquidations
+ * @dev Simplified position accounting, proper risk controls, flash liquidation support, and USDC-denominated fees
  */
-contract PerpClearingHouse is Ownable, ReentrancyGuard, Pausable {
+contract PerpClearingHouse is Ownable, ReentrancyGuard, Pausable, IPerpClearingHouse {
     using SafeERC20 for IERC20;
     using Strings for uint256;
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
     // --- Constants ---
-    uint8 public constant USDC_DECIMALS = 6;
-    uint256 public constant USD_PRECISION_SCALE = 10**USDC_DECIMALS;
+    uint256 public constant USDC_DECIMALS = 6;
     uint256 public constant PRICE_PRECISION = 1e18;
-    uint256 public constant MARGIN_RATIO_PRECISION = 10000; // BPS
-    uint256 public constant LEVERAGE_PRECISION = 100;
+    uint256 public constant BPS_PRECISION = 10000;
+    uint256 public constant MAX_LEVERAGE = 25; // 25x max leverage
+    uint256 public constant MIN_MARGIN_RATIO = 400; // 4% minimum maintenance margin
+    uint256 public constant MAX_POSITION_SIZE = 10_000_000 * 1e6; // $10M max position per market
 
     // --- Structs ---
-    /**
-     * @dev Configuration for a specific perpetual market.
-     * @param isListed True if the market is recognized by the system.
-     * @param isActive True if trading and operations are enabled for this market.
-     * @param underlyingAssetIdOracle Asset ID for IOracleRelayer to fetch mark price.
-     * @param spotIndexOracle Address of the ISpotPriceOracle for funding's index price.
-     * @param maxLeverage Maximum leverage allowed, e.g., 2000 for 20x.
-     * @param initialMarginRatioBps Initial Margin Ratio in BPS.
-     * @param maintenanceMarginRatioBps Maintenance Margin Ratio in BPS.
-     * @param liquidationFeeBps Total fee from liquidated margin, in BPS.
-     * @param takerTradeFeeBps Taker trade fee in BPS.
-     * @param makerTradeFeeBps Maker trade fee in BPS (can be negative for rebate).
-     * @param fundingParams Parameters for funding rate calculation.
-     * @param minOrderSizeNotionalUsdPrecision Minimum order size in USD notional (USDC_DECIMALS scaled).
-     * @param fundingFeeProtocolBps Protocol's share of gross funding payments, in BPS.
-     */
-    struct PerpMarketConfig {
+    struct MarketConfig {
         bool isListed;
         bool isActive;
-        uint256 underlyingAssetIdOracle;
-        ISpotPriceOracle spotIndexOracle;
-        uint256 maxLeverage;
-        uint256 initialMarginRatioBps;
-        uint256 maintenanceMarginRatioBps;
-        uint256 liquidationFeeBps;
-        int256 takerTradeFeeBps;
-        int256 makerTradeFeeBps;
-        FundingRateLib.FundingParams fundingParams;
-        uint256 minOrderSizeNotionalUsdPrecision;
-        uint256 fundingFeeProtocolBps;
+        uint256 oracleAssetId;
+        ISpotPriceOracle spotOracle;
+        uint256 maxLeverageBps;          // e.g., 2000 for 20x leverage
+        uint256 maintenanceMarginBps;     // e.g., 500 for 5% maintenance margin
+        uint256 liquidationFeeBps;        // e.g., 250 for 2.5% liquidation fee
+        uint256 takerFeeBps;             // e.g., 10 for 0.1% taker fee
+        int256 makerFeeBps;              // e.g., -5 for 0.05% maker rebate
+        uint256 fundingIntervalSec;      // e.g., 3600 for 1 hour
+        uint256 maxFundingRateBps;       // e.g., 75 for 0.75% max funding rate per interval
+        uint256 fundingProtocolFeeBps;   // e.g., 1000 for 10% of funding fees to protocol
+        uint256 minPositionSizeUsdc;     // Minimum position size in USDC
+        uint256 maxPositionSizeUsdc;     // Maximum position size in USDC
     }
 
-    /**
-     * @dev Dynamic state for a specific perpetual market.
-     * @param cumulativeFundingRateValue Sum of (fundingRate * interval duration), scaled by PRICE_PRECISION.
-     * @param lastFundingTimestamp Timestamp of the last funding settlement for this market.
-     * @param openInterestNotionalLongUsd Sum of absolute sizes of long positions (USD_PRECISION scaled).
-     * @param openInterestNotionalShortUsd Sum of absolute sizes of short positions (USD_PRECISION scaled).
-     */
-    struct PerpMarketState {
-        int256 cumulativeFundingRateValue;
-        uint256 lastFundingTimestamp;
-        uint256 openInterestNotionalLongUsd;
-        uint256 openInterestNotionalShortUsd;
+    struct MarketState {
+        int256 cumulativeFundingIndex;   // Cumulative funding rate index (1e18 precision)
+        uint256 lastFundingTime;         // Last funding settlement timestamp
+        uint256 longOpenInterest;        // Total long open interest in USDC
+        uint256 shortOpenInterest;       // Total short open interest in USDC
+        uint256 nextFundingTime;         // Next scheduled funding time
     }
 
-    /**
-     * @dev Details of a trader's position in a specific market.
-     * @param sizeNotionalUsd USD Notional size: +ve for long, -ve for short (USD_PRECISION scaled).
-     * @param sumEntryPriceXSizeNotional Sum of (entryPrice_1e18 * abs_size_notional_1e6) for avg entry price.
-     * @param sumAbsSizeNotionalUsd Sum of abs_size_notional_1e6 for weighted avg entry.
-     * @param lastCumulativeFundingRateValueSnapshot Market's cumulative funding value at last interaction.
-     * @param lastInteractionTimestamp Timestamp of the last interaction with this position.
-     */
-    struct TraderPosition {
-        int256 sizeNotionalUsd;
-        uint256 sumEntryPriceXSizeNotional;
-        uint256 sumAbsSizeNotionalUsd;
-        int256 lastCumulativeFundingRateValueSnapshot;
-        uint256 lastInteractionTimestamp;
+    struct Position {
+        int256 sizeUsdc;                 // Position size in USDC (positive = long, negative = short)
+        uint256 entryPrice;              // Average entry price (1e18 precision)
+        int256 lastFundingIndex;         // Last funding index when position was updated
+        uint256 lastUpdateTime;          // Last position update timestamp
+        uint256 collateralUsdc;          // Allocated collateral for this position
     }
 
-    /**
-     * @dev A trader's overall margin account.
-     * @param usdcCollateralBalance Raw USDC balance (native 6 decimals).
-     * @param positions Mapping from marketId to the trader's position in that market.
-     * @param openMarketIds Set of marketIds where the trader has an open position.
-     */
-    struct TraderAccount {
-        uint256 usdcCollateralBalance;
-        mapping(bytes32 => TraderPosition) positions;
-        EnumerableSet.Bytes32Set openMarketIds;
+    struct Account {
+        uint256 totalCollateralUsdc;     // Total USDC collateral balance
+        mapping(bytes32 => Position) positions;
+        EnumerableSet.Bytes32Set openMarkets;
     }
 
     // --- State Variables ---
-    IERC20 public usdcToken;
+    IERC20 public immutable usdcToken;
     IOracleRelayer public markPriceOracle;
     IPerpsFeeCollector public feeCollector;
+    address public treasuryAddress;
     address public insuranceFundAddress;
     address public liquidationEngineAddress;
 
-    mapping(bytes32 => PerpMarketConfig) private _marketConfigs;
-    mapping(bytes32 => PerpMarketState) private _marketStates;
-    mapping(address => TraderAccount) private _traderAccounts;
+    mapping(bytes32 => MarketConfig) public markets;
+    mapping(bytes32 => MarketState) public marketStates;
+    mapping(address => Account) private accounts;
 
-    bytes32[] public listedMarketIdsArray;
-    mapping(bytes32 => bool) private _isMarketIdActuallyListed;
+    bytes32[] public listedMarkets;
+    mapping(bytes32 => uint256) public marketIndex; // marketId => index in listedMarkets
+
+    // Treasury fee collection
+    uint256 public collectedTreasuryFees;
 
     // --- Events ---
+    event MarketListed(bytes32 indexed marketId, uint256 oracleAssetId, address spotOracle);
+    event MarketConfigUpdated(bytes32 indexed marketId);
     event MarginDeposited(address indexed trader, uint256 amountUsdc);
     event MarginWithdrawn(address indexed trader, uint256 amountUsdc);
-    event MarketConfigured(bytes32 indexed marketId, bool isUpdate);
-    event MarketFundingParamsUpdated(bytes32 indexed marketId, uint256 intervalSec, uint256 maxRateAbs, uint256 fundingFeeBps);
-    event MarketSpotIndexOracleUpdated(bytes32 indexed marketId, address indexed spotOracle);
-    event MarketActivationSet(bytes32 indexed marketId, bool isActive);
     event PositionChanged(
-        address indexed trader, bytes32 indexed marketId,
-        int256 newSizeNotionalUsd, uint256 newAvgEntryPrice1e18,
-        int256 realizedPnlUsdc, uint256 tradeFeeUsdc
+        address indexed trader,
+        bytes32 indexed marketId,
+        int256 newSizeUsdc,
+        uint256 newEntryPrice,
+        int256 realizedPnlUsdc,
+        uint256 tradeFeeUsdc
     );
-    event FundingRateCalculated(bytes32 indexed marketId, int256 fundingRate1e18, uint256 timestamp);
+    event FundingRateCalculated(bytes32 indexed marketId, int256 fundingRate, uint256 timestamp);
     event FundingPaymentApplied(
-        address indexed trader, bytes32 indexed marketId,
-        int256 paymentAmountUsdc, int256 positionSizeNotionalUsd
+        address indexed trader,
+        bytes32 indexed marketId,
+        int256 paymentUsdc,
+        int256 positionSize
     );
-    event PositionLiquidatedByEngine( // Renamed for clarity vs internal event if any
-        address indexed trader, bytes32 indexed marketId, address indexed liquidatorEngine,
-        int256 closedSizeNotionalUsd, uint256 closePrice1e18,
-        uint256 totalLiqFeeDeductedUsdc, int256 realizedPnlOnCloseUsdc
+    event PositionLiquidatedByEngine(
+        address indexed trader,
+        bytes32 indexed marketId,
+        address indexed liquidator,
+        int256 closedSizeUsdc,
+        uint256 closePrice,
+        uint256 liquidationFee,
+        int256 realizedPnl
     );
-    event UsdcTokenSet(address tokenAddress);
-    event MarkPriceOracleSet(address oracleAddress);
-    event FeeCollectorSet(address collectorAddress);
-    event InsuranceFundSet(address fundAddress);
-    event LiquidationEngineSet(address engineAddress);
-    event MinOrderSizeSet(bytes32 indexed marketId, uint256 minOrderSizeUsdc);
+    event TreasuryFeesCollected(uint256 amountUsdc);
+    event ConfigurationUpdated(string indexed configType, address indexed newAddress);
 
-
-    modifier marketIsActive(bytes32 marketId) {
-        require(_marketConfigs[marketId].isListed && _marketConfigs[marketId].isActive, "PCH: Market not active");
+    // --- Modifiers ---
+    modifier onlyActiveMarket(bytes32 marketId) {
+        require(markets[marketId].isListed && markets[marketId].isActive, "PCH: Market not active");
         _;
     }
+
     modifier onlyLiquidationEngine() {
-        require(_msgSender() == liquidationEngineAddress, "PCH: Caller not Liquidation Engine");
+        require(msg.sender == liquidationEngineAddress, "PCH: Not liquidation engine");
         _;
     }
 
     constructor(
-        address _usdcTokenAddress, address _markPriceOracleAddress,
-        address _feeCollectorAddress, address _insuranceFundAddress,
-        address _initialOwner
-    ) Ownable(_initialOwner) {
-        setUsdcToken(_usdcTokenAddress);
-        setOracle(_markPriceOracleAddress);
-        setFeeCollector(_feeCollectorAddress);
-        setInsuranceFund(_insuranceFundAddress);
+        address _usdcToken,
+        address _markPriceOracle,
+        address _feeCollector,
+        address _treasuryAddress,
+        address _insuranceFundAddress,
+        address _owner
+    ) Ownable(_owner) {
+        require(_usdcToken != address(0), "PCH: Zero USDC token");
+        require(_markPriceOracle != address(0), "PCH: Zero oracle");
+        require(_treasuryAddress != address(0), "PCH: Zero treasury");
+        require(_insuranceFundAddress != address(0), "PCH: Zero insurance fund");
+
+        usdcToken = IERC20(_usdcToken);
+        markPriceOracle = IOracleRelayer(_markPriceOracle);
+        feeCollector = IPerpsFeeCollector(_feeCollector);
+        treasuryAddress = _treasuryAddress;
+        insuranceFundAddress = _insuranceFundAddress;
     }
 
-    // --- Admin Configuration Functions ---
-    function setUsdcToken(address _tokenAddress) public onlyOwner {
-        require(_tokenAddress != address(0), "PCH: Zero USDC");
-        usdcToken = IERC20(_tokenAddress);
-        emit UsdcTokenSet(_tokenAddress);
-    }
-    function setOracle(address _oracleAddress) public onlyOwner {
-        require(_oracleAddress != address(0), "PCH: Zero mark oracle");
-        markPriceOracle = IOracleRelayer(_oracleAddress);
-        emit MarkPriceOracleSet(_oracleAddress);
-    }
-    function setFeeCollector(address _collectorAddress) public onlyOwner {
-        require(_collectorAddress != address(0), "PCH: Zero fee collector");
-        feeCollector = IPerpsFeeCollector(_collectorAddress);
-        emit FeeCollectorSet(_collectorAddress);
-    }
-    function setInsuranceFund(address _fundAddress) public onlyOwner {
-        require(_fundAddress != address(0), "PCH: Zero insurance fund");
-        insuranceFundAddress = _fundAddress;
-        emit InsuranceFundSet(_fundAddress);
-    }
-    function setLiquidationEngineAddress(address _engineAddress) public onlyOwner {
-        require(_engineAddress != address(0), "PCH: Zero liquidation engine");
-        liquidationEngineAddress = _engineAddress;
-        emit LiquidationEngineSet(_engineAddress);
+    // --- Admin Functions ---
+    function setMarkPriceOracle(address _oracle) external onlyOwner {
+        require(_oracle != address(0), "PCH: Zero oracle");
+        markPriceOracle = IOracleRelayer(_oracle);
+        emit ConfigurationUpdated("oracle", _oracle);
     }
 
-    function listOrUpdateMarketDetails(
-        bytes32 marketId, uint256 underlyingAssetIdOracle, address spotIndexOracleAddress,
-        uint256 maxLeverage, uint256 imrBps, uint256 mmrBps, uint256 liqFeeBps,
-        int256 takerTradeFeeBps, int256 makerTradeFeeBps, bool isActive
+    function setFeeCollector(address _feeCollector) external onlyOwner {
+        feeCollector = IPerpsFeeCollector(_feeCollector);
+        emit ConfigurationUpdated("feeCollector", _feeCollector);
+    }
+
+    function setTreasuryAddress(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "PCH: Zero treasury");
+        treasuryAddress = _treasury;
+        emit ConfigurationUpdated("treasury", _treasury);
+    }
+
+    function setInsuranceFundAddress(address _insuranceFund) external onlyOwner {
+        require(_insuranceFund != address(0), "PCH: Zero insurance fund");
+        insuranceFundAddress = _insuranceFund;
+        emit ConfigurationUpdated("insuranceFund", _insuranceFund);
+    }
+
+    function setLiquidationEngineAddress(address _liquidationEngine) external onlyOwner {
+        require(_liquidationEngine != address(0), "PCH: Zero liquidation engine");
+        liquidationEngineAddress = _liquidationEngine;
+        emit ConfigurationUpdated("liquidationEngine", _liquidationEngine);
+    }
+
+    function listMarket(
+        bytes32 marketId,
+        uint256 oracleAssetId,
+        address spotOracle,
+        uint256 maxLeverageBps,
+        uint256 maintenanceMarginBps,
+        uint256 liquidationFeeBps,
+        uint256 takerFeeBps,
+        int256 makerFeeBps,
+        uint256 fundingIntervalSec,
+        uint256 maxFundingRateBps,
+        uint256 fundingProtocolFeeBps,
+        uint256 minPositionSizeUsdc
     ) external onlyOwner {
-        require(marketId != bytes32(0), "PCH: Zero marketId");
-        require(underlyingAssetIdOracle != 0, "PCH: Zero oracle ID");
-        require(spotIndexOracleAddress != address(0), "PCH: Zero spot oracle");
-        require(maxLeverage >= 1 * LEVERAGE_PRECISION && maxLeverage <= 100 * LEVERAGE_PRECISION, "PCH: Invalid max leverage");
-        uint256 derivedImrBps = MARGIN_RATIO_PRECISION * LEVERAGE_PRECISION / maxLeverage;
-        require(imrBps == derivedImrBps, "PCH: IMR does not match max leverage");
-        require(mmrBps > 0 && mmrBps < imrBps, "PCH: Invalid MMR (must be < IMR)");
-        require(liqFeeBps < mmrBps, "PCH: Liq fee must be < MMR");
-        require(takerTradeFeeBps < int256(MARGIN_RATIO_PRECISION / 2) && makerTradeFeeBps < int256(MARGIN_RATIO_PRECISION / 2), "PCH: Trade fee too high");
-        require(takerTradeFeeBps >= -(int256(MARGIN_RATIO_PRECISION) / 10) && makerTradeFeeBps >= -(int256(MARGIN_RATIO_PRECISION) / 10), "PCH: Rebate too high");
+        require(marketId != bytes32(0), "PCH: Zero market ID");
+        require(!markets[marketId].isListed, "PCH: Market already listed");
+        require(spotOracle != address(0), "PCH: Zero spot oracle");
+        require(maxLeverageBps <= MAX_LEVERAGE * 100, "PCH: Leverage too high");
+        require(maintenanceMarginBps >= MIN_MARGIN_RATIO, "PCH: Margin too low");
+        require(liquidationFeeBps <= maintenanceMarginBps, "PCH: Liq fee too high");
+        require(takerFeeBps <= 100, "PCH: Taker fee too high"); // Max 1%
+        require(makerFeeBps >= -50 && makerFeeBps <= 100, "PCH: Invalid maker fee"); // Max 0.5% rebate, 1% fee
+        require(fundingIntervalSec >= 3600, "PCH: Funding interval too short"); // Min 1 hour
+        require(maxFundingRateBps <= 75, "PCH: Max funding rate too high"); // Max 0.75%
+        require(fundingProtocolFeeBps <= 2500, "PCH: Protocol fee too high"); // Max 25%
+        require(minPositionSizeUsdc >= 10 * 1e6, "PCH: Min position too small"); // Min $10
 
-        PerpMarketConfig storage market = _marketConfigs[marketId];
-        bool isNewListing = !market.isListed; // Use market.isListed which is accurate
-        if (isNewListing) {
-            market.isListed = true;
-            _isMarketIdActuallyListed[marketId] = true;
-            listedMarketIdsArray.push(marketId);
-            _marketStates[marketId].lastFundingTimestamp = block.timestamp;
-        }
+        markets[marketId] = MarketConfig({
+            isListed: true,
+            isActive: true,
+            oracleAssetId: oracleAssetId,
+            spotOracle: ISpotPriceOracle(spotOracle),
+            maxLeverageBps: maxLeverageBps,
+            maintenanceMarginBps: maintenanceMarginBps,
+            liquidationFeeBps: liquidationFeeBps,
+            takerFeeBps: takerFeeBps,
+            makerFeeBps: makerFeeBps,
+            fundingIntervalSec: fundingIntervalSec,
+            maxFundingRateBps: maxFundingRateBps,
+            fundingProtocolFeeBps: fundingProtocolFeeBps,
+            minPositionSizeUsdc: minPositionSizeUsdc,
+            maxPositionSizeUsdc: MAX_POSITION_SIZE
+        });
 
-        market.isActive = isActive;
-        market.underlyingAssetIdOracle = underlyingAssetIdOracle;
-        market.spotIndexOracle = ISpotPriceOracle(spotIndexOracleAddress);
-        market.maxLeverage = maxLeverage;
-        market.initialMarginRatioBps = imrBps;
-        market.maintenanceMarginRatioBps = mmrBps;
-        market.liquidationFeeBps = liqFeeBps;
-        market.takerTradeFeeBps = takerTradeFeeBps;
-        market.makerTradeFeeBps = makerTradeFeeBps;
-        // minOrderSizeNotionalUsdPrecision is set by setMinOrderSizeNotional
+        marketStates[marketId] = MarketState({
+            cumulativeFundingIndex: 0,
+            lastFundingTime: block.timestamp,
+            longOpenInterest: 0,
+            shortOpenInterest: 0,
+            nextFundingTime: block.timestamp + fundingIntervalSec
+        });
 
-        emit MarketConfigured(marketId, !isNewListing);
+        marketIndex[marketId] = listedMarkets.length;
+        listedMarkets.push(marketId);
+
+        emit MarketListed(marketId, oracleAssetId, spotOracle);
     }
 
-    function setMarketFundingParameters(
-        bytes32 marketId, uint256 fundingIntervalSeconds,
-        uint256 maxFundingRateAbsValue1e18, uint256 _fundingFeeProtocolBps
-    ) external onlyOwner {
-        PerpMarketConfig storage market = _marketConfigs[marketId];
-        require(market.isListed, "PCH: Market not listed");
-        require(fundingIntervalSeconds >= 3600, "PCH: Interval < 1hr"); // Min 1hr
-        require(maxFundingRateAbsValue1e18 > 0 && maxFundingRateAbsValue1e18 <= PRICE_PRECISION / 20, "PCH: Max rate invalid (max 5%)");
-        require(_fundingFeeProtocolBps <= 2500, "PCH: Funding fee too high (max 25%)");
-
-        market.fundingParams.fundingIntervalSeconds = fundingIntervalSeconds;
-        market.fundingParams.maxFundingRateAbsValue = maxFundingRateAbsValue1e18;
-        market.fundingFeeProtocolBps = _fundingFeeProtocolBps;
-        emit MarketFundingParamsUpdated(marketId, fundingIntervalSeconds, maxFundingRateAbsValue1e18, _fundingFeeProtocolBps);
-    }
-    
-    function setMarketSpotIndexOracle(bytes32 marketId, address spotIndexOracleAddress) external onlyOwner {
-        PerpMarketConfig storage market = _marketConfigs[marketId];
-        require(market.isListed, "PCH: Market not listed");
-        require(spotIndexOracleAddress != address(0), "PCH: Zero spot oracle address");
-        market.spotIndexOracle = ISpotPriceOracle(spotIndexOracleAddress);
-        emit MarketSpotIndexOracleUpdated(marketId, spotIndexOracleAddress);
+    function setMarketActive(bytes32 marketId, bool active) external onlyOwner {
+        require(markets[marketId].isListed, "PCH: Market not listed");
+        markets[marketId].isActive = active;
+        emit MarketConfigUpdated(marketId);
     }
 
-    function setMarketActive(bytes32 marketId, bool _isActive) external onlyOwner {
-        PerpMarketConfig storage market = _marketConfigs[marketId];
-        require(market.isListed, "PCH: Market not listed");
-        market.isActive = _isActive;
-        emit MarketActivationSet(marketId, _isActive);
+    function pause() external onlyOwner {
+        _pause();
     }
 
-    function setMinOrderSizeNotional(bytes32 marketId, uint256 _minOrderSizeUsdc) external onlyOwner {
-        PerpMarketConfig storage market = _marketConfigs[marketId];
-        require(market.isListed, "PCH: Market not listed");
-        require(_minOrderSizeUsdc > 0, "PCH: Min order size must be > 0");
-        market.minOrderSizeNotionalUsdPrecision = _minOrderSizeUsdc;
-        emit MinOrderSizeSet(marketId, _minOrderSizeUsdc);
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
-    function pause() public onlyOwner { _pause(); }
-    function unpause() public onlyOwner { _unpause(); }
-
-    // --- User Margin ---
+    // --- User Functions ---
     function depositMargin(uint256 amountUsdc) external nonReentrant whenNotPaused {
         require(amountUsdc > 0, "PCH: Zero deposit");
-        usdcToken.safeTransferFrom(_msgSender(), address(this), amountUsdc);
-        _traderAccounts[_msgSender()].usdcCollateralBalance += amountUsdc;
-        emit MarginDeposited(_msgSender(), amountUsdc);
+        
+        usdcToken.safeTransferFrom(msg.sender, address(this), amountUsdc);
+        accounts[msg.sender].totalCollateralUsdc += amountUsdc;
+        
+        emit MarginDeposited(msg.sender, amountUsdc);
     }
 
     function withdrawMargin(uint256 amountUsdc) external nonReentrant whenNotPaused {
         require(amountUsdc > 0, "PCH: Zero withdrawal");
-        TraderAccount storage account = _traderAccounts[_msgSender()];
-        require(account.usdcCollateralBalance >= amountUsdc, "PCH: Insufficient collateral");
+        
+        Account storage account = accounts[msg.sender];
+        require(account.totalCollateralUsdc >= amountUsdc, "PCH: Insufficient balance");
 
-        (uint256 mmrUsdc, ) = _calculateTotalMarginRequirements(account);
-        uint256 marginBalanceUsdc = _getAccountTotalMarginBalanceUsd(account);
+        // Check that withdrawal won't violate maintenance margin requirements
+        uint256 totalMarginRequired = _calculateTotalMaintenanceMargin(msg.sender);
+        int256 totalUnrealizedPnl = _calculateTotalUnrealizedPnl(msg.sender);
+        
+        int256 marginAfterWithdrawal = int256(account.totalCollateralUsdc - amountUsdc) + totalUnrealizedPnl;
+        require(marginAfterWithdrawal >= int256(totalMarginRequired), "PCH: Withdrawal violates margin");
 
-        require(marginBalanceUsdc > amountUsdc, "PCH: Withdrawal exceeds free margin"); // Free margin = Balance - IMR (or MMR for withdrawal)
-        uint256 marginAfterWithdrawal = marginBalanceUsdc - amountUsdc;
-        require(marginAfterWithdrawal >= mmrUsdc, "PCH: Withdrawal violates MMR");
-
-        account.usdcCollateralBalance -= amountUsdc;
-        usdcToken.safeTransfer(_msgSender(), amountUsdc);
-        emit MarginWithdrawn(_msgSender(), amountUsdc);
+        account.totalCollateralUsdc -= amountUsdc;
+        usdcToken.safeTransfer(msg.sender, amountUsdc);
+        
+        emit MarginWithdrawn(msg.sender, amountUsdc);
     }
 
-    // --- Trade Execution ---
-    struct MatchedOrderFillData {
-        bytes32 marketId;
-        address maker;
-        int256 sizeNotionalUsd; // Taker's perspective: +ve if taker buys, -ve if taker sells
-        uint256 price1e18;
-    }
-
-    function fillMatchedOrder(MatchedOrderFillData calldata fill)
-        external nonReentrant whenNotPaused marketIsActive(fill.marketId)
+    function fillMatchedOrder(MatchedOrderFillData calldata fill) 
+        external 
+        nonReentrant 
+        whenNotPaused 
+        onlyActiveMarket(fill.marketId) 
     {
-        address taker = _msgSender();
-        require(fill.maker != taker && fill.maker != address(0), "PCH: Invalid maker");
-        require(fill.sizeNotionalUsd != 0, "PCH: Zero trade size");
-        require(fill.price1e18 > 0, "PCH: Zero trade price");
+        require(fill.maker != msg.sender && fill.maker != address(0), "PCH: Invalid maker");
+        require(fill.sizeNotionalUsd != 0, "PCH: Zero size");
+        require(fill.price1e18 > 0, "PCH: Zero price");
+
+        MarketConfig storage market = markets[fill.marketId];
+        uint256 absSize = uint256(fill.sizeNotionalUsd > 0 ? fill.sizeNotionalUsd : -fill.sizeNotionalUsd);
+        require(absSize >= market.minPositionSizeUsdc, "PCH: Position too small");
+
+        // Check margin requirements for both parties
+        _checkMarginRequirements(msg.sender, fill.marketId, fill.sizeNotionalUsd);
+        _checkMarginRequirements(fill.maker, fill.marketId, -fill.sizeNotionalUsd);
+
+        // Settle funding for both traders
+        _settleFunding(msg.sender, fill.marketId);
+        _settleFunding(fill.maker, fill.marketId);
+
+        // Execute trades
+        (int256 takerPnl, uint256 takerFee) = _updatePosition(
+            msg.sender, fill.marketId, fill.sizeNotionalUsd, fill.price1e18, true, false
+        );
+        (int256 makerPnl, uint256 makerFee) = _updatePosition(
+            fill.maker, fill.marketId, -fill.sizeNotionalUsd, fill.price1e18, false, false
+        );
+
+        // Apply PnL and collect fees
+        _applyPnl(msg.sender, takerPnl);
+        _applyPnl(fill.maker, makerPnl);
         
-        PerpMarketConfig storage mCfg = _marketConfigs[fill.marketId];
-        uint256 absTradeSizeUsdc = uint256(fill.sizeNotionalUsd > 0 ? fill.sizeNotionalUsd : -fill.sizeNotionalUsd);
-        require(absTradeSizeUsdc >= mCfg.minOrderSizeNotionalUsdPrecision, "PCH: Trade size too small");
+        if (takerFee > 0) _collectTradeFee(msg.sender, takerFee, true);
+        if (makerFee > 0) _collectTradeFee(fill.maker, makerFee, false);
 
-        _preTradeIMRCheck(taker, fill.marketId, fill.sizeNotionalUsd, mCfg);
-        _preTradeIMRCheck(fill.maker, fill.marketId, -fill.sizeNotionalUsd, mCfg);
-
-        _settleFundingForTrader(taker, fill.marketId, mCfg, _marketStates[fill.marketId]);
-        _settleFundingForTrader(fill.maker, fill.marketId, mCfg, _marketStates[fill.marketId]);
-
-        (int256 takerPnlUsdc, uint256 takerFeeUsdc) = _executeTradeAndUpdatePosition(
-            taker, fill.marketId, mCfg, _marketStates[fill.marketId],
-            fill.sizeNotionalUsd, fill.price1e18, true /*isTaker*/, false /*isLiquidation*/
-        );
-        (int256 makerPnlUsdc, uint256 makerFeeUsdc) = _executeTradeAndUpdatePosition(
-            fill.maker, fill.marketId, mCfg, _marketStates[fill.marketId],
-            -fill.sizeNotionalUsd, fill.price1e18, false /*isTaker*/, false /*isLiquidation*/
-        );
-
-        _applyRealizedPnlToCollateral(taker, takerPnlUsdc);
-        _applyRealizedPnlToCollateral(fill.maker, makerPnlUsdc);
-
-        if (takerFeeUsdc > 0) _handleFeeCollection(taker, fill.marketId, takerFeeUsdc, true);
-        if (makerFeeUsdc > 0) _handleFeeCollection(fill.maker, fill.marketId, makerFeeUsdc, false);
+        // Update market open interest
+        _updateOpenInterest(fill.marketId, fill.sizeNotionalUsd);
     }
 
-    // --- Funding ---
-    function settleMarketFunding(bytes32 marketId) external nonReentrant marketIsActive(marketId) {
-        PerpMarketConfig storage mCfg = _marketConfigs[marketId];
-        PerpMarketState storage mState = _marketStates[marketId];
-        require(block.timestamp >= mState.lastFundingTimestamp + mCfg.fundingParams.fundingIntervalSeconds,
-            "PCH: Funding interval not passed");
+    function settleMarketFunding(bytes32 marketId) external nonReentrant onlyActiveMarket(marketId) {
+        MarketState storage state = marketStates[marketId];
+        require(block.timestamp >= state.nextFundingTime, "PCH: Funding not due");
 
-        uint256 markPriceTwap1e18 = markPriceOracle.getPrice(mCfg.underlyingAssetIdOracle);
-        uint256 indexPriceTwap1e18 = mCfg.spotIndexOracle.getPrice();
+        MarketConfig storage market = markets[marketId];
         
-        int256 fundingRate1e18 = FundingRateLib.calculateNextFundingRate(markPriceTwap1e18, indexPriceTwap1e18, mCfg.fundingParams);
-
-        mState.cumulativeFundingRateValue += fundingRate1e18;
-        mState.lastFundingTimestamp = block.timestamp;
-
-        emit FundingRateCalculated(marketId, fundingRate1e18, block.timestamp);
+        // Get mark and index prices
+        uint256 markPrice = markPriceOracle.getPrice(market.oracleAssetId);
+        uint256 indexPrice = market.spotOracle.getPrice();
+        
+        // Calculate funding rate
+        FundingRateLib.FundingParams memory params = FundingRateLib.FundingParams({
+            fundingIntervalSeconds: market.fundingIntervalSec,
+            maxFundingRateAbsValue: (market.maxFundingRateBps * PRICE_PRECISION) / BPS_PRECISION
+        });
+        
+        int256 fundingRate = FundingRateLib.calculateNextFundingRate(markPrice, indexPrice, params);
+        
+        // Update cumulative funding index
+        state.cumulativeFundingIndex += fundingRate;
+        state.lastFundingTime = block.timestamp;
+        state.nextFundingTime = block.timestamp + market.fundingIntervalSec;
+        
+        emit FundingRateCalculated(marketId, fundingRate, block.timestamp);
     }
 
     // --- Liquidation Hook ---
     function processLiquidation(
-        address trader, bytes32 marketId, int256 sizeToCloseNotionalUsd,
-        uint256 closePrice1e18, uint256 totalLiquidationFeeUsdc
+        address trader,
+        bytes32 marketId,
+        int256 sizeToCloseNotionalUsd,
+        uint256 closePrice1e18,
+        uint256 totalLiquidationFeeUsdc
     ) external nonReentrant onlyLiquidationEngine returns (int256 realizedPnlOnCloseUsdc) {
-        PerpMarketConfig storage mCfg = _marketConfigs[marketId];
-        require(mCfg.isListed, "PCH: Liq market not listed");
+        require(markets[marketId].isListed, "PCH: Market not listed");
         
-        _settleFundingForTrader(trader, marketId, mCfg, _marketStates[marketId]);
-
-        (realizedPnlOnCloseUsdc,) = _executeTradeAndUpdatePosition(
-            trader, marketId, mCfg, _marketStates[marketId],
-            sizeToCloseNotionalUsd, closePrice1e18, true /*isTaker for this context*/, true /*isLiquidation*/
+        // Settle funding before liquidation
+        _settleFunding(trader, marketId);
+        
+        // Execute liquidation trade
+        (realizedPnlOnCloseUsdc,) = _updatePosition(
+            trader, marketId, sizeToCloseNotionalUsd, closePrice1e18, true, true
         );
-        _applyRealizedPnlToCollateral(trader, realizedPnlOnCloseUsdc);
-
-        TraderAccount storage acc = _traderAccounts[trader];
-        require(acc.usdcCollateralBalance >= totalLiquidationFeeUsdc, "PCH: Insufficient margin for liq fee");
-        acc.usdcCollateralBalance -= totalLiquidationFeeUsdc;
-
+        
+        // Apply PnL
+        _applyPnl(trader, realizedPnlOnCloseUsdc);
+        
+        // Deduct liquidation fee
+        Account storage account = accounts[trader];
+        require(account.totalCollateralUsdc >= totalLiquidationFeeUsdc, "PCH: Insufficient margin");
+        account.totalCollateralUsdc -= totalLiquidationFeeUsdc;
+        
+        // Send fee to fee collector for distribution
         if (totalLiquidationFeeUsdc > 0 && address(feeCollector) != address(0)) {
             usdcToken.safeTransfer(address(feeCollector), totalLiquidationFeeUsdc);
         }
-        emit PositionLiquidatedByEngine(trader, marketId, _msgSender(), sizeToCloseNotionalUsd, closePrice1e18, totalLiquidationFeeUsdc, realizedPnlOnCloseUsdc);
+        
+        // Update open interest
+        _updateOpenInterest(marketId, sizeToCloseNotionalUsd);
+        
+        emit PositionLiquidatedByEngine(
+            trader, marketId, msg.sender, sizeToCloseNotionalUsd, 
+            closePrice1e18, totalLiquidationFeeUsdc, realizedPnlOnCloseUsdc
+        );
+        
         return realizedPnlOnCloseUsdc;
     }
 
-    // --- Internal Logic ---
-    function _preTradeIMRCheck(address trader, bytes32 marketId, int256 tradeSizeNotionalUsd, PerpMarketConfig storage mCfgPassed) internal view {
-        TraderAccount storage acc = _traderAccounts[trader];
-        uint256 totalMarginBalanceUsdc = _getAccountTotalMarginBalanceUsd(acc);
-        (, uint256 totalImrUsdcAfterTrade) = _calculateTotalMarginRequirementsAfterPotentialTrade(
-            acc, marketId, tradeSizeNotionalUsd
-        );
-        require(totalMarginBalanceUsdc >= totalImrUsdcAfterTrade, "PCH: IMR violation");
-    }
-
-    function _settleFundingForTrader(address trader, bytes32 marketId, PerpMarketConfig storage mCfg, PerpMarketState storage mState) internal {
-        TraderAccount storage acc = _traderAccounts[trader];
-        TraderPosition storage pos = acc.positions[marketId];
-
-        if (pos.sizeNotionalUsd == 0 || pos.lastCumulativeFundingRateValueSnapshot == mState.cumulativeFundingRateValue) {
-            return;
-        }
-        int256 rateValueDiff1e18 = mState.cumulativeFundingRateValue - pos.lastCumulativeFundingRateValueSnapshot;
-        int256 paymentUsdc = (pos.sizeNotionalUsd * rateValueDiff1e18) / int256(PRICE_PRECISION); // Results in USD_PRECISION (1e6) scale
-
-        uint256 protocolFeeFromFundingUsdc = 0;
-        if (mCfg.fundingFeeProtocolBps > 0) {
-            uint256 absPayment = uint256(paymentUsdc > 0 ? paymentUsdc : -paymentUsdc);
-            protocolFeeFromFundingUsdc = Math.mulDiv(absPayment, mCfg.fundingFeeProtocolBps, MARGIN_RATIO_PRECISION);
-        }
-
-        if (paymentUsdc > 0) { // Trader PAYS funding
-            uint256 totalPaymentFromTrader = uint256(paymentUsdc); // This is the gross amount before protocol fee split
-            if (acc.usdcCollateralBalance >= totalPaymentFromTrader) {
-                acc.usdcCollateralBalance -= totalPaymentFromTrader;
-                if (address(feeCollector) != address(0) && totalPaymentFromTrader > 0) {
-                    usdcToken.safeTransfer(address(feeCollector), totalPaymentFromTrader);
-                    // feeCollector might then send (totalPaymentFromTrader - protocolFeeFromFundingUsdc) to counterparties/pool
-                    // and protocolFeeFromFundingUsdc to treasury/insurance.
-                }
-            } else { /* Handle shortfall */ 
-                if(address(feeCollector) != address(0) && acc.usdcCollateralBalance > 0) {
-                     usdcToken.safeTransfer(address(feeCollector), acc.usdcCollateralBalance);
-                }
-                acc.usdcCollateralBalance = 0; 
-            }
-        } else if (paymentUsdc < 0) { // Trader RECEIVES funding
-            uint256 grossPaymentToTrader = uint256(-paymentUsdc);
-            uint256 netPaymentToTrader = grossPaymentToTrader - protocolFeeFromFundingUsdc;
-            if (netPaymentToTrader > 0) {
-                // Funds must come from feeCollector (acting as funding pool)
-                if (address(feeCollector) != address(0)) {
-                    IERC20(usdcToken).safeTransferFrom(address(feeCollector), address(this), netPaymentToTrader); // FeeCollector needs to approve this CH
-                    acc.usdcCollateralBalance += netPaymentToTrader;
-                }
-            }
-            if (protocolFeeFromFundingUsdc > 0 && address(feeCollector) != address(0)) {
-                // The feeCollector already "paid" the gross amount implicitly (by not receiving it or by sourcing it).
-                // It needs to account for the protocolFeeFromFundingUsdc part internally.
-            }
-        }
-        pos.lastCumulativeFundingRateValueSnapshot = mState.cumulativeFundingRateValue;
-        emit FundingPaymentApplied(trader, marketId, paymentUsdc, pos.sizeNotionalUsd);
-    }
-
-    function _executeTradeAndUpdatePosition(
-        address trader, bytes32 marketId, PerpMarketConfig storage mCfg, PerpMarketState storage mState,
-        int256 tradeSizeNotionalUsd, uint256 tradePrice1e18, bool isTaker, bool isLiquidation
-    ) internal returns (int256 realizedPnlUsdc, uint256 tradeFeeUsdc) {
-        TraderAccount storage acc = _traderAccounts[trader];
-        TraderPosition storage pos = acc.positions[marketId];
-        int256 oldSizeNotionalUsd = pos.sizeNotionalUsd;
-        int256 newSizeNotionalUsd = oldSizeNotionalUsd + tradeSizeNotionalUsd;
-        uint256 absTradeSizeNotionalUsd = uint256(tradeSizeNotionalUsd > 0 ? tradeSizeNotionalUsd : -tradeSizeNotionalUsd);
-
-        if (oldSizeNotionalUsd == 0) { // Opening
-            pos.sizeNotionalUsd = newSizeNotionalUsd;
-            pos.sumEntryPriceXSizeNotional = tradePrice1e18 * absTradeSizeNotionalUsd;
-            pos.sumAbsSizeNotionalUsd = absTradeSizeNotionalUsd;
-            if (!acc.openMarketIds.contains(marketId)) acc.openMarketIds.add(marketId);
-        } else if (newSizeNotionalUsd == 0) { // Closing full
-            uint256 avgEntryPrice1e18 = pos.sumAbsSizeNotionalUsd == 0 ? 0 : pos.sumEntryPriceXSizeNotional / pos.sumAbsSizeNotionalUsd;
-            if (avgEntryPrice1e18 > 0) { // Avoid div by zero if pos was somehow inconsistent
-                realizedPnlUsdc = (oldSizeNotionalUsd * (int256(tradePrice1e18) - int256(avgEntryPrice1e18))) / int256(PRICE_PRECISION);
-            }
-            pos.sizeNotionalUsd = 0; pos.sumEntryPriceXSizeNotional = 0; pos.sumAbsSizeNotionalUsd = 0;
-            acc.openMarketIds.remove(marketId);
-        } else if ((oldSizeNotionalUsd > 0) == (newSizeNotionalUsd > 0)) { // Reducing or Increasing same direction
-            if (absTradeSizeNotionalUsd < uint256(oldSizeNotionalUsd > 0 ? oldSizeNotionalUsd : -oldSizeNotionalUsd) ) { // Reducing
-                uint256 avgEntryPrice1e18 = pos.sumAbsSizeNotionalUsd == 0 ? 0 : pos.sumEntryPriceXSizeNotional / pos.sumAbsSizeNotionalUsd;
-                 if (avgEntryPrice1e18 > 0) {
-                    realizedPnlUsdc = (-tradeSizeNotionalUsd * (int256(tradePrice1e18) - int256(avgEntryPrice1e18))) / int256(PRICE_PRECISION);
-                }
-                pos.sumEntryPriceXSizeNotional -= avgEntryPrice1e18 * absTradeSizeNotionalUsd; // Maintain avg price for remaining
-                pos.sumAbsSizeNotionalUsd -= absTradeSizeNotionalUsd;
-            } else { // Increasing
-                pos.sumEntryPriceXSizeNotional += tradePrice1e18 * absTradeSizeNotionalUsd;
-                pos.sumAbsSizeNotionalUsd += absTradeSizeNotionalUsd;
-            }
-            pos.sizeNotionalUsd = newSizeNotionalUsd;
-        } else { // Flipping position
-            uint256 avgEntryPrice1e18 = pos.sumAbsSizeNotionalUsd == 0 ? 0 : pos.sumEntryPriceXSizeNotional / pos.sumAbsSizeNotionalUsd;
-            if (avgEntryPrice1e18 > 0) {
-                realizedPnlUsdc = (oldSizeNotionalUsd * (int256(tradePrice1e18) - int256(avgEntryPrice1e18))) / int256(PRICE_PRECISION);
-            }
-            pos.sizeNotionalUsd = newSizeNotionalUsd;
-            pos.sumEntryPriceXSizeNotional = tradePrice1e18 * uint256(newSizeNotionalUsd > 0 ? newSizeNotionalUsd : -newSizeNotionalUsd);
-            pos.sumAbsSizeNotionalUsd = uint256(newSizeNotionalUsd > 0 ? newSizeNotionalUsd : -newSizeNotionalUsd);
-        }
-        pos.lastInteractionTimestamp = block.timestamp;
-
-        int256 feeBps = isLiquidation ? int256(0) : (isTaker ? mCfg.takerTradeFeeBps : mCfg.makerTradeFeeBps);
-        if (feeBps > 0) {
-            tradeFeeUsdc = Math.mulDiv(absTradeSizeNotionalUsd, uint256(feeBps), MARGIN_RATIO_PRECISION);
-        } else if (feeBps < 0 && !isLiquidation) {
-            uint256 rebateUsdc = Math.mulDiv(absTradeSizeNotionalUsd, uint256(-feeBps), MARGIN_RATIO_PRECISION);
-            realizedPnlUsdc += int256(rebateUsdc); // Add rebate to PnL (positive for trader)
-        }
-
-        // Update Open Interest: OI is sum of all longs (or all shorts).
-        // This update reflects change in one side of the market.
-        // If tradeSizeNotionalUsd is positive (taker bought), long OI potentially increases, short OI potentially increases (maker sold).
-        // For simplicity, use tradeSizeNotionalUsd (absolute) as the amount changing hands.
-        // Proper OI needs tracking if it's opening or closing overall market OI.
-        // This simplified version updates based on the *net effect* of this specific trade on the sum of long/short notionals.
-        if(tradeSizeNotionalUsd > 0){ // Taker bought, so overall long notional increased by this amount OR short notional decreased
-            mState.openInterestNotionalLongUsd += absTradeSizeNotionalUsd;
-        } else { // Taker sold
-            mState.openInterestNotionalShortUsd += absTradeSizeNotionalUsd;
-        }
-        // This needs refinement for perfect OI. Example: if taker closes a short by buying, long OI increases, short OI decreases.
-
-        emit PositionChanged(trader, marketId, newSizeNotionalUsd, _getAverageEntryPrice(pos), realizedPnlUsdc, tradeFeeUsdc);
-        return (realizedPnlUsdc, tradeFeeUsdc);
-    }
-
-    function _applyRealizedPnlToCollateral(address trader, int256 pnlUsdc) internal {
-        TraderAccount storage acc = _traderAccounts[trader];
-        if (pnlUsdc > 0) {
-            acc.usdcCollateralBalance += uint256(pnlUsdc);
-        } else if (pnlUsdc < 0) {
-            uint256 lossUsdc = uint256(-pnlUsdc);
-            if (acc.usdcCollateralBalance >= lossUsdc) {
-                acc.usdcCollateralBalance -= lossUsdc;
-            } else { // Bankruptcy
-                uint256 shortfall = lossUsdc - acc.usdcCollateralBalance;
-                acc.usdcCollateralBalance = 0;
-                if (address(insuranceFundAddress) != address(0) && shortfall > 0) {
-                    // Notify insurance fund or transfer from it IF this contract holds IF funds.
-                    // For now, this contract doesn't directly pull from IF.
-                    // The PerpLiquidationEngine or a separate process would handle IF payouts.
-                    // Emitting an event for bankruptcy is important.
-                    // event TraderBankruptcy(trader, marketId_if_specific, shortfall);
-                }
-            }
-        }
-    }
-
-    function _handleFeeCollection(address trader, bytes32 marketId, uint256 feeUsdc, bool isTaker) internal {
-        TraderAccount storage acc = _traderAccounts[trader];
-        // Fee is already accounted for if PnL was net of fee, or if it's to be deducted now.
-        // The _updatePositionAndOI now returns fee separately.
-        if (feeUsdc > 0) {
-            require(acc.usdcCollateralBalance >= feeUsdc, "PCH: Insufficient collateral for trade fee");
-            acc.usdcCollateralBalance -= feeUsdc;
-            if (address(feeCollector) != address(0)) {
-                usdcToken.safeTransfer(address(feeCollector), feeUsdc);
-                // Optionally tell feeCollector more details:
-                // feeCollector.collectTradingFee(trader, marketId, address(usdcToken), feeUsdc, isTaker);
-            }
-        }
-    }
-    
-    // --- View Functions ---
-    function _getAverageEntryPrice(TraderPosition storage pos) internal view returns (uint256 avgEntryPrice1e18) {
-        if (pos.sumAbsSizeNotionalUsd == 0) return 0;
-        return pos.sumEntryPriceXSizeNotional / pos.sumAbsSizeNotionalUsd;
-    }
-
-    function _calculateUnrealizedPnlForPosition(TraderPosition storage pos, uint256 markPrice1e18)
-        internal view returns (int256 unrealizedPnlUsdc)
-    {
-        if (pos.sizeNotionalUsd == 0) return 0;
-
-        uint256 avgEntryPrice1e18 = _getAverageEntryPrice(pos);
-        if (avgEntryPrice1e18 == 0) return 0;
-
-        int256 priceDiff1e18 = int256(markPrice1e18) - int256(avgEntryPrice1e18);
-        unrealizedPnlUsdc = (pos.sizeNotionalUsd * priceDiff1e18) / int256(avgEntryPrice1e18);
-    }
-
-    function _getAccountTotalUnrealizedPnlUsd(TraderAccount storage acc) internal view returns (int256 totalUpnlUsdc) {
-        for (uint i = 0; i < acc.openMarketIds.length(); ++i) {
-            bytes32 marketId = acc.openMarketIds.at(i);
-            // Need to pass trader address to _calculateUnrealizedPnlForPosition if it doesn't take TraderPosition storage directly
-            // Or, it needs to be a free function taking TraderPosition.
-            // For now, assume direct access or refactor _calcUnrealizedPnl to take TraderPosition by value or trader addr.
-            // Let's pass trader and marketId.
-            // No, _calculateUnrealizedPnlForPosition takes TraderPosition storage.
-            // So, we need to pass acc.positions[marketId].
-
-            PerpMarketConfig storage mCfg = _marketConfigs[marketId];
-            uint256 markPrice1e18 = markPriceOracle.getPrice(mCfg.underlyingAssetIdOracle);
-            totalUpnlUsdc += _calculateUnrealizedPnlForPosition(acc.positions[marketId], markPrice1e18);
-        }
-    }
-
-    function _getAccountTotalMarginBalanceUsd(TraderAccount storage acc) internal view returns (uint256) {
-        int256 totalUpnl = _getAccountTotalUnrealizedPnlUsd(acc);
-        int256 marginBalance = int256(acc.usdcCollateralBalance) + totalUpnl;
-        return marginBalance > 0 ? uint256(marginBalance) : 0;
-    }
-
-    function _calculateTotalMarginRequirements(TraderAccount storage acc)
-        internal view returns (uint256 totalMmrUsdc, uint256 totalImrUsdc)
-    {
-        for (uint i = 0; i < acc.openMarketIds.length(); ++i) {
-            bytes32 marketId = acc.openMarketIds.at(i);
-            TraderPosition storage pos = acc.positions[marketId];
-            PerpMarketConfig storage mCfg = _marketConfigs[marketId];
-            uint256 absPosNotionalUsd = uint256(pos.sizeNotionalUsd > 0 ? pos.sizeNotionalUsd : -pos.sizeNotionalUsd);
-            
-            totalMmrUsdc += Math.mulDiv(absPosNotionalUsd, mCfg.maintenanceMarginRatioBps, MARGIN_RATIO_PRECISION);
-            totalImrUsdc += Math.mulDiv(absPosNotionalUsd, mCfg.initialMarginRatioBps, MARGIN_RATIO_PRECISION);
-        }
-    }
-    
-    function _calculateTotalMarginRequirementsAfterPotentialTrade(TraderAccount storage acc, bytes32 marketIdTrade, int256 tradeSizeNotionalUsd)
-        internal view returns (uint256 totalMmrUsdc, uint256 totalImrUsdc)
-    {
-        bool tradeMarketProcessed = false;
-        for (uint i = 0; i < acc.openMarketIds.length(); ++i) {
-            bytes32 marketIdCurrentLoop = acc.openMarketIds.at(i);
-            TraderPosition storage pos = acc.positions[marketIdCurrentLoop];
-            PerpMarketConfig storage mCfg = _marketConfigs[marketIdCurrentLoop];
-            int256 currentSize = pos.sizeNotionalUsd;
-
-            if(marketIdCurrentLoop == marketIdTrade){
-                currentSize += tradeSizeNotionalUsd;
-                tradeMarketProcessed = true;
-            }
-            if (currentSize != 0) { // Only consider if there's a position (or will be one)
-                uint256 absPosNotionalUsd = uint256(currentSize > 0 ? currentSize : -currentSize);
-                totalMmrUsdc += Math.mulDiv(absPosNotionalUsd, mCfg.maintenanceMarginRatioBps, MARGIN_RATIO_PRECISION);
-                totalImrUsdc += Math.mulDiv(absPosNotionalUsd, mCfg.initialMarginRatioBps, MARGIN_RATIO_PRECISION);
-            }
-        }
-        // If marketIdTrade is a new market for the trader (not in openMarketIds yet)
-        if (!tradeMarketProcessed && tradeSizeNotionalUsd != 0) {
-            PerpMarketConfig storage mCfgTrade = _marketConfigs[marketIdTrade];
-            uint256 absTradeNotionalUsd = uint256(tradeSizeNotionalUsd > 0 ? tradeSizeNotionalUsd : -tradeSizeNotionalUsd);
-            totalMmrUsdc += Math.mulDiv(absTradeNotionalUsd, mCfgTrade.maintenanceMarginRatioBps, MARGIN_RATIO_PRECISION);
-            totalImrUsdc += Math.mulDiv(absTradeNotionalUsd, mCfgTrade.initialMarginRatioBps, MARGIN_RATIO_PRECISION);
-        }
-    }
-
-    // --- Public View Functions ---
-    function getTraderCollateralBalance(address trader) external view returns (uint256 usdcBalance) {
-        return _traderAccounts[trader].usdcCollateralBalance;
-    }
-    function getTraderPositionInfo(address trader, bytes32 marketId) external view returns (TraderPosition memory position) {
-        return _traderAccounts[trader].positions[marketId];
-    }
-    function getTraderAverageEntryPrice(address trader, bytes32 marketId) external view returns (uint256 avgEntryPrice1e18) {
-        return _getAverageEntryPrice(_traderAccounts[trader].positions[marketId]);
-    }
-    function getTraderUnrealizedPnl(address trader, bytes32 marketId) external view returns (int256 pnlUsdc) {
-        PerpMarketConfig storage mCfg = _marketConfigs[marketId];
-        require(mCfg.isListed, "PCH: Market not listed");
-        uint256 markPrice1e18 = markPriceOracle.getPrice(mCfg.underlyingAssetIdOracle);
-        return _calculateUnrealizedPnlForPosition(_traderAccounts[trader].positions[marketId], markPrice1e18);
-    }
-    function getAccountSummary(address trader)
-        external view
-        returns (
-            uint256 usdcCollateral, int256 totalUnrealizedPnlUsdc, uint256 totalMarginBalanceUsdc,
-            uint256 totalMaintenanceMarginReqUsdc, uint256 totalInitialMarginReqUsdc, bool isCurrentlyLiquidatable
-        )
-    {
-        TraderAccount storage acc = _traderAccounts[trader];
-        usdcCollateral = acc.usdcCollateralBalance;
-        totalUnrealizedPnlUsdc = _getAccountTotalUnrealizedPnlUsd(acc);
-        totalMarginBalanceUsdc = _getAccountTotalMarginBalanceUsd(acc);
-        (totalMaintenanceMarginReqUsdc, totalInitialMarginReqUsdc) = _calculateTotalMarginRequirements(acc);
+    // --- Internal Functions ---
+    function _checkMarginRequirements(address trader, bytes32 marketId, int256 tradeSize) internal view {
+        Account storage account = accounts[trader];
+        uint256 currentMarginReq = _calculateTotalMaintenanceMargin(trader);
+        uint256 additionalMarginReq = _calculateAdditionalMarginRequirement(marketId, tradeSize);
         
-        uint256 totalAbsNotionalForLiqCheck = 0;
-        for (uint i = 0; i < acc.openMarketIds.length(); ++i) {
-            bytes32 marketId = acc.openMarketIds.at(i);
-            TraderPosition storage pos = acc.positions[marketId];
-             totalAbsNotionalForLiqCheck += uint256(pos.sizeNotionalUsd > 0 ? pos.sizeNotionalUsd : -pos.sizeNotionalUsd);
+        int256 totalUnrealizedPnl = _calculateTotalUnrealizedPnl(trader);
+        int256 availableMargin = int256(account.totalCollateralUsdc) + totalUnrealizedPnl;
+        
+        require(availableMargin >= int256(currentMarginReq + additionalMarginReq), "PCH: Insufficient margin");
+    }
+
+    function _calculateAdditionalMarginRequirement(bytes32 marketId, int256 tradeSize) internal view returns (uint256) {
+        if (tradeSize == 0) return 0;
+        
+        MarketConfig storage market = markets[marketId];
+        uint256 absTradeSize = uint256(tradeSize > 0 ? tradeSize : -tradeSize);
+        
+        // Calculate margin requirement based on leverage
+        return Math.mulDiv(absTradeSize, BPS_PRECISION, market.maxLeverageBps);
+    }
+
+    function _settleFunding(address trader, bytes32 marketId) internal {
+        Account storage account = accounts[trader];
+        Position storage position = account.positions[marketId];
+        
+        if (position.sizeUsdc == 0) return;
+        
+        MarketState storage state = marketStates[marketId];
+        int256 fundingDelta = state.cumulativeFundingIndex - position.lastFundingIndex;
+        
+        if (fundingDelta != 0) {
+            int256 fundingPayment = (position.sizeUsdc * fundingDelta) / int256(PRICE_PRECISION);
+            
+            if (fundingPayment > 0) {
+                // Trader pays funding
+                uint256 payment = uint256(fundingPayment);
+                if (account.totalCollateralUsdc >= payment) {
+                    account.totalCollateralUsdc -= payment;
+                } else {
+                    account.totalCollateralUsdc = 0;
+                }
+            } else if (fundingPayment < 0) {
+                // Trader receives funding
+                account.totalCollateralUsdc += uint256(-fundingPayment);
+            }
+            
+            position.lastFundingIndex = state.cumulativeFundingIndex;
+            
+            emit FundingPaymentApplied(trader, marketId, fundingPayment, position.sizeUsdc);
         }
-        isCurrentlyLiquidatable = totalMarginBalanceUsdc < totalMaintenanceMarginReqUsdc && totalAbsNotionalForLiqCheck > 0;
-    }
-    function getMarketConfiguration(bytes32 marketId) external view returns (PerpMarketConfig memory config) {
-        require(_marketConfigs[marketId].isListed, "PCH: Market not listed");
-        return _marketConfigs[marketId];
-    }
-    function getMarketCurrentState(bytes32 marketId) external view returns (PerpMarketState memory state) {
-        require(_marketConfigs[marketId].isListed, "PCH: Market not listed");
-        return _marketStates[marketId]; // Returns stored state; funding settlement updates it.
-    }
-    function getListedMarketIds() external view returns (bytes32[] memory) {
-        return listedMarketIdsArray;
-    }
-    function isMarketActuallyListed(bytes32 marketId) external view returns (bool) {
-        return _isMarketIdActuallyListed[marketId];
     }
 
-    // Public getter functions for the private mappings
-    function getMarketConfig(bytes32 marketId) public view returns (PerpMarketConfig memory) {
-        return _marketConfigs[marketId];
+    function _updatePosition(
+        address trader,
+        bytes32 marketId,
+        int256 tradeSize,
+        uint256 price,
+        bool isTaker,
+        bool isLiquidation
+    ) internal returns (int256 realizedPnl, uint256 tradeFee) {
+        Account storage account = accounts[trader];
+        Position storage position = account.positions[marketId];
+        MarketConfig storage market = markets[marketId];
+        
+        int256 oldSize = position.sizeUsdc;
+        int256 newSize = oldSize + tradeSize;
+        uint256 absTradeSize = uint256(tradeSize > 0 ? tradeSize : -tradeSize);
+        
+        // Calculate trade fee
+        if (!isLiquidation) {
+            if (isTaker) {
+                tradeFee = Math.mulDiv(absTradeSize, market.takerFeeBps, BPS_PRECISION);
+            } else if (market.makerFeeBps > 0) {
+                tradeFee = Math.mulDiv(absTradeSize, uint256(market.makerFeeBps), BPS_PRECISION);
+            }
+            // Note: negative maker fees (rebates) are handled as negative realized PnL
+        }
+        
+        // Calculate realized PnL for position changes
+        if (oldSize != 0 && (oldSize > 0) != (tradeSize > 0)) {
+            // Position is being reduced or flipped
+            uint256 reduceSize = Math.min(absTradeSize, uint256(oldSize > 0 ? oldSize : -oldSize));
+            realizedPnl = _calculateRealizedPnl(oldSize, reduceSize, position.entryPrice, price);
+        }
+        
+        // Update position
+        if (newSize == 0) {
+            // Position closed
+            position.sizeUsdc = 0;
+            position.entryPrice = 0;
+            position.collateralUsdc = 0;
+            account.openMarkets.remove(marketId);
+        } else {
+            // Position opened or modified
+            if (oldSize == 0 || (oldSize > 0) != (newSize > 0)) {
+                // New position or flipped position
+                position.entryPrice = price;
+                if (!account.openMarkets.contains(marketId)) {
+                    account.openMarkets.add(marketId);
+                }
+            } else if ((oldSize > 0) == (newSize > 0) && absTradeSize > uint256(oldSize > 0 ? oldSize : -oldSize)) {
+                // Position increased in same direction - update weighted average entry price
+                uint256 oldAbsSize = uint256(oldSize > 0 ? oldSize : -oldSize);
+                uint256 addedSize = absTradeSize - oldAbsSize;
+                position.entryPrice = ((position.entryPrice * oldAbsSize) + (price * addedSize)) / uint256(newSize > 0 ? newSize : -newSize);
+            }
+            
+            position.sizeUsdc = newSize;
+        }
+        
+        position.lastUpdateTime = block.timestamp;
+        position.lastFundingIndex = marketStates[marketId].cumulativeFundingIndex;
+        
+        // Handle maker rebates as negative fees (positive PnL)
+        if (!isLiquidation && !isTaker && market.makerFeeBps < 0) {
+            uint256 rebate = Math.mulDiv(absTradeSize, uint256(-market.makerFeeBps), BPS_PRECISION);
+            realizedPnl += int256(rebate);
+        }
+        
+        emit PositionChanged(trader, marketId, newSize, position.entryPrice, realizedPnl, tradeFee);
     }
 
-    function getMarketState(bytes32 marketId) public view returns (PerpMarketState memory) {
-        return _marketStates[marketId];
+    function _calculateRealizedPnl(
+        int256 positionSize,
+        uint256 reduceSize,
+        uint256 entryPrice,
+        uint256 exitPrice
+    ) internal pure returns (int256) {
+        if (positionSize == 0 || reduceSize == 0 || entryPrice == 0) return 0;
+        
+        int256 priceDiff = int256(exitPrice) - int256(entryPrice);
+        int256 realizedAmount = positionSize > 0 ? int256(reduceSize) : -int256(reduceSize);
+        
+        return (realizedAmount * priceDiff) / int256(PRICE_PRECISION);
     }
 
-    function getTraderAccount(address trader) public view returns (
-        uint256 usdcCollateralBalance,
-        bytes32[] memory openMarketIds
+    function _applyPnl(address trader, int256 pnl) internal {
+        Account storage account = accounts[trader];
+        
+        if (pnl > 0) {
+            account.totalCollateralUsdc += uint256(pnl);
+        } else if (pnl < 0) {
+            uint256 loss = uint256(-pnl);
+            if (account.totalCollateralUsdc >= loss) {
+                account.totalCollateralUsdc -= loss;
+            } else {
+                account.totalCollateralUsdc = 0;
+            }
+        }
+    }
+
+    function _collectTradeFee(address trader, uint256 feeAmount, bool /*isTaker*/) internal {
+        Account storage account = accounts[trader];
+        require(account.totalCollateralUsdc >= feeAmount, "PCH: Insufficient balance for fee");
+        
+        account.totalCollateralUsdc -= feeAmount;
+        
+        // 80% to treasury, 20% to insurance fund
+        uint256 treasuryFee = Math.mulDiv(feeAmount, 8000, BPS_PRECISION);
+        uint256 insuranceFee = feeAmount - treasuryFee;
+        
+        collectedTreasuryFees += treasuryFee;
+        
+        if (insuranceFee > 0) {
+            usdcToken.safeTransfer(insuranceFundAddress, insuranceFee);
+        }
+    }
+
+    function _updateOpenInterest(bytes32 marketId, int256 tradeSize) internal {
+        MarketState storage state = marketStates[marketId];
+        
+        if (tradeSize > 0) {
+            state.longOpenInterest += uint256(tradeSize);
+        } else {
+            state.shortOpenInterest += uint256(-tradeSize);
+        }
+    }
+
+    function _calculateTotalMaintenanceMargin(address trader) internal view returns (uint256 totalMargin) {
+        Account storage account = accounts[trader];
+        
+        for (uint256 i = 0; i < account.openMarkets.length(); i++) {
+            bytes32 marketId = account.openMarkets.at(i);
+            Position storage position = account.positions[marketId];
+            MarketConfig storage market = markets[marketId];
+            
+            if (position.sizeUsdc != 0) {
+                uint256 positionValue = uint256(position.sizeUsdc > 0 ? position.sizeUsdc : -position.sizeUsdc);
+                totalMargin += Math.mulDiv(positionValue, market.maintenanceMarginBps, BPS_PRECISION);
+            }
+        }
+    }
+
+    function _calculateTotalUnrealizedPnl(address trader) internal view returns (int256 totalPnl) {
+        Account storage account = accounts[trader];
+        
+        for (uint256 i = 0; i < account.openMarkets.length(); i++) {
+            bytes32 marketId = account.openMarkets.at(i);
+            Position storage position = account.positions[marketId];
+            
+            if (position.sizeUsdc != 0) {
+                MarketConfig storage market = markets[marketId];
+                uint256 markPrice = markPriceOracle.getPrice(market.oracleAssetId);
+                
+                int256 priceDiff = int256(markPrice) - int256(position.entryPrice);
+                totalPnl += (position.sizeUsdc * priceDiff) / int256(PRICE_PRECISION);
+            }
+        }
+    }
+
+    // --- View Functions ---
+    function getTraderCollateralBalance(address trader) external view returns (uint256) {
+        return accounts[trader].totalCollateralUsdc;
+    }
+
+    function getAccountSummary(address trader) external view returns (
+        uint256 usdcCollateral,
+        int256 totalUnrealizedPnlUsdc,
+        uint256 totalMarginBalanceUsdc,
+        uint256 totalMaintenanceMarginReqUsdc,
+        uint256 totalInitialMarginReqUsdc,
+        bool isCurrentlyLiquidatable
     ) {
-        TraderAccount storage account = _traderAccounts[trader];
-        return (
-            account.usdcCollateralBalance,
-            account.openMarketIds.values()
-        );
+        Account storage account = accounts[trader];
+        usdcCollateral = account.totalCollateralUsdc;
+        totalUnrealizedPnlUsdc = _calculateTotalUnrealizedPnl(trader);
+        totalMaintenanceMarginReqUsdc = _calculateTotalMaintenanceMargin(trader);
+        
+        int256 marginBalance = int256(usdcCollateral) + totalUnrealizedPnlUsdc;
+        totalMarginBalanceUsdc = marginBalance > 0 ? uint256(marginBalance) : 0;
+        
+        // Calculate initial margin requirement (based on leverage)
+        for (uint256 i = 0; i < account.openMarkets.length(); i++) {
+            bytes32 marketId = account.openMarkets.at(i);
+            Position storage position = account.positions[marketId];
+            MarketConfig storage market = markets[marketId];
+            
+            if (position.sizeUsdc != 0) {
+                uint256 positionValue = uint256(position.sizeUsdc > 0 ? position.sizeUsdc : -position.sizeUsdc);
+                totalInitialMarginReqUsdc += Math.mulDiv(positionValue, BPS_PRECISION, market.maxLeverageBps);
+            }
+        }
+        
+        isCurrentlyLiquidatable = totalMarginBalanceUsdc < totalMaintenanceMarginReqUsdc && totalMaintenanceMarginReqUsdc > 0;
+    }
+
+    function getListedMarketIds() external view returns (bytes32[] memory) {
+        return listedMarkets;
+    }
+
+    function isMarketActuallyListed(bytes32 marketId) external view returns (bool) {
+        return markets[marketId].isListed;
+    }
+
+    function getTraderPosition(address trader, bytes32 marketId) external view returns (
+        int256 sizeUsdc,
+        uint256 entryPrice,
+        int256 unrealizedPnl,
+        uint256 marginRequired
+    ) {
+        Position storage position = accounts[trader].positions[marketId];
+        sizeUsdc = position.sizeUsdc;
+        entryPrice = position.entryPrice;
+        
+        if (sizeUsdc != 0) {
+            MarketConfig storage market = markets[marketId];
+            uint256 markPrice = markPriceOracle.getPrice(market.oracleAssetId);
+            
+            int256 priceDiff = int256(markPrice) - int256(entryPrice);
+            unrealizedPnl = (sizeUsdc * priceDiff) / int256(PRICE_PRECISION);
+            
+            uint256 positionValue = uint256(sizeUsdc > 0 ? sizeUsdc : -sizeUsdc);
+            marginRequired = Math.mulDiv(positionValue, market.maintenanceMarginBps, BPS_PRECISION);
+        }
+    }
+
+    // --- Treasury Functions ---
+    function collectTreasuryFees() external nonReentrant {
+        require(collectedTreasuryFees > 0, "PCH: No fees to collect");
+        
+        uint256 amount = collectedTreasuryFees;
+        collectedTreasuryFees = 0;
+        
+        usdcToken.safeTransfer(treasuryAddress, amount);
+        emit TreasuryFeesCollected(amount);
     }
 }

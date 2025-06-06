@@ -2,8 +2,6 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-// Using our SafeDecimalMath for consistent decimal operations
-import "../../common/libraries/SafeDecimalMath.sol";
 
 /**
  * @title FundingRateLib
@@ -12,7 +10,6 @@ import "../../common/libraries/SafeDecimalMath.sol";
  * @dev All rates and prices are expected to be scaled by 1e18 (SafeDecimalMath.DEFAULT_DECIMAL_PRECISION).
  */
 library FundingRateLib {
-    using SafeDecimalMath for uint256;
 
     uint256 private constant ONE_HOUR_IN_SECONDS = 3600;
     uint256 private constant ONE_DAY_IN_SECONDS = 86400;
@@ -41,13 +38,12 @@ library FundingRateLib {
         require(params.fundingIntervalSeconds > 0, "FRL: Funding interval is zero");
 
         // Premium = (MarkPriceTWAP - IndexPriceTWAP) / IndexPriceTWAP
-        // To maintain precision with SafeDecimalMath (which scales results by 1e18):
-        // Premium = (Mark - Index).divideDecimal(Index)
+        // Scale by 1e18 for precision
         int256 premium;
         if (markPriceTwap >= indexPriceTwap) {
-            premium = int256((markPriceTwap - indexPriceTwap).divideDecimal(indexPriceTwap));
+            premium = int256(Math.mulDiv(markPriceTwap - indexPriceTwap, 1e18, indexPriceTwap));
         } else {
-            premium = -int256((indexPriceTwap - markPriceTwap).divideDecimal(indexPriceTwap));
+            premium = -int256(Math.mulDiv(indexPriceTwap - markPriceTwap, 1e18, indexPriceTwap));
         }
 
         // Basic funding rate is often just the premium averaged over the interval.
@@ -129,7 +125,7 @@ library FundingRateLib {
             isNegative = true;
         }
         
-        uint256 paymentMagnitude = absPositionSize.multiplyDecimal(absIndexDifference); // (absSize * absDiff) / 1e18
+        uint256 paymentMagnitude = Math.mulDiv(absPositionSize, absIndexDifference, 1e18); // (absSize * absDiff) / 1e18
 
         return isNegative ? -int256(paymentMagnitude) : int256(paymentMagnitude);
     }
