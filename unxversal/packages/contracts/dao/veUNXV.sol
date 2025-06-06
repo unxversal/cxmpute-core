@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
@@ -282,9 +282,9 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
         _delegateCheckpoints[delegatee].push(uint32(block.number), uint224(newVotes));
         
         // Update total supply
-        uint256 totalSupply = _totalSupply();
-        require(totalSupply <= type(uint224).max, "veUNXV: total supply exceeds uint224 max");
-        _totalCheckpoints.push(uint32(block.number), uint224(totalSupply));
+        uint256 currentTotalSupply = _totalSupply();
+        require(currentTotalSupply <= type(uint224).max, "veUNXV: total supply exceeds uint224 max");
+        _totalCheckpoints.push(uint32(block.number), uint224(currentTotalSupply));
     }
 
     function _calculateVotingPower(LockedBalance memory lock) internal view returns (uint256) {

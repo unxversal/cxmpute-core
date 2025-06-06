@@ -2,15 +2,16 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title ISynthToken
  * @author Unxversal Team
  * @notice Interface for synthetic asset (sAsset) tokens.
- * @dev Extends IERC20 with a controlled minting function. Burning is handled
- *      via ERC20Burnable's `burnFrom` by an authorized controller.
+ * @dev Extends IERC20 and IERC20Metadata with a controlled minting function. 
+ *      Burning is handled via ERC20Burnable's `burnFrom` by an authorized controller.
  */
-interface ISynthToken is IERC20 {
+interface ISynthToken is IERC20, IERC20Metadata {
     /**
      * @notice Mints new synth tokens to an account.
      * @dev Typically only callable by a trusted minter (e.g., USDCVault).
@@ -18,12 +19,6 @@ interface ISynthToken is IERC20 {
      * @param amount The amount of tokens to mint.
      */
     function mint(address to, uint256 amount) external;
-
-    /**
-     * @notice Returns the number of decimals for the token.
-     * @return The number of decimals (typically 18 for most ERC20 tokens).
-     */
-    function decimals() external view returns (uint8);
 
     /**
      * @notice Burns tokens from an account, reducing the total supply.

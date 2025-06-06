@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 // IERC20 and SafeERC20 are not directly needed here if CorePool handles all token movements based on approvals.
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -26,13 +26,15 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
 
     // Max percentage of a single borrowed asset's outstanding balance that can be repaid in one liquidation call.
     uint256 public closeFactorBps; // e.g., 5000 for 50% (0-10000 BPS)
+    
+    uint256 public constant BPS_DENOMINATOR = 10000;
 
     event LiquidationCall(
         address indexed liquidator,
         address indexed borrower,
         address indexed debtAssetRepaid,
         uint256 amountDebtRepaid,       // In debt asset's native decimals
-        address indexed collateralAssetSeized,
+        address collateralAssetSeized,
         uint256 amountCollateralSeized, // In collateral asset's native decimals
         uint256 debtRepaidUsdValue,     // USD value of debt repaid (1e18 scaled)
         uint256 collateralSeizedUsdValue // USD value of collateral seized (1e18 scaled, includes bonus)
@@ -75,7 +77,7 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
     }
 
     function setCloseFactor(uint256 _newCloseFactorBps) external onlyOwner {
-        require(_newCloseFactorBps > 0 && _newCloseFactorBps <= LendRiskController.BPS_DENOMINATOR,
+        require(_newCloseFactorBps > 0 && _newCloseFactorBps <= BPS_DENOMINATOR,
             "LLE: Invalid close factor");
         closeFactorBps = _newCloseFactorBps;
         emit CloseFactorSet(_newCloseFactorBps);
@@ -111,10 +113,10 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         require(riskController.isAccountLiquidatable(borrower), "LLE: Account not liquidatable");
 
         // 2. Get market configs from RiskController
-        LendRiskController.MarketRiskConfig memory debtConfig = riskController.marketRiskConfigs(debtAssetToRepay);
-        LendRiskController.MarketRiskConfig memory collConfig = riskController.marketRiskConfigs(collateralAssetToSeize);
-        require(debtConfig.isListed, "LLE: Debt asset not listed");
-        require(collConfig.isListed && collConfig.canBeCollateral, "LLE: Collateral asset not valid");
+        (bool debtIsListed,,,,,, uint256 debtOracleAssetId, uint8 debtUnderlyingDecimals) = riskController.marketRiskConfigs(debtAssetToRepay);
+        (bool collIsListed, bool collCanBeCollateral,,, uint256 collLiquidationBonusBps,, uint256 collOracleAssetId, uint8 collUnderlyingDecimals) = riskController.marketRiskConfigs(collateralAssetToSeize);
+        require(debtIsListed, "LLE: Debt asset not listed");
+        require(collIsListed && collCanBeCollateral, "LLE: Collateral asset not valid");
 
         // 3. Accrue interest for relevant markets in CorePool before reading balances
         // Note: CorePool's repayBorrowBehalfByEngine and seizeAndTransferCollateral should handle their own accruals.
@@ -127,27 +129,26 @@ contract LendLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         (, uint256 borrowerDebtBalance) = corePool.getUserSupplyAndBorrowBalance(borrower, debtAssetToRepay);
         require(borrowerDebtBalance > 0, "LLE: Borrower has no debt for this asset");
 
-        uint256 maxRepayableByCloseFactor = Math.mulDiv(borrowerDebtBalance, closeFactorBps, LendRiskController.BPS_DENOMINATOR);
+        uint256 maxRepayableByCloseFactor = Math.mulDiv(borrowerDebtBalance, closeFactorBps, BPS_DENOMINATOR);
         uint256 actualAmountDebtToRepay = Math.min(amountToRepay, maxRepayableByCloseFactor);
         actualAmountDebtToRepay = Math.min(actualAmountDebtToRepay, borrowerDebtBalance);
         require(actualAmountDebtToRepay > 0, "LLE: Calculated repay amount is zero");
 
         // 5. Calculate USD value of the debt being repaid
-        uint256 debtAssetPrice = oracle.getPrice(debtConfig.oracleAssetId); // 1e18 scaled USD per whole unit
-        uint256 debtRepaidUsdValue = Math.mulDiv(actualAmountDebtToRepay, debtAssetPrice, (10**debtConfig.underlyingDecimals));
+        uint256 debtAssetPrice = oracle.getPrice(debtOracleAssetId); // 1e18 scaled USD per whole unit
+        uint256 debtRepaidUsdValue = Math.mulDiv(actualAmountDebtToRepay, debtAssetPrice, (10**debtUnderlyingDecimals));
         require(debtRepaidUsdValue > 0, "LLE: Debt repaid USD value is zero");
 
         // 6. Calculate USD value of collateral to seize (debt repaid + bonus from collateral asset's config)
-        uint256 liquidationBonusBps = collConfig.liquidationBonusBps;
-        require(liquidationBonusBps > 0, "LLE: Liquidation bonus not set for collateral"); // Bonus should typically be > 0
+        require(collLiquidationBonusBps > 0, "LLE: Liquidation bonus not set for collateral"); // Bonus should typically be > 0
 
-        uint256 bonusValueUsd = Math.mulDiv(debtRepaidUsdValue, liquidationBonusBps, LendRiskController.BPS_DENOMINATOR);
+        uint256 bonusValueUsd = Math.mulDiv(debtRepaidUsdValue, collLiquidationBonusBps, BPS_DENOMINATOR);
         uint256 totalCollateralToSeizeUsdValue = debtRepaidUsdValue + bonusValueUsd;
 
         // 7. Convert seizeable USD value to amount of collateral asset
-        uint256 collateralAssetPrice = oracle.getPrice(collConfig.oracleAssetId);
+        uint256 collateralAssetPrice = oracle.getPrice(collOracleAssetId);
         require(collateralAssetPrice > 0, "LLE: Collateral price is zero");
-        uint256 amountCollateralToSeize = Math.mulDiv(totalCollateralToSeizeUsdValue, (10**collConfig.underlyingDecimals), collateralAssetPrice);
+        uint256 amountCollateralToSeize = Math.mulDiv(totalCollateralToSeizeUsdValue, (10**collUnderlyingDecimals), collateralAssetPrice);
         require(amountCollateralToSeize > 0, "LLE: Calculated seize amount is zero");
 
         // 8. Liquidator (msg.sender) must have approved CorePool for `actualAmountDebtToRepay` of `debtAssetToRepay`.

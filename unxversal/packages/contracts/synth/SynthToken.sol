@@ -57,7 +57,7 @@ contract SynthToken is ERC20, ERC20Burnable, AccessControlEnumerable, ISynthToke
      * @param account The account whose tokens will be burnt.
      * @param amount The amount of tokens to burn.
      */
-    function burnFrom(address account, uint256 amount) public virtual override {
+    function burnFrom(address account, uint256 amount) public virtual override(ERC20Burnable, ISynthToken) {
         require(hasRole(BURNER_ROLE, _msgSender()), "SynthToken: Caller is not a burner");
         // The allowance check is handled by super.burnFrom() in ERC20Burnable
         super.burnFrom(account, amount);

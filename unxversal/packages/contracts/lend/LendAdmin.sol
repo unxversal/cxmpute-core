@@ -175,7 +175,7 @@ contract LendAdmin is ProtocolAdminAccess {
         // Or add specific update functions in LendRiskController.
         // Assuming LendRiskController.listMarket handles updates by checking if market already listed.
         address uTokenAddr = corePool.getUTokenForUnderlying(underlyingAsset); // Need this for LRC's listMarket
-        uint256 currentOracleAssetId = lendRiskController.marketRiskConfigs(underlyingAsset).oracleAssetId; // Preserve current
+        (,,,,,, uint256 currentOracleAssetId,) = lendRiskController.marketRiskConfigs(underlyingAsset); // Preserve current
 
         lendRiskController.listMarket(
             underlyingAsset, uTokenAddr, canBeCollateral,

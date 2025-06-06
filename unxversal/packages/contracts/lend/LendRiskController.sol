@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // For decimals()
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol"; // For decimals()
 import "../common/interfaces/IOracleRelayer.sol";
 import "./interfaces/ICorePool.sol";
 import "./uToken.sol"; // To cast uToken address and call exchangeRateStored
@@ -85,7 +85,7 @@ contract LendRiskController is Ownable {
 
         MarketRiskConfig storage config = marketRiskConfigs[underlyingAsset];
         uint256 resolvedOracleId = _oracleAssetId;
-        uint8 underlyingDecs = IERC20(underlyingAsset).decimals(); // Fetch decimals
+        uint8 underlyingDecs = IERC20Metadata(underlyingAsset).decimals(); // Fetch decimals
 
         if (resolvedOracleId == 0 && address(synthFactory) != address(0) && synthFactory.isSynthRegistered(underlyingAsset)) {
             SynthFactory.SynthConfig memory synthConf = synthFactory.getSynthConfig(underlyingAsset);

@@ -86,4 +86,7 @@ interface IUSDCVault {
     /// @notice Gets user's synth position data
     function getUserSynthPosition(address user, address synthAddress) 
         external view returns (uint256 amountMinted, uint256 totalUsdValueAtMint);
+    
+    /// @notice Gets user's USDC collateral balance
+    function getUserCollateral(address user) external view returns (uint256);
 } 

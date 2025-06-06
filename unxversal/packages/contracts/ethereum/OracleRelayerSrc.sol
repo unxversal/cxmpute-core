@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol"; // For error messages
 import "../interfaces/ILayerZeroEndpoint.sol"; // Assumes ILayerZeroEndpoint.sol is in packages/contracts/interfaces/
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
