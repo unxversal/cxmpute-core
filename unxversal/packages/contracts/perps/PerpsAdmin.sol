@@ -71,6 +71,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
      * @notice Lists a new market or updates parameters of an existing one in PerpClearingHouse.
      * @param marketId Unique identifier for the market (e.g., keccak256("BTC-PERP")).
      * @param underlyingAssetIdOracle Asset ID for fetching mark price from IOracleRelayer.
+     * @param spotIndexOracleAddress Address of the oracle for fetching spot price.
      * @param maxLeverage Max leverage allowed, e.g., 2000 for 20x (scaled by 100).
      * @param imrBps Initial Margin Ratio in BPS (e.g., 500 for 5%).
      * @param mmrBps Maintenance Margin Ratio in BPS (e.g., 250 for 2.5%).
@@ -82,6 +83,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
     function configureMarketDetails(
         bytes32 marketId, // Using bytes32 for marketId
         uint256 underlyingAssetIdOracle,
+        address spotIndexOracleAddress,
         uint256 maxLeverage,
         uint256 imrBps,
         uint256 mmrBps,
@@ -92,7 +94,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
     ) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
         perpClearingHouse.listOrUpdateMarketDetails(
-            marketId, underlyingAssetIdOracle, maxLeverage, imrBps, mmrBps,
+            marketId, underlyingAssetIdOracle, spotIndexOracleAddress, maxLeverage, imrBps, mmrBps,
             liqFeeBps, takerTradeFeeBps, makerTradeFeeBps, isActive
         );
     }
@@ -129,20 +131,23 @@ contract PerpsAdmin is ProtocolAdminAccess {
     /**
      * @notice Configures parameters for the PerpLiquidationEngine.
      * @param _insuranceFund Address of the insurance fund.
-     * @param _liquidatorShareOfLiqFeeBps Share of the market's `liqFeeBps` (from PerpClearingHouse)
-     *                                     that goes to the liquidator, in BPS (0-10000). Remainder to insurance.
-     * @param _maxOpenInterestToLiquidateBps Max % of a market's open interest a single liquidator can
-     *                                       take on or close out in one go (if engine manages this).
+     * @dev Other parameters are currently unused:
+     *      - _liquidatorShareOfLiqFeeBps: Liquidator share is passed per liquidation in processLiquidationFee
+     *      - _maxOpenInterestToLiquidateBps: Not implemented yet
      */
     function configurePerpLiquidationEngine(
         address _insuranceFund,
-        uint256 _liquidatorShareOfLiqFeeBps,
-        uint256 _maxOpenInterestToLiquidateBps // Example additional param
+        uint256 /* _liquidatorShareOfLiqFeeBps */,
+        uint256 /* _maxOpenInterestToLiquidateBps */ // Example additional param
     ) external onlyOwner {
+        require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
         require(address(perpLiquidationEngine) != address(0), "PerpsAdmin: Perp LE not set");
-        // PerpLiquidationEngine needs setters for these
-        perpLiquidationEngine.setInsuranceFund(_insuranceFund);
-        perpLiquidationEngine.setLiquidatorShareOfLiqFeeBps(_liquidatorShareOfLiqFeeBps);
+        
+        // Set insurance fund in ClearingHouse
+        perpClearingHouse.setInsuranceFund(_insuranceFund);
+        
+        // Note: Liquidator share is passed per liquidation in processLiquidationFee
+        // Note: maxOpenInterestToLiquidateBps is not implemented yet
         // perpLiquidationEngine.setMaxOpenInterestToLiquidateBps(_maxOpenInterestToLiquidateBps);
     }
 
@@ -153,7 +158,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
             perpClearingHouse.pause();
         }
         if (address(perpLiquidationEngine) != address(0) && !perpLiquidationEngine.paused()) {
-            perpLiquidationEngine.pause();
+            perpLiquidationEngine.pauseEngine();
         }
     }
 
@@ -162,7 +167,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
             perpClearingHouse.unpause();
         }
         if (address(perpLiquidationEngine) != address(0) && perpLiquidationEngine.paused()) {
-            perpLiquidationEngine.unpause();
+            perpLiquidationEngine.unpauseEngine();
         }
     }
 
@@ -189,11 +194,11 @@ contract PerpsAdmin is ProtocolAdminAccess {
         perpClearingHouse.setOracle(_oracle);
     }
 
-    function setClearingHouseFeeRecipient(address _recipient) external onlyOwner {
-         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
-        // PerpClearingHouse needs setFeeRecipient(address)
-        perpClearingHouse.setFeeRecipient(_recipient);
-    }
+    // Note: Fee recipient is managed through the PerpsFeeCollector contract
+    // function setClearingHouseFeeRecipient(address _recipient) external onlyOwner {
+    //     require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
+    //     perpClearingHouse.setFeeRecipient(_recipient);
+    // }
 
     function setClearingHouseLiquidationEngine(address _engine) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
@@ -201,10 +206,16 @@ contract PerpsAdmin is ProtocolAdminAccess {
         perpClearingHouse.setLiquidationEngineAddress(_engine);
     }
 
-     function setLiquidationEngineCoreDependencies(address _ch, address _oracle, address _usdc) external onlyOwner {
+    /**
+     * @notice Sets core dependencies for the PerpLiquidationEngine
+     * @param _ch Address of the PerpClearingHouse
+     * @dev Other parameters are unused since dependencies are obtained through clearing house:
+     *      - _oracle: Oracle is accessed through clearing house
+     *      - _usdc: USDC token is accessed through clearing house
+     */
+    function setLiquidationEngineCoreDependencies(address _ch, address /* _oracle */, address /* _usdc */) external onlyOwner {
         require(address(perpLiquidationEngine) != address(0), "PerpsAdmin: Perp LE not set");
+        // Note: Liquidation engine gets all dependencies through clearing house
         perpLiquidationEngine.setPerpClearingHouse(_ch);
-        perpLiquidationEngine.setOracle(_oracle);
-        perpLiquidationEngine.setMarginToken(_usdc); // Assuming USDC is the margin token
     }
 }
