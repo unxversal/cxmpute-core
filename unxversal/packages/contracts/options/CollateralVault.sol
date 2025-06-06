@@ -1,208 +1,117 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol"; // Owned by OptionsAdmin
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+
+import "./interfaces/ICollateralVault.sol";
 
 /**
  * @title CollateralVault
  * @author Unxversal Team
- * @notice Securely holds and manages collateral for written options.
- * @dev Interacts with OptionNFT contract to lock collateral from writers and release it
- *      upon option exercise or expiry. Only authorized contracts (OptionNFT) can trigger
- *      core lock/release functions pertaining to user collateral.
+ * @notice Securely manages collateral for options contracts
+ * @dev Simplified and production-ready implementation with proper access control
  */
-contract CollateralVault is Ownable, ReentrancyGuard, Pausable {
+contract CollateralVault is Ownable, ReentrancyGuard, Pausable, ICollateralVault {
     using SafeERC20 for IERC20;
 
-    // Address of the OptionNFT contract, authorized to instruct this vault.
+    // --- State Variables ---
     address public optionNFTContract;
+    
+    // Tracks locked collateral: user => token => optionId => amount
+    mapping(address => mapping(address => mapping(uint256 => uint256))) public lockedCollateral;
+    
+    // Total locked per user and token
+    mapping(address => mapping(address => uint256)) public totalLocked;
 
-    // Tracks locked collateral: seriesKey => writer => collateralToken => amount
-    // seriesKey is keccak256(underlying, quote, strike, expiry, isCall)
-    mapping(bytes32 => mapping(address => mapping(address => uint256))) public lockedCollateral;
+    // --- Events ---
+    event OptionNFTSet(address indexed optionNFT);
 
-    event CollateralLocked(
-        bytes32 indexed seriesKey,
-        address indexed writer,
-        address indexed collateralToken,
-        uint256 amountLocked
-    );
-    event CollateralReleasedForExercise(
-        bytes32 indexed seriesKey,
-        address indexed writer,
-        address indexed holder,
-        address payoutTokenToHolder,
-        uint256 payoutAmountToHolder,
-        address collateralTokenToWriter, // Token type returned to writer
-        uint256 amountCollateralReturnedToWriter // Portion of original collateral returned
-    );
-    event ExpiredCollateralReleased(
-        bytes32 indexed seriesKey,
-        address indexed writer,
-        address indexed collateralToken,
-        uint256 amountReturned
-    );
-    event OptionNFTContractSet(address indexed newOptionNFTAddress);
-
+    // --- Modifiers ---
     modifier onlyOptionNFT() {
-        require(msg.sender == optionNFTContract, "CV: Caller not OptionNFT");
+        require(msg.sender == optionNFTContract, "CollateralVault: Not authorized");
         _;
     }
 
-    /**
-     * @param _initialOwner The address of the OptionsAdmin contract.
-     * @param _optionNFTContractAddress The initial address of the OptionNFT contract.
-     */
-    constructor(address _initialOwner, address _optionNFTContractAddress) Ownable(_initialOwner) {
-        setOptionNFTContract(_optionNFTContractAddress); // Emits event
+    constructor(address _owner, address _optionNFT) Ownable(_owner) {
+        require(_optionNFT != address(0), "CollateralVault: Zero option NFT");
+        optionNFTContract = _optionNFT;
+        emit OptionNFTSet(_optionNFT);
     }
 
-    // --- Admin Functions (Callable by Owner - OptionsAdmin) ---
-    function setOptionNFTContract(address _newOptionNFTAddress) public onlyOwner {
-        require(_newOptionNFTAddress != address(0), "CV: Zero OptionNFT address");
-        optionNFTContract = _newOptionNFTAddress;
-        emit OptionNFTContractSet(_newOptionNFTAddress);
+    // --- Admin Functions ---
+    function setOptionNFTContract(address _optionNFT) external onlyOwner {
+        require(_optionNFT != address(0), "CollateralVault: Zero address");
+        optionNFTContract = _optionNFT;
+        emit OptionNFTSet(_optionNFT);
     }
 
-    function pauseActions() external onlyOwner { // Pauses lock/release functions
+    function pause() external onlyOwner {
         _pause();
     }
 
-    function unpauseActions() external onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
-    // --- Core Functions (Callable by OptionNFT contract) ---
-
-    /**
-     * @notice Locks collateral from a writer for a new batch of written options.
-     * @dev Called by OptionNFT. This vault pulls tokens from the writer.
-     * @param seriesKey Identifier for the option series.
-     * @param writer The address of the option writer.
-     * @param collateralToken The ERC20 token being locked as collateral.
-     * @param totalAmountToLock The total amount of collateralToken to lock.
-     */
+    // --- Core Functions ---
     function lockCollateral(
-        bytes32 seriesKey,
-        address writer,
-        address collateralToken,
-        uint256 totalAmountToLock
+        address user,
+        address token,
+        uint256 amount,
+        uint256 optionId
     ) external nonReentrant whenNotPaused onlyOptionNFT {
-        require(writer != address(0), "CV: Zero writer address");
-        require(collateralToken != address(0), "CV: Zero collateral token");
-        require(totalAmountToLock > 0, "CV: Zero lock amount");
+        require(user != address(0), "CollateralVault: Zero user");
+        require(token != address(0), "CollateralVault: Zero token");
+        require(amount > 0, "CollateralVault: Zero amount");
 
-        lockedCollateral[seriesKey][writer][collateralToken] += totalAmountToLock;
-        IERC20(collateralToken).safeTransferFrom(writer, address(this), totalAmountToLock);
+        lockedCollateral[user][token][optionId] = amount;
+        totalLocked[user][token] += amount;
 
-        emit CollateralLocked(seriesKey, writer, collateralToken, totalAmountToLock);
+        emit CollateralLocked(user, token, amount, optionId);
     }
 
-    /**
-     * @notice Releases collateral and/or payout upon option exercise.
-     * @dev Called by OptionNFT. Transfers assets from this vault.
-     * @param seriesKey Identifier for the option series.
-     * @param writer The original writer of the option.
-     * @param holder The current holder exercising the option.
-     * @param payoutTokenToHolder The token to be paid out to the holder.
-     * @param payoutAmountToHolder The amount of payoutTokenToHolder to send to the holder.
-     * @param strikePaymentTokenFromHolderForWriter For CALLS, this is quote asset. For PUTS, this is underlying.
-     *                                               This token comes from holder to writer (via this vault).
-     * @param strikePaymentAmountFromHolderForWriter Amount of strikePaymentToken.
-     * @param collateralAssetOriginallyLocked The asset type originally locked by the writer for this option.
-     * @param portionOfCollateralConsumedForPayout Amount of original collateral consumed for this exercise.
-     */
-    function releaseForExercise(
-        bytes32 seriesKey,
-        address writer,
-        address holder,
-        address payoutTokenToHolder,        // e.g., Underlying for Call, Quote for Put
-        uint256 payoutAmountToHolder,
-        address strikePaymentTokenFromHolderForWriter, // e.g., Quote for Call, Underlying for Put
-        uint256 strikePaymentAmountFromHolderForWriter,
-        address collateralAssetOriginallyLocked, // The token writer initially locked
-        uint256 portionOfCollateralConsumedForPayout // In units of collateralAssetOriginallyLocked
+    function releaseCollateral(
+        address user,
+        address token,
+        uint256 amount,
+        uint256 optionId
     ) external nonReentrant whenNotPaused onlyOptionNFT {
-        require(writer != address(0) && holder != address(0), "CV: Zero address");
-        require(payoutTokenToHolder != address(0), "CV: Zero payout token");
-        // payoutAmountToHolder can be 0 if OTM and still exercised (not typical, but possible if allowed by OptionNFT)
+        require(user != address(0), "CollateralVault: Zero user");
+        require(token != address(0), "CollateralVault: Zero token");
+        require(amount > 0, "CollateralVault: Zero amount");
 
-        // 1. Handle strike payment from holder (if any) -> to writer
-        // OptionNFT should ensure this vault has received the strike payment from holder before calling this.
-        // This function assumes strikePaymentAmountFromHolderForWriter is ALREADY in this vault, sent by OptionNFT.
-        if (strikePaymentAmountFromHolderForWriter > 0) {
-            require(strikePaymentTokenFromHolderForWriter != address(0), "CV: Zero strike payment token");
-            IERC20(strikePaymentTokenFromHolderForWriter).safeTransfer(writer, strikePaymentAmountFromHolderForWriter);
-        }
+        uint256 locked = lockedCollateral[user][token][optionId];
+        require(locked >= amount, "CollateralVault: Insufficient locked");
 
-        // 2. Update writer's locked collateral record
-        uint256 currentLocked = lockedCollateral[seriesKey][writer][collateralAssetOriginallyLocked];
-        require(currentLocked >= portionOfCollateralConsumedForPayout, "CV: Insufficient locked collateral");
-        lockedCollateral[seriesKey][writer][collateralAssetOriginallyLocked] = currentLocked - portionOfCollateralConsumedForPayout;
+        lockedCollateral[user][token][optionId] = locked - amount;
+        totalLocked[user][token] -= amount;
 
-        // 3. Payout to holder (from the consumed collateral)
-        if (payoutAmountToHolder > 0) {
-            // This payoutTokenToHolder must be the same as collateralAssetOriginallyLocked for a simple model
-            // OR this vault needs to manage diverse collateral pools.
-            // For now, assume payoutTokenToHolder IS the collateralAssetOriginallyLocked for calls/puts.
-            // e.g. Call: writer locks ETH, holder gets ETH. Put: writer locks USDC, holder gets USDC.
-            require(payoutTokenToHolder == collateralAssetOriginallyLocked, "CV: Payout token mismatch with locked collateral asset");
-            IERC20(payoutTokenToHolder).safeTransfer(holder, payoutAmountToHolder);
-        }
-        
-        // What if portionOfCollateralConsumedForPayout > payoutAmountToHolder? (e.g. ITM Puts where strike > underlying value)
-        // Example: ETH Put, Strike $3000. ETH price $2800. Holder gets $3000 USDC. Writer locked $3000 USDC.
-        // Here, payoutTokenToHolder = USDC, payoutAmountToHolder = 3000.
-        // collateralAssetOriginallyLocked = USDC, portionOfCollateralConsumed = 3000.
-        // Example: ETH Call, Strike $3000. ETH price $3200. Holder gets 1 ETH. Writer locked 1 ETH.
-        // Here, payoutTokenToHolder = ETH, payoutAmountToHolder = 1.
-        // collateralAssetOriginallyLocked = ETH, portionOfCollateralConsumed = 1.
+        // Transfer tokens to OptionNFT for distribution
+        IERC20(token).safeTransfer(optionNFTContract, amount);
 
-        emit CollateralReleasedForExercise(
-            seriesKey, writer, holder,
-            payoutTokenToHolder, payoutAmountToHolder,
-            strikePaymentTokenFromHolderForWriter, strikePaymentAmountFromHolderForWriter // This is what writer received
-        );
-    }
-
-
-    /**
-     * @notice Releases collateral back to the writer for an expired and unexercised option.
-     * @dev Called by OptionNFT.
-     * @param seriesKey Identifier for the option series.
-     * @param writer The address of the option writer.
-     * @param collateralToken The ERC20 token that was locked.
-     * @param amountToExpireAndReturn The amount of collateralToken to return.
-     */
-    function releaseExpiredCollateral(
-        bytes32 seriesKey,
-        address writer,
-        address collateralToken,
-        uint256 amountToExpireAndReturn
-    ) external nonReentrant whenNotPaused onlyOptionNFT {
-        require(writer != address(0), "CV: Zero writer");
-        require(collateralToken != address(0), "CV: Zero collateral token");
-        require(amountToExpireAndReturn > 0, "CV: Zero return amount");
-
-        uint256 currentLocked = lockedCollateral[seriesKey][writer][collateralToken];
-        require(currentLocked >= amountToExpireAndReturn, "CV: Exceeds locked collateral");
-        lockedCollateral[seriesKey][writer][collateralToken] = currentLocked - amountToExpireAndReturn;
-
-        IERC20(collateralToken).safeTransfer(writer, amountToExpireAndReturn);
-
-        emit ExpiredCollateralReleased(seriesKey, writer, collateralToken, amountToExpireAndReturn);
+        emit CollateralReleased(user, token, amount, optionId);
     }
 
     // --- View Functions ---
-    function getLockedCollateral(
-        bytes32 seriesKey,
-        address writer,
-        address collateralToken
+    function getLockedAmount(
+        address user,
+        address token,
+        uint256 optionId
     ) external view returns (uint256) {
-        return lockedCollateral[seriesKey][writer][collateralToken];
+        return lockedCollateral[user][token][optionId];
+    }
+
+    function getTotalLocked(address user, address token) external view returns (uint256) {
+        return totalLocked[user][token];
+    }
+
+    // --- Emergency Functions ---
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        require(token != address(0), "CollateralVault: Zero token");
+        IERC20(token).safeTransfer(owner(), amount);
     }
 }
