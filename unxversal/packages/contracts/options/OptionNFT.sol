@@ -434,7 +434,7 @@ contract OptionNFT is ERC721, ERC721Enumerable, ERC721URIStorage, ReentrancyGuar
         return keccak256(abi.encodePacked(underlying, quote, strike, expiry, isCall));
     }
 
-    function _getOracleAssetId(address asset, address quoteForContext, bool isCallForContext) internal view returns (uint256) {
+    function _getOracleAssetId(address asset, address /* quoteForContext */, bool /* isCallForContext */) internal pure returns (uint256) {
         // For V1, assume asset address itself can be used as assetId for oracle,
         // or a mapping is maintained in OptionsAdmin or here if complex.
         // This needs to map to what OracleRelayerDst expects.
@@ -487,7 +487,7 @@ contract OptionNFT is ERC721, ERC721Enumerable, ERC721URIStorage, ReentrancyGuar
         // writeAndListOptions parameters
         address underlying, address quote, uint256 strike, uint64 expiry, bool _isCall,
         uint256 quantity, uint256 premiumPerOption
-    ) external returns (uint256[] memory tokenIds) {
+    ) external returns (uint256[] memory /* tokenIds */) {
         require(owner == _msgSender(), "OptionNFT: Permit owner mismatch");
         // Determine collateralToken based on _isCall
         address collateralToken = _isCall ? underlying : quote;
