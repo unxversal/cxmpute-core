@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol"; // For admin functions directly on vault
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../common/interfaces/IOracleRelayer.sol";
@@ -57,31 +57,12 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
     uint256 public currentSurplusBuffer;   // USDC accumulated from fees/liquidations beyond covering debt
 
     // --- User Position Storage ---
-    struct SynthPositionData {
-        uint256 amountMinted;        // Total quantity of this sAsset minted by the user
-        uint256 totalUsdValueAtMint; // Aggregate USD value of `amountMinted` at the time(s) of minting
-    }
-
     struct UserPositionStorage {
         uint256 usdcCollateral;
         address[] synthAddresses;                    // Array of synth addresses user has minted
         mapping(address => SynthPositionData) synthPositions;
     }
     mapping(address => UserPositionStorage) private _userPositions;
-
-    // --- Events ---
-    event CollateralDeposited(address indexed user, uint256 amountUsdc);
-    event CollateralWithdrawn(address indexed user, uint256 amountUsdc);
-    event SynthMinted(
-        address indexed user, address indexed synthAddress, uint256 assetId,
-        uint256 amountSynthMinted, uint256 usdValueMinted, uint256 usdcCollateralizedForMint, uint256 feePaid
-    );
-    event SynthBurned(
-        address indexed user, address indexed synthAddress, uint256 assetId,
-        uint256 amountSynthBurned, uint256 usdValueRepaid, uint256 usdcReturned, uint256 feePaid
-    );
-    event PositionHealthUpdated(address indexed user, uint256 newCollateralRatioBps); // After an operation
-    event SurplusSweptToTreasury(uint256 amountSwpt);
     // Admin parameter change events
     event MinCollateralRatioSet(uint256 newMinCRbps);
     event MintFeeSet(uint256 newFeeBps);
@@ -101,10 +82,13 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
         address _initialOwner
     ) Ownable(_initialOwner) {
         require(_usdcTokenAddress != address(0), "Vault: Zero USDC address");
+        require(_oracleAddress != address(0), "Vault: Zero oracle address");
+        require(_synthFactoryAddress != address(0), "Vault: Zero synth factory address");
+        
         // require(IERC20(_usdcTokenAddress).decimals() == USDC_DECIMALS, "Vault: Incorrect USDC decimals"); // Can't call view on uninitialized contract in constructor
         usdcToken = IERC20(_usdcTokenAddress);
-        setOracle(_oracleAddress); // Emits event
-        setSynthFactory(_synthFactoryAddress); // Emits event
+        oracle = IOracleRelayer(_oracleAddress);
+        synthFactory = SynthFactory(_synthFactoryAddress);
         // Other params like fees, minCR, recipients are set by owner post-deployment
     }
 
@@ -183,7 +167,7 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
             uint256 effectiveMinCR = minCollateralRatioBps; // Default, can be overridden per synth, but this is for overall position
             // This check is simplified for overall health. A per-synth CR check upon withdrawal would be more complex.
             // For now, check against the general minCollateralRatioBps for the *total* debt.
-            uint256 currentTotalDebtValue = _getUserTotalDebtValue(_msgSender());
+            uint256 currentTotalDebtValue = totalMintedUsdValue;
             require(currentTotalDebtValue == 0 || (remainingCollateral * CR_DENOMINATOR / currentTotalDebtValue) >= effectiveMinCR,
                 "Vault: Withdrawal would make position undercollateralized");
         }
@@ -483,6 +467,10 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
 
     // --- View Functions ---
     function getCollateralizationRatio(address user) external view override returns (uint256 crBps) {
+        return _calculateCollateralizationRatio(user);
+    }
+
+    function _calculateCollateralizationRatio(address user) internal view returns (uint256 crBps) {
         UserPositionStorage storage userPos = _userPositions[user];
         if (userPos.usdcCollateral == 0) return type(uint256).max; // Infinite CR if no debt and no collateral, or 0 if debt
 
@@ -496,7 +484,7 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
     }
 
     function isPositionLiquidatable(address user) external view override returns (bool) {
-        uint256 currentCRbps = getCollateralizationRatio(user);
+        uint256 currentCRbps = _calculateCollateralizationRatio(user);
         // This needs to consider per-synth custom MinCR if any synth is driving the liquidation risk.
         // A simple check against global minCR:
         if (minCollateralRatioBps == 0) return false; // Not configured
@@ -597,8 +585,19 @@ contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
         if (totalDebt == 0) {
             emit PositionHealthUpdated(user, type(uint256).max);
         } else {
-            uint256 cr = getCollateralizationRatio(user);
+            uint256 cr = _calculateCollateralizationRatio(user);
             emit PositionHealthUpdated(user, cr);
         }
+    }
+
+    // --- Public Interface Methods ---
+    function getUserTotalDebtValue(address user) external view override returns (uint256) {
+        return _getUserTotalDebtValue(user);
+    }
+
+    function getUserSynthPosition(address user, address synthAddress) 
+        external view override returns (uint256 amountMinted, uint256 totalUsdValueAtMint) {
+        SynthPositionData storage synthPos = _userPositions[user].synthPositions[synthAddress];
+        return (synthPos.amountMinted, synthPos.totalUsdValueAtMint);
     }
 }

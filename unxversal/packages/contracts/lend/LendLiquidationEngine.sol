@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 // IERC20 and SafeERC20 are not directly needed here if CorePool handles all token movements based on approvals.
 import "@openzeppelin/contracts/utils/math/Math.sol";
 

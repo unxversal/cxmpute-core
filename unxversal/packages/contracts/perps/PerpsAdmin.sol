@@ -59,7 +59,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
         // Ensure PerpClearingHouse is updated if it's already set
         if (address(perpClearingHouse) != address(0)) {
             // PerpClearingHouse must have `setOracle(address)` and be owned by this admin contract
-            perpClearingHouse.setOracle(_newAddress);
+            perpClearingHouse.setMarkPriceOracle(_newAddress);
         }
         emit OracleRelayerSetForPerps(_newAddress);
     }
@@ -93,9 +93,19 @@ contract PerpsAdmin is ProtocolAdminAccess {
         bool isActive
     ) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
-        perpClearingHouse.listOrUpdateMarketDetails(
-            marketId, underlyingAssetIdOracle, spotIndexOracleAddress, maxLeverage, imrBps, mmrBps,
-            liqFeeBps, takerTradeFeeBps, makerTradeFeeBps, isActive
+        perpClearingHouse.listMarket(
+            marketId,
+            underlyingAssetIdOracle,
+            spotIndexOracleAddress,
+            maxLeverage,
+            imrBps, // maintenanceMarginBps
+            liqFeeBps, // liquidationFeeBps
+            uint256(takerTradeFeeBps), // takerFeeBps
+            int256(makerTradeFeeBps), // makerFeeBps
+            3600, // fundingIntervalSec (1 hour default)
+            75, // maxFundingRateBps (0.75% default)
+            1000, // fundingProtocolFeeBps (10% default)
+            10 * 1e6 // minPositionSizeUsdc ($10 minimum)
         );
     }
 
@@ -113,16 +123,18 @@ contract PerpsAdmin is ProtocolAdminAccess {
         uint256 fundingFeeBps // Protocol's cut of funding
     ) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
-        perpClearingHouse.setMarketFundingParameters(
-            marketId, fundingIntervalSeconds, maxFundingRateAbsValue, fundingFeeBps
-        );
+        // TODO: Implement funding parameter updates in PerpClearingHouse
+        // perpClearingHouse.setMarketFundingParameters(
+        //     marketId, fundingIntervalSeconds, maxFundingRateAbsValue, fundingFeeBps
+        // );
     }
 
     function setMarketSpotIndexOracle(bytes32 marketId, address spotIndexOracleAddress) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
+        // TODO: Implement spot index oracle updates in PerpClearingHouse
         // PerpClearingHouse needs: setSpotIndexOracle(bytes32 marketId, address spotOracle)
         // The spotOracle could be a TWAP from Unxversal DEX or another source.
-        perpClearingHouse.setMarketSpotIndexOracle(marketId, spotIndexOracleAddress);
+        // perpClearingHouse.setMarketSpotIndexOracle(marketId, spotIndexOracleAddress);
     }
 
     // --- PerpLiquidationEngine Configuration (Delegated Calls) ---
@@ -144,7 +156,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
         require(address(perpLiquidationEngine) != address(0), "PerpsAdmin: Perp LE not set");
         
         // Set insurance fund in ClearingHouse
-        perpClearingHouse.setInsuranceFund(_insuranceFund);
+        perpClearingHouse.setInsuranceFundAddress(_insuranceFund);
         
         // Note: Liquidator share is passed per liquidation in processLiquidationFee
         // Note: maxOpenInterestToLiquidateBps is not implemented yet
@@ -191,7 +203,7 @@ contract PerpsAdmin is ProtocolAdminAccess {
     
     function setClearingHouseOracle(address _oracle) external onlyOwner {
         require(address(perpClearingHouse) != address(0), "PerpsAdmin: ClearingHouse not set");
-        perpClearingHouse.setOracle(_oracle);
+        perpClearingHouse.setMarkPriceOracle(_oracle);
     }
 
     // Note: Fee recipient is managed through the PerpsFeeCollector contract

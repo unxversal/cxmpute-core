@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -50,7 +50,7 @@ contract GaugeController is Ownable {
     event TypeWeightUpdated(uint256 indexed gaugeType, uint256 weight);
     event VoteForGauge(address indexed user, address indexed gauge, uint256 weight);
 
-    constructor(address _token, address _veToken) {
+    constructor(address _token, address _veToken, address _owner) Ownable(_owner) {
         token = IERC20(_token);
         veToken = IVeUNXV(_veToken);
     }
@@ -104,10 +104,12 @@ contract GaugeController is Ownable {
         require(block.timestamp >= lastUserVote[msg.sender] + WEEK, "Can only vote once per week");
 
         // Get user's voting power
-        uint256 slope = veToken.get_last_user_slope(msg.sender);
-        uint256 lockEnd = veToken.locked__end(msg.sender);
-        require(lockEnd > block.timestamp, "No voting power");
-        uint256 power = slope * (lockEnd - block.timestamp);
+        uint256 power = veToken.getVotes(msg.sender);
+        require(power > 0, "No voting power");
+        
+        // Check if lock has expired
+        IVeUNXV.LockedBalance memory lockData = veToken.locked(msg.sender);
+        require(lockData.end > block.timestamp, "Lock expired");
 
         // Remove old vote
         uint256 oldWeight = voteUserPower[msg.sender][gaugeAddr];

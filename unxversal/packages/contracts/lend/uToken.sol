@@ -7,13 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol"; // uToken itself is Ownable by CorePool or LendAdmin for init
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-// Forward declaration or interface for CorePool to avoid circular deps if CorePool imports uToken interface
-interface ICorePool {
-    function accrueInterest(address underlyingAsset) external returns (uint256);
-    function totalBorrowsCurrent(address underlyingAsset) external view returns (uint256);
-    function totalReserves(address underlyingAsset) external view returns (uint256);
-    // Potentially other functions CorePool exposes that uToken might need, though uToken is usually passive.
-}
+import "./interfaces/ICorePool.sol";
 
 /**
  * @title uToken

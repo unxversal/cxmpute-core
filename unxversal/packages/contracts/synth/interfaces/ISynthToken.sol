@@ -19,6 +19,20 @@ interface ISynthToken is IERC20 {
      */
     function mint(address to, uint256 amount) external;
 
+    /**
+     * @notice Returns the number of decimals for the token.
+     * @return The number of decimals (typically 18 for most ERC20 tokens).
+     */
+    function decimals() external view returns (uint8);
+
+    /**
+     * @notice Burns tokens from an account, reducing the total supply.
+     * @dev Only callable by accounts with BURNER_ROLE.
+     * @param account The account whose tokens will be burnt.
+     * @param amount The amount of tokens to burn.
+     */
+    function burnFrom(address account, uint256 amount) external;
+
     // ERC20Burnable's `burnFrom(address account, uint256 amount)` will be used by the controller.
     // No separate `burn(address from, ...)` needed in this interface if controller uses `burnFrom`.
 }

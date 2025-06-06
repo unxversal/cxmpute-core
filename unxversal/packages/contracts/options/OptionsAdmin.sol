@@ -18,7 +18,7 @@ import "../common/interfaces/IOracleRelayer.sol";
 contract OptionsAdmin is ProtocolAdminAccess {
     OptionNFT public optionNFT;
     CollateralVault public collateralVault;
-    OptionsFeeSwitch public optionsFeeSwitch;
+    OptionFeeSwitch public optionsFeeSwitch;
     IOracleRelayer public oracleRelayer; // Used by OptionNFT for exercise prices
 
     // Parameters that might be global to the options protocol
@@ -58,7 +58,7 @@ contract OptionsAdmin is ProtocolAdminAccess {
 
     function setOptionsFeeSwitch(address _newFeeSwitchAddress) public onlyOwner {
         require(_newFeeSwitchAddress != address(0), "OptionsAdmin: Zero OptionsFeeSwitch");
-        optionsFeeSwitch = OptionsFeeSwitch(_newFeeSwitchAddress);
+        optionsFeeSwitch = OptionFeeSwitch(_newFeeSwitchAddress);
         emit OptionsFeeSwitchSet(_newFeeSwitchAddress);
     }
 

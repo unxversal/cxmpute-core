@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/interfaces/IERC5805.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/Checkpoints.sol";
+import "@openzeppelin/contracts/interfaces/IERC5805.sol";
 
 /**
  * @title VeUNXV
@@ -18,6 +18,12 @@ import "@openzeppelin/contracts/utils/Checkpoints.sol";
 contract VeUNXV is ReentrancyGuard, IERC5805 {
     using SafeERC20 for IERC20;
     using Checkpoints for Checkpoints.Trace224;
+
+    // --- Structs ---
+    struct LockedBalance {
+        int128 amount;
+        uint256 end;
+    }
 
     // --- Constants ---
     uint256 public constant WEEK = 7 days;
@@ -32,7 +38,7 @@ contract VeUNXV is ReentrancyGuard, IERC5805 {
     uint8 public constant decimals = 18;
 
     // Locking mechanism
-    mapping(address => LockedBalance) public override locked;
+    mapping(address => LockedBalance) public locked;
     uint256 public supply;
 
     // Delegation 

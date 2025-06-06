@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol"; // For factory ownership
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./SynthToken.sol"; // The actual SynthToken implementation
 import "../common/interfaces/IOracleRelayer.sol"; // For storing and validating oracle interface
 
@@ -84,8 +84,8 @@ contract SynthFactory is Ownable, Pausable {
         synthAddress = address(newSynth);
 
         // Grant Minter and Burner roles to the controller (USDCVault)
-        newSynth.grantRole(SynthToken.MINTER_ROLE, controllerAddress);
-        newSynth.grantRole(SynthToken.BURNER_ROLE, controllerAddress);
+        newSynth.grantRole(newSynth.MINTER_ROLE(), controllerAddress);
+        newSynth.grantRole(newSynth.BURNER_ROLE(), controllerAddress);
 
         // Store configuration
         synthConfigsByAddress[synthAddress] = SynthConfig({
@@ -140,8 +140,9 @@ contract SynthFactory is Ownable, Pausable {
         require(config.isRegistered, "SF: Synth not registered");
         require(newAdmin != address(0), "SF: New admin is zero address");
 
-        SynthToken(synthAddress).grantRole(SynthToken.DEFAULT_ADMIN_ROLE, newAdmin);
-        SynthToken(synthAddress).renounceRole(SynthToken.DEFAULT_ADMIN_ROLE, address(this));
+        SynthToken synthToken = SynthToken(synthAddress);
+        synthToken.grantRole(synthToken.DEFAULT_ADMIN_ROLE(), newAdmin);
+        synthToken.renounceRole(synthToken.DEFAULT_ADMIN_ROLE(), address(this));
         emit SynthAdminRoleTransferred(synthAddress, newAdmin);
     }
 
