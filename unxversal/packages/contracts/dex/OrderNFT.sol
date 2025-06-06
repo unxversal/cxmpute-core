@@ -14,204 +14,327 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
 /* ──────────────── Project deps ──────────────── */
-import "./DexFeeSwitch.sol";
+import "./structs/SOrder.sol";
+import "../interfaces/dex/IOrderNFT.sol";
+import "../interfaces/dex/IDexFeeSwitch.sol";
 import "./utils/PermitHelper.sol";
-import "../interfaces/structs/SPermit2.sol";
-import "../interfaces/IPermit2.sol";
 
 /**
  * @title OrderNFT
  * @author Unxversal Team
- * @notice ERC-721 that escrows sell-tokens and represents a limit order.
+ * @notice ERC-721 that escrows sell-tokens and represents limit/TWAP orders
  */
-contract OrderNFT is ERC721, ERC721Enumerable, ERC721URIStorage, ReentrancyGuard, Ownable {
+contract OrderNFT is IOrderNFT, ERC721, ERC721Enumerable, ERC721URIStorage, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     /* ──────────────── Storage ──────────────── */
 
-    struct Order {
-        address  maker;
-        uint32   expiry;
-        uint24   feeBpsTaken;
-        uint8    sellDecimals;
-        uint256  amountInitial;
-        uint256  amountRemaining;
-        address  sellToken;
-        address  buyToken;
-        uint256  price;          // PRICE_PRECISION scaled
-        bool     isConcluded;
+    // Regular limit orders
+    mapping(uint256 => OrderLayout) public orders;
+    
+    // TWAP orders with additional token fields
+    struct TWAPOrderStorage {
+        uint256 totalAmount;      // Total amount to sell
+        uint256 amountPerPeriod;  // Amount to sell per period
+        uint256 period;           // Time between executions (e.g. 1 hour)
+        uint256 lastExecutionTime;// Last time the TWAP was executed
+        uint256 executedAmount;   // Total amount executed so far
+        uint256 minPrice;         // Minimum price to execute at
+        address sellToken;        // Token being sold
+        address buyToken;         // Token being bought
     }
-
-    mapping(uint256 => Order) public orders;
+    mapping(uint256 => TWAPOrderStorage) public twapOrders;
+    
     uint256 private _nextTokenId;
 
-    DexFeeSwitch public immutable dexFeeSwitch;
+    IDexFeeSwitch public immutable dexFeeSwitch;
     PermitHelper public immutable permitHelper;
 
     uint256 public constant PRICE_PRECISION = 1e18;
-    uint256 public constant MAX_FEE_BPS     = 1000; // 10 %
+    uint256 public constant MAX_FEE_BPS = 1000; // 10%
     uint256 public constant BPS_DENOMINATOR = 10_000;
-
-    /* ──────────────── Events ──────────────── */
-    // ↳ max. 3 indexed parameters allowed
-    event OrderCreated(
-        uint256 indexed tokenId,
-        address indexed maker,
-        address indexed sellToken,
-        address buyToken,
-        uint256 price,
-        uint256 amountInitial,
-        uint32  expiry,
-        uint8   sellDecimals,
-        uint24  feeBps
-    );
-
-    event OrderFilled(
-        uint256 indexed tokenId,
-        address indexed taker,
-        address indexed maker,
-        uint256 amountSold,
-        uint256 amountBoughtNet,
-        uint256 feeAmount,
-        uint256 amountRemainingInOrder
-    );
-
-    event OrderCancelled(
-        uint256 indexed tokenId,
-        address  indexed maker,
-        uint256 amountReturned
-    );
+    uint256 public constant MIN_TWAP_PERIOD = 5 minutes;
+    uint256 public constant MAX_TWAP_PERIOD = 7 days;
 
     /* ──────────────── Constructor ──────────────── */
     constructor(
         string memory name_,
         string memory symbol_,
-        address      _dexFeeSwitch,
-        address      _permitHelper,
-        address      initialOwner
+        address _dexFeeSwitch,
+        address _permitHelper,
+        address initialOwner
     ) ERC721(name_, symbol_) Ownable(initialOwner) {
-        require(_dexFeeSwitch  != address(0), "OrderNFT: fee switch 0");
-        require(_permitHelper  != address(0), "OrderNFT: permit helper 0");
-        dexFeeSwitch = DexFeeSwitch(_dexFeeSwitch);
+        require(_dexFeeSwitch != address(0), "OrderNFT: fee switch 0");
+        require(_permitHelper != address(0), "OrderNFT: permit helper 0");
+        dexFeeSwitch = IDexFeeSwitch(_dexFeeSwitch);
         permitHelper = PermitHelper(_permitHelper);
     }
 
-    /* ──────────────── Order creation (manual approve) ──────────────── */
+    /* ──────────────── External functions ──────────────── */
+
+    /// @inheritdoc IOrderNFT
     function createOrder(
-        address sellTokenAddr,
-        address buyTokenAddr,
-        uint256 pricePerUnitOfSellToken,
-        uint256 amountToSell,
-        uint32  expiry_,
-        uint8   sellDecimals_,
-        uint24  orderFeeBps_
-    ) external nonReentrant returns (uint256 tokenId) {
-        /* validation */
-        require(sellTokenAddr != address(0) && buyTokenAddr != address(0), "OrderNFT: zero token");
-        require(sellTokenAddr != buyTokenAddr,                         "OrderNFT: same token");
-        require(amountToSell   > 0,                                    "OrderNFT: zero amount");
-        require(pricePerUnitOfSellToken > 0,                           "OrderNFT: zero price");
-        require(expiry_  > block.timestamp,                            "OrderNFT: expiry past");
-        require(orderFeeBps_ <= MAX_FEE_BPS,                           "OrderNFT: fee > max");
+        address sellToken,
+        address buyToken,
+        uint256 price,
+        uint256 amount,
+        uint32 expiry,
+        uint8 sellDecimals,
+        uint24 feeBps
+    ) external override nonReentrant returns (uint256 tokenId) {
+        require(sellToken != address(0) && buyToken != address(0), "OrderNFT: zero token");
+        require(sellToken != buyToken, "OrderNFT: same token");
+        require(amount > 0, "OrderNFT: zero amount");
+        require(price > 0, "OrderNFT: zero price");
+        require(expiry > block.timestamp, "OrderNFT: expiry past");
+        require(feeBps <= MAX_FEE_BPS, "OrderNFT: fee > max");
 
-        /* escrow sell-token */
-        IERC20(sellTokenAddr).safeTransferFrom(msg.sender, address(this), amountToSell);
+        // Pull sell token
+        IERC20(sellToken).safeTransferFrom(msg.sender, address(this), amount);
 
-        /* mint order NFT */
+        // Create order
         tokenId = ++_nextTokenId;
-        orders[tokenId] = Order({
-            maker:           msg.sender,
-            expiry:          expiry_,
-            feeBpsTaken:     orderFeeBps_,
-            sellDecimals:    sellDecimals_,
-            amountInitial:   amountToSell,
-            amountRemaining: amountToSell,
-            sellToken:       sellTokenAddr,
-            buyToken:        buyTokenAddr,
-            price:           pricePerUnitOfSellToken,
-            isConcluded:     false
+        orders[tokenId] = OrderLayout({
+            maker: msg.sender,
+            expiry: expiry,
+            feeBps: feeBps,
+            sellDecimals: sellDecimals,
+            amountRemaining: amount,
+            sellToken: sellToken,
+            buyToken: buyToken,
+            price: price
         });
 
         _safeMint(msg.sender, tokenId);
 
         emit OrderCreated(
-            tokenId, msg.sender, sellTokenAddr, buyTokenAddr, pricePerUnitOfSellToken,
-            amountToSell, expiry_, sellDecimals_, orderFeeBps_
+            tokenId,
+            msg.sender,
+            sellToken,
+            buyToken,
+            price,
+            amount,
+            expiry,
+            sellDecimals,
+            feeBps
         );
     }
 
-    /* ──────────────── Filling orders ──────────────── */
+    /// @inheritdoc IOrderNFT
+    function createTWAPOrder(
+        address sellToken,
+        address buyToken,
+        uint256 totalAmount,
+        uint256 amountPerPeriod,
+        uint256 period,
+        uint256 minPrice
+    ) external override nonReentrant returns (uint256 tokenId) {
+        require(sellToken != address(0) && buyToken != address(0), "OrderNFT: zero token");
+        require(sellToken != buyToken, "OrderNFT: same token");
+        require(totalAmount > 0, "OrderNFT: zero total");
+        require(amountPerPeriod > 0, "OrderNFT: zero period amount");
+        require(amountPerPeriod <= totalAmount, "OrderNFT: period > total");
+        require(period >= MIN_TWAP_PERIOD, "OrderNFT: period too short");
+        require(period <= MAX_TWAP_PERIOD, "OrderNFT: period too long");
+        require(minPrice > 0, "OrderNFT: zero min price");
+
+        // Pull sell token
+        IERC20(sellToken).safeTransferFrom(msg.sender, address(this), totalAmount);
+
+        // Create TWAP order
+        tokenId = ++_nextTokenId;
+        twapOrders[tokenId] = TWAPOrderStorage({
+            totalAmount: totalAmount,
+            amountPerPeriod: amountPerPeriod,
+            period: period,
+            lastExecutionTime: block.timestamp,
+            executedAmount: 0,
+            minPrice: minPrice,
+            sellToken: sellToken,
+            buyToken: buyToken
+        });
+
+        _safeMint(msg.sender, tokenId);
+
+        emit TWAPOrderCreated(
+            tokenId,
+            msg.sender,
+            totalAmount,
+            amountPerPeriod,
+            period,
+            minPrice
+        );
+    }
+
+    /// @inheritdoc IOrderNFT
     function fillOrders(
         uint256[] calldata tokenIds,
-        uint256[] calldata amountsToFill /* sell-token amounts */
-    ) external nonReentrant {
-        require(tokenIds.length == amountsToFill.length && tokenIds.length != 0,
-                "OrderNFT: length mismatch");
+        uint256[] calldata fillAmounts,
+        FillParams calldata params
+    ) external override nonReentrant returns (uint256[] memory amountsBought) {
+        require(tokenIds.length == fillAmounts.length && tokenIds.length > 0, "OrderNFT: length mismatch");
+        require(block.timestamp <= params.deadline, "OrderNFT: deadline passed");
+        require(tx.gasprice <= params.maxGasPrice, "OrderNFT: gas price too high");
 
         address taker = msg.sender;
+        amountsBought = new uint256[](tokenIds.length);
+        uint256 totalBuyAmount;
 
-        for (uint256 i; i < tokenIds.length; ++i) {
-            uint256 tokenId  = tokenIds[i];
-            uint256 wantSell = amountsToFill[i];
-            require(wantSell > 0, "OrderNFT: zero fill");
+        // First pass - validate and calculate amounts
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
+            uint256 tokenId = tokenIds[i];
+            uint256 wantSell = fillAmounts[i];
+            require(wantSell >= params.minFillAmount, "OrderNFT: fill < min");
 
-            Order storage o = orders[tokenId];
-            require(!o.isConcluded,                "OrderNFT: concluded");
-            require(ownerOf(tokenId) == o.maker,   "OrderNFT: maker no hold");
-            require(block.timestamp < o.expiry,    "OrderNFT: expired");
-            require(o.amountRemaining > 0,         "OrderNFT: filled");
+            OrderLayout storage o = orders[tokenId];
+            require(ownerOf(tokenId) == o.maker, "OrderNFT: maker no hold");
+            require(block.timestamp < o.expiry, "OrderNFT: expired");
+            require(o.amountRemaining > 0, "OrderNFT: no amount left");
 
             uint256 sellAmt = Math.min(wantSell, o.amountRemaining);
             uint256 buyGross = Math.mulDiv(sellAmt, o.price, PRICE_PRECISION);
 
-            uint256 fee = (buyGross * o.feeBpsTaken) / BPS_DENOMINATOR;
+            // Calculate fee based on taker's tier
+            IDexFeeSwitch.FeeTier memory tier = dexFeeSwitch.getUserFeeTier(taker);
+            uint256 fee = (buyGross * tier.feeBps) / BPS_DENOMINATOR;
             uint256 buyNet = buyGross - fee;
 
-            /* taker pays buyToken */
+            require(buyNet >= params.minAmountOut, "OrderNFT: slippage");
+
+            // Track amounts for second pass
+            amountsBought[i] = buyNet;
+            totalBuyAmount += buyGross;
+        }
+
+        // Second pass - execute trades
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
+            uint256 tokenId = tokenIds[i];
+            uint256 wantSell = fillAmounts[i];
+            OrderLayout storage o = orders[tokenId];
+
+            uint256 sellAmt = Math.min(wantSell, o.amountRemaining);
+            uint256 buyGross = Math.mulDiv(sellAmt, o.price, PRICE_PRECISION);
+
+            // Calculate and distribute fees
+            IDexFeeSwitch.FeeTier memory tier = dexFeeSwitch.getUserFeeTier(taker);
+            uint256 fee = (buyGross * tier.feeBps) / BPS_DENOMINATOR;
+            
+            // Handle buy token transfers
             IERC20(o.buyToken).safeTransferFrom(taker, address(this), buyGross);
 
             if (fee > 0) {
                 IERC20(o.buyToken).approve(address(dexFeeSwitch), fee);
-                dexFeeSwitch.depositFee(o.buyToken, address(this), fee);
+                dexFeeSwitch.depositFee(o.buyToken, taker, fee, params.relayer);
             }
-            if (buyNet > 0) IERC20(o.buyToken).safeTransfer(o.maker, buyNet);
 
-            /* taker receives sellToken */
+            uint256 buyNet = buyGross - fee;
+            if (buyNet > 0) {
+                IERC20(o.buyToken).safeTransfer(o.maker, buyNet);
+            }
+
+            // Handle sell token transfer
             IERC20(o.sellToken).safeTransfer(taker, sellAmt);
 
-            /* state update */
+            // Update state
             o.amountRemaining -= sellAmt;
-            if (o.amountRemaining == 0) o.isConcluded = true;
 
             emit OrderFilled(
-                tokenId, taker, o.maker, sellAmt, buyNet, fee, o.amountRemaining
+                tokenId,
+                taker,
+                o.maker,
+                sellAmt,
+                buyNet,
+                fee,
+                o.amountRemaining
             );
         }
     }
 
-    /* ──────────────── Cancel order ──────────────── */
-    function cancelOrder(uint256 tokenId) external nonReentrant {
-        Order storage o = orders[tokenId];
-        require(ownerOf(tokenId) == msg.sender, "OrderNFT: not owner");
-        require(o.maker           == msg.sender, "OrderNFT: not maker");
-        require(!o.isConcluded,                 "OrderNFT: done");
+    /// @inheritdoc IOrderNFT
+    function executeTWAPOrder(uint256 tokenId) external override nonReentrant returns (uint256) {
+        TWAPOrderStorage storage twap = twapOrders[tokenId];
+        require(twap.totalAmount > 0, "OrderNFT: not TWAP");
+        require(block.timestamp >= twap.lastExecutionTime + twap.period, "OrderNFT: too early");
+        require(twap.executedAmount < twap.totalAmount, "OrderNFT: complete");
 
-        uint256 refund = o.amountRemaining;
-        o.amountRemaining = 0;
-        o.isConcluded     = true;
+        uint256 remaining = twap.totalAmount - twap.executedAmount;
+        uint256 executeAmount = Math.min(twap.amountPerPeriod, remaining);
 
-        if (refund > 0) IERC20(o.sellToken).safeTransfer(o.maker, refund);
-        emit OrderCancelled(tokenId, o.maker, refund);
+        // TODO: Implement market order execution logic here
+        // This would typically involve:
+        // 1. Getting current market price
+        // 2. Checking against minPrice
+        // 3. Executing the trade
+        // 4. Updating state
+
+        twap.lastExecutionTime = block.timestamp;
+        twap.executedAmount += executeAmount;
+
+        emit TWAPOrderExecuted(
+            tokenId,
+            executeAmount,
+            0, // Received amount from market execution
+            twap.totalAmount - twap.executedAmount
+        );
+
+        return executeAmount;
     }
 
-    /* ──────────────── Permit helpers (unchanged) ──────────────── */
-    /// …  (createOrderWithPermitERC2612 / createOrderWithPermit2 and _createOrderAuthorized unchanged)
-    /// For brevity, these functions are identical to the previous code block
-    /// and are omitted here. The compilation fixes concern only OZ-5 clashes.
+    /// @inheritdoc IOrderNFT
+    function cancelOrders(uint256[] calldata tokenIds) external override nonReentrant {
+        for (uint256 i = 0; i < tokenIds.length; ++i) {
+            uint256 tokenId = tokenIds[i];
+        require(ownerOf(tokenId) == msg.sender, "OrderNFT: not owner");
+
+            // Handle regular orders
+            OrderLayout storage o = orders[tokenId];
+            if (o.maker == msg.sender && o.amountRemaining > 0) {
+        uint256 refund = o.amountRemaining;
+        o.amountRemaining = 0;
+                if (refund > 0) {
+                    IERC20(o.sellToken).safeTransfer(msg.sender, refund);
+                }
+                emit OrderCancelled(tokenId, msg.sender, refund);
+                continue;
+            }
+
+            // Handle TWAP orders
+            TWAPOrderStorage storage twap = twapOrders[tokenId];
+            if (twap.totalAmount > 0) {
+                uint256 refund = twap.totalAmount - twap.executedAmount;
+                if (refund > 0) {
+                    IERC20(twap.sellToken).safeTransfer(msg.sender, refund);
+                }
+                delete twapOrders[tokenId];
+                emit OrderCancelled(tokenId, msg.sender, refund);
+            }
+        }
+    }
+
+    /* ──────────────── View functions ──────────────── */
+
+    /// @inheritdoc IOrderNFT
+    function getOrder(uint256 tokenId) external view override returns (OrderLayout memory) {
+        return orders[tokenId];
+    }
+
+    /// @inheritdoc IOrderNFT
+    function getTWAPOrder(uint256 tokenId) external view override returns (TWAPOrder memory) {
+        TWAPOrderStorage storage twap = twapOrders[tokenId];
+        return TWAPOrder({
+            totalAmount: twap.totalAmount,
+            amountPerPeriod: twap.amountPerPeriod,
+            period: twap.period,
+            lastExecutionTime: twap.lastExecutionTime,
+            executedAmount: twap.executedAmount,
+            minPrice: twap.minPrice
+        });
+    }
 
     /* ──────────────── Metadata ──────────────── */
     function _baseURI() internal pure override returns (string memory) {
-        return "https://example.com/";
+        return "https://metadata.unxversal.xyz/order/";
     }
 
     function tokenURI(uint256 tokenId)

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol"; // For decimals()
 import "../common/interfaces/IOracleRelayer.sol";
-import "./interfaces/ICorePoolLens.sol";
+import "./interfaces/ICorePool.sol";
 import "./uToken.sol"; // To cast uToken address and call exchangeRateStored
 import "../synth/SynthFactory.sol"; // Optional, for sAsset oracleAssetId resolution
 // SafeDecimalMath is not strictly needed here if we use Math.mulDiv correctly for all price scaling.
@@ -30,7 +30,7 @@ contract LendRiskController is Ownable {
     mapping(address => MarketRiskConfig) public marketRiskConfigs; // underlyingAssetAddress => Config
     address[] public listedAssets;
 
-    ICorePoolLens public corePool;
+    ICorePool public corePool;
     IOracleRelayer public oracle;
     SynthFactory public synthFactory; // Optional
 
@@ -58,7 +58,7 @@ contract LendRiskController is Ownable {
 
     function setCorePool(address _corePoolAddress) public onlyOwner {
         require(_corePoolAddress != address(0), "LRC: Zero CorePool");
-        corePool = ICorePoolLens(_corePoolAddress);
+        corePool = ICorePool(_corePoolAddress);
         emit CorePoolSet(_corePoolAddress);
     }
 

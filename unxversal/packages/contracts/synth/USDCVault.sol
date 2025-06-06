@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "../common/interfaces/IOracleRelayer.sol";
 import "./interfaces/ISynthToken.sol";
+import "./interfaces/IUSDCVault.sol";
 import "./SynthFactory.sol"; // To get synth info like assetId and customMinCR
 
 // Using ProtocolAdminAccess if admin functions are primarily delegated,
@@ -24,8 +25,9 @@ import "./SynthFactory.sol"; // To get synth info like assetId and customMinCR
  * @dev Users deposit USDC to mint sAssets. Positions are subject to liquidation if CR falls.
  *      Fees are collected on mint/burn. Tracks USD value of minted sAssets at time of minting.
  */
-contract USDCVault is Ownable, ReentrancyGuard, Pausable {
+contract USDCVault is IUSDCVault, Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     // --- Constants ---
     uint8 public constant USDC_DECIMALS = 6; // Standard USDC decimals
@@ -60,11 +62,12 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         uint256 totalUsdValueAtMint; // Aggregate USD value of `amountMinted` at the time(s) of minting
     }
 
-    struct UserPosition {
-        uint256 usdcCollateral; // Total USDC deposited by the user
-        mapping(address => SynthPositionData) synthSpecifics; // sAssetAddress => SynthPositionData
+    struct UserPositionStorage {
+        uint256 usdcCollateral;
+        address[] synthAddresses;                    // Array of synth addresses user has minted
+        mapping(address => SynthPositionData) synthPositions;
     }
-    mapping(address => UserPosition) public positions; // userAddress => UserPosition
+    mapping(address => UserPositionStorage) private _userPositions;
 
     // --- Events ---
     event CollateralDeposited(address indexed user, uint256 amountUsdc);
@@ -156,23 +159,23 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
     // --- User Functions ---
 
     /** @notice User deposits USDC into their collateral balance. */
-    function depositCollateral(uint256 amountUsdc) external nonReentrant whenNotPaused {
+    function depositCollateral(uint256 amountUsdc) external override nonReentrant whenNotPaused {
         require(amountUsdc > 0, "Vault: Zero deposit amount");
         usdcToken.safeTransferFrom(_msgSender(), address(this), amountUsdc);
-        positions[_msgSender()].usdcCollateral += amountUsdc;
+        _userPositions[_msgSender()].usdcCollateral += amountUsdc;
         emit CollateralDeposited(_msgSender(), amountUsdc);
         // Optionally, update health factor if they have existing debt
         _updateAndEmitHealth(_msgSender());
     }
 
     /** @notice User withdraws available USDC collateral. */
-    function withdrawCollateral(uint256 amountUsdc) external nonReentrant whenNotPaused {
+    function withdrawCollateral(uint256 amountUsdc) external override nonReentrant whenNotPaused {
         require(amountUsdc > 0, "Vault: Zero withdrawal amount");
-        UserPosition storage userPos = positions[_msgSender()];
+        UserPositionStorage storage userPos = _userPositions[_msgSender()];
         require(userPos.usdcCollateral >= amountUsdc, "Vault: Insufficient collateral balance");
 
         // Calculate total USD value of all minted synths for this user
-        uint256 totalMintedUsdValue = _getTotalMintedUsdValue(_msgSender());
+        uint256 totalMintedUsdValue = _getUserTotalDebtValue(_msgSender());
         
         // Calculate remaining collateral and check CR
         uint256 remainingCollateral = userPos.usdcCollateral - amountUsdc;
@@ -180,7 +183,7 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
             uint256 effectiveMinCR = minCollateralRatioBps; // Default, can be overridden per synth, but this is for overall position
             // This check is simplified for overall health. A per-synth CR check upon withdrawal would be more complex.
             // For now, check against the general minCollateralRatioBps for the *total* debt.
-            uint256 currentTotalDebtValue = _getCurrentTotalDebtUsdValue(_msgSender());
+            uint256 currentTotalDebtValue = _getUserTotalDebtValue(_msgSender());
             require(currentTotalDebtValue == 0 || (remainingCollateral * CR_DENOMINATOR / currentTotalDebtValue) >= effectiveMinCR,
                 "Vault: Withdrawal would make position undercollateralized");
         }
@@ -197,13 +200,13 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
      * @param synthAddress The address of the sAsset token to mint.
      * @param amountSynthToMint The quantity of sAsset to mint (in sAsset's native decimals, e.g., 1e18 for 1 sBTC).
      */
-    function mintSynth(address synthAddress, uint256 amountSynthToMint) external nonReentrant whenNotPaused {
+    function mintSynth(address synthAddress, uint256 amountSynthToMint) external override nonReentrant whenNotPaused {
         require(synthFactory.isSynthRegistered(synthAddress), "Vault: Synth not registered");
         require(amountSynthToMint > 0, "Vault: Zero mint amount");
         require(feeRecipient != address(0), "Vault: Fee recipient not set");
 
 
-        UserPosition storage userPos = positions[_msgSender()];
+        UserPositionStorage storage userPos = _userPositions[_msgSender()];
         SynthFactory.SynthConfig memory synthConfig = synthFactory.getSynthConfig(synthAddress);
         uint256 sAssetDecimals = ISynthToken(synthAddress).decimals(); // Assumes sAssets have decimals()
 
@@ -223,15 +226,18 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         require(effectiveMinCRbps > 0, "Vault: MinCR not set");
 
         // Calculate total current USD value of ALL outstanding sAssets for this user AFTER this mint
-        uint256 newTotalDebtUsdValue = _getCurrentTotalDebtUsdValue(_msgSender()) + usdValueToMintNetOfFee;
+        uint256 newTotalDebtUsdValue = _getUserTotalDebtValue(_msgSender()) + usdValueToMintNetOfFee;
         
         // Check overall position health
         require(newTotalDebtUsdValue == 0 || (userPos.usdcCollateral * CR_DENOMINATOR / newTotalDebtUsdValue) >= effectiveMinCRbps,
             "Vault: Insufficient collateral for new CR");
 
         // Update user's position
-        userPos.synthSpecifics[synthAddress].amountMinted += amountSynthToMint;
-        userPos.synthSpecifics[synthAddress].totalUsdValueAtMint += usdValueToMintNetOfFee; // Track net USD value added to debt
+        if (userPos.synthPositions[synthAddress].amountMinted == 0) {
+            userPos.synthAddresses.push(synthAddress);
+        }
+        userPos.synthPositions[synthAddress].amountMinted += amountSynthToMint;
+        userPos.synthPositions[synthAddress].totalUsdValueAtMint += usdValueToMintNetOfFee; // Track net USD value added to debt
 
         // Collect fee in USDC by deducting from user's collateral (or user pre-pays)
         // For simplicity, assume fee is effectively part of the collateralization requirement
@@ -268,25 +274,25 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
      * @param synthAddress The address of the sAsset token to burn.
      * @param amountSynthToBurn The quantity of sAsset to burn.
      */
-    function burnSynth(address synthAddress, uint256 amountSynthToBurn) external nonReentrant whenNotPaused {
+    function burnSynth(address synthAddress, uint256 amountSynthToBurn) external override nonReentrant whenNotPaused {
         require(synthFactory.isSynthRegistered(synthAddress), "Vault: Synth not registered");
         require(amountSynthToBurn > 0, "Vault: Zero burn amount");
         require(feeRecipient != address(0), "Vault: Fee recipient not set");
 
-        UserPosition storage userPos = positions[_msgSender()];
-        SynthPositionData storage synthPosData = userPos.synthSpecifics[synthAddress];
+        UserPositionStorage storage userPos = _userPositions[_msgSender()];
+        SynthPositionData storage synthPos = userPos.synthPositions[synthAddress];
         SynthFactory.SynthConfig memory synthConfig = synthFactory.getSynthConfig(synthAddress);
          uint256 sAssetDecimals = ISynthToken(synthAddress).decimals();
 
-        require(synthPosData.amountMinted >= amountSynthToBurn, "Vault: Insufficient sAsset balance to burn");
+        require(synthPos.amountMinted >= amountSynthToBurn, "Vault: Insufficient sAsset balance to burn");
 
         // Calculate USD value of the debt portion being repaid (based on average value at mint)
         uint256 usdValueToRepay;
-        if (synthPosData.amountMinted > 0) { // Avoid div by zero if amountMinted was somehow 0
+        if (synthPos.amountMinted > 0) { // Avoid div by zero if amountMinted was somehow 0
              usdValueToRepay = Math.mulDiv(
                 amountSynthToBurn,
-                synthPosData.totalUsdValueAtMint,
-                synthPosData.amountMinted
+                synthPos.totalUsdValueAtMint,
+                synthPos.amountMinted
             );
         } else { // Should not happen if amountSynthToBurn > 0 and amountMinted >= amountSynthToBurn
             revert("Vault: Inconsistent synth position state");
@@ -301,13 +307,13 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         // This check is implicit: we deduct from totalUsdcCollateral later.
 
         // Check CR of REMAINING position (if any)
-        uint256 remainingMintedAmount = synthPosData.amountMinted - amountSynthToBurn;
+        uint256 remainingMintedAmount = synthPos.amountMinted - amountSynthToBurn;
         if (remainingMintedAmount > 0) {
-            uint256 remainingUsdValueAtMint = synthPosData.totalUsdValueAtMint - usdValueToRepay;
+            uint256 remainingUsdValueAtMint = synthPos.totalUsdValueAtMint - usdValueToRepay;
             uint256 remainingTotalCollateral = userPos.usdcCollateral - usdcToReturnToUser - feeUsd; // Collateral after this burn
             
             // Calculate current USD value of ALL remaining minted sAssets (not just this one)
-            uint256 tempTotalDebtUsdValue = _getCurrentTotalDebtUsdValueExcludingSynthPortion(
+            uint256 tempTotalDebtUsdValue = _getUserTotalDebtValueExcludingSynthPortion(
                 _msgSender(), synthAddress, amountSynthToBurn, usdValueToRepay
             );
 
@@ -326,8 +332,8 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         ISynthToken(synthAddress).burnFrom(_msgSender(), amountSynthToBurn);
 
         // Update position state
-        synthPosData.amountMinted -= amountSynthToBurn;
-        synthPosData.totalUsdValueAtMint -= usdValueToRepay;
+        synthPos.amountMinted -= amountSynthToBurn;
+        synthPos.totalUsdValueAtMint -= usdValueToRepay;
         userPos.usdcCollateral -= (usdcToReturnToUser + feeUsd); // Deduct returned amount and fee
 
         // Transfer USDC to user and feeRecipient
@@ -339,8 +345,9 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         }
         
         // Clean up map entry if all of this synth is burned and value is zero
-        if (synthPosData.amountMinted == 0 && synthPosData.totalUsdValueAtMint == 0) {
-            delete userPos.synthSpecifics[synthAddress];
+        if (synthPos.amountMinted == 0 && synthPos.totalUsdValueAtMint == 0) {
+            _removeSynthFromArray(userPos.synthAddresses, synthAddress);
+            delete userPos.synthPositions[synthAddress];
         }
 
 
@@ -368,33 +375,33 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         address synthToRepayAddress,
         uint256 amountSynthToRepay,
         uint256 collateralToSeizeAmountUsdc // Amount of USDC liquidator gets
-    ) external nonReentrant whenNotPaused {
+    ) external override nonReentrant onlyLiquidationEngine {
         require(msg.sender == liquidationEngine, "Vault: Caller not liquidation engine");
         require(synthFactory.isSynthRegistered(synthToRepayAddress), "Vault: Synth not registered for liquidation");
 
-        UserPosition storage userPos = positions[user];
-        SynthPositionData storage synthPosData = userPos.synthSpecifics[synthToRepayAddress];
+        UserPositionStorage storage userPos = _userPositions[user];
+        SynthPositionData storage synthPos = userPos.synthPositions[synthToRepayAddress];
         SynthFactory.SynthConfig memory synthConfig = synthFactory.getSynthConfig(synthToRepayAddress);
 
-        require(synthPosData.amountMinted >= amountSynthToRepay, "Vault: Liq. repay > minted");
+        require(synthPos.amountMinted >= amountSynthToRepay, "Vault: Liq. repay > minted");
         require(userPos.usdcCollateral >= collateralToSeizeAmountUsdc, "Vault: Liq. seize > collateral");
 
         // Calculate USD value of the debt portion being repaid by liquidator
         // (based on average value at mint for the user's position)
         uint256 usdValueRepaidByLiquidator;
-        if (synthPosData.amountMinted > 0) {
+        if (synthPos.amountMinted > 0) {
              usdValueRepaidByLiquidator = Math.mulDiv(
                 amountSynthToRepay,
-                synthPosData.totalUsdValueAtMint,
-                synthPosData.amountMinted
+                synthPos.totalUsdValueAtMint,
+                synthPos.amountMinted
             );
         } else {
             revert("Vault: Liq. inconsistent synth position");
         }
 
         // Update user's position: reduce debt, reduce collateral
-        synthPosData.amountMinted -= amountSynthToRepay;
-        synthPosData.totalUsdValueAtMint -= usdValueRepaidByLiquidator;
+        synthPos.amountMinted -= amountSynthToRepay;
+        synthPos.totalUsdValueAtMint -= usdValueRepaidByLiquidator;
         userPos.usdcCollateral -= collateralToSeizeAmountUsdc;
 
         // The liquidator is assumed to have already burned the sAssets or provided them.
@@ -438,8 +445,9 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         // For now: User's collateral is reduced. The sAssets are considered repaid.
         // The actual movement of USDC from this vault to liquidator/surplus is TBD by LE's design.
 
-        if (synthPosData.amountMinted == 0 && synthPosData.totalUsdValueAtMint == 0) {
-            delete userPos.synthSpecifics[synthToRepayAddress];
+        if (synthPos.amountMinted == 0 && synthPos.totalUsdValueAtMint == 0) {
+            _removeSynthFromArray(userPos.synthAddresses, synthToRepayAddress);
+            delete userPos.synthPositions[synthToRepayAddress];
         }
 
         _updateAndEmitHealth(user);
@@ -474,11 +482,11 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
 
 
     // --- View Functions ---
-    function getCollateralizationRatio(address user) public view returns (uint256 crBps) {
-        UserPosition storage userPos = positions[user];
+    function getCollateralizationRatio(address user) external view override returns (uint256 crBps) {
+        UserPositionStorage storage userPos = _userPositions[user];
         if (userPos.usdcCollateral == 0) return type(uint256).max; // Infinite CR if no debt and no collateral, or 0 if debt
 
-        uint256 totalDebtUsd = _getCurrentTotalDebtUsdValue(user);
+        uint256 totalDebtUsd = _getUserTotalDebtValue(user);
         if (totalDebtUsd == 0) return type(uint256).max; // Infinite CR if no debt
 
         // CR = (Collateral USD / Debt USD) * CR_DENOMINATOR
@@ -487,7 +495,7 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
         return Math.mulDiv(collateralUsdValue, CR_DENOMINATOR, totalDebtUsd);
     }
 
-    function isPositionLiquidatable(address user) public view returns (bool) {
+    function isPositionLiquidatable(address user) external view override returns (bool) {
         uint256 currentCRbps = getCollateralizationRatio(user);
         // This needs to consider per-synth custom MinCR if any synth is driving the liquidation risk.
         // A simple check against global minCR:
@@ -509,93 +517,33 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
     }
 
     // --- Internal Helper Functions ---
-    function _getTotalMintedUsdValue(address user) internal view returns (uint256 totalUsdValue) {
-        // This is the sum of `totalUsdValueAtMint` across all sAssets for the user.
-        // Iterating a mapping is not possible on-chain directly in Solidity.
-        // This function would require off-chain computation or storing a running total for the user.
-        // For on-chain CR checks during operations, we calculate it based on known synth involved.
-        // For a generic view, this is problematic.
-        // Let's assume this is the "book value" of their total debt.
-        // For calculating current CR, we need current value of minted synths.
-
-        // This function is actually not needed if we always calculate current debt value.
-        // The important value is `_getCurrentTotalDebtUsdValue`.
-        revert("Vault: _getTotalMintedUsdValue deprecated, use _getCurrentTotalDebtUsdValue");
-    }
-
-    function _getCurrentTotalDebtUsdValue(address user) internal view returns (uint256 totalCurrentUsdValue) {
-        UserPosition storage userPos = positions[user];
-        // This requires iterating userPos.synthSpecifics, which is a mapping.
-        // This cannot be done directly in a view function if we don't know which synths user has.
-        // This function is critical for CR calculation.
-        // Options:
-        // 1. User passes array of their minted synth addresses.
-        // 2. Store an array of minted synth addresses per user (gas heavy for storage).
-        // 3. Off-chain calculates this; on-chain operations recalculate for specific synth.
-
-        // For on-chain operations like mint/burn/withdraw, we work with specific synths
-        // or the full list if provided. For a general view function, this is tough.
-        // Let's assume this helper is called INTERNALLY where the list of synths is enumerable
-        // or we are calculating it iteratively.
+    function _getUserTotalDebtValue(address user) internal view returns (uint256 totalValue) {
+        UserPositionStorage storage userPos = _userPositions[user];
         
-        // This function is primarily for on-chain logic that needs the *current* value.
-        // It would be called by iterating over a known set of user's synths or for a specific synth.
-        // The public `getCollateralizationRatio` will need a way to get this.
-        // For now, let this be a placeholder for the concept.
-        // The actual CR calculation in mint/burn will be more direct for the involved synths.
-        
-        // This function is complex to implement generically on-chain.
-        // It's better if CR checks are done in context of operations.
-        // I will remove this generic helper and embed logic in mint/burn/withdraw.
-        revert("Vault: _getCurrentTotalDebtUsdValue needs context of synths");
-        return 0;
-    }
-
-    function _getCurrentTotalDebtUsdValueForHealthCheck(address user) internal view returns (uint256 totalCurrentUsdValue_) {
-        // This would require knowing all synths a user has minted.
-        // For a simplified health check emit, this is hard.
-        // The LiquidationEngine will need to iterate or be provided this by liquidator.
-        // For emitting health, we might only be able to do it accurately after an op involving one synth.
-        // This is a known challenge in CDP systems without on-chain iteration of all debts.
-        // For `_updateAndEmitHealth`, we might pass the latest CR if easily calculable.
-        UserPosition storage userPos = positions[user];
-        uint256 cumulativeDebt = 0;
-        // This loop is illustrative, cannot iterate mapping keys directly.
-        // Would need to iterate `deployedSynthAddresses` from factory and check if user has position.
-        for (uint i = 0; i < synthFactory.getDeployedSynthsCount(); i++) {
-            address synthAddr = synthFactory.getDeployedSynthAddressAtIndex(i);
-            if (userPos.synthSpecifics[synthAddr].amountMinted > 0) {
-                SynthFactory.SynthConfig memory synthConf = synthFactory.getSynthConfig(synthAddr);
-                 uint256 sAssetDecimals = ISynthToken(synthAddr).decimals();
-                uint256 price = oracle.getPrice(synthConf.assetId); // Assumes price is available
-                cumulativeDebt += Math.mulDiv(
-                    userPos.synthSpecifics[synthAddr].amountMinted, price, (10**sAssetDecimals)
-                );
+        for (uint256 i = 0; i < userPos.synthAddresses.length; i++) {
+            address synthAddress = userPos.synthAddresses[i];
+            SynthPositionData storage synthPos = userPos.synthPositions[synthAddress];
+            
+            if (synthPos.amountMinted > 0) {
+                // Get current price and calculate current debt value
+                SynthFactory.SynthConfig memory config = synthFactory.getSynthConfig(synthAddress);
+                uint256 currentPrice = oracle.getPrice(config.assetId);
+                uint256 synthDecimals = ISynthToken(synthAddress).decimals();
+                
+                uint256 currentValue = Math.mulDiv(synthPos.amountMinted, currentPrice, 10**synthDecimals);
+                totalValue += currentValue;
             }
         }
-        return cumulativeDebt;
     }
 
-
-    function _updateAndEmitHealth(address user) internal {
-        uint256 totalDebt = _getCurrentTotalDebtUsdValueForHealthCheck(user);
-        if (totalDebt == 0) {
-            emit PositionHealthUpdated(user, type(uint256).max);
-        } else {
-            uint256 collateralUsdValue = positions[user].usdcCollateral * (PRICE_PRECISION / (10**USDC_DECIMALS));
-            emit PositionHealthUpdated(user, Math.mulDiv(collateralUsdValue, CR_DENOMINATOR, totalDebt));
-        }
-    }
-
-    // Helper for burnSynth CR check on remaining position
-    function _getCurrentTotalDebtUsdValueExcludingSynthPortion(
+    function _getUserTotalDebtValueExcludingSynthPortion(
         address user, address synthBeingBurned, uint256 amountBurned, uint256 usdValueRepaid
     ) internal view returns (uint256 netTotalDebt) {
-        UserPosition storage userPos = positions[user];
+        UserPositionStorage storage userPos = _userPositions[user];
         // Iterate all synths, calculate current value, subtract the portion being conceptually removed
-        for (uint i = 0; i < synthFactory.getDeployedSynthsCount(); i++) {
-            address synthAddr = synthFactory.getDeployedSynthAddressAtIndex(i);
-            SynthPositionData storage spd = userPos.synthSpecifics[synthAddr];
+        for (uint i = 0; i < userPos.synthAddresses.length; i++) {
+            address synthAddr = userPos.synthAddresses[i];
+            SynthPositionData storage spd = userPos.synthPositions[synthAddr];
             if (spd.amountMinted > 0) {
                 SynthFactory.SynthConfig memory synthConf = synthFactory.getSynthConfig(synthAddr);
                 uint256 sAssetDecimals = ISynthToken(synthAddr).decimals();
@@ -618,7 +566,8 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
      * @param to Address to transfer USDC to
      * @param amountUsdc Amount of USDC to transfer
      */
-    function transferUSDCFromVault(address to, uint256 amountUsdc) external onlyLiquidationEngine {
+    function transferUSDCFromVault(address to, uint256 amountUsdc) external override onlyLiquidationEngine {
+        require(to != address(0), "Vault: zero address");
         usdcToken.safeTransfer(to, amountUsdc);
     }
 
@@ -627,7 +576,29 @@ contract USDCVault is Ownable, ReentrancyGuard, Pausable {
      * @dev Moves USDC from general pool to explicit surplusBuffer accounting
      * @param amountUsdc Amount of USDC to transfer to surplus buffer
      */
-    function transferUSDCFromVaultToSurplus(uint256 amountUsdc) external onlyLiquidationEngine {
+    function transferUSDCFromVaultToSurplus(uint256 amountUsdc) external override onlyLiquidationEngine {
         currentSurplusBuffer += amountUsdc;
+    }
+
+    function _removeSynthFromArray(address[] storage synthArray, address synthToRemove) internal {
+        for (uint256 i = 0; i < synthArray.length; i++) {
+            if (synthArray[i] == synthToRemove) {
+                synthArray[i] = synthArray[synthArray.length - 1];
+                synthArray.pop();
+                break;
+            }
+        }
+    }
+
+    function _updateAndEmitHealth(address user) internal {
+        uint256 totalDebt = _getUserTotalDebtValue(user);
+        uint256 collateral = _userPositions[user].usdcCollateral;
+        
+        if (totalDebt == 0) {
+            emit PositionHealthUpdated(user, type(uint256).max);
+        } else {
+            uint256 cr = getCollateralizationRatio(user);
+            emit PositionHealthUpdated(user, cr);
+        }
     }
 }

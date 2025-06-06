@@ -7,10 +7,11 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./USDCVault.sol";
-import "./SynthFactory.sol"; // To get synth info
+import "./interfaces/IUSDCVault.sol";
+import "./SynthFactory.sol";
 import "./interfaces/ISynthToken.sol";
-import "../common/interfaces/IOracleRelayer.sol"; // For oracle prices
+import "../common/interfaces/IOracleRelayer.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title SynthLiquidationEngine
@@ -21,8 +22,9 @@ import "../common/interfaces/IOracleRelayer.sol"; // For oracle prices
  */
 contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
-    USDCVault public usdcVault;
+    IUSDCVault public usdcVault;
     SynthFactory public synthFactory;
     IOracleRelayer public oracle;
     IERC20 public usdcToken; // For interacting with USDC
@@ -82,7 +84,7 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
 
     function setUSDCVault(address _vaultAddress) public onlyOwner {
         require(_vaultAddress != address(0), "SLE: Zero vault");
-        usdcVault = USDCVault(_vaultAddress);
+        usdcVault = IUSDCVault(_vaultAddress);
         emit VaultSet(_vaultAddress);
     }
     function setSynthFactory(address _factoryAddress) public onlyOwner {
@@ -134,16 +136,15 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         // Get synth details from factory and vault
         SynthFactory.SynthConfig memory synthConfig = synthFactory.getSynthConfig(synthToRepayAddress);
         require(synthConfig.isRegistered, "SLE: Synth not registered");
-        USDCVault.UserPosition storage userPos = usdcVault.positions(user); // Get storage pointer
-        USDCVault.SynthPositionData storage userSynthPos = userPos.synthSpecifics[synthToRepayAddress];
-
-        require(userSynthPos.amountMinted > 0, "SLE: User has no debt for this synth");
+        
+        (uint256 userSynthAmount, uint256 userSynthDebtValue) = usdcVault.getUserSynthPosition(user, synthToRepayAddress);
+        require(userSynthAmount > 0, "SLE: User has no debt for this synth");
 
         // 2. Determine actual amount of sAsset to liquidate (up to maxPortion or full debt)
-        uint256 maxRepayableSynth = (userSynthPos.amountMinted * maxLiquidationPortionBps) / BPS_DENOMINATOR;
+        uint256 maxRepayableSynth = (userSynthAmount * maxLiquidationPortionBps) / 10000;
         uint256 actualSynthToRepay = Math.min(amountSynthToRepay, maxRepayableSynth);
         require(actualSynthToRepay > 0, "SLE: Repay amount is zero after cap");
-        require(actualSynthToRepay <= userSynthPos.amountMinted, "SLE: Repay amount exceeds user debt for synth");
+        require(actualSynthToRepay <= userSynthAmount, "SLE: Repay amount exceeds user debt for synth");
 
         // 3. Liquidator provides sAssets: Burn sAssets from liquidator
         // Liquidator must have approved this contract for `actualSynthToRepay` of `synthToRepayAddress`.
@@ -151,26 +152,22 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
 
         // 4. Calculate USD value of the debt being repaid by liquidator for the user
         // This uses the user's average mint price for that sAsset to determine "book value" of debt cleared.
-        uint256 usdValueOfDebtClearedForUser;
-        if (userSynthPos.amountMinted > 0) { // Should be true due to earlier check
-            usdValueOfDebtClearedForUser = Math.mulDiv(
-                actualSynthToRepay,
-                userSynthPos.totalUsdValueAtMint,
-                userSynthPos.amountMinted // Use original total before this liquidation part
-            );
-        } else {
-            revert("SLE: Inconsistent state for debt value calc");
-        }
+        uint256 usdValueOfDebtClearedForUser = Math.mulDiv(
+            actualSynthToRepay,
+            userSynthDebtValue,
+            userSynthAmount
+        );
         
         // 5. Calculate total USDC value of collateral to take from user
         // This is the USD value of debt cleared + penalty on that value.
-        uint256 penaltyAmountUsd = (usdValueOfDebtClearedForUser * liquidationPenaltyBps) / BPS_DENOMINATOR;
+        uint256 penaltyAmountUsd = (usdValueOfDebtClearedForUser * liquidationPenaltyBps) / 10000;
         uint256 totalUsdcValueFromUser = usdValueOfDebtClearedForUser + penaltyAmountUsd;
 
         // Ensure user has enough collateral to cover this
         // Convert totalUsdcValueFromUser to USDC units (assuming 6 decimals for USDC)
-        uint256 usdcToTakeFromUser = totalUsdcValueFromUser * (10**USDCVault.USDC_DECIMALS) / PRICE_PRECISION;
-        require(userPos.usdcCollateral >= usdcToTakeFromUser, "SLE: Insufficient user collateral for liquidation");
+        uint256 usdcToTakeFromUser = totalUsdcValueFromUser * (10**6) / (10**18);
+        uint256 userCollateral = usdcVault.getUserCollateral(user);
+        require(userCollateral >= usdcToTakeFromUser, "SLE: Insufficient user collateral for liquidation");
 
         // 6. Update user's position in USDCVault: reduce debt, reduce collateral
         // This call tells USDCVault what happened.
@@ -183,8 +180,8 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         // It's currently "held" by this LiquidationEngine implicitly because USDCVault reduced user's balance.
         // Now, transfer it from USDCVault (which holds all USDC) to liquidator and surplus buffer.
 
-        uint256 liquidatorRewardUsd = (penaltyAmountUsd * liquidatorRewardShareBps) / BPS_DENOMINATOR;
-        uint256 usdcToLiquidator = liquidatorRewardUsd * (10**USDCVault.USDC_DECIMALS) / PRICE_PRECISION;
+        uint256 liquidatorRewardUsd = (penaltyAmountUsd * liquidatorRewardShareBps) / 10000;
+        uint256 usdcToLiquidator = liquidatorRewardUsd * (10**6) / (10**18);
         
         // The remaining part of `totalUsdcValueFromUser` goes to surplus/system.
         // `usdValueOfDebtClearedForUser` effectively covers the "hole" left by the sAsset debt.
@@ -192,7 +189,7 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
         // `liquidatorRewardUsd` is part of `penaltyAmountUsd`.
         // `surplusContributionUsd = penaltyAmountUsd - liquidatorRewardUsd`.
         uint256 surplusContributionUsd = penaltyAmountUsd - liquidatorRewardUsd;
-        uint256 usdcToSurplus = surplusContributionUsd * (10**USDCVault.USDC_DECIMALS) / PRICE_PRECISION;
+        uint256 usdcToSurplus = surplusContributionUsd * (10**6) / (10**18);
 
         // Transfer USDC from the Vault to liquidator and to surplus buffer (managed by Vault)
         if (usdcToLiquidator > 0) {
@@ -234,28 +231,31 @@ contract SynthLiquidationEngine is Ownable, ReentrancyGuard, Pausable {
     }
 
     // --- View Functions ---
-    /** @notice Checks if a user's specific synth position is liquidatable based on its current value and effective CR. */
-    function checkSynthLiquidatability(address user, address synthAddress)
-        external view returns (bool isLiquidatable, uint256 currentCRbps)
+    /** @notice Gets liquidation information for a user and synth */
+    function getLiquidationInfo(address user, address synthAddress)
+        external view returns (bool isLiquidatable, uint256 maxLiquidatableAmount, uint256 expectedReward)
     {
-        // This is a more focused check than vault's general one.
-        USDCVault.UserPosition memory userPos = usdcVault.positions(user); // Read from storage
-        if (userPos.usdcCollateral == 0) return (false, type(uint256).max);
-
-        SynthFactory.SynthConfig memory synthConfig = synthFactory.getSynthConfig(synthAddress);
-        if (!synthConfig.isRegistered || userPos.synthSpecifics[synthAddress].amountMinted == 0) {
-            return (false, usdcVault.getCollateralizationRatio(user)); // Return overall CR if this synth not part of debt
+        // Check if position is liquidatable
+        isLiquidatable = usdcVault.isPositionLiquidatable(user);
+        if (!isLiquidatable) {
+            return (false, 0, 0);
         }
 
-        uint256 currentTotalDebtUsd = usdcVault._getCurrentTotalDebtUsdValueForHealthCheck(user); // Uses the gas-heavy helper
-        if (currentTotalDebtUsd == 0) return (false, type(uint256).max);
+        // Get user's synth position
+        (uint256 userSynthAmount, uint256 userSynthDebtValue) = usdcVault.getUserSynthPosition(user, synthAddress);
+        if (userSynthAmount == 0) {
+            return (true, 0, 0);
+        }
 
-        uint256 collateralUsdValue = userPos.usdcCollateral * (PRICE_PRECISION / (10**USDCVault.USDC_DECIMALS));
-        currentCRbps = Math.mulDiv(collateralUsdValue, CR_DENOMINATOR, currentTotalDebtUsd);
-
-        uint256 effectiveMinCRbps = synthConfig.customMinCRbps > 0 ? synthConfig.customMinCRbps : usdcVault.minCollateralRatioBps();
+        // Calculate max liquidatable amount (respecting portion limit)
+        maxLiquidatableAmount = (userSynthAmount * maxLiquidationPortionBps) / 10000;
         
-        isLiquidatable = currentCRbps < effectiveMinCRbps && effectiveMinCRbps > 0;
-        return (isLiquidatable, currentCRbps);
+        // Calculate expected liquidator reward for max liquidation
+        uint256 usdValueRepaid = Math.mulDiv(maxLiquidatableAmount, userSynthDebtValue, userSynthAmount);
+        uint256 penaltyUsd = (usdValueRepaid * liquidationPenaltyBps) / 10000;
+        uint256 rewardUsd = (penaltyUsd * liquidatorRewardShareBps) / 10000;
+        expectedReward = rewardUsd * (10**6) / (10**18); // Convert to USDC
+        
+        return (isLiquidatable, maxLiquidatableAmount, expectedReward);
     }
 }
