@@ -113,7 +113,7 @@ export default function Dashboard({
                     <Text color={currentFigletColor}>{currentDolphin}</Text>
                 </Box>
 
-                <Box flexDirection="column" flexGrow={1} justifyContent="flex-start">
+                <Box flexDirection="column" justifyContent="flex-start" >
                     {/* Provider ID / Referral Code */}
                     <Box borderStyle="round" borderColor={currentFigletColor} paddingX={1} marginBottom={1} alignItems="flex-start">
                         <Text bold>PROVIDER/REFERRAL ID: </Text>
