@@ -11,12 +11,24 @@ import type { UserSessionData, DeviceDiagnostics } from '../lib/interfaces.js';
 
 // Model lists from your Tauri app's utils.ts (or get from orchestrator if dynamic)
 // These might be better defined in a shared constants file or received from orchestrator
-export const embeddingModelsList: string[] = [ /* ... your list ... */ ];
-export const chatCompletionModelsList: string[] = [ /* ... your list ... */ ];
+export const embeddingModelsList: string[] = [
+    'nomic-embed-text',
+    'mxbai-embed-large',
+    'all-minilm'
+];
+export const chatCompletionModelsList: string[] = [
+    'llama3.2:1b',
+    'llama3.2:3b', 
+    'llama3.1:8b',
+    'deepseek-r1:7b',
+    'qwen2.5:7b',
+    'mistral:7b',
+    'codellama:7b'
+];
 
 interface StartNodeResult {
     success: boolean;
-    url?: string; // Tunnelmole URL
+    url?: string; // ngrok URL
     message?: string;
 }
 
@@ -54,21 +66,39 @@ export async function startNode(
         // Determine which core services and specific models to enable/pull
         // This logic mimics Tauri App.tsx
         const filteredServices = orchestratorResponse.services.filter(serviceName => {
+            console.log("[startNode] Processing serviceName:", serviceName);
 
-            const cleanedServiceName = serviceName.startsWith('/') ? serviceName.substring(1) : serviceName;
-            console.log("[startNode] Processing serviceName:", serviceName, "cleaned:", cleanedServiceName);
-
-            if (embeddingModelsList.includes(cleanedServiceName)) {
-                console.log("[startNode] Identified embedding model:", cleanedServiceName);
-                modelsToPull.push({ name: cleanedServiceName, type: 'embedding' });
+            // Handle embedding services like "/embeddings:nomic-embed-text"
+            if (serviceName.startsWith('/embeddings:')) {
+                const modelName = serviceName.split(':')[1];
+                if (!modelName) {
+                    console.warn(`[startNode] Invalid embedding service format: ${serviceName}`);
+                    return false;
+                }
+                console.log("[startNode] Identified embedding service with model:", modelName);
+                if (embeddingModelsList.includes(modelName)) {
+                    modelsToPull.push({ name: modelName, type: 'embedding' });
                 if (!servicesToRunOnSidecar.includes('embeddings')) servicesToRunOnSidecar.push('embeddings');
                 return true;
-            } else if (chatCompletionModelsList.includes(cleanedServiceName)) {
-                console.log("[startNode] Identified chatCompletion model:", cleanedServiceName);
-                modelsToPull.push({ name: cleanedServiceName, type: 'llm' });
+                } else {
+                    console.warn(`[startNode] Embedding model ${modelName} not in supported list`);
+                    return false;
+                }
+            }
+            
+            // Handle direct LLM model names like "deepseek-r1:7b"
+            else if (chatCompletionModelsList.includes(serviceName)) {
+                console.log("[startNode] Identified chatCompletion model:", serviceName);
+                modelsToPull.push({ name: serviceName, type: 'llm' });
                 if (!servicesToRunOnSidecar.includes('ollama')) servicesToRunOnSidecar.push('ollama');
                 return true;
-            } else if (['tts', 'scrape'].includes(cleanedServiceName)) {
+            }
+            
+            // Handle other services
+            else {
+                const cleanedServiceName = serviceName.startsWith('/') ? serviceName.substring(1) : serviceName;
+                
+                if (['tts', 'scrape'].includes(cleanedServiceName)) {
                 console.log("[startNode] Identified core service:", cleanedServiceName);
                 if (!servicesToRunOnSidecar.includes(cleanedServiceName)) servicesToRunOnSidecar.push(cleanedServiceName);
                 return true;
@@ -76,13 +106,13 @@ export async function startNode(
             else if (cleanedServiceName === 'ollama' && !servicesToRunOnSidecar.includes('ollama')) {
                 console.log("[startNode] Identified generic ollama service");
                 servicesToRunOnSidecar.push('ollama');
-                // If 'ollama' service implies pulling some default chat models, add them to modelsToPull here.
                 return true;
             }
             else if (cleanedServiceName === 'embeddings' && !servicesToRunOnSidecar.includes('embeddings')) {
                 console.log("[startNode] Identified generic embeddings service");
                 servicesToRunOnSidecar.push('embeddings');
                 return true;
+                }
             }
 
             console.warn(`[startNode] Service ${serviceName} from orchestrator is not recognized or not supported by CLI.`);
@@ -148,8 +178,7 @@ export async function startNode(
             providerAk: session.providerAk,
             startedServices: filteredServices, // Send the original filtered list orchestrator decided on
             providedUrl: serverResult.url,
-            llmModels: modelsToPull.filter(m => m.type === 'llm').map(m => m.name),
-            embeddingsModels: modelsToPull.filter(m => m.type === 'embedding').map(m => m.name),
+            // Removed llmModels and embeddingsModels as server doesn't expect them
         });
         statusCallback("Node is online and connected to Cxmpute Cloud!");
         console.log("[startNode] Node is online and connected to Cxmpute Cloud!");

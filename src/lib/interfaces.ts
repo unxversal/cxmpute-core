@@ -82,6 +82,8 @@ export interface ProvisionRecord {
   providerId?: string;
   deviceDiagnostics?: DeviceDiagnostics;
   location?: Location;
+  username?: string;      // Added: User's display name for this provision
+  deviceName?: string;    // Added: User's nickname for this device
 }
 
 export interface LLMProvisionRecord {

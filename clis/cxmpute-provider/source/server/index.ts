@@ -4,7 +4,7 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import cors from 'cors';
 import portfinder from 'portfinder';
-import { tunnelmole } from 'tunnelmole';
+import ngrok from 'ngrok';
 import http from 'http'; // For server instance type
 
 // Import your API route handlers
@@ -31,7 +31,7 @@ interface StartServerParams {
 }
 
 interface StartServerResult {
-    url: string; // tunnelmole URL
+    url: string; // ngrok URL
     localPort: number;
     serverInstance: http.Server;
 }
@@ -93,7 +93,7 @@ export async function startLocalServer(params: StartServerParams): Promise<Start
     return new Promise<StartServerResult>((resolve, reject) => {
         currentServerInstance = app.listen(portToUse, async () => {
             try {
-                const tunnelUrl = await tunnelmole({ port: portToUse });
+                const tunnelUrl = await ngrok.connect(portToUse);
                 // console.log(`Server started locally on port ${portToUse}, public URL: ${tunnelUrl}`);
                 resolve({
                     url: tunnelUrl,
@@ -101,7 +101,7 @@ export async function startLocalServer(params: StartServerParams): Promise<Start
                     serverInstance: currentServerInstance!,
                 });
             } catch (tunnelError) {
-                console.error("Tunnelmole failed:", tunnelError);
+                console.error("ngrok failed:", tunnelError);
                 currentServerInstance?.close(); // Close local server if tunnel fails
                 currentServerInstance = null;
                 reject(new Error(`Failed to create public tunnel: ${(tunnelError as Error).message}`));
@@ -132,8 +132,8 @@ export async function stopLocalServer(): Promise<void> {
             // console.log('Local server was not running.');
             resolve();
         }
-        // Note: Tunnelmole itself doesn't have a direct 'stop' API from client side.
-        // It stops when the local server it's pointing to stops responding or process exits.
+        // Note: ngrok tunnels are automatically closed when the process exits.
+        // We could call ngrok.disconnect() here if needed for explicit cleanup.
     });
 }
 

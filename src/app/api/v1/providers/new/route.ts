@@ -44,10 +44,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       providerId,
-      providerAk,      // The provider’s API key
+      providerAk,      // The provider's API key
       provisionId,
       deviceDiagnostics,
-      location         // e.g. { country, state, city }
+      location,        // e.g. { country, state, city }
+      username,        // Added: CLI sends this
+      deviceName       // Added: CLI sends this
     } = body || {};
 
     // Basic required fields check
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest) {
         error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location"
       }, { status: 400 });
     }
+
+    console.log("Request body", body);
 
     // 2) Check if the providerId + providerAk match in the ProviderTable
     const getResp = await docClient.send(
@@ -79,7 +83,10 @@ export async function POST(req: NextRequest) {
       provisionId,
       providerId,
       deviceDiagnostics,
-      location: location as Location
+      location: location as Location,
+      // Add username and deviceName if provided
+      ...(username && { username }),
+      ...(deviceName && { deviceName })
     };
 
     // 4) Put it in ProvisionsTable
@@ -94,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     console.log("New provision:", newProvision);
 
-    // 5) Return success
+    // 6) Return success
     return NextResponse.json({ success: true, deviceId: provisionId }, { status: 200 });
 
   } catch (err: any) {

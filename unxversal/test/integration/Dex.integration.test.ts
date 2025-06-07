@@ -49,25 +49,29 @@ describe("DEX Integration", function () {
     );
 
     const TreasuryFactory = await ethers.getContractFactory("Treasury");
-    const treasury = await TreasuryFactory.deploy(
-      await timelock.getAddress()
-    );
+    const treasury = await TreasuryFactory.deploy();
 
-    // Deploy DEX fee switch
+    // Deploy DEX fee switch  
     const FeeSwitch = await ethers.getContractFactory("OptionFeeSwitch");
     const feeSwitch = await FeeSwitch.deploy(
       await treasury.getAddress(),
-      await unxv.getAddress(),
-      owner.address
+      await usdc.getAddress(),
+      owner.address, // insurance fund
+      owner.address, // protocol fund
+      owner.address  // owner
     );
+
+    // Deploy PermitHelper
+    const PermitHelperFactory = await ethers.getContractFactory("PermitHelper");
+    const permitHelper = await PermitHelperFactory.deploy(owner.address); // Mock permit2 address
 
     // Deploy OrderNFT
     const OrderNFTFactory = await ethers.getContractFactory("OrderNFT");
     const orderNFT = await OrderNFTFactory.deploy(
       "Unxversal Orders",
       "UXO",
-      await oracle.getAddress(),
       await feeSwitch.getAddress(),
+      await permitHelper.getAddress(),
       owner.address
     );
 
@@ -501,7 +505,7 @@ describe("DEX Integration", function () {
 
       await orderNFT.connect(trader2).createOrder(arbBuyOrder);
 
-      const trader2InitialBalance = await usdc.balanceOf(trader2.address);
+              // const trader2InitialBalance = await usdc.balanceOf(trader2.address);
 
       await orderNFT.connect(keeper).executeOrder(2, 1);
 
@@ -720,17 +724,17 @@ describe("DEX Integration", function () {
 
     it("Should handle iceberg orders", async function () {
       // Large order that should be filled in chunks
-      const icebergOrder = {
-        baseToken: await weth.getAddress(),
-        quoteToken: await usdc.getAddress(),
-        side: 0, // BUY
-        orderType: 3, // ICEBERG
-        amount: toEth("20"), // Large amount
-        price: toUsdc("2000"),
-        stopPrice: 0,
-        expiry: Math.floor(Date.now() / 1000) + 3600,
-        displayAmount: toEth("2") // Only show 2 ETH at a time
-      };
+      // const icebergOrder = {
+      //   baseToken: await weth.getAddress(),
+      //   quoteToken: await usdc.getAddress(),
+      //   side: 0, // BUY
+      //   orderType: 3, // ICEBERG
+      //   amount: toEth("20"), // Large amount
+      //   price: toUsdc("2000"),
+      //   stopPrice: 0,
+      //   expiry: Math.floor(Date.now() / 1000) + 3600,
+      //   displayAmount: toEth("2") // Only show 2 ETH at a time
+      // };
 
       // This would require special handling in the contract
       // For now, we'll create a regular limit order
@@ -824,7 +828,7 @@ describe("DEX Integration", function () {
       
       // Create multiple order pairs
       for (let i = 0; i < numTrades; i++) {
-        const price = 2000 + i; // Slightly different prices
+                 const price = Number(2000 + i); // Slightly different prices
         
         const buyOrder = {
           baseToken: await weth.getAddress(),
@@ -843,7 +847,9 @@ describe("DEX Integration", function () {
         await orderNFT.connect(trader2).createOrder(sellOrder);
         
         // Execute immediately
-        await orderNFT.connect(keeper).executeOrder(i * 2 + 1, i * 2 + 2);
+        const buyOrderId = i * 2 + 1;
+        const sellOrderId = i * 2 + 2;
+        await orderNFT.connect(keeper).executeOrder(buyOrderId, sellOrderId);
       }
 
       // Verify all trades executed

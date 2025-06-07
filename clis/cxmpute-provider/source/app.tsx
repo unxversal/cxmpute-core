@@ -61,15 +61,14 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
             setDashboardStats(stats); // Cache it
         } catch (e: any) {
             setAppError(`Failed to load dashboard data: ${e.message}`);
-            // Keep existing stats if any, or set to default
-            if (!dashboardStats) {
-                setDashboardStatsState({ earningsToday: 0, earningsTotal: 0, referralsCount: 0 });
-            }
+            // Set to default stats on error
+            const defaultStats = { earningsToday: 0, earningsTotal: 0, referralsCount: 0 };
+            setDashboardStatsState(defaultStats);
         } finally {
             setIsLoading(false);
             setLoadingMessage('');
         }
-    }, [dashboardStats]); // Added dashboardStats to dependencies
+    }, []); // Remove dashboardStats dependency to prevent infinite loop
 
 
     const attemptStartNodeAndLoadData = useCallback(async (session: UserSessionData, diags: DeviceDiagnostics) => {
@@ -142,7 +141,7 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
 			}
 		};
 		initializeApp();
-	}, [attemptStartNodeAndLoadData]); // currentScreen removed, as it causes re-runs if set inside
+	}, []); // Remove attemptStartNodeAndLoadData dependency to prevent infinite loop
 
 	const handleSetupComplete = useCallback(async (setupData: Omit<UserSessionData, 'deviceId'> & { deviceName: string }) => {
         if (!diagnostics) {

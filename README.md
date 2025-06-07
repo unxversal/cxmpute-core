@@ -182,7 +182,7 @@ pnpm sst deploy --stage <stage_name>
 ### Environment Configuration
 
 The platform uses SST secrets for configuration:
-```bash
+    ```bash
 # Email service configuration
 pnpm sst secrets set AuthEmailSender <domain>
 
@@ -193,7 +193,7 @@ pnpm sst secrets set AuthEmailSender <domain>
 ### Unxversal Protocol Deployment
 
 For DeFi protocols:
-```bash
+    ```bash
 cd unxversal
 
 # Install dependencies
