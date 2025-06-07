@@ -5,6 +5,10 @@
 
 declare module "sst" {
   export interface Resource {
+    "AccountActionsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "AdvertisementTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -103,6 +107,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "NotificationsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "OptionsOrdersQueue": {
       "type": "sst.aws.Queue"
       "url": string
@@ -135,15 +143,31 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "PricingConfigTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "ProviderRegistrationSecret": {
       "type": "sst.sst.Secret"
       "value": string
+    }
+    "ProviderRewardsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
     }
     "ProviderTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
     "ProvisionsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ReferralCodesTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ReferralRelationshipsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
@@ -167,6 +191,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "StreakTrackingTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "TTSProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -176,6 +204,18 @@ declare module "sst" {
       "type": "sst.aws.Dynamo"
     }
     "TradesTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "UsageTrackingTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "UserCreditsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "UserPointsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }

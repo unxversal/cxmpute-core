@@ -14,6 +14,7 @@ import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
 import Link from 'next/link';
 import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader } from 'lucide-react'; // Added Loader2
 import ReferralSection from '../ReferralSection';
+import { NotificationBanner } from '../../notifications/NotificationBanner';
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -288,6 +289,9 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
 
   return (
     <div className={styles.providerDashboardContainer}>
+      {/* Notifications */}
+      <NotificationBanner location="provider_dashboard" />
+      
       <ThemeCard className={styles.heroCard}>
         <div className={styles.heroContent}>
           <div className={styles.heroLeft}>

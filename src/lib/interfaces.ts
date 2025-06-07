@@ -426,6 +426,46 @@ export interface AdminConfig {
   };
 }
 
+// Notifications
+export interface NotificationRecord {
+  notificationId: string; // PK
+  location: "homepage" | "user_dashboard" | "provider_dashboard"; // Where to show
+  title: string; // Banner text for collapsed state
+  content: string; // Full content in markdown format
+  startDate: string; // ISO timestamp when notification becomes active
+  endDate: string; // ISO timestamp when notification expires
+  isActive: boolean; // Whether notification is currently active
+  createdBy: string; // Admin user ID who created it
+  createdAt: string; // ISO timestamp
+}
+
+// Account Actions (suspend/delete tracking)
+export interface AccountActionRecord {
+  actionId: string; // PK
+  targetUserId: string; // User/Provider affected
+  userType: "user" | "provider"; // Type of account
+  actionType: "suspend" | "unsuspend" | "delete"; // Action taken
+  reason: string; // Admin reason for action
+  performedBy: string; // Admin user ID who performed action
+  timestamp: string; // ISO timestamp
+  isActive: boolean; // Whether action is still in effect
+  metadata?: {
+    originalStatus?: string; // For rollback purposes
+    [key: string]: any;
+  };
+}
+
+// Admin Dashboard Stats
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalProviders: number;
+  activeNotifications: number;
+  suspendedAccounts: number;
+  totalProvisions: number;
+  monthlyRevenue: number;
+  systemHealth: "healthy" | "warning" | "critical";
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // End of interfaces.ts
 // ─────────────────────────────────────────────────────────────────────────────

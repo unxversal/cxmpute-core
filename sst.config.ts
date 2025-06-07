@@ -257,6 +257,32 @@ export default $config({
       }
     });
 
+    // Notifications Table
+    const notificationsTable = new sst.aws.Dynamo("NotificationsTable", {
+      fields: {
+        notificationId: "string",
+        location: "string", // "homepage", "user_dashboard", "provider_dashboard"
+        startDate: "string", // ISO timestamp
+      },
+      primaryIndex: { hashKey: "notificationId" },
+      globalIndexes: {
+        ByLocation: { hashKey: "location", rangeKey: "startDate" }
+      }
+    });
+
+    // Account Actions Table (for suspend/delete tracking)
+    const accountActionsTable = new sst.aws.Dynamo("AccountActionsTable", {
+      fields: {
+        actionId: "string",
+        targetUserId: "string",
+        timestamp: "string", // ISO timestamp
+      },
+      primaryIndex: { hashKey: "actionId" },
+      globalIndexes: {
+        ByUser: { hashKey: "targetUserId", rangeKey: "timestamp" }
+      }
+    });
+
     // --- Authentication ---
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: {
@@ -340,6 +366,8 @@ export default $config({
         referralRelationshipsTable,
         streakTrackingTable,
         usageTrackingTable,
+        notificationsTable,
+        accountActionsTable,
         // Secrets
         providerRegistrationSecret,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
