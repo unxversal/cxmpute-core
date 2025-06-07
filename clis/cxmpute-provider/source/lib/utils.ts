@@ -6,7 +6,6 @@ export async function generateFigletText(text: string): Promise<string> {
     return new Promise((resolve, reject) => {
         figlet.text(text, { font: "ANSI Shadow" }, (err, data) => { // Simplified options for this example
             if (err) {
-                console.error('Figlet error:', err);
                 reject(err);
                 return;
             }
@@ -33,11 +32,8 @@ export async function checkOllama(): Promise<{ ok: boolean; version?: string; er
         // For now, we'll just confirm it's alive.
         await ollama.list(); // Throws an error if Ollama server is not reachable or has issues
 
-        console.log("Ollama service is responsive.");
-
         return { ok: true };
     } catch (error: any) {
-        console.log("Ollama service is not responsive. Error", error);
         let errorMessage = "Ollama service not responsive or not installed.";
         if (error.cause && error.cause.code === 'ECONNREFUSED') {
             errorMessage = "Ollama service is not running (Connection refused).";

@@ -46,7 +46,6 @@ export async function startNode(
     diagnostics: DeviceDiagnostics,
     statusCallback: (message: string) => void
 ): Promise<StartNodeResult> {
-    console.log("[startNode] Starting node with session:", session, "diagnostics:", diagnostics);
     pulledModelsThisSession = []; // Reset for new session
     statusCallback("Requesting service configuration from orchestrator...");
     try {
@@ -55,9 +54,7 @@ export async function startNode(
             providerAk: session.providerAk,
             availableResources: diagnostics,
         };
-        console.log("[startNode] Sending orchestratorStartPayload:", orchestratorStartPayload);
         const orchestratorResponse = await requestServicesFromOrchestrator(orchestratorStartPayload);
-        console.log("[startNode] Received orchestratorResponse:", orchestratorResponse);
         statusCallback(`Orchestrator assigned services: ${orchestratorResponse.services.join(', ')}`);
 
         const servicesToRunOnSidecar: any[] = []; // Will be 'ollama', 'embeddings', 'tts', 'scrape'
@@ -66,29 +63,23 @@ export async function startNode(
         // Determine which core services and specific models to enable/pull
         // This logic mimics Tauri App.tsx
         const filteredServices = orchestratorResponse.services.filter(serviceName => {
-            console.log("[startNode] Processing serviceName:", serviceName);
-
             // Handle embedding services like "/embeddings:nomic-embed-text"
             if (serviceName.startsWith('/embeddings:')) {
                 const modelName = serviceName.split(':')[1];
                 if (!modelName) {
-                    console.warn(`[startNode] Invalid embedding service format: ${serviceName}`);
                     return false;
                 }
-                console.log("[startNode] Identified embedding service with model:", modelName);
                 if (embeddingModelsList.includes(modelName)) {
                     modelsToPull.push({ name: modelName, type: 'embedding' });
                 if (!servicesToRunOnSidecar.includes('embeddings')) servicesToRunOnSidecar.push('embeddings');
                 return true;
                 } else {
-                    console.warn(`[startNode] Embedding model ${modelName} not in supported list`);
                     return false;
                 }
             }
             
             // Handle direct LLM model names like "deepseek-r1:7b"
             else if (chatCompletionModelsList.includes(serviceName)) {
-                console.log("[startNode] Identified chatCompletion model:", serviceName);
                 modelsToPull.push({ name: serviceName, type: 'llm' });
                 if (!servicesToRunOnSidecar.includes('ollama')) servicesToRunOnSidecar.push('ollama');
                 return true;
@@ -99,29 +90,21 @@ export async function startNode(
                 const cleanedServiceName = serviceName.startsWith('/') ? serviceName.substring(1) : serviceName;
                 
                 if (['tts', 'scrape'].includes(cleanedServiceName)) {
-                console.log("[startNode] Identified core service:", cleanedServiceName);
                 if (!servicesToRunOnSidecar.includes(cleanedServiceName)) servicesToRunOnSidecar.push(cleanedServiceName);
                 return true;
             }
             else if (cleanedServiceName === 'ollama' && !servicesToRunOnSidecar.includes('ollama')) {
-                console.log("[startNode] Identified generic ollama service");
                 servicesToRunOnSidecar.push('ollama');
                 return true;
             }
             else if (cleanedServiceName === 'embeddings' && !servicesToRunOnSidecar.includes('embeddings')) {
-                console.log("[startNode] Identified generic embeddings service");
                 servicesToRunOnSidecar.push('embeddings');
                 return true;
                 }
             }
 
-            console.warn(`[startNode] Service ${serviceName} from orchestrator is not recognized or not supported by CLI.`);
             return false;
         });
-
-        console.log("[startNode] servicesToRunOnSidecar:", servicesToRunOnSidecar);
-        console.log("[startNode] modelsToPull:", modelsToPull);
-        console.log("[startNode] filteredServices:", filteredServices);
 
         // Pull necessary Ollama models
         for (const model of modelsToPull) {
@@ -130,16 +113,14 @@ export async function startNode(
                 // Check if model already exists locally
                 let modelExists = false;
                 try {
-                    console.log(`[startNode] Checking if model exists locally: ${model.name}`);
                     await ollama.show({model: model.name});
                     modelExists = true;
                     statusCallback(`Model ${model.name} already exists locally.`);
                 } catch (e) {
-                    console.log(`[startNode] Model ${model.name} does not exist locally, will pull.`);
+                    // Model doesn't exist locally, will pull
                 }
 
                 if (!modelExists) {
-                    console.log(`[startNode] Pulling model: ${model.name}`);
                     const pullStream = await ollama.pull({ model: model.name, stream: true });
                     for await (const part of pullStream) {
                         let progressMessage = `Pulling ${model.name}: ${part.status}`;
@@ -147,32 +128,25 @@ export async function startNode(
                              progressMessage += ` ${part.completed && part.total ? Math.round((part.completed / part.total) * 100) + '%' : ''}`;
                         }
                         statusCallback(progressMessage);
-                        console.log(`[startNode] ${progressMessage}`);
                     }
                     statusCallback(`Successfully pulled model: ${model.name}`);
-                    console.log(`[startNode] Successfully pulled model: ${model.name}`);
                 }
                 pulledModelsThisSession.push(model.name);
-                console.log(`[startNode] Added model to pulledModelsThisSession: ${model.name}`);
             } catch (error: any) {
                 statusCallback(`Failed to pull model ${model.name}: ${error.message}`);
-                console.error(`[startNode] Failed to pull model ${model.name}:`, error);
             }
         }
 
         const servicesForSidecar = servicesToRunOnSidecar.map(s => s.startsWith('/') ? s.substring(1) : s);
-        console.log("[startNode] Starting local services with:", servicesForSidecar);
         statusCallback("Starting local services...");
         const serverResult = await startLocalServer({
             enabledServices: servicesForSidecar as any, // Cast as server/index.ts expects specific types
             // port: customPort, // if you want to specify a port
         });
-        console.log("[startNode] Local services started. serverResult:", serverResult);
         statusCallback(`Local services running. Public URL: ${serverResult.url}`);
 
         // Callback to orchestrator
         statusCallback("Notifying orchestrator of successful start...");
-        console.log("[startNode] Notifying orchestrator of successful start...");
         await sendStartCallbackToOrchestrator({
             provisionId: session.deviceId,
             providerAk: session.providerAk,
@@ -181,7 +155,6 @@ export async function startNode(
             // Removed llmModels and embeddingsModels as server doesn't expect them
         });
         statusCallback("Node is online and connected to Cxmpute Cloud!");
-        console.log("[startNode] Node is online and connected to Cxmpute Cloud!");
 
         return { success: true, url: serverResult.url };
 
@@ -201,19 +174,16 @@ async function stopNodeIfNeeded(session: UserSessionData | null): Promise<void> 
     try {
         await stopLocalServer();
     } catch (serverStopError) {
-        console.error("Error stopping local server during cleanup:", serverStopError);
+        // Continue with cleanup even if server stop fails
     }
 
     // Delete models pulled during this session
     if (pulledModelsThisSession.length > 0) {
-        // statusCallback is not available here, log to console
-        console.log("Cleaning up pulled Ollama models...");
         for (const modelName of pulledModelsThisSession) {
             try {
                 await ollama.delete({ model: modelName });
-                console.log(`Deleted model: ${modelName}`);
             } catch (deleteError: any) {
-                console.warn(`Failed to delete model ${modelName}: ${deleteError.message}`);
+                // Continue with other models if one fails to delete
             }
         }
         pulledModelsThisSession = []; // Clear the list
@@ -226,23 +196,18 @@ async function stopNodeIfNeeded(session: UserSessionData | null): Promise<void> 
                 provisionId: session.deviceId,
                 providerAk: session.providerAk,
             });
-            console.log("Successfully notified orchestrator of node shutdown.");
         } catch (orchestratorError: any) {
-            console.error("Failed to notify orchestrator of node end:", orchestratorError.message);
+            // Failed to notify orchestrator, but continue with shutdown
         }
     }
 }
 
 
 export async function stopNode(session: UserSessionData | null): Promise<{ success: boolean; message?: string }> {
-    // statusCallback("Stopping Cxmpute Node..."); // Not available here, App.tsx handles this message
     try {
         await stopNodeIfNeeded(session);
-        // statusCallback("Node stopped successfully.");
         return { success: true };
     } catch (error: any) {
-        console.error("Error during node stop sequence:", error);
-        // statusCallback(`Node stop failed: ${error.message}`);
         return { success: false, message: error.message };
     }
 }

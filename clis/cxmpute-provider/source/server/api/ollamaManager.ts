@@ -10,10 +10,8 @@ router.post('/pull', async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Missing model name in request body.' });
     }
     try {
-        console.log(`Sidecar: Received pull request for model: ${model}`);
         // For non-streaming pull (simpler to start):
         await ollama.pull({ model, stream: false }); // stream: false makes it wait
-        console.log(`Sidecar: Successfully pulled model: ${model}`);
         return res.status(200).json({ success: true, message: `Model ${model} pulled successfully.` });
 
         // // For streaming pull (more complex, sends progress):

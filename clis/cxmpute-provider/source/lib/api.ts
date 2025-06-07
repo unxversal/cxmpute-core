@@ -3,7 +3,6 @@ import type { DeviceDiagnostics, DashboardStats } from './interfaces.js';
 
 // Ensure your .env file has this or define it directly
 const CXMPUTE_API_BASE_URL = process.env['CXMPUTE_API_URL'] || 'https://cxmpute.cloud/api';
-console.log("CXMPUTE_API_BASE_URL", CXMPUTE_API_BASE_URL);
 
 interface RegisterDevicePayload {
     deviceDiagnostics: DeviceDiagnostics;
@@ -27,10 +26,10 @@ interface RegisterDeviceResponse {
 }
 
 // Orchestrator API interfaces (from your Tauri app's App.tsx)
-interface RerunDiagnosticsPayload {
-    deviceDiagnostics: DeviceDiagnostics;
-    // location if it can be updated
-}
+// interface RerunDiagnosticsPayload {
+//     deviceDiagnostics: DeviceDiagnostics;
+//     // location if it can be updated
+// }
 interface OrchestratorStartPayload {
     provisionId: string; // This is our deviceId
     providerAk: string;
@@ -56,8 +55,6 @@ interface OrchestratorEndPayload {
 
 
 export async function registerDevice(payload: RegisterDevicePayload): Promise<RegisterDeviceResponse> {
-    console.log("API Payload - registerDevice:", payload);
-    console.log("CXMPUTE_API_BASE_URL", CXMPUTE_API_BASE_URL);
     try {
         const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/new`, {
             method: 'POST',
@@ -66,15 +63,12 @@ export async function registerDevice(payload: RegisterDevicePayload): Promise<Re
         });
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
-            console.error("API Error - registerDevice:", errorData);
             throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
         }
 
         const res = await response.json();
-        console.log("API Response - registerDevice:", res);
         return res as RegisterDeviceResponse;
     } catch (error: any) {
-        console.error("API Error - registerDevice:", error);
         return { success: false, message: error.message || "Network error during registration." };
     }
 }
@@ -106,32 +100,29 @@ export async function fetchEarnings(providerId: string): Promise<DashboardStats>
             referralsCount: 0, // Placeholder, API should provide this if needed
         };
     } catch (error: any) {
-        console.error("API Error - fetchEarnings:", error);
         // Return a default or error-indicating structure
         return { earningsToday: 0, earningsTotal: 0, referralsCount: 0 };
     }
 }
 
-// --- Orchestrator API Calls ---
+// // --- Orchestrator API Calls ---
 
-export async function notifyOrchestratorRerun(providerId: string, deviceId: string, payload: RerunDiagnosticsPayload): Promise<void> {
-    // This API endpoint might not exist or might be different.
-    // This is based on the `/api/providers/${providerID}/${deviceID}/rerun` from Tauri.
-    // Adjust URL and method as per your actual orchestrator API.
-    // For now, this is a placeholder.
-    console.log("API: notifyOrchestratorRerun (placeholder)", providerId, deviceId, payload);
-    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate call
-    // const response = await fetch(`${CXMPUTE_API_BASE_URL}/providers/${providerId}/${deviceId}/rerun`, {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(payload),
-    // });
-    // if (!response.ok) throw new Error("Failed to notify orchestrator of rerun");
-}
+// export async function notifyOrchestratorRerun(providerId: string, deviceId: string, payload: RerunDiagnosticsPayload): Promise<void> {
+//     // This API endpoint might not exist or might be different.
+//     // This is based on the `/api/providers/${providerID}/${deviceID}/rerun` from Tauri.
+//     // Adjust URL and method as per your actual orchestrator API.
+//     // For now, this is a placeholder.
+//     await new Promise(resolve => setTimeout(resolve, 300)); // Simulate call
+//     // const response = await fetch(`${CXMPUTE_API_BASE_URL}/providers/${providerId}/${deviceId}/rerun`, {
+//     //     method: 'POST',
+//     //     headers: { 'Content-Type': 'application/json' },
+//     //     body: JSON.stringify(payload),
+//     // });
+//     // if (!response.ok) throw new Error("Failed to notify orchestrator of rerun");
+// }
 
 
 export async function requestServicesFromOrchestrator(payload: OrchestratorStartPayload): Promise<OrchestratorStartResponse> {
-    console.log("API: requestServicesFromOrchestrator", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,14 +134,11 @@ export async function requestServicesFromOrchestrator(payload: OrchestratorStart
     }
 
     const res = await response.json();
-
-    console.log("API: requestServicesFromOrchestrator", res);
     
     return res as OrchestratorStartResponse;
 }
 
 export async function sendStartCallbackToOrchestrator(payload: OrchestratorCallbackPayload): Promise<void> {
-    console.log("API: sendStartCallbackToOrchestrator", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/start/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,12 +148,9 @@ export async function sendStartCallbackToOrchestrator(payload: OrchestratorCallb
         const errText = await response.text();
         throw new Error(`Orchestrator callback failed: ${errText || response.statusText}`);
     }
-
-    console.log("API: sendStartCallbackToOrchestrator", await response.json());
 }
 
 export async function notifyOrchestratorEnd(payload: OrchestratorEndPayload): Promise<void> {
-    console.log("API: notifyOrchestratorEnd", payload);
     const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/end`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,5 +160,4 @@ export async function notifyOrchestratorEnd(payload: OrchestratorEndPayload): Pr
         const errText = await response.text();
         throw new Error(`Orchestrator end notification failed: ${errText || response.statusText}`);
     }
-    console.log("API: notifyOrchestratorEnd", await response.json());
 }

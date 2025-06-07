@@ -79,7 +79,7 @@ export async function startLocalServer(params: StartServerParams): Promise<Start
                     app.use('/api/v1/scrape', scrapeRouter);
                     break;
                 default:
-                    console.warn(`Unknown service type in startLocalServer: ${service}`);
+                    // Unknown service type, skip
             }
         }
     }

@@ -44,7 +44,6 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
 	const [nodeStatus, setNodeStatus] = useState<
 		'off' | 'starting' | 'on' | 'stopping' | 'error'
 	>('off');
-	const [nodeServiceUrl, setNodeServiceUrl] = useState<string | null>(null); // For storing the tunnelmole URL
 
 	const {exit} = useApp();
 
@@ -82,9 +81,8 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
         try {
             const result = await startNode(session, diags, (statusMsg) => setLoadingMessage(`Node: ${statusMsg}`));
             if (result.success && result.url) {
-                setNodeServiceUrl(result.url);
+                // setNodeServiceUrl(result.url);
                 setNodeStatus("on");
-				console.log("Node started successfully: ", nodeServiceUrl);
                 await loadDashboardData(session); // Fetch fresh data after node start
             } else {
                 throw new Error(result.message || "Failed to start node.");
@@ -92,7 +90,6 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
         } catch (e: any) {
             setAppError(`Node start failed: ${e.message}`);
             setNodeStatus("error");
-            console.error("Node start error in App.tsx:", e);
         } finally {
             // setLoadingMessage(''); // loadDashboardData will clear it or set its own
         }
@@ -134,7 +131,6 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
 			} catch (e: any) {
 				setAppError(e.message || 'Initialization failed.');
                 setNodeStatus("error"); // Reflect error in node status
-				console.error("Initialization error in App.tsx:", e);
 			} finally {
 				setIsLoading(false);
                 if (currentScreen !== 'dashboard') setLoadingMessage('');
@@ -192,13 +188,11 @@ export default function App(/* { name = 'Stranger' }: AppProps */) {
 
 	const handleAppExit = useCallback(async () => {
         if (nodeStatus === "on" || nodeStatus === "starting") {
-            // Display message directly as component might unmount
-            console.log("Shutting down Cxmpute Node...");
             setNodeStatus("stopping"); // Update state if component is still mounted
             try {
                 await stopNode(userSession); // Pass session if stopNode needs providerAk/deviceId
             } catch (e) {
-                console.error("Error stopping node during exit:", e);
+                // Error stopping node during exit
             }
         }
 		exit();

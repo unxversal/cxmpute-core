@@ -17,9 +17,9 @@ let tts: KokoroTTS;
     tts = await KokoroTTS.from_pretrained(modelId, {
       dtype: 'q8', // or 'fp32', 'fp16', 'q4f16'
     });
-    console.log('Kokoro TTS model loaded.');
+    // Kokoro TTS model loaded
   } catch (err) {
-    console.error('Error loading Kokoro TTS model:', err);
+    // Error loading Kokoro TTS model
   }
 })();
 

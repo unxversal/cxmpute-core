@@ -214,8 +214,7 @@ export async function runDiagnosticsScript(): Promise<DeviceDiagnostics> {
     };
 
     setDiagnosticsData(fullDiagnostics);
-    console.log("CLI: Diagnostics complete and cached.");
-    console.log("CLI: Full diagnostics data:", fullDiagnostics);
+            // Diagnostics complete and cached
     return fullDiagnostics;
 }
 

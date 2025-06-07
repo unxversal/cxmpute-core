@@ -121,7 +121,7 @@ export default function Dashboard({
                     </Box>
 
                     {/* Node Status */}
-                    <Box borderStyle="round" borderColor={nodeStatusColor} paddingX={1} paddingY={0} marginBottom={1} alignItems="flex-start">
+                    <Box borderStyle="round" borderColor={nodeStatusColor} paddingX={1} paddingY={0} marginBottom={1} alignItems="center">
                         <Text bold color={nodeStatusColor}>
                             {nodeStatus === 'starting' || nodeStatus === 'stopping' || isLoading ? <Spinner type="dots" /> : '〇 '}
                             STATUS: {nodeStatusDisplay}

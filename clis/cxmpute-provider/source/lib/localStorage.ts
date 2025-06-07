@@ -22,7 +22,6 @@ const USER_SESSION_KEY = 'userSession';
 export function getUserSession(): UserSessionData | null {
     initLocalStorage();
     const data = localStorageInstance.getItem(USER_SESSION_KEY);
-    console.log("getUserSession", data);
     return data ? JSON.parse(data) : null;
 }
 export function setUserSession(session: UserSessionData): void {
@@ -38,24 +37,20 @@ const DIAGNOSTICS_KEY = 'deviceDiagnostics';
 export function getDiagnosticsData(): DeviceDiagnostics | null {
     initLocalStorage();
     const data = localStorageInstance.getItem(DIAGNOSTICS_KEY);
-    console.log("getDiagnosticsData", data);
     return data ? JSON.parse(data) : null;
 }
 export function setDiagnosticsData(diagnostics: DeviceDiagnostics): void {
     initLocalStorage();
     localStorageInstance.setItem(DIAGNOSTICS_KEY, JSON.stringify(diagnostics));
-    console.log("setDiagnosticsData", diagnostics);
 }
 
 const DASHBOARD_STATS_KEY = 'dashboardStats';
 export function getDashboardStats(): DashboardStats | null {
     initLocalStorage();
     const data = localStorageInstance.getItem(DASHBOARD_STATS_KEY);
-    console.log("getDashboardStats", data);
     return data ? JSON.parse(data) : null;
 }
 export function setDashboardStats(stats: DashboardStats): void {
     initLocalStorage();
     localStorageInstance.setItem(DASHBOARD_STATS_KEY, JSON.stringify(stats));
-    console.log("setDashboardStats", stats);
 }
