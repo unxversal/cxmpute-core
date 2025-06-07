@@ -116,7 +116,7 @@ export async function registerDevice(payload: Omit<RegisterDevicePayload, 'regis
 export async function fetchEarnings(providerId: string): Promise<DashboardStats> {
     try {
         const response = await fetch(`${CXMPUTE_API_BASE_URL}/providers/${providerId}/earnings`, {
-            method: 'GET', // Assuming GET, adjust if POST with AK in body/header
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
                 // 'Authorization': `Bearer ${providerAk}` // If API key is passed as a bearer token
@@ -124,11 +124,17 @@ export async function fetchEarnings(providerId: string): Promise<DashboardStats>
                 // 'X-Provider-AK': providerAk
             },
         });
+        
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to fetch earnings: ${response.status}`);
         }
-        const data = await response.json() as { total: number; earnings: { day: string; amount: number }[] };
+        
+        const data = await response.json() as { 
+            total: number; 
+            earnings: { day: string; amount: number }[]; 
+            referralsCount: number 
+        };
 
         // Transform to DashboardStats
         const today = new Date().toISOString().split('T')[0];
@@ -137,9 +143,10 @@ export async function fetchEarnings(providerId: string): Promise<DashboardStats>
         return {
             earningsTotal: data.total,
             earningsToday: todaysEarningEntry ? todaysEarningEntry.amount : 0,
-            referralsCount: 0, // Placeholder, API should provide this if needed
+            referralsCount: data.referralsCount || 0,
         };
     } catch (error: any) {
+        console.error('Failed to fetch earnings:', error.message);
         // Return a default or error-indicating structure
         return { earningsToday: 0, earningsTotal: 0, referralsCount: 0 };
     }

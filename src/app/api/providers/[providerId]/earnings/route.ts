@@ -2,7 +2,7 @@
 // GET /api/providers/{providerId}/earnings
 import { NextRequest, NextResponse } from "next/server";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
 
 const raw = new DynamoDBClient({});
@@ -24,7 +24,13 @@ export async function GET(
     return NextResponse.json({ error: "Missing providerId" }, { status: 400 });
   }
 
+  // Optional: Basic authentication check
+  // const authHeader = req.headers.get('authorization');
+  // const providerAk = req.headers.get('x-provider-ak');
+  // Add authentication logic here if needed
+
   try {
+    // Get provider data
     const resp = await docClient.send(
       new GetCommand({
         TableName: Resource.ProviderTable.name,
@@ -46,9 +52,35 @@ export async function GET(
       return { day, amount: entry?.amount ?? 0 };
     }).reverse();
 
-    return NextResponse.json({ total, earnings }, { status: 200 });
+    // Get referrals count
+    // For now, we'll calculate this by counting how many providers have this providerId as their referredBy
+    // This assumes there's a referredBy field in the provider records (you may need to add this)
+    let referralsCount = 0;
+    try {
+      // Query for providers that were referred by this provider
+      // This is a simple implementation - you might want to add a GSI for better performance
+      const referralsResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.ProviderTable.name,
+          FilterExpression: "referredBy = :refId",
+          ExpressionAttributeValues: {
+            ":refId": providerId
+          }
+        })
+      );
+      referralsCount = referralsResp.Items?.length ?? 0;
+    } catch (error) {
+      console.warn("Failed to fetch referrals count:", error);
+      // Continue with referralsCount = 0
+    }
+
+    return NextResponse.json({ 
+      total, 
+      earnings,
+      referralsCount 
+    }, { status: 200 });
   } catch (err: any) {
-    console.error(err);
+    console.error("Error fetching provider earnings:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
