@@ -88,38 +88,26 @@ jobs:
           echo "📦 Building cross-platform binaries..."
           mkdir -p binaries
           
-          # Define targets with proper naming
-          declare -A targets=(
-            ["node18-linux-x64"]="cxmpute-provider-linux-x64"
-            ["node18-macos-x64"]="cxmpute-provider-macos-intel" 
-            ["node18-macos-arm64"]="cxmpute-provider-macos-arm64"
-            ["node18-win-x64"]="cxmpute-provider-windows.exe"
-          )
+          # Build with clean, user-friendly names
+          echo "📦 Building for Linux x64..."
+          pkg dist/cli.js --target "node18-linux-x64" --output "binaries/cxmpute-provider-linux"
           
-          for target in "${!targets[@]}"; do
-            filename="${targets[$target]}"
-            output_path="binaries/${filename}"
-            
-            echo "📦 Building for $target -> $filename..."
-            pkg dist/cli.js --target "$target" --output "$output_path"
-            
-            if [ -f "$output_path" ]; then
-              echo "✅ Built: $output_path ($(du -h "$output_path" | cut -f1))"
-              
-              # Create a symlink with just 'cxmpute-provider' for each platform
-              case "$target" in
-                *linux*) ln -sf "$filename" "binaries/cxmpute-provider-linux" ;;
-                *macos-x64*) ln -sf "$filename" "binaries/cxmpute-provider-macos" ;;
-                *macos-arm64*) ln -sf "$filename" "binaries/cxmpute-provider-macos-m1" ;;
-                *win*) ln -sf "$filename" "binaries/cxmpute-provider.exe" ;;
-              esac
-            else
-              echo "❌ Failed to build: $target"
-              exit 1
-            fi
-          done
+          echo "📦 Building for macOS Intel..."
+          pkg dist/cli.js --target "node18-macos-x64" --output "binaries/cxmpute-provider-macos"
+          
+          echo "📦 Building for macOS Apple Silicon..."
+          pkg dist/cli.js --target "node18-macos-arm64" --output "binaries/cxmpute-provider-macos-arm64"
+          
+          echo "📦 Building for Windows..."
+          pkg dist/cli.js --target "node18-win-x64" --output "binaries/cxmpute-provider.exe"
+          
+          # Create additional copies with alternative names for user choice
+          cp "binaries/cxmpute-provider-macos" "binaries/cxmpute-provider-macos-intel"
+          cp "binaries/cxmpute-provider-macos-arm64" "binaries/cxmpute-provider-macos-m1"
+          cp "binaries/cxmpute-provider.exe" "binaries/cxmpute-provider-windows.exe"
           
           echo "🎉 All binaries built successfully!"
+          echo "📁 Generated files:"
           ls -la binaries/
           
       - name: 🗑️ Clean up Config (Security)
@@ -135,39 +123,70 @@ jobs:
           cat > release_notes.md << 'EOF'
           ## 🚀 Cxmpute Provider CLI ${{ steps.version.outputs.version }}
           
-          ### 📦 Download Instructions
+          Transform your computer into an AI compute provider and earn rewards! This CLI automatically handles hardware detection, service orchestration, and earnings tracking.
           
-                     **Choose your platform:**
-           - **Linux (x64)**: `cxmpute-provider-linux-x64` or `cxmpute-provider-linux`
-           - **macOS (Intel)**: `cxmpute-provider-macos-intel` or `cxmpute-provider-macos`  
-           - **macOS (Apple Silicon)**: `cxmpute-provider-macos-arm64` or `cxmpute-provider-macos-m1`
-           - **Windows**: `cxmpute-provider-windows.exe` or `cxmpute-provider.exe`
+          ### 📦 Download for Your Platform
           
-                     ### 🔧 Setup Instructions
-           
-           1. **Download** the binary for your platform
-           2. **Make executable** (Linux/macOS): `chmod +x cxmpute-provider-*`
-           3. **Run directly**: `./cxmpute-provider-linux-x64` or use the shorter symlink `./cxmpute-provider-linux`
-           4. **Optional**: Rename to `cxmpute-provider` and add to PATH for global access
+          **macOS Users:**
+          - **Intel Macs**: `cxmpute-provider-macos` or `cxmpute-provider-macos-intel`
+          - **Apple Silicon (M1/M2/M3/M4)**: `cxmpute-provider-macos-arm64` or `cxmpute-provider-macos-m1`
           
-          **That's it!** No environment variables needed - authentication is embedded securely.
+          **Linux Users:**
+          - **x64**: `cxmpute-provider-linux`
+          
+          **Windows Users:**
+          - **x64**: `cxmpute-provider.exe` or `cxmpute-provider-windows.exe`
+          
+          ### ⚡ Quick Start
+          
+          **macOS/Linux:**
+          ```bash
+          # Download the file for your platform, then:
+          chmod +x cxmpute-provider-macos    # (or cxmpute-provider-linux)
+          ./cxmpute-provider-macos
+          ```
+          
+          **Windows:**
+          ```cmd
+          # Just run the .exe file:
+          cxmpute-provider.exe
+          ```
+          
+          **For global access (optional):**
+          ```bash
+          # macOS/Linux - install globally:
+          sudo mv cxmpute-provider-macos /usr/local/bin/cxmpute-provider
+          cxmpute-provider  # Now works from anywhere!
+          
+          # Windows - add to PATH or move to Windows folder:
+          move cxmpute-provider.exe C:\Windows\System32\cxmpute-provider.exe
+          cxmpute-provider  # Now works from anywhere!
+          ```
           
           ### 🆕 What's New
           
-          - Embedded provider secrets (no more manual env setup!)
-          - Cross-platform binaries
-          - Enhanced security and validation
-          - Improved error messages
+          - **🔒 Embedded Authentication**: No environment variables needed
+          - **🖥️ Cross-Platform**: Linux, macOS (Intel & Apple Silicon), Windows
+          - **⚡ Zero-Config**: Automatic hardware detection and service setup
+          - **💰 Real-Time Earnings**: Live dashboard with earnings tracking
+          - **🔧 Provider Tools**: Complete CLI for compute providers
           
           ### 🔐 Security
           
-          This release includes embedded authentication secrets. Contact **support@cxmpute.cloud** for access credentials.
+          This release includes embedded authentication credentials. The CLI is ready to use out of the box with secure provider registration.
           
           ### 📊 Build Info
           
           - **Built**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Commit**: $(git rev-parse --short HEAD)
-          - **Node**: 18.x
+          - **Node.js**: 18.x
+          - **Platforms**: Linux x64, macOS Intel/ARM64, Windows x64
+          
+          ### 🛟 Support
+          
+          - **Documentation**: [Getting Started Guide](https://github.com/${{ github.repository }}/blob/main/clis/cxmpute-provider/getting-started-provider.md)
+          - **Issues**: [GitHub Issues](https://github.com/${{ github.repository }}/issues)
+          - **Email**: support@cxmpute.cloud
           EOF
           
       - name: 🏷️ Create GitHub Release
