@@ -116,3 +116,4 @@ clis/cxmpute-provider/
 **Import errors during development:**
 - `config.ts` doesn't exist in development - that's normal
 - Use environment variable `CXMPUTE_PROVIDER_SECRET` for dev builds 
+- 
