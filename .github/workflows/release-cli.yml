@@ -32,6 +32,30 @@ jobs:
         working-directory: ${{ env.CLI_PATH }}
         run: npm install
         
+      - name: 🔧 Install Missing Type Definitions
+        working-directory: ${{ env.CLI_PATH }}
+        run: |
+          echo "🔍 Checking for missing type definitions..."
+          
+          # List of common type packages we might need
+          TYPE_PACKAGES=(
+            "@types/uuid"
+            "@types/express"
+            "@types/node"
+          )
+          
+          # Check each package and install if missing
+          for package in "${TYPE_PACKAGES[@]}"; do
+            if ! npm list "$package" > /dev/null 2>&1; then
+              echo "📦 Installing missing type package: $package"
+              npm install --save-dev "$package" || echo "⚠️ Could not install $package (might not exist)"
+            else
+              echo "✅ $package already installed"
+            fi
+          done
+          
+          echo "✅ Type definitions check complete"
+        
       - name: 🔍 Extract Version
         id: version
         run: |
