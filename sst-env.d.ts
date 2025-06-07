@@ -135,6 +135,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "ProviderRegistrationSecret": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "ProviderTable": {
       "name": string
       "type": "sst.aws.Dynamo"

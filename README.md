@@ -183,8 +183,8 @@ pnpm sst deploy --stage <stage_name>
 
 The platform uses SST secrets for configuration:
     ```bash
-# Email service configuration
-pnpm sst secrets set AuthEmailSender <domain>
+# Provider registration secret for CLI access control
+pnpm sst secrets set ProviderRegistrationSecret <your_secret_value>
 
 # Additional secrets for AI services and provider management
 # See sst.config.ts for complete secret configuration

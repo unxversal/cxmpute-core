@@ -49,19 +49,28 @@ export async function POST(req: NextRequest) {
       deviceDiagnostics,
       location,        // e.g. { country, state, city }
       username,        // Added: CLI sends this
-      deviceName       // Added: CLI sends this
+      deviceName,      // Added: CLI sends this
+      registrationSecret // Added: Secret for CLI access control
     } = body || {};
 
-    // Basic required fields check
-    if (!providerId || !providerAk || !provisionId || !deviceDiagnostics || !location) {
+    // 2) Validate registration secret first (security check)
+    const validSecret = (Resource as any).ProviderRegistrationSecret?.value;
+    if (!validSecret || registrationSecret !== validSecret) {
       return NextResponse.json({
-        error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location"
+        error: "Invalid registration credentials. Contact support@cxmpute.cloud for access."
+      }, { status: 401 });
+    }
+
+    // 3) Basic required fields check
+    if (!providerId || !providerAk || !provisionId || !deviceDiagnostics || !location || !registrationSecret) {
+      return NextResponse.json({
+        error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location, registrationSecret"
       }, { status: 400 });
     }
 
     console.log("Request body", body);
 
-    // 2) Check if the providerId + providerAk match in the ProviderTable
+    // 4) Check if the providerId + providerAk match in the ProviderTable
     const getResp = await docClient.send(
       new GetCommand({
         TableName: Resource.ProviderTable.name,
@@ -78,7 +87,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid provider API key." }, { status: 401 });
     }
 
-    // 3) Build the new provision record to store in ProvisionsTable
+    // 5) Build the new provision record to store in ProvisionsTable
     const newProvision: ProvisionRecord = {
       provisionId,
       providerId,
@@ -89,7 +98,7 @@ export async function POST(req: NextRequest) {
       ...(deviceName && { deviceName })
     };
 
-    // 4) Put it in ProvisionsTable
+    // 6) Put it in ProvisionsTable
     await docClient.send(
       new PutCommand({
         TableName: Resource.ProvisionsTable.name,
@@ -97,11 +106,11 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // 5) TODO: Call out to peaq here to add the provision
+    // 7) TODO: Call out to peaq here to add the provision
 
     console.log("New provision:", newProvision);
 
-    // 6) Return success
+    // 8) Return success
     return NextResponse.json({ success: true, deviceId: provisionId }, { status: 200 });
 
   } catch (err: any) {

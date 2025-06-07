@@ -1,0 +1,191 @@
+name: 🚀 Release Cxmpute Provider CLI
+
+on:
+  push:
+    branches: [releases]
+    paths: ['clis/cxmpute-provider/**']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  CLI_PATH: 'clis/cxmpute-provider'
+
+jobs:
+  build-and-release:
+    name: 🔨 Build & Release CLI Binaries
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: '${{ env.CLI_PATH }}/package-lock.json'
+          
+      - name: 📦 Install Dependencies
+        working-directory: ${{ env.CLI_PATH }}
+        run: npm ci
+        
+      - name: 🔍 Extract Version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Extract version from package.json or use commit hash
+            VERSION="v$(jq -r '.version' ${{ env.CLI_PATH }}/package.json)"
+            if [ "$VERSION" = "vnull" ]; then
+              VERSION="v1.0.0-$(git rev-parse --short HEAD)"
+            fi
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📋 Building version: $VERSION"
+          
+      - name: 🔧 Generate Config from Template
+        working-directory: ${{ env.CLI_PATH }}
+        env:
+          PROVIDER_SECRET: ${{ secrets.CXMPUTE_PROVIDER_SECRET }}
+        run: |
+          if [ -z "$PROVIDER_SECRET" ]; then
+            echo "❌ CXMPUTE_PROVIDER_SECRET not set in GitHub secrets"
+            exit 1
+          fi
+          
+          if [ ${#PROVIDER_SECRET} -lt 32 ]; then
+            echo "❌ Provider secret must be at least 32 characters"
+            exit 1
+          fi
+          
+          echo "🔄 Generating config from template..."
+          
+          # Read template and replace placeholders
+          sed "s/__PROVIDER_SECRET_PLACEHOLDER__/$PROVIDER_SECRET/g; s/__BUILD_TIME_PLACEHOLDER__/$(date -u +%Y-%m-%dT%H:%M:%SZ)/g" \
+            source/lib/config.template.ts > source/lib/config.ts
+            
+          echo "✅ Config generated successfully"
+          
+      - name: 🔨 Build TypeScript
+        working-directory: ${{ env.CLI_PATH }}
+        run: |
+          echo "🔨 Compiling TypeScript..."
+          npm run build
+          echo "✅ TypeScript compilation complete"
+          
+      - name: 📦 Install pkg
+        run: npm install -g pkg
+        
+      - name: 🏗️ Build Binaries
+        working-directory: ${{ env.CLI_PATH }}
+        run: |
+          echo "📦 Building cross-platform binaries..."
+          mkdir -p binaries
+          
+          # Define targets with proper naming
+          declare -A targets=(
+            ["node18-linux-x64"]="cxmpute-provider-linux-x64"
+            ["node18-macos-x64"]="cxmpute-provider-macos-intel" 
+            ["node18-macos-arm64"]="cxmpute-provider-macos-arm64"
+            ["node18-win-x64"]="cxmpute-provider-windows.exe"
+          )
+          
+          for target in "${!targets[@]}"; do
+            filename="${targets[$target]}"
+            output_path="binaries/${filename}"
+            
+            echo "📦 Building for $target -> $filename..."
+            pkg dist/cli.js --target "$target" --output "$output_path"
+            
+            if [ -f "$output_path" ]; then
+              echo "✅ Built: $output_path ($(du -h "$output_path" | cut -f1))"
+              
+              # Create a symlink with just 'cxmpute-provider' for each platform
+              case "$target" in
+                *linux*) ln -sf "$filename" "binaries/cxmpute-provider-linux" ;;
+                *macos-x64*) ln -sf "$filename" "binaries/cxmpute-provider-macos" ;;
+                *macos-arm64*) ln -sf "$filename" "binaries/cxmpute-provider-macos-m1" ;;
+                *win*) ln -sf "$filename" "binaries/cxmpute-provider.exe" ;;
+              esac
+            else
+              echo "❌ Failed to build: $target"
+              exit 1
+            fi
+          done
+          
+          echo "🎉 All binaries built successfully!"
+          ls -la binaries/
+          
+      - name: 🗑️ Clean up Config (Security)
+        working-directory: ${{ env.CLI_PATH }}
+        run: |
+          echo "🧹 Removing config file for security..."
+          rm -f source/lib/config.ts
+          echo "✅ Config file cleaned up"
+          
+      - name: 📝 Generate Release Notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## 🚀 Cxmpute Provider CLI ${{ steps.version.outputs.version }}
+          
+          ### 📦 Download Instructions
+          
+                     **Choose your platform:**
+           - **Linux (x64)**: `cxmpute-provider-linux-x64` or `cxmpute-provider-linux`
+           - **macOS (Intel)**: `cxmpute-provider-macos-intel` or `cxmpute-provider-macos`  
+           - **macOS (Apple Silicon)**: `cxmpute-provider-macos-arm64` or `cxmpute-provider-macos-m1`
+           - **Windows**: `cxmpute-provider-windows.exe` or `cxmpute-provider.exe`
+          
+                     ### 🔧 Setup Instructions
+           
+           1. **Download** the binary for your platform
+           2. **Make executable** (Linux/macOS): `chmod +x cxmpute-provider-*`
+           3. **Run directly**: `./cxmpute-provider-linux-x64` or use the shorter symlink `./cxmpute-provider-linux`
+           4. **Optional**: Rename to `cxmpute-provider` and add to PATH for global access
+          
+          **That's it!** No environment variables needed - authentication is embedded securely.
+          
+          ### 🆕 What's New
+          
+          - Embedded provider secrets (no more manual env setup!)
+          - Cross-platform binaries
+          - Enhanced security and validation
+          - Improved error messages
+          
+          ### 🔐 Security
+          
+          This release includes embedded authentication secrets. Contact **support@cxmpute.cloud** for access credentials.
+          
+          ### 📊 Build Info
+          
+          - **Built**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Commit**: $(git rev-parse --short HEAD)
+          - **Node**: 18.x
+          EOF
+          
+      - name: 🏷️ Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: 'Cxmpute Provider CLI ${{ steps.version.outputs.version }}'
+          body_path: release_notes.md
+          files: |
+            ${{ env.CLI_PATH }}/binaries/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: 📧 Notify Success
+        run: |
+          echo "🎉 Release created successfully!"
+          echo "📋 Version: ${{ steps.version.outputs.version }}"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}" 

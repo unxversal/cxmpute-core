@@ -14,9 +14,8 @@ export default $config({
   async run() {
 
     // --- Define Secrets ---
-    // DEX-related secrets (PaperPoints..., CoreWalletPk, CoreVaultAddress, CoreFactoryAddress, CxptTokenAddress, CmcApiKey) are removed.
-    // Keep secrets for AI/Compute services if any were planned (none explicitly listed as non-DEX here, but if CmcApiKey was general, it would stay).
-    // For now, assuming CmcApiKey was for the DEX oracle and is removed.
+    // Provider Registration Secret for CLI access control
+    const providerRegistrationSecret = new sst.Secret("ProviderRegistrationSecret");
 
     // --- General Platform Tables & Resources ---
     // Provider Table
@@ -172,6 +171,7 @@ export default $config({
           providerTable,
           userTable, // Removed TradersTable, BalancesTable
           authEmail,
+          providerRegistrationSecret,
         ],
       },
     });
@@ -233,6 +233,8 @@ export default $config({
         auth,
         graphs,
         authEmail,
+        // Secrets
+        providerRegistrationSecret,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });
