@@ -13,6 +13,7 @@ import { notify } from '@/components/ui/NotificationToaster/NotificationToaster'
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText, Speech, MessageCircleCode, ScanText, PocketKnife, BrainCircuit } from 'lucide-react'; // Added more icons
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
+import ReferralSection from '../ReferralSection';
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
@@ -138,6 +139,13 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
           </div>
         </div>
       </ThemeCard>
+
+      {/* Referral Section */}
+      <ReferralSection 
+        userId={subject.id}
+        userType="user"
+        hasReferrer={false} // TODO: Check if user has a referrer from API
+      />
 
       {/* Bottom Section: Service Cards & Graph/Stats Placeholder */}
       <h2 className={styles.sectionTitle}>Explore Our Services</h2>

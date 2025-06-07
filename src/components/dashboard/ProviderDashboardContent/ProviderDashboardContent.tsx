@@ -13,6 +13,7 @@ import type { AuthenticatedUserSubject } from '@/lib/auth';
 import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
 import Link from 'next/link';
 import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader } from 'lucide-react'; // Added Loader2
+import ReferralSection from '../ReferralSection';
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -312,6 +313,13 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
           </div>
         </div>
       </ThemeCard>
+
+      {/* Referral Section */}
+      <ReferralSection 
+        userId={subject.providerId}
+        userType="provider"
+        hasReferrer={false} // TODO: Check if provider has a referrer from API
+      />
 
       <div className={styles.bottomSection}>
         <div className={styles.provisionsListContainer}>

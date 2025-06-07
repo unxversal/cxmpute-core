@@ -259,5 +259,173 @@ export interface AdvertisementRecord { // Assuming general platform feature
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Rewards & Referral System Interfaces
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Service Tiers
+export type ServiceTier = "tide_pool" | "blue_surge" | "open_ocean" | "mariana_depth";
+export type ServiceType = "chat_completions" | "embeddings" | "tts" | "scrape";
+
+// Pricing Configuration
+export interface PricingConfigRecord {
+  configKey: string; // PK: e.g., "tide_pool_input", "blue_surge_output", "tts_per_minute"
+  pricePerUnit: number; // Price in USD (0 for testnet)
+  unit: string; // e.g., "1000_tokens", "minute", "request"
+  isActive: boolean;
+  lastUpdated: string; // ISO timestamp
+  updatedBy: string; // Admin user ID
+}
+
+// User Credits
+export interface UserCreditsRecord {
+  userId: string; // PK
+  credits: number; // Available credits in USD equivalent
+  totalSpent: number; // Lifetime spending
+  totalAdded: number; // Lifetime credits added
+  lastActivity: string; // ISO timestamp
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+}
+
+// Provider Rewards  
+export interface ProviderRewardsRecord {
+  providerId: string; // PK
+  month: string; // RK: YYYY-MM format
+  totalPoints: number; // Accumulated points for the month
+  basePoints: number; // Points before multipliers
+  multiplierPoints: number; // Additional points from multipliers
+  services: {
+    [key in ServiceType]?: {
+      requestCount: number;
+      points: number;
+      avgLatency?: number;
+      uptimePercent?: number;
+    }
+  };
+  streakBonusPoints: number; // Uptime streak bonuses
+  referralBonusPoints: number; // Points from referrals
+  lastUpdated: string; // ISO timestamp
+}
+
+// User Points
+export interface UserPointsRecord {
+  userId: string; // PK  
+  month: string; // RK: YYYY-MM format
+  totalPoints: number; // Accumulated points for the month
+  usagePoints: number; // Points from service usage
+  streakBonusPoints: number; // Daily usage streak bonuses
+  referralBonusPoints: number; // Points from referrals
+  trialBonusPoints: number; // Points from trying new services
+  milestonePoints: number; // Points from milestones
+  requestCount: number; // Total requests made
+  servicesUsed: string[]; // List of services tried
+  lastUpdated: string; // ISO timestamp
+}
+
+// Referral Codes
+export interface ReferralCodeRecord {
+  referralCode: string; // PK: unique code like "ALEX-8F2D9"
+  userId: string; // User/Provider who owns this code
+  userType: "user" | "provider"; // Type of account
+  isActive: boolean;
+  createdAt: string; // ISO timestamp
+  totalReferrals: number; // Count of successful referrals
+  totalRewards: number; // Total rewards earned from referrals
+}
+
+// Referral Relationships
+export interface ReferralRelationshipRecord {
+  refereeId: string; // PK: User who was referred
+  userType: "user" | "provider"; // RK: Type of referee account
+  referrerId: string; // User who made the referral
+  referrerType: "user" | "provider"; // Type of referrer account
+  referralCode: string; // Code used for referral
+  referralChain: string[]; // [primary_referrer, secondary_referrer, tertiary_referrer]
+  isActive: boolean; // Whether referral bonuses are still active
+  activationDate: string; // When referee became active
+  expirationDate?: string; // When bonuses expire (if applicable)
+  totalRewardsPaid: number; // Total rewards paid to referrer
+  createdAt: string; // ISO timestamp
+}
+
+// Streak Tracking
+export interface StreakTrackingRecord {
+  userId: string; // PK
+  userType: "user" | "provider"; // RK
+  streakType: "uptime" | "usage" | "daily_activity"; // RK part 2
+  currentStreak: number; // Current consecutive streak
+  longestStreak: number; // Historical best streak
+  lastActivity: string; // ISO timestamp of last qualifying activity
+  streakStartDate: string; // When current streak started
+  totalBonusPointsEarned: number; // Lifetime bonus points from streaks
+  streakData: {
+    [date: string]: boolean; // YYYY-MM-DD -> did qualify that day
+  };
+  lastUpdated: string; // ISO timestamp
+}
+
+// Usage Tracking (detailed logging)
+export interface UsageTrackingRecord {
+  requestId: string; // PK: unique identifier for each request
+  userId: string; // User making the request
+  providerId?: string; // Provider who served the request
+  endpoint: string; // e.g., "/v1/chat/completions"
+  model?: string; // Model used (if applicable)
+  serviceTier: ServiceTier; // Service tier classification
+  serviceType: ServiceType; // Type of service
+  timestamp: string; // ISO timestamp
+  latencyMs?: number; // Response latency
+  inputTokens?: number; // Input tokens (for LLM requests)
+  outputTokens?: number; // Output tokens (for LLM requests)
+  requestSize?: number; // Request size in bytes
+  responseSize?: number; // Response size in bytes
+  statusCode: number; // HTTP status code
+  errorMessage?: string; // Error details if failed
+  costUsd: number; // Cost charged to user (0 in testnet)
+  providerPoints: number; // Points awarded to provider
+  userPoints: number; // Points awarded to user
+  ipAddress?: string; // For analytics/fraud detection
+  userAgent?: string; // For analytics
+  referralCode?: string; // If request was made by referred user
+}
+
+// Service Tier Detection Helper
+export interface ServiceTierInfo {
+  tier: ServiceTier;
+  basePoints: number;
+  description: string;
+  vramRequirement: string;
+  exampleModels: string[];
+}
+
+// Referral Reward Rates
+export interface ReferralRates {
+  provider: {
+    primary: number; // 20% = 0.20
+    secondary: number; // 10% = 0.10
+    tertiary: number; // 5% = 0.05
+  };
+  user: {
+    signupBonus: number; // 100 points
+    milestoneBonus: number; // 200 points
+    activityThreshold: number; // requests needed for milestone
+  };
+}
+
+// Admin Configuration
+export interface AdminConfig {
+  isMainnet: boolean; // false = testnet (free), true = mainnet (paid)
+  referralRates: ReferralRates;
+  streakBonusRates: {
+    [key: string]: number; // streak_length -> bonus_multiplier
+  };
+  serviceTierMultipliers: {
+    uptime: { min: number; max: number }; // 0.8 - 1.2
+    latency: { min: number; max: number }; // 0.9 - 1.1  
+    demand: { min: number; max: number }; // 0.5 - 2.0
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // End of interfaces.ts
 // ─────────────────────────────────────────────────────────────────────────────

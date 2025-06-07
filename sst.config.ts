@@ -163,6 +163,100 @@ export default $config({
 
     const graphs = new sst.aws.Bucket("GraphsBucket"); // Assuming general platform bucket
 
+    // --- Rewards & Pricing System Tables ---
+    // Pricing Configuration Table
+    const pricingConfigTable = new sst.aws.Dynamo("PricingConfigTable", {
+      fields: {
+        configKey: "string", // e.g., "tide_pool_input", "blue_surge_output", "tts_per_minute"
+      },
+      primaryIndex: { hashKey: "configKey" }
+    });
+
+    // User Credits Table
+    const userCreditsTable = new sst.aws.Dynamo("UserCreditsTable", {
+      fields: {
+        userId: "string",
+      },
+      primaryIndex: { hashKey: "userId" }
+    });
+
+    // Provider Rewards Table
+    const providerRewardsTable = new sst.aws.Dynamo("ProviderRewardsTable", {
+      fields: {
+        providerId: "string",
+        month: "string", // YYYY-MM format for monthly aggregation
+      },
+      primaryIndex: { hashKey: "providerId", rangeKey: "month" },
+      globalIndexes: {
+        ByMonth: { hashKey: "month" }
+      }
+    });
+
+    // User Points Table
+    const userPointsTable = new sst.aws.Dynamo("UserPointsTable", {
+      fields: {
+        userId: "string",
+        month: "string", // YYYY-MM format for monthly aggregation
+      },
+      primaryIndex: { hashKey: "userId", rangeKey: "month" },
+      globalIndexes: {
+        ByMonth: { hashKey: "month" }
+      }
+    });
+
+    // Referral Codes Table
+    const referralCodesTable = new sst.aws.Dynamo("ReferralCodesTable", {
+      fields: {
+        referralCode: "string",
+        userId: "string",
+        userType: "string", // "user" or "provider"
+      },
+      primaryIndex: { hashKey: "referralCode" },
+      globalIndexes: {
+        ByUser: { hashKey: "userId", rangeKey: "userType" }
+      }
+    });
+
+    // Referral Relationships Table
+    const referralRelationshipsTable = new sst.aws.Dynamo("ReferralRelationshipsTable", {
+      fields: {
+        refereeId: "string",
+        referrerId: "string",
+        userType: "string", // "user" or "provider"
+      },
+      primaryIndex: { hashKey: "refereeId", rangeKey: "userType" },
+      globalIndexes: {
+        ByReferrer: { hashKey: "referrerId", rangeKey: "userType" }
+      }
+    });
+
+    // Streak Tracking Table
+    const streakTrackingTable = new sst.aws.Dynamo("StreakTrackingTable", {
+      fields: {
+        userId: "string",
+        userType: "string", // "user" or "provider"
+        streakType: "string", // "uptime", "usage", "daily_activity"
+      },
+      primaryIndex: { hashKey: "userId", rangeKey: "userType" },
+      globalIndexes: {
+        ByStreakType: { hashKey: "streakType" }
+      }
+    });
+
+    // Usage Tracking Table
+    const usageTrackingTable = new sst.aws.Dynamo("UsageTrackingTable", {
+      fields: {
+        requestId: "string",
+        userId: "string",
+        timestamp: "string", // ISO timestamp for range queries
+      },
+      primaryIndex: { hashKey: "requestId" },
+      globalIndexes: {
+        ByUser: { hashKey: "userId", rangeKey: "timestamp" },
+        ByTimestamp: { hashKey: "timestamp" }
+      }
+    });
+
     // --- Authentication ---
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: {
@@ -172,6 +266,10 @@ export default $config({
           userTable, // Removed TradersTable, BalancesTable
           authEmail,
           providerRegistrationSecret,
+          // Rewards & Pricing System Tables for auth
+          userCreditsTable,
+          referralCodesTable,
+          referralRelationshipsTable,
         ],
       },
     });
@@ -233,6 +331,15 @@ export default $config({
         auth,
         graphs,
         authEmail,
+        // Rewards & Pricing System Tables
+        pricingConfigTable,
+        userCreditsTable,
+        providerRewardsTable,
+        userPointsTable,
+        referralCodesTable,
+        referralRelationshipsTable,
+        streakTrackingTable,
+        usageTrackingTable,
         // Secrets
         providerRegistrationSecret,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
