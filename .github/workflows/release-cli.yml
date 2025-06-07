@@ -62,13 +62,21 @@ jobs:
             exit 1
           fi
           
-          echo "🔄 Generating config from template..."
+          echo "🔄 Creating config file..."
           
-          # Read template and replace placeholders
-          sed "s/__PROVIDER_SECRET_PLACEHOLDER__/$PROVIDER_SECRET/g; s/__BUILD_TIME_PLACEHOLDER__/$(date -u +%Y-%m-%dT%H:%M:%SZ)/g" \
-            source/lib/config.template.ts > source/lib/config.ts
-            
-          echo "✅ Config generated successfully"
+          # Create the config.ts file directly
+          cat > source/lib/config.ts << EOF
+          // source/lib/config.ts
+          // This file is generated during build - DO NOT EDIT MANUALLY
+          
+          export const EMBEDDED_CONFIG = {
+              providerSecret: '$PROVIDER_SECRET',
+              version: '1.0.0',
+              buildTime: '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
+          };
+          EOF
+          
+          echo "✅ Config file created successfully"
           
       - name: 🔨 Build TypeScript
         working-directory: ${{ env.CLI_PATH }}
