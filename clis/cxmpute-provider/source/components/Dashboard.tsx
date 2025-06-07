@@ -157,6 +157,7 @@ export default function Dashboard({
                         <Text>{deviceTier}</Text>
                     </Box>
 
+
                 </Box>
             </Box>
             {/* Notifications Area */}
