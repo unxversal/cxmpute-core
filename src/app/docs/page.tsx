@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./docs.module.css";
 import Link from "next/link";
+import { CodeBlock } from "@/components/docs/CodeBlock";
 
 export default function DocsHomePage() {
   const doc = getDocBySlug(''); // Get the home doc (index.md)
@@ -23,6 +24,20 @@ export default function DocsHomePage() {
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
+            code({ className, children, ...props }) {
+              const match = /language-(\w+)/.exec(className || '');
+              const language = match ? match[1] : '';
+              const code = String(children).replace(/\n$/, '');
+              
+              // Check if this is a code block (has language) vs inline code
+              return match ? (
+                <CodeBlock language={language} code={code} />
+              ) : (
+                <code className={styles.inlineCode} {...props}>
+                  {children}
+                </code>
+              );
+            },
             a({ href, children, ...props }) {
               // Handle internal links
               if (href?.startsWith('/docs/')) {
@@ -54,8 +69,7 @@ export default function DocsHomePage() {
             tr: ({ children }) => <tr className={styles.tableRow}>{children}</tr>,
             th: ({ children }) => <th className={styles.tableHeader}>{children}</th>,
             td: ({ children }) => <td className={styles.tableCell}>{children}</td>,
-            pre: ({ children }) => <pre className={styles.codeBlock}>{children}</pre>,
-            code: ({ children }) => <code className={styles.inlineCode}>{children}</code>,
+            pre: ({ children }) => <div className={styles.preWrapper}>{children}</div>,
           }}
         >
           {doc.content}

@@ -93,6 +93,10 @@
 }
 
 /* Code */
+.preWrapper {
+  margin: 1rem 0;
+}
+
 .codeBlock {
   background-color: #1a1f2e;
   border: 1px solid #2d3748;
@@ -114,6 +118,10 @@
   font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
   font-size: 0.875rem;
   color: #20a191;
+}
+
+.preWrapper {
+  margin: 1rem 0;
 }
 
 /* Blockquotes */
