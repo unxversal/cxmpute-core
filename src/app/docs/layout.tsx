@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getDocsByCategory } from "@/lib/docs";
 import { ChevronDown, ChevronRight, FileText } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { ThemeToggle } from "@/components/docs/ThemeToggle";
 import styles from "./layout.module.css";
 
 interface DocsLayoutProps {
@@ -17,6 +18,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(Object.keys(docsByCategory))
   );
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const toggleCategory = (category: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -28,12 +30,16 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
     setExpandedCategories(newExpanded);
   };
 
+  const handleThemeChange = useCallback((newTheme: 'light' | 'dark') => {
+    setTheme(newTheme);
+  }, []);
+
   const getDocPath = (slug: string) => {
     return slug === '' ? '/docs' : `/docs/${slug}`;
   };
 
   return (
-    <div className={styles.docsLayout}>
+    <div className={`${styles.docsLayout} ${theme === 'dark' ? styles.dark : styles.light}`}>
       {/* Sidebar Navigation */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
@@ -86,6 +92,9 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
 
       {/* Main Content */}
       <main className={styles.mainContent}>
+        <div className={styles.contentHeader}>
+          <ThemeToggle onThemeChange={handleThemeChange} />
+        </div>
         <div className={styles.contentWrapper}>
           {children}
         </div>
