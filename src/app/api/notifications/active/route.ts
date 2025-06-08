@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     const queryCommand = new QueryCommand({
       TableName: Resource.NotificationsTable.name,
       IndexName: 'ByMotif',
-      KeyConditionExpression: 'motif = :motif',
-      FilterExpression: 'startDate <= :now AND (attribute_not_exists(endDate) OR endDate > :now)',
+      KeyConditionExpression: 'motif = :motif AND startDate <= :now',
+      FilterExpression: 'attribute_not_exists(endDate) OR endDate > :now',
       ExpressionAttributeValues: {
         ':motif': motif,
         ':now': now
