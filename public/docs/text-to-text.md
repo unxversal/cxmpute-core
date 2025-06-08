@@ -344,11 +344,9 @@ def resilient_chat_completion(messages, model="llama3.1:8b", max_retries=3):
 
 ## Pricing
 
-During our **testnet phase**, all LLM services are completely **free**! Once we transition to mainnet:
+During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-- **Small Models** (7B-8B): ~$0.10-0.20 per 1K tokens
-- **Medium Models** (13B-30B): ~$0.20-0.40 per 1K tokens  
-- **Large Models** (70B+): ~$0.40-0.80 per 1K tokens
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 

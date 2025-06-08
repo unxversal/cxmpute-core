@@ -121,7 +121,9 @@ Classify text using embedding-based similarity.
 
 ## Pricing
 
-During our **testnet phase**, embedding services are completely **free**! 
+During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
+
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 

@@ -55,9 +55,9 @@ Cxmpute provides inference and related services powered by a global network of n
 - Geographic distribution for optimal performance
 
 ### 💰 **Cost-Effective**
-- Competitive pricing through decentralized providers
 - Currently free during testnet phase
-- Transparent pricing with no hidden fees
+- Future pricing to be determined (TBD)
+- Competitive rates through decentralized provider network
 
 ### 🔒 **Secure & Reliable**
 - Enterprise-grade security and privacy
@@ -90,7 +90,9 @@ Try different AI services:
 
 ## Testnet Phase
 
-🎉 **All services are currently free!** During our testnet phase, you can use all Cxmpute services without charges. You also earn rewards based on usage and referrals.
+🎉 **All services are currently free!** During our testnet phase, you can use all Cxmpute services without charges. Pricing for the mainnet launch is **to be determined (TBD)**.
+
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 [Learn more about rewards →](/docs/rewards)
 

@@ -526,11 +526,9 @@ results = cache.scrape_with_cache(["https://example.com", "https://test.com"])
 
 ## Pricing
 
-During our **testnet phase**, web scraping services are completely **free**! Once we transition to mainnet:
+During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-- **Standard Scraping**: ~$0.02-0.10 per request
-- **Batch Discounts**: Available for high-volume usage
-- **Premium Features**: Enhanced extraction and custom parsing
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Error Handling
 

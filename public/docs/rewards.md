@@ -107,10 +107,9 @@ Track your referral success:
 
 ### Current Point Values (Testnet)
 
-During testnet, points accumulate for future conversion:
-- **1 Point = ~$0.001** (estimated, subject to change)
-- **Minimum Payout**: 10,000 points ($10)
-- **Payment Methods**: Crypto, PayPal, bank transfer
+During testnet, points accumulate for future conversion. Point values and payout structure are **to be determined (TBD)** for mainnet launch.
+
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on reward announcements and provide feedback on the rewards system.
 
 ### Point Categories
 
@@ -161,9 +160,9 @@ Your referral network can include:
 ### Content Ideas
 
 **📝 Blog Posts**
-- "How I earn $X/month with my gaming PC"
-- "OpenAI vs Cxmpute: Cost comparison"
-- "Setting up passive income with AI compute"
+- "How I earn rewards with my gaming PC"
+- "Cxmpute vs traditional AI services: A comparison"
+- "Setting up passive rewards with AI compute"
 
 **🎥 Videos**
 - Provider setup tutorials
@@ -225,15 +224,12 @@ Monitor your referral performance:
 ### Payout Schedule
 
 - **Testnet**: Points accumulate for future conversion
-- **Mainnet**: Monthly payouts for 10,000+ points
-- **Instant**: Small rewards for immediate motivation
+- **Mainnet**: Payout structure to be determined (TBD)
+- **Community Input**: Join Discord for feedback on reward systems
 
 ### Payment Methods
 
-Available options:
-- **Cryptocurrency**: USDC, ETH, BTC
-- **Traditional**: PayPal, bank transfer
-- **Platform Credits**: Use for API services
+Payment options are **to be determined (TBD)** for mainnet launch. We're exploring various options based on community feedback.
 
 ### Tax Considerations
 

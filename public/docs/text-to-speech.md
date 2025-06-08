@@ -523,11 +523,9 @@ audio = tts_cache.generate_or_get_cached("Welcome to our service!", "af_bella")
 
 ## Pricing
 
-During our **testnet phase**, TTS services are completely **free**! Once we transition to mainnet, pricing will be:
+During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-- **Base Rate**: ~$0.05-0.15 per request
-- **Volume Discounts**: Available for high usage
-- **Provider Network**: Competitive rates through decentralized providers
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support & Community
 
