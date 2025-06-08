@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import styles from './CodeBlock.module.css';
 
@@ -13,6 +13,34 @@ interface CodeBlockProps {
 
 export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
   const [copied, setCopied] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  // Detect theme from parent element
+  useEffect(() => {
+    const detectTheme = () => {
+      const docsLayout = document.querySelector('[class*="docsLayout"]');
+      if (docsLayout) {
+        const isDarkTheme = docsLayout.classList.contains('dark') || 
+                          docsLayout.className.includes('dark');
+        setIsDark(isDarkTheme);
+      }
+    };
+
+    detectTheme();
+    
+    // Watch for theme changes
+    const observer = new MutationObserver(detectTheme);
+    const docsLayout = document.querySelector('[class*="docsLayout"]');
+    
+    if (docsLayout) {
+      observer.observe(docsLayout, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   const handleCopy = async () => {
     try {
@@ -49,25 +77,29 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
     return labels[lang.toLowerCase()] || lang.toUpperCase();
   };
 
-  // Custom style based on oneDark but adjusted for our theme
-  const customOneDark = {
-    ...oneDark,
-    'pre[class*="language-"]': {
-      ...oneDark['pre[class*="language-"]'],
-      background: '#1a1f2e',
-      border: '1px solid #2d3748',
-      borderRadius: '0.5rem',
-      padding: '0',
-      margin: '0',
-      overflow: 'auto',
-    },
-    'code[class*="language-"]': {
-      ...oneDark['code[class*="language-"]'],
-      background: 'transparent',
-      fontSize: '0.875rem',
-      lineHeight: '1.5',
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace",
-    }
+  // Custom style based on theme
+  const getCustomStyle = () => {
+    const baseStyle = isDark ? oneDark : oneLight;
+    
+    return {
+      ...baseStyle,
+      'pre[class*="language-"]': {
+        ...baseStyle['pre[class*="language-"]'],
+        background: 'transparent',
+        border: '0',
+        borderRadius: '0',
+        padding: '0',
+        margin: '0',
+        overflow: 'auto',
+      },
+      'code[class*="language-"]': {
+        ...baseStyle['code[class*="language-"]'],
+        background: 'transparent',
+        fontSize: '0.875rem',
+        lineHeight: '1.5',
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace",
+      }
+    };
   };
 
   return (
@@ -85,7 +117,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
       <div className={styles.codeBlockWrapper}>
         <SyntaxHighlighter
           language={language}
-          style={customOneDark}
+          style={getCustomStyle()}
           customStyle={{
             padding: '1rem',
             margin: '0',
