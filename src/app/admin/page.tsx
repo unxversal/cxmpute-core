@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { auth } from '@/app/actions';
+import React, { useState, useEffect } from 'react';
+import { auth } from '../actions';
 import { redirect } from 'next/navigation';
-import AdminDashboardContent from '@/components/admin/AdminDashboardContent/AdminDashboardContent';
-import { ADMIN_EMAILS } from '@/lib/privateutils';
+import styles from './admin.module.css';
+import AdminDashboard from '@/components/admin/AdminDashboard/AdminDashboard';
+import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 
 export default function AdminPage() {
@@ -13,25 +14,25 @@ export default function AdminPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    async function checkAuth() {
       try {
-        const userSubject = await auth();
+        const authenticatedSubject = await auth();
         
-        if (!userSubject || userSubject.type !== "user") {
+        if (!authenticatedSubject || authenticatedSubject.type !== "user") {
           redirect('/');
           return;
         }
 
+        const userSubject = authenticatedSubject as AuthenticatedUserSubject;
+        
         // Check if user is admin
-        const isAdmin = userSubject.properties.admin && 
-                       ADMIN_EMAILS.includes(userSubject.properties.email);
-
-        if (!isAdmin) {
+        if (!userSubject.properties.admin) {
+          notify.error('Access denied. Admin privileges required.');
           redirect('/dashboard');
           return;
         }
 
-        setSubject(userSubject as AuthenticatedUserSubject);
+        setSubject(userSubject);
         setIsAuthorized(true);
       } catch (error) {
         console.error('Auth check failed:', error);
@@ -39,28 +40,29 @@ export default function AdminPage() {
       } finally {
         setIsLoading(false);
       }
-    };
+    }
 
     checkAuth();
   }, []);
 
   if (isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'var(--font-roboto)'
-      }}>
-        <div>Loading admin dashboard...</div>
+      <div className={styles.loadingContainer}>
+        <div className={styles.loadingSpinner}>
+          <div className={styles.spinner}></div>
+          <p>Verifying admin access...</p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthorized || !subject) {
-    return null; // This will not render as we redirect above
+    return null; // Will redirect
   }
 
-  return <AdminDashboardContent subject={subject.properties} />;
+  return (
+    <div className={styles.adminPageContainer}>
+      <AdminDashboard subject={subject.properties} />
+    </div>
+  );
 } 

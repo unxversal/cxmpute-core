@@ -14,6 +14,7 @@ import { notify } from '@/components/ui/NotificationToaster/NotificationToaster'
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText, Speech, MessageCircleCode, ScanText, PocketKnife, BrainCircuit } from 'lucide-react'; // Added more icons
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
+import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
@@ -142,6 +143,8 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
   return (
     <div className={styles.userDashboardContainer}>
+      <NotificationBanner motif="userDashboard" />
+      
       {/* Hero Section - using ThemeCard */}
       <ThemeCard className={styles.heroCard}>
         <div className={styles.heroContent}>
