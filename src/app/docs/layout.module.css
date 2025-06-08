@@ -1,0 +1,194 @@
+.docsLayout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #fafafa;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: 280px;
+  background-color: white;
+  border-right: 1px solid #e5e7eb;
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebarHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.docsTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: #111827;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.docsTitle:hover {
+  color: #20a191;
+}
+
+.docsTitle h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* Navigation Styles */
+.navigation {
+  padding: 1rem 0;
+}
+
+.categorySection {
+  margin-bottom: 0.5rem;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.categoryHeader:hover {
+  background-color: #f3f4f6;
+  color: #20a191;
+}
+
+.docsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background-color: #f9fafb;
+}
+
+.docsList li {
+  margin: 0;
+}
+
+.docLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 2rem;
+  text-decoration: none;
+  color: #4b5563;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.docLink:hover {
+  background-color: #f3f4f6;
+  color: #20a191;
+  border-left-color: #20a191;
+}
+
+.docLink.active {
+  background-color: #e6fffa;
+  color: #20a191;
+  border-left-color: #20a191;
+  font-weight: 500;
+}
+
+.docLink span {
+  flex: 1;
+}
+
+/* Main Content Styles */
+.mainContent {
+  flex: 1;
+  margin-left: 280px;
+  background-color: white;
+}
+
+.contentWrapper {
+  max-width: 4xl;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 260px;
+  }
+  
+  .mainContent {
+    margin-left: 260px;
+  }
+  
+  .contentWrapper {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .docsLayout {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    box-shadow: none;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .mainContent {
+    margin-left: 0;
+  }
+  
+  .contentWrapper {
+    padding: 1rem;
+  }
+  
+  /* Mobile navigation adjustments */
+  .categoryHeader {
+    padding: 0.5rem 1rem;
+  }
+  
+  .docLink {
+    padding: 0.5rem 1.5rem;
+  }
+}
+
+/* Scrollbar Styling */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+} 
