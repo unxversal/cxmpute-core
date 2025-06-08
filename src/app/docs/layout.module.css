@@ -1,27 +1,27 @@
 .docsLayout {
   display: flex;
   min-height: 100vh;
-  background-color: #fafafa;
+  background-color: #0f1419;
+  color: #e6e6e6;
 }
 
 /* Sidebar Styles */
 .sidebar {
   width: 280px;
-  background-color: white;
-  border-right: 1px solid #e5e7eb;
+  background-color: #1a1f2e;
+  border-right: 1px solid #2d3748;
   position: fixed;
   height: 100vh;
   overflow-y: auto;
   top: 0;
   left: 0;
   z-index: 10;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
 }
 
 .sidebarHeader {
   padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #f9fafb;
+  border-bottom: 1px solid #2d3748;
+  background-color: #1e2533;
 }
 
 .docsTitle {
@@ -29,7 +29,7 @@
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: #111827;
+  color: #f7fafc;
   font-weight: 600;
   transition: color 0.2s;
 }
@@ -63,7 +63,7 @@
   text-align: left;
   font-weight: 600;
   font-size: 0.875rem;
-  color: #374151;
+  color: #a0aec0;
   cursor: pointer;
   transition: all 0.2s;
   text-transform: uppercase;
@@ -71,7 +71,7 @@
 }
 
 .categoryHeader:hover {
-  background-color: #f3f4f6;
+  background-color: #2d3748;
   color: #20a191;
 }
 
@@ -79,7 +79,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  background-color: #f9fafb;
+  background-color: #1e2533;
 }
 
 .docsList li {
@@ -92,20 +92,20 @@
   gap: 0.75rem;
   padding: 0.75rem 2rem;
   text-decoration: none;
-  color: #4b5563;
+  color: #cbd5e0;
   font-size: 0.875rem;
   transition: all 0.2s;
   border-left: 3px solid transparent;
 }
 
 .docLink:hover {
-  background-color: #f3f4f6;
+  background-color: #2d3748;
   color: #20a191;
   border-left-color: #20a191;
 }
 
 .docLink.active {
-  background-color: #e6fffa;
+  background-color: #0d2818;
   color: #20a191;
   border-left-color: #20a191;
   font-weight: 500;
@@ -119,7 +119,7 @@
 .mainContent {
   flex: 1;
   margin-left: 280px;
-  background-color: white;
+  background-color: #0f1419;
 }
 
 .contentWrapper {
@@ -152,9 +152,8 @@
     position: relative;
     width: 100%;
     height: auto;
-    box-shadow: none;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #2d3748;
   }
   
   .mainContent {
@@ -175,20 +174,20 @@
   }
 }
 
-/* Scrollbar Styling */
+/* Scrollbar Styling for Dark Mode */
 .sidebar::-webkit-scrollbar {
   width: 6px;
 }
 
 .sidebar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #1a1f2e;
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #4a5568;
   border-radius: 3px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #718096;
 } 
