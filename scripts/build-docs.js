@@ -1,0 +1,42 @@
+const fs = require('fs');
+const path = require('path');
+
+// Directory containing markdown files
+const docsDir = path.join(__dirname, '../public/docs');
+const outputFile = path.join(__dirname, '../src/lib/docs-content.json');
+
+// Function to read and process markdown files
+function buildDocsJson() {
+  const docsContent = {};
+  
+  try {
+    // Read all files in the docs directory
+    const files = fs.readdirSync(docsDir);
+    
+    // Process each markdown file
+    files.forEach(file => {
+      if (file.endsWith('.md')) {
+        const filePath = path.join(docsDir, file);
+        const content = fs.readFileSync(filePath, 'utf8');
+        
+        // Use filename without extension as key
+        const key = file.replace('.md', '');
+        docsContent[key] = content;
+        
+        console.log(`✅ Processed: ${file}`);
+      }
+    });
+    
+    // Write the JSON file
+    fs.writeFileSync(outputFile, JSON.stringify(docsContent, null, 2));
+    console.log(`\n🎉 Successfully built docs JSON with ${Object.keys(docsContent).length} documents`);
+    console.log(`📄 Output: ${outputFile}`);
+    
+  } catch (error) {
+    console.error('❌ Error building docs JSON:', error);
+    process.exit(1);
+  }
+}
+
+// Run the build process
+buildDocsJson(); 
