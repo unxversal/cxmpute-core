@@ -1,91 +1,66 @@
-import React from 'react';
-import { auth, login, logout } from "@/app/actions";
-import { isAdminUser } from '../../lib/admin';
-import { AdminDashboard } from '../../components/admin/AdminDashboard';
-import type { AuthenticatedUserSubject } from "@/lib/auth";
-import Image from "next/image";
-import Link from "next/link";
-import Button from '@/components/button/button';
-import DashboardButton from '@/components/dashboard/DashboardButton/DashboardButton';
-import { LogOut } from 'lucide-react';
-import styles from "../dashboard/dashboard.module.css";
+"use client";
 
-export default async function AdminPage() {
-  const userSubject = await auth() as AuthenticatedUserSubject | false;
+import React, { useEffect, useState } from 'react';
+import { auth } from '@/app/actions';
+import { redirect } from 'next/navigation';
+import AdminDashboardContent from '@/components/admin/AdminDashboardContent/AdminDashboardContent';
+import { ADMIN_EMAILS } from '@/lib/privateutils';
+import type { AuthenticatedUserSubject } from '@/lib/auth';
 
-  if (!userSubject) {
-    return (
-      <main className={styles.container}>
-        <div className={styles.backgroundPattern} />
-        <div className={styles.unauthenticatedPrompt}>
-          <Link className={styles.logoLink} href="/">
-            <Image src="/images/1.png" alt="Cxmpute Logo" height={50} width={50} />
-            <h1 className={styles.logoText}>CXMPUTE</h1>
-          </Link>
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Admin Access Required</h2>
-          <p>Please log in with an admin account to access the admin dashboard.</p>
-          <form action={login}>
-            <Button text="Log In" backgroundColor="#dc2626" />
-          </form>
-        </div>
-      </main>
-    );
-  }
+export default function AdminPage() {
+  const [subject, setSubject] = useState<AuthenticatedUserSubject | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-  const userEmail = userSubject.properties.email;
-  
-  if (!isAdminUser(userEmail)) {
-    return (
-      <main className={styles.container}>
-        <div className={styles.backgroundPattern} />
-        <div className={styles.unauthenticatedPrompt}>
-          <Link className={styles.logoLink} href="/">
-            <Image src="/images/1.png" alt="Cxmpute Logo" height={50} width={50} />
-            <h1 className={styles.logoText}>CXMPUTE</h1>
-          </Link>
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Access Denied</h2>
-          <p>You don't have permission to access the admin dashboard.</p>
-          <Link href="/dashboard">
-            <Button text="Go to Dashboard" backgroundColor="#2563eb" />
-          </Link>
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className={styles.pageContainer}>
-      <div className={styles.backgroundPattern} />
-      
-      <header className={styles.pageHeader}>
-        <Link className={styles.logoLink} href="/">
-          <Image src="/images/1.png" alt="Cxmpute Logo" height={50} width={50} />
-          <h1 className={styles.logoText}>CXMPUTE ADMIN</h1>
-        </Link>
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const userSubject = await auth();
         
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard">
-            <DashboardButton 
-              variant="secondary"
-              size="md"
-              text="User Dashboard"
-            />
-          </Link>
-          
-          <form action={logout}>
-            <DashboardButton 
-              type="submit" 
-              variant="secondary"
-              size="md"
-              iconLeft={<LogOut size={16} />}
-              text="Log Out"
-              className={styles.logoutButton}
-            />
-          </form>
-        </div>
-      </header>
-      
-      <AdminDashboard userEmail={userEmail} />
-    </main>
-  );
+        if (!userSubject || userSubject.type !== "user") {
+          redirect('/');
+          return;
+        }
+
+        // Check if user is admin
+        const isAdmin = userSubject.properties.admin && 
+                       ADMIN_EMAILS.includes(userSubject.properties.email);
+
+        if (!isAdmin) {
+          redirect('/dashboard');
+          return;
+        }
+
+        setSubject(userSubject as AuthenticatedUserSubject);
+        setIsAuthorized(true);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        redirect('/');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontFamily: 'var(--font-roboto)'
+      }}>
+        <div>Loading admin dashboard...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized || !subject) {
+    return null; // This will not render as we redirect above
+  }
+
+  return <AdminDashboardContent subject={subject.properties} />;
 } 

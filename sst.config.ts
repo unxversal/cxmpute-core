@@ -24,11 +24,15 @@ export default $config({
         providerId: "string",
         providerEmail: "string",
         apiKey: "string",
+        referredBy: "string",
+        referralCode: "string",
       },
       primaryIndex: { hashKey: "providerId" },
       globalIndexes: {
         ByApiKey: { hashKey: "apiKey" },
-        ByEmail: { hashKey: "providerEmail" }
+        ByEmail: { hashKey: "providerEmail" },
+        ByReferredBy: { hashKey: "referredBy" },
+        ByReferralCode: { hashKey: "referralCode" }
       }
     });
 
@@ -116,10 +120,14 @@ export default $config({
       fields: {
         userId: "string",
         userAk: "string",
+        referredBy: "string",
+        referralCode: "string",
       },
       primaryIndex: { hashKey: "userId" },
       globalIndexes: {
         ByWalletAddress: { hashKey: "userAk" }, // Consider renaming GSI if userAk is not a wallet address
+        ByReferredBy: { hashKey: "referredBy" },
+        ByReferralCode: { hashKey: "referralCode" }
       }
     });
 
@@ -152,6 +160,54 @@ export default $config({
       }
     });
 
+    // Notifications Table (for admin-sent notifications)
+    const notificationsTable = new sst.aws.Dynamo("NotificationsTable", {
+      fields: {
+        notificationId: "string",
+        location: "string", // homepage, user-dashboard, provider-dashboard
+        startDate: "string", // ISO date string
+        expiryDate: "string", // ISO date string
+        active: "string", // "true" or "false" for filtering
+      },
+      primaryIndex: { hashKey: "notificationId" },
+      globalIndexes: {
+        ByLocationAndActive: { hashKey: "location", rangeKey: "active" },
+        ByActiveAndExpiry: { hashKey: "active", rangeKey: "expiryDate" }
+      }
+    });
+
+    // Admin Actions Table (for logging admin actions)
+    const adminActionsTable = new sst.aws.Dynamo("AdminActionsTable", {
+      fields: {
+        actionId: "string",
+        adminEmail: "string",
+        timestamp: "string", // ISO timestamp
+        actionType: "string", // suspend, delete, disconnect, etc.
+        targetType: "string", // user, provider, provision
+        targetId: "string", // ID of the target
+      },
+      primaryIndex: { hashKey: "actionId" },
+      globalIndexes: {
+        ByAdminEmail: { hashKey: "adminEmail", rangeKey: "timestamp" },
+        ByActionType: { hashKey: "actionType", rangeKey: "timestamp" },
+        ByTargetType: { hashKey: "targetType", rangeKey: "timestamp" }
+      }
+    });
+
+    // Pricing Table (for fee management)
+    const pricingTable = new sst.aws.Dynamo("PricingTable", {
+      fields: {
+        endpoint: "string", // /chat/completions, /embeddings, etc.
+        model: "string", // specific model or "default"
+        priceType: "string", // per-token, per-request, per-minute, etc.
+        lastUpdated: "string", // ISO timestamp
+      },
+      primaryIndex: { hashKey: "endpoint", rangeKey: "model" },
+      globalIndexes: {
+        ByPriceType: { hashKey: "priceType", rangeKey: "lastUpdated" }
+      }
+    });
+
     // Advertisement Table (assuming general platform feature)
     const advertisementTable = new sst.aws.Dynamo("AdvertisementTable", {
       fields: {
@@ -163,126 +219,6 @@ export default $config({
 
     const graphs = new sst.aws.Bucket("GraphsBucket"); // Assuming general platform bucket
 
-    // --- Rewards & Pricing System Tables ---
-    // Pricing Configuration Table
-    const pricingConfigTable = new sst.aws.Dynamo("PricingConfigTable", {
-      fields: {
-        configKey: "string", // e.g., "tide_pool_input", "blue_surge_output", "tts_per_minute"
-      },
-      primaryIndex: { hashKey: "configKey" }
-    });
-
-    // User Credits Table
-    const userCreditsTable = new sst.aws.Dynamo("UserCreditsTable", {
-      fields: {
-        userId: "string",
-      },
-      primaryIndex: { hashKey: "userId" }
-    });
-
-    // Provider Rewards Table
-    const providerRewardsTable = new sst.aws.Dynamo("ProviderRewardsTable", {
-      fields: {
-        providerId: "string",
-        month: "string", // YYYY-MM format for monthly aggregation
-      },
-      primaryIndex: { hashKey: "providerId", rangeKey: "month" },
-      globalIndexes: {
-        ByMonth: { hashKey: "month" }
-      }
-    });
-
-    // User Points Table
-    const userPointsTable = new sst.aws.Dynamo("UserPointsTable", {
-      fields: {
-        userId: "string",
-        month: "string", // YYYY-MM format for monthly aggregation
-      },
-      primaryIndex: { hashKey: "userId", rangeKey: "month" },
-      globalIndexes: {
-        ByMonth: { hashKey: "month" }
-      }
-    });
-
-    // Referral Codes Table
-    const referralCodesTable = new sst.aws.Dynamo("ReferralCodesTable", {
-      fields: {
-        referralCode: "string",
-        userId: "string",
-        userType: "string", // "user" or "provider"
-      },
-      primaryIndex: { hashKey: "referralCode" },
-      globalIndexes: {
-        ByUser: { hashKey: "userId", rangeKey: "userType" }
-      }
-    });
-
-    // Referral Relationships Table
-    const referralRelationshipsTable = new sst.aws.Dynamo("ReferralRelationshipsTable", {
-      fields: {
-        refereeId: "string",
-        referrerId: "string",
-        userType: "string", // "user" or "provider"
-      },
-      primaryIndex: { hashKey: "refereeId", rangeKey: "userType" },
-      globalIndexes: {
-        ByReferrer: { hashKey: "referrerId", rangeKey: "userType" }
-      }
-    });
-
-    // Streak Tracking Table
-    const streakTrackingTable = new sst.aws.Dynamo("StreakTrackingTable", {
-      fields: {
-        userId: "string",
-        userType: "string", // "user" or "provider"
-        streakType: "string", // "uptime", "usage", "daily_activity"
-      },
-      primaryIndex: { hashKey: "userId", rangeKey: "userType" },
-      globalIndexes: {
-        ByStreakType: { hashKey: "streakType" }
-      }
-    });
-
-    // Usage Tracking Table
-    const usageTrackingTable = new sst.aws.Dynamo("UsageTrackingTable", {
-      fields: {
-        requestId: "string",
-        userId: "string",
-        timestamp: "string", // ISO timestamp for range queries
-      },
-      primaryIndex: { hashKey: "requestId" },
-      globalIndexes: {
-        ByUser: { hashKey: "userId", rangeKey: "timestamp" },
-        ByTimestamp: { hashKey: "timestamp" }
-      }
-    });
-
-    // Notifications Table
-    const notificationsTable = new sst.aws.Dynamo("NotificationsTable", {
-      fields: {
-        notificationId: "string",
-        location: "string", // "homepage", "user_dashboard", "provider_dashboard"
-        startDate: "string", // ISO timestamp
-      },
-      primaryIndex: { hashKey: "notificationId" },
-      globalIndexes: {
-        ByLocation: { hashKey: "location", rangeKey: "startDate" }
-      }
-    });
-
-    // Account Actions Table (for suspend/delete tracking)
-    const accountActionsTable = new sst.aws.Dynamo("AccountActionsTable", {
-      fields: {
-        actionId: "string",
-        targetUserId: "string",
-        timestamp: "string", // ISO timestamp
-      },
-      primaryIndex: { hashKey: "actionId" },
-      globalIndexes: {
-        ByUser: { hashKey: "targetUserId", rangeKey: "timestamp" }
-      }
-    });
-
     // --- Authentication ---
     const auth = new sst.aws.Auth("CxmputeAuth", {
       issuer: {
@@ -292,10 +228,6 @@ export default $config({
           userTable, // Removed TradersTable, BalancesTable
           authEmail,
           providerRegistrationSecret,
-          // Rewards & Pricing System Tables for auth
-          userCreditsTable,
-          referralCodesTable,
-          referralRelationshipsTable,
         ],
       },
     });
@@ -353,21 +285,13 @@ export default $config({
         metadataTable,
         serviceMetadataTable,
         networkStatsTable,
+        notificationsTable,
+        adminActionsTable,
+        pricingTable,
         advertisementTable,
         auth,
         graphs,
         authEmail,
-        // Rewards & Pricing System Tables
-        pricingConfigTable,
-        userCreditsTable,
-        providerRewardsTable,
-        userPointsTable,
-        referralCodesTable,
-        referralRelationshipsTable,
-        streakTrackingTable,
-        usageTrackingTable,
-        notificationsTable,
-        accountActionsTable,
         // Secrets
         providerRegistrationSecret,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
