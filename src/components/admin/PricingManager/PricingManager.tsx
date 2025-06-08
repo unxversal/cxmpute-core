@@ -8,7 +8,7 @@ import {
   DollarSign, 
   Save, 
   Settings,
-  AlertCircle
+  AlertCircle,
 } from 'lucide-react';
 
 interface PricingManagerProps {

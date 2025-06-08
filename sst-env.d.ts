@@ -5,10 +5,6 @@
 
 declare module "sst" {
   export interface Resource {
-    "AccountActionsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "AdvertisementTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -18,30 +14,6 @@ declare module "sst" {
       "sender": string
       "type": "sst.aws.Email"
     }
-    "BalancesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "CancelledOrdersQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
-    }
-    "CmcApiKey": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "CoreFactoryAddress": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "CoreVaultAddress": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "CoreWalletPk": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
     "CxmputeAuth": {
       "type": "sst.aws.Auth"
       "url": string
@@ -50,52 +22,15 @@ declare module "sst" {
       "type": "sst.aws.Nextjs"
       "url": string
     }
-    "CxptTokenAddress": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "DexDataLakeBucket": {
-      "name": string
-      "type": "sst.aws.Bucket"
-    }
-    "DexWsApi": {
-      "managementEndpoint": string
-      "type": "sst.aws.ApiGatewayWebSocket"
-      "url": string
-    }
     "EmbeddingsProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
-    }
-    "FuturesOrdersQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
     }
     "GraphsBucket": {
       "name": string
       "type": "sst.aws.Bucket"
     }
-    "KlineAggregationQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
-    }
-    "KlinesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "LLMProvisionPoolTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "MarketOrdersQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
-    }
-    "MarketUpdatesTopic": {
-      "arn": string
-      "type": "sst.aws.SnsTopic"
-    }
-    "MarketsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
@@ -111,38 +46,6 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
-    "OptionsOrdersQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
-    }
-    "OrdersTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "PaperPointsLimitOrder": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "PaperPointsUsdcPnl": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "PaperPointsUsdcVolume": {
-      "type": "sst.sst.Secret"
-      "value": string
-    }
-    "PerpsOrdersQueue": {
-      "type": "sst.aws.Queue"
-      "url": string
-    }
-    "PositionsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "PricesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "PricingConfigTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -151,23 +54,11 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
-    "ProviderRewardsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "ProviderTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
     "ProvisionsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "ReferralCodesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "ReferralRelationshipsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
@@ -179,22 +70,6 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
-    "StatsDailyTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "StatsIntradayTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "StatsLifetimeTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "StreakTrackingTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "SuspendedAccountsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -203,31 +78,7 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
-    "TradersTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "TradesTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "UsageTrackingTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "UserCreditsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "UserPointsTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
     "UserTable": {
-      "name": string
-      "type": "sst.aws.Dynamo"
-    }
-    "WSConnectionsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }

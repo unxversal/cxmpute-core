@@ -8,10 +8,10 @@ const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const { referralCode } = await request.json();
 
     if (!referralCode || typeof referralCode !== 'string') {

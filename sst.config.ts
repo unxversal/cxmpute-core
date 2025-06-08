@@ -223,41 +223,8 @@ export default $config({
           providerRegistrationSecret,
         ],
       },
-      domain: 'auth.cxmpute.cloud'
+      // domain: 'auth.cxmpute.cloud'
     });
-
-    // ──────────────────────────────────────────────────────────────
-    /* ─── DEX DynamoDB tables (REMOVED) ─────── */
-    // ordersTable, tradesTable, positionsTable, marketsTable, pricesTable, statsIntradayTable,
-    // statsDailyTable, statsLifetimeTable, wsConnectionsTable, klinesTable, tradersTable, balancesTable (DEX)
-    // All these are removed.
-
-    /* ─── S3 lake for cold trade/metrics history (REMOVED) ─────────────── */
-    // dataLakeBucket (DexDataLakeBucket) removed.
-
-    /* ─── SNS topic for real‑time fan‑out (REMOVED) ─────────────────────── */
-    // marketUpdatesTopic removed.
-
-    /* ─── SQS FIFO order queues (REMOVED) ─────────────── */
-    // marketOrdersQueue, optionsOrdersQueue, perpsOrdersQueue, futuresOrdersQueue,
-    // cancelledOrdersQueue, klineAggregationQueue removed.
-
-    /* ─── Dynamo Stream → router Fn → SQS (REMOVED) ─ */
-    // ordersTable.subscribe(...) and tradesTable.subscribe(...) and their targets removed.
-
-    /* ─── Matcher subscribers (REMOVED) ─── */
-    // All SQS queue subscribers for matchers removed.
-
-    /* ───  WebSocket API (REMOVED) ─────────────────────────────────── */
-    // wsApi (DexWsApi) and its routes removed.
-
-    /* Fan‑out Lambda (REMOVED) */
-    // marketUpdatesTopic.subscribe("WsFanOut", ...) removed.
-
-    /* ─── Scheduled jobs (Cron Jobs - All DEX Related Crons REMOVED) ───── */
-    // OracleFetchCron, FundingCron, OptionExpiryCron, FutureExpiryCron, MetricsRollupCron,
-    // MarketSummaryCron, PerpDailySettleCron, DailyToWeeklyKlineCron, DailyToMonthlyKlineCron all removed.
-    // If any CRON job was for non-DEX purposes, it would be kept. Assuming all listed were DEX.
 
     // --- Next.js Site ---
     // Link tables to the NextJS app
