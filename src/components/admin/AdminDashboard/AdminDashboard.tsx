@@ -11,10 +11,7 @@ import {
   Server, 
   DollarSign, 
   Shield, 
-  Settings,
   AlertTriangle,
-  UserX,
-  Trash2
 } from 'lucide-react';
 
 // Import admin sections
