@@ -21,7 +21,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: DocPageProps) {
-  const doc = getDocBySlug(params.slug);
+  const { slug } = await params;
+  const doc = getDocBySlug(slug);
   
   if (!doc) {
     return {
@@ -36,8 +37,9 @@ export async function generateMetadata({ params }: DocPageProps) {
   };
 }
 
-export default function DocPage({ params }: DocPageProps) {
-  const doc = getDocBySlug(params.slug);
+export default async function DocPage({ params }: DocPageProps) {
+  const { slug } = await params;
+  const doc = getDocBySlug(slug);
   
   if (!doc) {
     notFound();

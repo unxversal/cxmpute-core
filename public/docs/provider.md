@@ -14,15 +14,15 @@ We categorize devices into different tiers based on their capabilities. **We nee
 
 ### Device Tiers
 
-| Tier | Name | VRAM | Capabilities | Example Earnings |
-|------|------|------|--------------|------------------|
-| **Tier 0** | Basic | <1GB | Lightweight tasks, TTS | $5-15/month |
-| **Tier 1** | Tide Pool | 1-4GB | Small embeddings, basic TTS | $15-40/month |
-| **Tier 2** | Blue Surf | 4-8GB | Small LLMs, all services | $40-100/month |
-| **Tier 3** | Open Ocean | 8-22GB | Medium LLMs, high throughput | $100-300/month |
-| **Tier 4** | Mariana Depth | 22GB+ | Large LLMs, premium rates | $300-800/month |
+| Tier | Name | VRAM | Capabilities | Testnet Rewards |
+|------|------|------|--------------|-----------------|
+| **Tier 0** | Basic | <1GB | Lightweight tasks, TTS | Points & Rewards |
+| **Tier 1** | Tide Pool | 1-4GB | Small embeddings, basic TTS | Points & Rewards |
+| **Tier 2** | Blue Surf | 4-8GB | Small LLMs, all services | Points & Rewards |
+| **Tier 3** | Open Ocean | 8-22GB | Medium LLMs, high throughput | Points & Rewards |
+| **Tier 4** | Mariana Depth | 22GB+ | Large LLMs, premium service | Points & Rewards |
 
-*Earnings are estimates based on 24/7 operation and network demand. Actual earnings may vary.*
+*During testnet, all providers earn points and rewards. Mainnet earnings structure is to be determined (TBD).*
 
 ### System Requirements
 
@@ -136,7 +136,7 @@ After setup, you'll see your **provider dashboard**:
 ╰────────────────────────────────────────────────────────╯
 
 ╭──────────────────────────╮ ╭───────────────────────────╮
-│ TODAY'S EARNINGS: $12.45 │ │ ALL TIME EARNINGS: $342.10│
+│ TODAY'S POINTS: 1,245    │ │ ALL TIME POINTS: 34,210   │
 ╰──────────────────────────╯ ╰───────────────────────────╯
 
 ╭────────────────────────────────────────────────────────╮
@@ -150,16 +150,20 @@ After setup, you'll see your **provider dashboard**:
 
 **🎉 Congratulations!** Your node is running and earning rewards.
 
+**Join our [Discord community](https://discord.com/invite/CJGA7B2zKT)** to stay updated on earnings announcements, connect with other providers, and get support!
+
 ## Maximizing Your Earnings
 
 ### 💰 Earning Rewards
 
-#### Service Types & Earnings
+#### Service Types & Rewards
 
-- **🤖 LLM Inference**: $0.10-0.50 per 1K tokens (varies by model)
-- **🔍 Embeddings**: $0.01-0.05 per 1K tokens
-- **🌐 Web Scraping**: $0.02-0.10 per request
-- **🗣️ Text-to-Speech**: $0.05-0.15 per request
+During testnet, providers earn points and rewards for all services. Mainnet earnings structure is **to be determined (TBD)**.
+
+- **🤖 LLM Inference**: Points for token generation (varies by model)
+- **🔍 Embeddings**: Points for embedding requests
+- **🌐 Web Scraping**: Points per scraping request
+- **🗣️ Text-to-Speech**: Points for audio generation
 
 #### Best Practices
 

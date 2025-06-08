@@ -402,12 +402,9 @@ result = robust_model_request("Complex reasoning task", models)
 
 ## Pricing for Advanced Models
 
-During **testnet**, all advanced features are **free**! Future pricing:
+During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-- **Standard Models**: $0.10-0.20 per 1K tokens
-- **Large Models**: $0.40-0.80 per 1K tokens
-- **Vision Models**: $0.50-1.00 per image + text tokens
-- **Specialized Models**: $0.60-1.20 per 1K tokens
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 

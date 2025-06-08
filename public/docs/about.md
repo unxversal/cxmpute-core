@@ -8,10 +8,10 @@ We're building the future of AI infrastructure by democratizing access to comput
 
 ### The Problem We Solve
 
-- **High AI Costs**: Traditional cloud providers charge premium rates for AI services
-- **Limited Access**: Many developers can't afford enterprise-grade AI infrastructure
+- **Limited Access**: Many developers can't access enterprise-grade AI infrastructure easily
 - **Wasted Resources**: Millions of powerful computers sit idle while AI demand grows
 - **Centralization**: AI compute is concentrated in a few major cloud providers
+- **Pricing Uncertainty**: Unpredictable costs and complex pricing models
 
 ### Our Solution
 
@@ -47,7 +47,7 @@ Cxmpute creates a **decentralized marketplace** where:
 - **OpenAI-Compatible APIs**: Easy integration for developers
 - **Dashboard**: User-friendly interface for management
 - **Analytics**: Usage tracking and insights
-- **Billing**: Transparent pricing and usage monitoring
+- **Account Management**: Usage monitoring and service access
 
 #### 3. **Provider Network** (Distributed Compute)
 - **Provider CLI**: Simple onboarding and management
@@ -152,24 +152,24 @@ Cxmpute creates a **decentralized marketplace** where:
 
 ## Business Model
 
-### Revenue Streams
+### Current Phase: Free Testnet
 
-1. **Service Fees**: Small fee on AI service transactions
-2. **Premium Features**: Advanced analytics and custom models
-3. **Enterprise Solutions**: Dedicated infrastructure and support
+During our testnet phase, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-### Provider Economics
+Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
-- **Direct Rewards**: Providers earn majority of service fees
-- **Performance Bonuses**: Extra rewards for reliable service
-- **Referral Program**: Ongoing earnings from network growth
-- **Transparent Pricing**: Clear, predictable reward structure
+### Future Model (TBD)
+
+- **Service-Based**: Revenue model to be determined based on community feedback
+- **Provider Rewards**: Fair compensation system for compute providers
+- **Premium Features**: Advanced analytics and custom model support
+- **Enterprise Solutions**: Dedicated infrastructure and support
 
 ### Sustainability
 
 - **Community-Driven**: Network grows through user and provider satisfaction
 - **Efficient Resource Use**: Better utilization of existing hardware
-- **Competitive Pricing**: Market-driven rates benefit everyone
+- **Fair Economics**: Balanced system benefiting all participants
 
 ## Network Statistics
 
@@ -203,12 +203,12 @@ Cxmpute creates a **decentralized marketplace** where:
 - Advanced model support and custom models
 - Enhanced provider analytics and optimization
 - Mobile SDK and expanded API features
-- Mainnet launch with full payments
+- Mainnet launch with pricing structure (TBD)
 
 ### Long Term (12+ months)
 
 🔮 **Planned**
-- Cross-chain integration and crypto payments
+- Cross-chain integration and payment options
 - Advanced governance and DAO features
 - Enterprise partnerships and custom solutions
 - Global expansion and regulatory compliance

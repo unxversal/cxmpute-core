@@ -97,7 +97,6 @@ export default function StatsPage() {
     return (
       <div className={styles.loadingContainer}>
         <Loader className={styles.loadingSpinner} size={48} />
-        <h2>Loading Cxmpute Network Stats...</h2>
       </div>
     );
   }
