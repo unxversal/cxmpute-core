@@ -7,11 +7,6 @@
   width: 100%;
 }
 
-/* Create Notification Section */
-.createCard {
-  /* Uses ThemeCard base */
-}
-
 .createForm {
   display: flex;
   flex-direction: column;
@@ -55,10 +50,6 @@
   resize: vertical;
 }
 
-.motifSelect {
-  /* Specific styling for motif select */
-}
-
 .motifOption {
   padding: 8px;
 }
@@ -99,10 +90,7 @@
   color: white;
 }
 
-/* Preview Section */
-.previewCard {
-  /* Uses ThemeCard base */
-}
+
 
 .previewContainer {
   display: flex;
@@ -167,11 +155,6 @@
 
 .previewContent p:last-child {
   margin-bottom: 0;
-}
-
-/* Active Notifications Section */
-.activeCard {
-  /* Uses ThemeCard base */
 }
 
 .notificationsList {

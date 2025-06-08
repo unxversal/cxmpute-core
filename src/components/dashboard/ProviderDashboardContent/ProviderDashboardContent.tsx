@@ -14,7 +14,7 @@ import type { AuthenticatedUserSubject } from '@/lib/auth';
 import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
 import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 import Link from 'next/link';
-import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader } from 'lucide-react'; // Added Loader2
+import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader, Copy } from 'lucide-react'; // Added Loader2
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -162,11 +162,11 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
     }
   };
   
-  // const handleCopyProviderId = () => { /* ... (same) ... */
-  //   navigator.clipboard.writeText(subject.providerId)
-  //     .then(() => notify.success("Provider ID copied!"))
-  //     .catch(() => notify.error("Failed to copy Provider ID."));
-  // };
+  const handleCopyProviderId = () => {
+    navigator.clipboard.writeText(subject.providerId)
+      .then(() => notify.success("Provider ID copied!"))
+      .catch(() => notify.error("Failed to copy Provider ID."));
+  };
   const initiateDeleteProvision = (provision: ProvisionRecord) => { /* ... (same) ... */
     setProvisionToDelete(provision);
   };
@@ -387,6 +387,15 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
                 isLoading={isInitialLoading}
               />
             )}
+            
+            {/* Show referral information card */}
+            <ThemeCard title="Referral Information" className={styles.referralInfoCard}>
+              <p>Your Provider ID (for referrals):</p>
+              <div className={styles.codeBox}>
+                <span>{subject.providerId}</span>
+                <DashboardButton variant="ghost" size="sm" onClick={handleCopyProviderId} iconLeft={<Copy size={14}/>} />
+              </div>
+            </ThemeCard>
             
             <ThemeCard title="Earnings Breakdown" className={styles.fullHeightCard}>
               {renderEarningsContent()}

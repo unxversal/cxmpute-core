@@ -94,6 +94,26 @@
 .keyActionItem p { font-size: 0.875rem; color: #555; line-height: 1.5; margin: 0; }
 .keyActionItem > button { align-self: flex-start; }
 
+.codeBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f0f0f0;
+  padding: 8px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-top: 5px;
+}
+.codeBox span {
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.9rem;
+  color: var(--cxmpute-purple);
+  font-weight: 600;
+}
+.codeBox button svg {
+  color: #555;
+}
+
 .referralCodeBox {
   display: flex; align-items: center; justify-content: space-between;
   background-color: #f0f0f0; padding: 8px 10px; border-radius: 5px; border: 1px solid #ccc;
