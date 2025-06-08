@@ -203,21 +203,19 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
                />
              )}
              
-             {/* Show referral codes section only if user has a referee or no summary loaded yet */}
-             {(!userSummary || userSummary.referredBy) && (
-               <ThemeCard title="Referral Codes" className={styles.referralInfoCard}>
-                   <p>Your User ID (for referrals):</p>
-                   <div className={styles.codeBox}>
-                       <span>{subject.id}</span>
-                       <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
+             {/* Show referral codes section always */}
+             <ThemeCard title="Referral Codes" className={styles.referralInfoCard}>
+                 <p>Your User ID (for referrals):</p>
+                 <div className={styles.codeBox}>
+                     <span>{subject.id}</span>
+                     <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
+                 </div>
+                 {userSummary?.referredBy && (
+                   <div style={{ marginTop: '12px' }}>
+                     <p style={{ fontSize: '0.9rem', color: '#666' }}>Referred by: {userSummary.referredBy}</p>
                    </div>
-                   {userSummary?.referredBy && (
-                     <div style={{ marginTop: '12px' }}>
-                       <p style={{ fontSize: '0.9rem', color: '#666' }}>Referred by: {userSummary.referredBy}</p>
-                     </div>
-                   )}
-              </ThemeCard>
-             )}
+                 )}
+            </ThemeCard>
 
             <ThemeCard title="Rewards" className={styles.rewardsInfoCard}>
                  <BarChart3 size={20} />
