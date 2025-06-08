@@ -1,34 +1,36 @@
-/* Stats Page Styles */
+/* Dark Trading Dashboard Stats Page */
 .statsContainer {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #0a0a0a;
+  color: #e5e5e5;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 2rem;
+  padding: 0;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 3rem;
+  background: #111111;
+  border-bottom: 1px solid #333333;
+  padding: 2rem 3rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header h1 {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(45deg, #ffffff, #f8f9fa);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+  letter-spacing: -0.02em;
 }
 
 .lastUpdated {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1rem;
+  color: #888888;
+  font-size: 0.9rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Loading States */
@@ -38,13 +40,15 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  background: #0a0a0a;
   text-align: center;
+  color: #ffffff;
 }
 
 .loadingSpinner {
-  animation: spin 2s linear infinite;
+  animation: spin 1s linear infinite;
   color: #667eea;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 @keyframes spin {
@@ -57,64 +61,126 @@
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   margin-top: 1rem;
-  transition: background 0.3s ease;
+  transition: background 0.2s ease;
+  font-family: inherit;
 }
 
 .retryButton:hover {
-  background: #5a6fd8;
+  background: #5a67d8;
 }
 
-/* Overview Section */
-.overviewSection {
-  margin-bottom: 3rem;
+/* Main Content Areas */
+.overviewSection, .mapSection, .networkSection, .liveProvidersSection, .analyticsSection, .growthSection {
+  padding: 2rem 3rem;
+  border-bottom: 1px solid #1a1a1a;
 }
 
-.overviewSection h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
+.overviewSection h2, .mapSection h2, .networkSection h2, .liveProvidersSection h2, .analyticsSection h2, .growthSection h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 2rem 0;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 1.1rem;
 }
 
-.overviewGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Map Section */
+.mapSection {
+  background: #0a0a0a;
+  border-bottom: 1px solid #1a1a1a;
 }
 
-.statCard {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 2rem;
+.mapSection h2 {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  gap: 0.75rem;
+}
+
+.mapSection h2 svg {
+  color: #667eea;
+}
+
+.mapContainer {
+  background: #0c0c0c;
+  border: 1px solid #222222;
+  border-radius: 3px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.mapLegend {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #cccccc;
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Overview Grid */
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 0;
+}
+
+.statCard {
+  background: #151515;
+  border: 1px solid #222222;
+  border-radius: 4px;
+  padding: 1.5rem;
+  transition: border-color 0.2s ease;
+}
+
 .statCard:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border-color: #333333;
 }
 
 .statIcon {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 1rem;
-  display: flex;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 4px;
+  padding: 0.75rem;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.statIcon svg {
+  color: #667eea;
 }
 
 .statContent {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .statValue {
@@ -122,54 +188,53 @@
   font-weight: 700;
   line-height: 1;
   margin-bottom: 0.5rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .statLabel {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 0.85rem;
+  color: #888888;
   font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .statSubtext {
-  font-size: 0.9rem;
-  opacity: 0.7;
-  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #666666;
+  margin-top: 0.5rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Network Section */
-.networkSection {
-  margin-bottom: 3rem;
-}
-
-.networkSection h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
 .networkGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 2rem;
 }
 
 .networkCard {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #151515;
+  border: 1px solid #222222;
+  border-radius: 4px;
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .networkCard h3 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.3rem;
-  margin-bottom: 1.5rem;
-  color: rgba(255, 255, 255, 0.95);
+  gap: 0.75rem;
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.networkCard h3 svg {
+  color: #667eea;
 }
 
 /* Geographic Distribution */
@@ -183,29 +248,36 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  padding: 1rem;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
 }
 
 .regionName {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  color: #ffffff;
 }
 
 .regionCount {
-  font-size: 0.9rem;
-  opacity: 0.8;
+  font-size: 0.8rem;
+  color: #888888;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .regionBar {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  height: 6px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  height: 4px;
   overflow: hidden;
+  margin-top: 0.5rem;
 }
 
 .regionProgress {
-  background: linear-gradient(90deg, #4ade80, #22c55e);
+  background: linear-gradient(90deg, #667eea, #764ba2);
   height: 100%;
-  border-radius: 4px;
+  border-radius: 2px;
   transition: width 1s ease;
 }
 
@@ -213,95 +285,120 @@
 .tierList {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .tierItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  padding: 1rem;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  transition: border-color 0.2s ease;
+}
+
+.tierItem:hover {
+  border-color: #333333;
 }
 
 .tierName {
   font-weight: 500;
+  font-size: 0.85rem;
+  color: #cccccc;
 }
 
 .tierCount {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: #667eea;
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: 3px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Capacity Metrics */
 .capacityStats {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .capacityStat {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  padding: 1rem;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
 }
 
 .capacityLabel {
   font-weight: 500;
+  font-size: 0.85rem;
+  color: #cccccc;
 }
 
 .capacityValue {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Live Providers Section */
-.liveProvidersSection {
-  margin-bottom: 3rem;
-}
-
-.liveProvidersSection h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
 .servicesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
 }
 
 .serviceCard {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #151515;
+  border: 1px solid #222222;
+  border-radius: 4px;
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  min-height: 250px;
+  min-height: 300px;
 }
 
 .serviceCard h3 {
-  font-size: 1.3rem;
-  margin-bottom: 1.5rem;
-  color: rgba(255, 255, 255, 0.95);
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 .modelList {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 200px;
+  gap: 0.5rem;
+  max-height: 250px;
   overflow-y: auto;
+}
+
+/* Custom scrollbar for model lists */
+.modelList::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modelList::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 3px;
+}
+
+.modelList::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+
+.modelList::-webkit-scrollbar-thumb:hover {
+  background: #444444;
 }
 
 .modelItem {
@@ -309,74 +406,71 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  transition: background 0.3s ease;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 3px;
+  transition: border-color 0.2s ease;
 }
 
 .modelItem:hover {
-  background: rgba(255, 255, 255, 0.15);
+  border-color: #333333;
 }
 
 .modelName {
   font-weight: 500;
+  font-size: 0.85rem;
+  color: #cccccc;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .modelCount {
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  color: #667eea;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   margin-left: 1rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 .noProviders {
   text-align: center;
-  opacity: 0.6;
+  color: #666666;
   font-style: italic;
   padding: 2rem;
+  font-size: 0.9rem;
 }
 
 /* Analytics Section */
-.analyticsSection {
-  margin-bottom: 3rem;
-}
-
-.analyticsSection h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
 .endpointsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 .endpointCard {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #151515;
+  border: 1px solid #222222;
+  border-radius: 4px;
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .endpointCard h3 {
-  font-size: 1.2rem;
-  margin-bottom: 1.5rem;
-  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
   font-family: 'Monaco', 'Menlo', monospace;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.5rem;
-  border-radius: 6px;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  padding: 0.75rem;
+  border-radius: 3px;
+  font-weight: 600;
 }
 
 .endpointStats {
@@ -389,99 +483,128 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.endpointStat:last-child {
+  border-bottom: none;
 }
 
 .endpointStat .statLabel {
   font-weight: 500;
-  opacity: 0.9;
+  font-size: 0.8rem;
+  color: #888888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .endpointStat .statValue {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Growth Section */
-.growthSection {
-  margin-bottom: 3rem;
-}
-
-.growthSection h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
 .growthGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 1.5rem;
-  max-width: 1000px;
-  margin: 0 auto;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
 }
 
 .growthCard {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #151515;
+  border: 1px solid #222222;
+  border-radius: 4px;
   padding: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .growthCard h3 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 1.3rem;
-  margin-bottom: 1.5rem;
-  color: rgba(255, 255, 255, 0.95);
+  gap: 0.75rem;
+  font-size: 1rem;
+  margin: 0 0 1.5rem 0;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.growthCard h3 svg {
+  color: #667eea;
 }
 
 .growthStats, .healthStats {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .growthStat, .healthStat {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  padding: 1rem;
+  background: #0f0f0f;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
 }
 
 .growthLabel, .healthLabel {
   font-weight: 500;
+  font-size: 0.85rem;
+  color: #cccccc;
 }
 
 .growthValue, .healthValue {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  color: #ffffff;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Footer */
 .footer {
-  text-align: center;
-  margin-top: 4rem;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  opacity: 0.8;
+  padding: 2rem 3rem;
+  border-top: 1px solid #1a1a1a;
+  background: #0f0f0f;
+  color: #666666;
 }
 
 .footer p {
-  margin: 0.5rem 0;
+  margin: 0.25rem 0;
+  font-size: 0.8rem;
+  font-family: 'Monaco', 'Menlo', monospace;
 }
 
 /* Responsive Design */
+@media (max-width: 1400px) {
+  .overviewGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .servicesGrid, .endpointsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .networkGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .statsContainer {
-    padding: 1rem;
+    padding: 0;
+  }
+  
+  .header, .overviewSection, .mapSection, .networkSection, .liveProvidersSection, .analyticsSection, .growthSection, .footer {
+    padding: 1.5rem;
   }
   
   .header h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
   
   .overviewGrid, .networkGrid, .servicesGrid, .endpointsGrid, .growthGrid {
@@ -489,9 +612,7 @@
   }
   
   .statCard {
-    padding: 1.5rem;
-    flex-direction: column;
-    text-align: center;
+    padding: 1.25rem;
   }
   
   .statValue {
@@ -501,11 +622,22 @@
   .networkCard, .serviceCard, .endpointCard, .growthCard {
     padding: 1.5rem;
   }
+  
+  .mapContainer {
+    padding: 1rem;
+  }
+  
+  .mapLegend {
+    position: static;
+    margin-top: 1rem;
+    background: #0f0f0f;
+    border: 1px solid #1a1a1a;
+  }
 }
 
 @media (max-width: 480px) {
   .header h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
   
   .statCard {
@@ -517,6 +649,10 @@
   }
   
   .networkCard, .serviceCard, .endpointCard, .growthCard {
+    padding: 1rem;
+  }
+  
+  .header, .overviewSection, .mapSection, .networkSection, .liveProvidersSection, .analyticsSection, .growthSection, .footer {
     padding: 1rem;
   }
 } 
