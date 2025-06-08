@@ -223,6 +223,7 @@ export default $config({
           providerRegistrationSecret,
         ],
       },
+      domain: 'auth.cxmpute.cloud'
     });
 
     // ──────────────────────────────────────────────────────────────
