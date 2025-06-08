@@ -53,11 +53,49 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
 
   // Load provisions on mount
   useEffect(() => {
+    const fetchProvisions = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/api/admin/provisions');
+        if (response.ok) {
+          const data = await response.json();
+          setProvisions(data.provisions || []);
+        }
+      } catch (error) {
+        console.error('Error fetching provisions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchProvisions();
   }, []);
 
   // Filter provisions when search/filter changes
   useEffect(() => {
+
+  
+    const filterProvisions = () => {
+      let filtered = provisions;
+  
+      // Filter by search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filtered = filtered.filter(provision => 
+          provision.provisionId.toLowerCase().includes(query) ||
+          provision.providerId.toLowerCase().includes(query) ||
+          provision.providerEmail?.toLowerCase().includes(query) ||
+          provision.location?.country?.toLowerCase().includes(query) ||
+          provision.location?.city?.toLowerCase().includes(query)
+        );
+      }
+  
+      // Filter by status
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(provision => provision.status === statusFilter);
+      }
+  
+      setFilteredProvisions(filtered);
+    };
     filterProvisions();
   }, [provisions, searchQuery, statusFilter]);
 
@@ -75,29 +113,7 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
       setLoading(false);
     }
   };
-
-  const filterProvisions = () => {
-    let filtered = provisions;
-
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(provision => 
-        provision.provisionId.toLowerCase().includes(query) ||
-        provision.providerId.toLowerCase().includes(query) ||
-        provision.providerEmail?.toLowerCase().includes(query) ||
-        provision.location?.country?.toLowerCase().includes(query) ||
-        provision.location?.city?.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(provision => provision.status === statusFilter);
-    }
-
-    setFilteredProvisions(filtered);
-  };
+  
 
   const toggleProvisionSelection = (provisionId: string) => {
     const newSelected = new Set(selectedProvisions);
