@@ -4,316 +4,358 @@ import React, { useState, useEffect } from 'react';
 import styles from './AccountManagement.module.css';
 import ThemeCard from '@/components/dashboard/ThemeCard/ThemeCard';
 import DashboardButton from '@/components/dashboard/DashboardButton/DashboardButton';
-import ThemeModal from '@/components/dashboard/ThemeModal/ThemeModal';
-import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
-import type { AuthenticatedUserSubject } from '@/lib/auth';
-import { 
-  Users, 
-  Server, 
-  Search,
-  Ban,
-  Trash2,
-  AlertTriangle,
-  RefreshCcw
-} from 'lucide-react';
+import { Search, User, Building, AlertTriangle, Ban, Trash2, Shield, Clock } from 'lucide-react';
 
 interface AccountManagementProps {
-  subject: AuthenticatedUserSubject['properties'];
+  adminId: string;
 }
 
-interface UserAccount {
-  userId: string;
+interface AccountResult {
+  id: string;
   email: string;
-  providerId: string;
-  credits: number;
-  totalRewards: number;
-  suspended?: boolean;
+  type: 'user' | 'provider';
+  createdDate?: string;
   lastActive?: string;
+  totalCredits?: number;
+  totalEarnings?: number;
+  isActive?: boolean;
 }
 
-interface ProviderAccount {
-  providerId: string;
-  providerEmail: string;
-  totalRewards: number;
-  activeProvisions: number;
-  suspended?: boolean;
-  lastActive?: string;
+interface SuspendedAccount {
+  accountId: string;
+  accountType: 'user' | 'provider';
+  suspendedDate: string;
+  suspendedBy: string;
+  reason: string;
+  isActive: boolean;
 }
 
-type AccountType = 'user' | 'provider';
+interface ConfirmModalData {
+  type: 'suspend' | 'delete';
+  account: AccountResult;
+  isOpen: boolean;
+}
 
-const AccountManagement: React.FC<AccountManagementProps> = ({ subject }) => {
-  const [activeTab, setActiveTab] = useState<AccountType>('user');
-  const [users, setUsers] = useState<UserAccount[]>([]);
-  const [providers, setProviders] = useState<ProviderAccount[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedAccount, setSelectedAccount] = useState<(UserAccount | ProviderAccount) | null>(null);
-  const [actionType, setActionType] = useState<'suspend' | 'delete' | null>(null);
-  const [isExecutingAction, setIsExecutingAction] = useState(false);
+const AccountManagement: React.FC<AccountManagementProps> = ({ adminId }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<AccountResult[]>([]);
+  const [suspendedAccounts, setSuspendedAccounts] = useState<SuspendedAccount[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [suspendedLoading, setSuspendedLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalData>({ type: 'suspend', account: {} as AccountResult, isOpen: false });
+  const [actionReason, setActionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchAccounts = async () => {
-    setIsLoading(true);
-    try {
-      const [usersRes, providersRes] = await Promise.all([
-        fetch('/api/admin/accounts/users'),
-        fetch('/api/admin/accounts/providers')
-      ]);
-
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
-      }
-
-      if (providersRes.ok) {
-        const providersData = await providersRes.json();
-        setProviders(providersData.providers || []);
-      }
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-      notify.error('Failed to load accounts');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const executeAction = async () => {
-    if (!selectedAccount || !actionType) return;
-
-    setIsExecutingAction(true);
-    try {
-      const isUser = 'userId' in selectedAccount;
-      const endpoint = `/api/admin/accounts/${actionType}`;
-      const payload = {
-        type: isUser ? 'user' : 'provider',
-        id: isUser ? selectedAccount.userId : selectedAccount.providerId,
-        adminEmail: subject.email
-      };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `Failed to ${actionType} account`);
-      }
-
-      notify.success(`Account ${actionType}${actionType === 'suspend' ? 'ed' : 'd'} successfully`);
-      setSelectedAccount(null);
-      setActionType(null);
-      await fetchAccounts();
-    } catch (error) {
-      notify.error(error instanceof Error ? error.message : `Failed to ${actionType} account`);
-    } finally {
-      setIsExecutingAction(false);
-    }
-  };
-
-  const openActionModal = (account: UserAccount | ProviderAccount, action: 'suspend' | 'delete') => {
-    setSelectedAccount(account);
-    setActionType(action);
-  };
-
-  const closeModal = () => {
-    setSelectedAccount(null);
-    setActionType(null);
-  };
-
+  // Load suspended accounts on mount
   useEffect(() => {
-    fetchAccounts();
+    fetchSuspendedAccounts();
   }, []);
 
-  const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.userId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchSuspendedAccounts = async () => {
+    setSuspendedLoading(true);
+    try {
+      const response = await fetch('/api/admin/suspended-accounts');
+      if (response.ok) {
+        const data = await response.json();
+        setSuspendedAccounts(data.accounts || []);
+      }
+    } catch (error) {
+      console.error('Error fetching suspended accounts:', error);
+    } finally {
+      setSuspendedLoading(false);
+    }
+  };
 
-  const filteredProviders = providers.filter(provider => 
-    provider.providerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    provider.providerId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/admin/search-accounts?q=${encodeURIComponent(searchQuery)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.accounts || []);
+      }
+    } catch (error) {
+      console.error('Error searching accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const renderUserRow = (user: UserAccount) => (
-    <div key={user.userId} className={`${styles.accountRow} ${user.suspended ? styles.suspended : ''}`}>
-      <div className={styles.accountInfo}>
-        <div className={styles.accountMain}>
-          <strong>{user.email}</strong>
-          {user.suspended && <span className={styles.suspendedBadge}>SUSPENDED</span>}
-        </div>
-        <div className={styles.accountDetails}>
-          <span>ID: {user.userId}</span>
-          <span>Credits: {user.credits?.toLocaleString() || 0}</span>
-          <span>Rewards: {user.totalRewards?.toLocaleString() || 0}</span>
-        </div>
-      </div>
-      <div className={styles.accountActions}>
-        {!user.suspended && (
-          <DashboardButton
-            variant="danger"
-            size="sm"
-            iconLeft={<Ban size={14} />}
-            text="Suspend"
-            onClick={() => openActionModal(user, 'suspend')}
-          />
-        )}
-        <DashboardButton
-          variant="danger"
-          size="sm"
-          iconLeft={<Trash2 size={14} />}
-          text="Delete"
-          onClick={() => openActionModal(user, 'delete')}
-        />
-      </div>
-    </div>
-  );
+  const openConfirmModal = (type: 'suspend' | 'delete', account: AccountResult) => {
+    setConfirmModal({ type, account, isOpen: true });
+    setActionReason('');
+  };
 
-  const renderProviderRow = (provider: ProviderAccount) => (
-    <div key={provider.providerId} className={`${styles.accountRow} ${provider.suspended ? styles.suspended : ''}`}>
-      <div className={styles.accountInfo}>
-        <div className={styles.accountMain}>
-          <strong>{provider.providerEmail}</strong>
-          {provider.suspended && <span className={styles.suspendedBadge}>SUSPENDED</span>}
-        </div>
-        <div className={styles.accountDetails}>
-          <span>ID: {provider.providerId}</span>
-          <span>Provisions: {provider.activeProvisions || 0}</span>
-          <span>Rewards: {provider.totalRewards?.toLocaleString() || 0}</span>
-        </div>
-      </div>
-      <div className={styles.accountActions}>
-        {!provider.suspended && (
-          <DashboardButton
-            variant="danger"
-            size="sm"
-            iconLeft={<Ban size={14} />}
-            text="Suspend"
-            onClick={() => openActionModal(provider, 'suspend')}
-          />
-        )}
-        <DashboardButton
-          variant="danger"
-          size="sm"
-          iconLeft={<Trash2 size={14} />}
-          text="Delete"
-          onClick={() => openActionModal(provider, 'delete')}
-        />
-      </div>
-    </div>
-  );
+  const closeConfirmModal = () => {
+    setConfirmModal({ type: 'suspend', account: {} as AccountResult, isOpen: false });
+    setActionReason('');
+  };
+
+  const handleSuspendAccount = async () => {
+    if (!actionReason.trim()) return;
+    
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/suspend-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: confirmModal.account.id,
+          accountType: confirmModal.account.type,
+          reason: actionReason,
+          adminId
+        })
+      });
+
+      if (response.ok) {
+        // Refresh suspended accounts and search results
+        fetchSuspendedAccounts();
+        if (searchQuery) handleSearch();
+        closeConfirmModal();
+      }
+    } catch (error) {
+      console.error('Error suspending account:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setActionLoading(true);
+    try {
+      const response = await fetch('/api/admin/delete-account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: confirmModal.account.id,
+          accountType: confirmModal.account.type,
+          adminId
+        })
+      });
+
+      if (response.ok) {
+        // Refresh search results and suspended accounts
+        if (searchQuery) handleSearch();
+        fetchSuspendedAccounts();
+        closeConfirmModal();
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnsuspendAccount = async (accountId: string, accountType: string) => {
+    try {
+      const response = await fetch('/api/admin/unsuspend-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, accountType, adminId })
+      });
+
+      if (response.ok) {
+        fetchSuspendedAccounts();
+        if (searchQuery) handleSearch();
+      }
+    } catch (error) {
+      console.error('Error unsuspending account:', error);
+    }
+  };
+
+  const isAccountSuspended = (accountId: string) => {
+    return suspendedAccounts.some(suspended => suspended.accountId === accountId && suspended.isActive);
+  };
 
   return (
     <div className={styles.accountManagementContainer}>
-      {/* Header Controls */}
-      <ThemeCard className={styles.controlsCard}>
-        <div className={styles.controlsContent}>
-          <div className={styles.tabButtons}>
-            <DashboardButton
-              variant={activeTab === 'user' ? 'primary' : 'ghost'}
-              iconLeft={<Users size={16} />}
-              text={`Users (${users.length})`}
-              onClick={() => setActiveTab('user')}
+      {/* Search Section */}
+      <ThemeCard className={styles.searchCard}>
+        <div className={styles.searchSection}>
+          <h3>🔍 Search Accounts</h3>
+          <p>Search for users and providers by email, ID, or other criteria</p>
+          
+          <div className={styles.searchInputGroup}>
+            <input
+              type="text"
+              placeholder="Enter email, user ID, provider ID..."
+              className={styles.searchInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             />
             <DashboardButton
-              variant={activeTab === 'provider' ? 'primary' : 'ghost'}
-              iconLeft={<Server size={16} />}
-              text={`Providers (${providers.length})`}
-              onClick={() => setActiveTab('provider')}
+              variant="primary"
+              onClick={handleSearch}
+              disabled={loading || !searchQuery.trim()}
+              iconLeft={<Search size={16} />}
+              text={loading ? "Searching..." : "Search"}
             />
           </div>
-          <div className={styles.searchSection}>
-            <div className={styles.searchInput}>
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder={`Search ${activeTab}s...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className={styles.searchResults}>
+              <h4>Search Results ({searchResults.length})</h4>
+              <div className={styles.resultsGrid}>
+                {searchResults.map((account) => (
+                  <div key={account.id} className={styles.accountCard}>
+                    <div className={styles.accountInfo}>
+                      <div className={styles.accountHeader}>
+                        <div className={styles.accountType}>
+                          {account.type === 'user' ? (
+                            <><User size={14} />User</>
+                          ) : (
+                            <><Building size={14} />Provider</>
+                          )}
+                        </div>
+                        {isAccountSuspended(account.id) && (
+                          <div className={styles.suspendedBadge}>
+                            <Ban size={14} />Suspended
+                          </div>
+                        )}
+                      </div>
+                      <p className={styles.accountEmail}>{account.email}</p>
+                      <p className={styles.accountId}>ID: {account.id}</p>
+                    </div>
+                    
+                    <div className={styles.accountActions}>
+                      {!isAccountSuspended(account.id) ? (
+                        <DashboardButton
+                          variant="accentOrange"
+                          onClick={() => openConfirmModal('suspend', account)}
+                          iconLeft={<Ban size={14} />}
+                          text="Suspend"
+                        />
+                      ) : (
+                        <DashboardButton
+                          variant="secondary"
+                          onClick={() => handleUnsuspendAccount(account.id, account.type)}
+                          iconLeft={<Shield size={14} />}
+                          text="Unsuspend"
+                        />
+                      )}
+                      <DashboardButton
+                        variant="danger"
+                        onClick={() => openConfirmModal('delete', account)}
+                        iconLeft={<Trash2 size={14} />}
+                        text="Delete"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <DashboardButton
-              variant="secondary"
-              iconLeft={<RefreshCcw size={16} />}
-              text="Refresh"
-              onClick={fetchAccounts}
-              isLoading={isLoading}
-            />
-          </div>
+          )}
         </div>
       </ThemeCard>
 
-      {/* Accounts List */}
-      <ThemeCard title={`${activeTab === 'user' ? 'User' : 'Provider'} Accounts`} className={styles.accountsList}>
-        {isLoading ? (
-          <div className={styles.loadingState}>Loading accounts...</div>
+      {/* Suspended Accounts Section */}
+      <ThemeCard className={styles.suspendedCard}>
+        <h3>🚫 Suspended Accounts</h3>
+        <p>Currently suspended user and provider accounts</p>
+        
+        {suspendedLoading ? (
+          <div className={styles.loadingState}>Loading suspended accounts...</div>
+        ) : suspendedAccounts.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Shield size={48} />
+            <p>No suspended accounts</p>
+          </div>
         ) : (
-          <div className={styles.accountsContainer}>
-            {activeTab === 'user' 
-              ? filteredUsers.map(renderUserRow)
-              : filteredProviders.map(renderProviderRow)
-            }
-            {(activeTab === 'user' ? filteredUsers : filteredProviders).length === 0 && (
-              <div className={styles.emptyState}>
-                No {activeTab}s found{searchTerm && ' matching your search'}
+          <div className={styles.suspendedList}>
+            {suspendedAccounts.map((suspended) => (
+              <div key={suspended.accountId} className={styles.suspendedItem}>
+                <div className={styles.suspendedInfo}>
+                  <div className={styles.suspendedHeader}>
+                    <div className={styles.suspendedType}>
+                      {suspended.accountType === 'user' ? 'User' : 'Provider'}
+                    </div>
+                    <span className={styles.suspendedId}>{suspended.accountId}</span>
+                  </div>
+                  <p className={styles.suspendedReason}><strong>Reason:</strong> {suspended.reason}</p>
+                  <p className={styles.suspendedDate}>
+                    <Clock size={14} />
+                    Suspended: {new Date(suspended.suspendedDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <DashboardButton
+                  variant="secondary"
+                  onClick={() => handleUnsuspendAccount(suspended.accountId, suspended.accountType)}
+                  iconLeft={<Shield size={14} />}
+                  text="Unsuspend"
+                />
               </div>
-            )}
+            ))}
           </div>
         )}
       </ThemeCard>
 
       {/* Confirmation Modal */}
-      {selectedAccount && actionType && (
-        <ThemeModal
-          isOpen={true}
-          onClose={closeModal}
-          title={
-            <span className={styles.modalTitle}>
-              <AlertTriangle size={22} className={styles.warningIcon} />
-              Confirm {actionType === 'suspend' ? 'Suspension' : 'Deletion'}
-            </span> as unknown as string
-          }
-          size="md"
-          footerContent={
-            <>
+      {confirmModal.isOpen && (
+        <div className={styles.modalOverlay} onClick={closeConfirmModal}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>
+                {confirmModal.type === 'suspend' ? (
+                  <><Ban size={20} />Suspend Account</>
+                ) : (
+                  <><Trash2 size={20} />Delete Account</>
+                )}
+              </h3>
+            </div>
+            
+            <div className={styles.modalBody}>
+              <div className={styles.warningText}>
+                <AlertTriangle size={20} />
+                <div>
+                  <p><strong>Warning!</strong></p>
+                  <p>
+                    You are about to {confirmModal.type} the {confirmModal.account.type} account:
+                  </p>
+                </div>
+              </div>
+              
+              <p><strong>Email:</strong> {confirmModal.account.email}</p>
+              <p><strong>ID:</strong> {confirmModal.account.id}</p>
+              
+              {confirmModal.type === 'suspend' && (
+                <div className={styles.reasonInput}>
+                  <label>Reason for suspension (required):</label>
+                  <textarea
+                    className={styles.reasonTextarea}
+                    placeholder="Enter the reason for suspending this account..."
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                  />
+                </div>
+              )}
+              
+              {confirmModal.type === 'delete' && (
+                <p>
+                  <strong>This action cannot be undone.</strong> All account data and associated 
+                  provisions will be permanently deleted.
+                </p>
+              )}
+            </div>
+            
+            <div className={styles.modalActions}>
               <DashboardButton
                 variant="secondary"
+                onClick={closeConfirmModal}
                 text="Cancel"
-                onClick={closeModal}
-                disabled={isExecutingAction}
               />
               <DashboardButton
-                variant="danger"
-                text={`Yes, ${actionType === 'suspend' ? 'Suspend' : 'Delete'}`}
-                onClick={executeAction}
-                isLoading={isExecutingAction}
-                disabled={isExecutingAction}
+                variant={confirmModal.type === 'suspend' ? 'primary' : 'secondary'}
+                onClick={confirmModal.type === 'suspend' ? handleSuspendAccount : handleDeleteAccount}
+                disabled={actionLoading || (confirmModal.type === 'suspend' && !actionReason.trim())}
+                text={actionLoading ? 'Processing...' : confirmModal.type === 'suspend' ? 'Suspend Account' : 'Delete Account'}
               />
-            </>
-          }
-        >
-          <div className={styles.confirmationContent}>
-            <p>
-              Are you sure you want to {actionType} this {('userId' in selectedAccount) ? 'user' : 'provider'} account?
-            </p>
-            <div className={styles.accountPreview}>
-              <strong>
-                {('userId' in selectedAccount) ? selectedAccount.email : selectedAccount.providerEmail}
-              </strong>
-              <br />
-              <span className={styles.accountId}>
-                ID: {('userId' in selectedAccount) ? selectedAccount.userId : selectedAccount.providerId}
-              </span>
             </div>
-            {actionType === 'delete' && (
-              <div className={styles.warningText}>
-                <AlertTriangle size={16} />
-                This action cannot be undone. All data will be permanently removed.
-              </div>
-            )}
           </div>
-        </ThemeModal>
+        </div>
       )}
     </div>
   );

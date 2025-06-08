@@ -1,0 +1,213 @@
+/* src/components/admin/AdminDashboard/AdminDashboard.module.css */
+
+.adminDashboardContainer {
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  font-family: var(--font-roboto);
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* Header Styles */
+.headerCard {
+  /* Uses ThemeCard base */
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 30px;
+  width: 100%;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.adminBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--cxmpute-orange);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  width: fit-content;
+}
+
+.dashboardTitle {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #000;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.welcomeMessage {
+  font-size: 1.1rem;
+  color: #333;
+  font-weight: 500;
+  margin: 0;
+  max-width: 600px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: flex-start;
+  min-width: 250px;
+}
+
+.warningNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: #fff3cd;
+  border: 2px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 16px;
+  color: #856404;
+}
+
+.warningNotice svg {
+  color: #f39c12;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.warningNotice p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.warningNotice p:first-child {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* Tab Navigation */
+.tabNavigationCard {
+  /* Uses ThemeCard base */
+}
+
+.tabNavigation {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tabButton {
+  /* DashboardButton provides base styling */
+  min-width: 160px;
+}
+
+.activeTab {
+  /* Additional styling for active tab if needed */
+}
+
+/* Content Area */
+.tabContent {
+  flex: 1;
+}
+
+.contentCard {
+  /* Uses ThemeCard base */
+  min-height: 600px;
+}
+
+.contentHeader {
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.contentTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 8px 0;
+}
+
+.contentDescription {
+  font-size: 1rem;
+  color: #666;
+  margin: 0;
+  font-weight: 400;
+}
+
+.contentBody {
+  /* Content sections will style themselves */
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .headerContent {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  
+  .headerRight {
+    min-width: unset;
+    width: 100%;
+  }
+  
+  .warningNotice {
+    width: 100%;
+  }
+  
+  .dashboardTitle {
+    font-size: 2rem;
+  }
+  
+  .tabNavigation {
+    justify-content: center;
+  }
+  
+  .tabButton {
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 600px) {
+  .adminDashboardContainer {
+    padding: 12px;
+    gap: 16px;
+  }
+  
+  .dashboardTitle {
+    font-size: 1.8rem;
+  }
+  
+  .welcomeMessage {
+    font-size: 1rem;
+  }
+  
+  .tabNavigation {
+    flex-direction: column;
+  }
+  
+  .tabButton {
+    min-width: unset;
+    width: 100%;
+  }
+  
+  .warningNotice {
+    padding: 12px;
+  }
+  
+  .contentCard {
+    min-height: 500px;
+  }
+} 

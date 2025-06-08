@@ -90,11 +90,12 @@ export default $config({
     const scrapingProvisionPoolTable = new sst.aws.Dynamo("ScrapingProvisionPoolTable", {
       fields: {
         provisionId: "string",
+        serviceType: "string", // Always "scraping" for grouping
         randomValue: "number",
       },
       primaryIndex: { hashKey: "provisionId" },
       globalIndexes: {
-        ByRandom: { hashKey: "randomValue" }
+        ByServiceRandom: { hashKey: "serviceType", rangeKey: "randomValue" }
       }
     });
 
@@ -160,54 +161,6 @@ export default $config({
       }
     });
 
-    // Notifications Table (for admin-sent notifications)
-    const notificationsTable = new sst.aws.Dynamo("NotificationsTable", {
-      fields: {
-        notificationId: "string",
-        location: "string", // homepage, user-dashboard, provider-dashboard
-        startDate: "string", // ISO date string
-        expiryDate: "string", // ISO date string
-        active: "string", // "true" or "false" for filtering
-      },
-      primaryIndex: { hashKey: "notificationId" },
-      globalIndexes: {
-        ByLocationAndActive: { hashKey: "location", rangeKey: "active" },
-        ByActiveAndExpiry: { hashKey: "active", rangeKey: "expiryDate" }
-      }
-    });
-
-    // Admin Actions Table (for logging admin actions)
-    const adminActionsTable = new sst.aws.Dynamo("AdminActionsTable", {
-      fields: {
-        actionId: "string",
-        adminEmail: "string",
-        timestamp: "string", // ISO timestamp
-        actionType: "string", // suspend, delete, disconnect, etc.
-        targetType: "string", // user, provider, provision
-        targetId: "string", // ID of the target
-      },
-      primaryIndex: { hashKey: "actionId" },
-      globalIndexes: {
-        ByAdminEmail: { hashKey: "adminEmail", rangeKey: "timestamp" },
-        ByActionType: { hashKey: "actionType", rangeKey: "timestamp" },
-        ByTargetType: { hashKey: "targetType", rangeKey: "timestamp" }
-      }
-    });
-
-    // Pricing Table (for fee management)
-    const pricingTable = new sst.aws.Dynamo("PricingTable", {
-      fields: {
-        endpoint: "string", // /chat/completions, /embeddings, etc.
-        model: "string", // specific model or "default"
-        priceType: "string", // per-token, per-request, per-minute, etc.
-        lastUpdated: "string", // ISO timestamp
-      },
-      primaryIndex: { hashKey: "endpoint", rangeKey: "model" },
-      globalIndexes: {
-        ByPriceType: { hashKey: "priceType", rangeKey: "lastUpdated" }
-      }
-    });
-
     // Advertisement Table (assuming general platform feature)
     const advertisementTable = new sst.aws.Dynamo("AdvertisementTable", {
       fields: {
@@ -215,6 +168,46 @@ export default $config({
         location: "string",
       },
       primaryIndex: { hashKey: "timeSlotTimestamp", rangeKey: "location" }
+    });
+
+    // Notifications Table (for admin notifications)
+    const notificationsTable = new sst.aws.Dynamo("NotificationsTable", {
+      fields: {
+        notificationId: "string",
+        motif: "string",
+        startDate: "string",
+      },
+      primaryIndex: { hashKey: "notificationId" },
+      globalIndexes: {
+        ByMotif: { hashKey: "motif", rangeKey: "startDate" },
+        ByStartDate: { hashKey: "startDate" }
+      }
+    });
+
+    // Suspended Accounts Table (for admin account management)
+    const suspendedAccountsTable = new sst.aws.Dynamo("SuspendedAccountsTable", {
+      fields: {
+        accountId: "string", // userId or providerId
+        accountType: "string", // "user" or "provider"
+        suspendedDate: "string",
+      },
+      primaryIndex: { hashKey: "accountId" },
+      globalIndexes: {
+        ByType: { hashKey: "accountType", rangeKey: "suspendedDate" }
+      }
+    });
+
+    // Pricing Config Table (for admin pricing management)
+    const pricingConfigTable = new sst.aws.Dynamo("PricingConfigTable", {
+      fields: {
+        configId: "string", // "current" for active config
+        endpoint: "string", // API endpoint this pricing applies to
+        lastUpdated: "string",
+      },
+      primaryIndex: { hashKey: "configId" },
+      globalIndexes: {
+        ByEndpoint: { hashKey: "endpoint", rangeKey: "lastUpdated" }
+      }
     });
 
     const graphs = new sst.aws.Bucket("GraphsBucket"); // Assuming general platform bucket
@@ -285,10 +278,10 @@ export default $config({
         metadataTable,
         serviceMetadataTable,
         networkStatsTable,
-        notificationsTable,
-        adminActionsTable,
-        pricingTable,
         advertisementTable,
+        notificationsTable,
+        suspendedAccountsTable,
+        pricingConfigTable,
         auth,
         graphs,
         authEmail,

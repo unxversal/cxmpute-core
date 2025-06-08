@@ -47,6 +47,7 @@ const Dashboard: React.FC<DashboardProps> = ({ subject }) => {
           activeView={activeDashboardView}
           onViewChange={handleViewChange}
           isProviderViewAvailable={isProviderViewAvailable}
+          isAdmin={subject.admin}
         />
       </div>
 

@@ -12,6 +12,7 @@ import ReferralEntry from '../ReferralEntry/ReferralEntry';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
+import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 import Link from 'next/link';
 import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader } from 'lucide-react'; // Added Loader2
 
@@ -328,6 +329,8 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
 
   return (
     <div className={styles.providerDashboardContainer}>
+      <NotificationBanner motif="providerDashboard" />
+      
       <ThemeCard className={styles.heroCard}>
         <div className={styles.heroContent}>
           <div className={styles.heroLeft}>

@@ -202,47 +202,6 @@ export interface AdvertisementRecord { // Assuming general platform feature
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Admin Dashboard Interfaces
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface NotificationRecord {
-  notificationId: string;
-  location: "homepage" | "user-dashboard" | "provider-dashboard";
-  startDate: string; // ISO date string
-  expiryDate: string; // ISO date string
-  active: string; // "true" or "false" for DynamoDB filtering
-  title: string;
-  bannerText: string; // Collapsed text shown in banner
-  popupText: string; // Full markdown content for popup
-  createdBy: string; // Admin email
-  createdAt: string; // ISO timestamp
-}
-
-export interface AdminActionRecord {
-  actionId: string;
-  adminEmail: string;
-  timestamp: string; // ISO timestamp
-  actionType: "suspend" | "delete" | "disconnect" | "pricing" | "notification";
-  targetType: "user" | "provider" | "provision" | "system";
-  targetId: string; // ID of the target
-  details?: string; // Additional details about the action
-  success: boolean;
-}
-
-export interface PricingRecord {
-  endpoint: string; // /chat/completions, /embeddings, etc.
-  model: string; // specific model or "default"
-  priceType: "per-token" | "per-request" | "per-minute" | "per-mb" | "flat-rate";
-  inputPrice?: number; // Price for input (tokens, requests, etc.)
-  outputPrice?: number; // Price for output (tokens, etc.)
-  basePrice?: number; // Base price for flat-rate or per-request
-  currency: string; // "USD", "CXPT", etc.
-  lastUpdated: string; // ISO timestamp
-  updatedBy: string; // Admin email
-  active: boolean;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Balance (DEX-specific removed)
 // If a general platform credit/balance system exists beyond UserRecord.credits, define it here.
 // For now, assuming credits are managed on UserRecord.
@@ -306,3 +265,42 @@ export interface PricingRecord {
 // ─────────────────────────────────────────────────────────────────────────────
 // End of interfaces.ts
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Dashboard Interfaces
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface NotificationRecord {
+  notificationId: string;
+  motif: "homepage" | "user-dashboard" | "provider-dashboard";
+  title: string;
+  bannerText: string; // Collapsed text shown in banner
+  popupContent: string; // Full markdown content for popup
+  startDate: string; // ISO date string
+  endDate: string; // ISO date string
+  createdBy: string; // Admin user ID
+  createdAt: string; // ISO date string
+  isActive: boolean;
+}
+
+export interface SuspendedAccountRecord {
+  accountId: string; // userId or providerId
+  accountType: "user" | "provider";
+  suspendedDate: string; // ISO date string
+  suspendedBy: string; // Admin user ID
+  reason?: string;
+  isActive: boolean; // true if still suspended
+}
+
+export interface PricingConfigRecord {
+  configId: string; // "current" for active config, or version identifier
+  endpoint: string; // API endpoint this pricing applies to
+  model?: string; // Optional model name for specific pricing
+  basePrice: number; // Base price per unit
+  currency: "USD" | "CREDITS";
+  unit: "request" | "token" | "minute" | "gb";
+  markup: number; // Percentage markup (e.g., 20 for 20%)
+  lastUpdated: string; // ISO date string
+  updatedBy: string; // Admin user ID
+  isActive: boolean;
+}

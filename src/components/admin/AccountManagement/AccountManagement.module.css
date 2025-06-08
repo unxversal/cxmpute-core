@@ -7,56 +7,129 @@
   width: 100%;
 }
 
-.controlsCard {
+/* Search Section */
+.searchCard {
   /* Uses ThemeCard base */
-}
-
-.controlsContent {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.tabButtons {
-  display: flex;
-  gap: 12px;
 }
 
 .searchSection {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.searchInputGroup {
+  display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .searchInput {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.searchInput svg {
-  position: absolute;
-  left: 12px;
-  color: #666;
-}
-
-.searchInput input {
-  padding: 8px 12px 8px 40px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  width: 200px;
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
   font-family: var(--font-roboto);
+  transition: border-color 0.2s ease;
 }
 
-.searchInput input:focus {
+.searchInput:focus {
   outline: none;
   border-color: var(--cxmpute-green);
 }
 
-.accountsList {
+.searchResults {
+  margin-top: 20px;
+}
+
+.searchResults h4 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.accountCard {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.accountCard:hover {
+  border-color: var(--cxmpute-green);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.accountInfo {
+  flex: 1;
+}
+
+.accountHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.accountType {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background-color: var(--cxmpute-green);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.suspendedBadge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: #dc3545;
+  color: white;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.accountEmail {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+  word-break: break-all;
+}
+
+.accountId {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+}
+
+.accountActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Suspended Accounts Section */
+.suspendedCard {
   /* Uses ThemeCard base */
 }
 
@@ -66,150 +139,205 @@
   align-items: center;
   padding: 40px;
   color: #666;
+  font-size: 1rem;
 }
 
 .emptyState {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  gap: 16px;
   padding: 40px;
   color: #666;
-  font-style: italic;
+  text-align: center;
 }
 
-.accountsContainer {
+.emptyState svg {
+  color: #ccc;
+}
+
+.suspendedList {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.accountRow {
+.suspendedItem {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding: 16px;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
-  background-color: #fafafa;
-  transition: all 0.2s ease;
-}
-
-.accountRow:hover {
-  border-color: #ccc;
-  background-color: #f5f5f5;
-}
-
-.accountRow.suspended {
-  background-color: #ffeaea;
-  border-color: #ffcccc;
-}
-
-.accountInfo {
-  flex: 1;
-}
-
-.accountMain {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.accountMain strong {
-  font-size: 1rem;
-  color: #000;
-}
-
-.suspendedBadge {
-  background-color: #ff4444;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.accountDetails {
-  display: flex;
-  gap: 20px;
-  font-size: 0.875rem;
-  color: #666;
-}
-
-.accountActions {
-  display: flex;
-  gap: 8px;
-}
-
-.modalTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.warningIcon {
-  color: #ff6b35;
-}
-
-.confirmationContent {
-  display: flex;
-  flex-direction: column;
+  background-color: #f8f9fa;
   gap: 16px;
 }
 
-.accountPreview {
-  padding: 12px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border-left: 4px solid var(--cxmpute-green);
+.suspendedInfo {
+  flex: 1;
 }
 
-.accountId {
-  font-size: 0.875rem;
+.suspendedHeader {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.suspendedType {
+  padding: 2px 8px;
+  background-color: #6c757d;
+  color: white;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.suspendedId {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
   color: #666;
-  font-family: monospace;
+}
+
+.suspendedReason {
+  font-size: 0.9rem;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.suspendedDate {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90%;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  padding: 20px 24px 16px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.modalHeader h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.modalBody {
+  padding: 20px 24px;
+}
+
+.modalBody p {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.reasonInput {
+  margin-top: 16px;
+}
+
+.reasonInput label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.reasonTextarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: var(--font-roboto);
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.reasonTextarea:focus {
+  outline: none;
+  border-color: var(--cxmpute-green);
 }
 
 .warningText {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
   background-color: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 6px;
+  border: 2px solid #ffeaa7;
+  border-radius: 8px;
+  margin-bottom: 16px;
   color: #856404;
-  font-size: 0.875rem;
 }
 
-/* Responsive adjustments */
+.warningText svg {
+  color: #f39c12;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.modalActions {
+  padding: 16px 24px 20px;
+  border-top: 2px solid #e0e0e0;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
-  .controlsContent {
+  .resultsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .searchInputGroup {
     flex-direction: column;
     align-items: stretch;
   }
-  
-  .searchSection {
+
+  .accountActions {
     justify-content: space-between;
   }
-  
-  .searchInput input {
-    width: 150px;
-  }
-  
-  .accountRow {
+
+  .suspendedItem {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: stretch;
   }
-  
-  .accountDetails {
+
+  .modalActions {
     flex-direction: column;
-    gap: 4px;
   }
-  
-  .accountActions {
-    align-self: stretch;
-    justify-content: flex-end;
+
+  .modal {
+    width: 95%;
   }
 } 
