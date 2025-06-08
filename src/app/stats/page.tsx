@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Activity, Server, Globe, Zap, Users, TrendingUp, Cpu, HardDrive, Wifi } from 'lucide-react';
+import { Activity, Server, Globe, Zap, Users, TrendingUp, Cpu, HardDrive, Wifi, Loader } from 'lucide-react';
+import ProviderMap from '@/components/stats/ProviderMap';
 import styles from './stats.module.css';
 
 interface StatsData {
@@ -95,7 +96,7 @@ export default function StatsPage() {
   if (loading) {
     return (
       <div className={styles.loadingContainer}>
-        <Activity className={styles.loadingSpinner} size={48} />
+        <Loader className={styles.loadingSpinner} size={48} />
         <h2>Loading Cxmpute Network Stats...</h2>
       </div>
     );
@@ -120,7 +121,7 @@ export default function StatsPage() {
   return (
     <div className={styles.statsContainer}>
       <header className={styles.header}>
-        <h1>Cxmpute Network Statistics</h1>
+        <h1>CXMPUTE NETWORK STATISTICS</h1>
         <div className={styles.lastUpdated}>
           <Activity size={16} />
           Last updated: {lastRefresh?.toLocaleTimeString()}
@@ -176,32 +177,30 @@ export default function StatsPage() {
         </div>
       </section>
 
-      {/* Provider Network */}
-      <section className={styles.networkSection}>
-        <h2>Provider Network</h2>
+      {/* Global Provider Distribution Map */}
+      <section className={styles.mapSection}>
+        <h2><Globe size={24} /> Global Provider Distribution</h2>
         
-        <div className={styles.networkGrid}>
-          {/* Geographic Distribution */}
-          <div className={styles.networkCard}>
-            <h3><Globe size={20} /> Geographic Distribution</h3>
-            <div className={styles.regionList}>
-              {topRegions.map(([country, count]) => (
-                <div key={country} className={styles.regionItem}>
-                  <span className={styles.regionName}>{country}</span>
-                  <span className={styles.regionCount}>{count} providers</span>
-                  <div className={styles.regionBar}>
-                    <div 
-                      className={styles.regionProgress}
-                      style={{ 
-                        width: `${(count / topRegions[0][1]) * 100}%` 
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+        <div className={styles.mapContainer}>
+          <ProviderMap geographicData={stats.providerNetwork.geographic} />
+          <div className={styles.mapLegend}>
+            <div className={styles.legendItem}>
+              <div className={styles.legendDot} style={{ backgroundColor: '#667eea' }}></div>
+              <span>Active Providers</span>
+            </div>
+            <div className={styles.legendItem}>
+              <div className={styles.legendDot} style={{ backgroundColor: '#333333' }}></div>
+              <span>Network Coverage</span>
             </div>
           </div>
+        </div>
+      </section>
 
+      {/* Provider Network Analytics */}
+      <section className={styles.networkSection}>
+        <h2>Provider Network Analytics</h2>
+        
+        <div className={styles.networkGrid}>
           {/* Hardware Tiers */}
           <div className={styles.networkCard}>
             <h3><Cpu size={20} /> Hardware Tiers</h3>
@@ -231,6 +230,27 @@ export default function StatsPage() {
                 <span className={styles.capacityLabel}>Est. Capacity</span>
                 <span className={styles.capacityValue}>{formatNumber(stats.providerNetwork.capacity.estimatedRPM)} RPM</span>
               </div>
+            </div>
+          </div>
+
+          {/* Regional Summary */}
+          <div className={styles.networkCard}>
+            <h3><Globe size={20} /> Regional Summary</h3>
+            <div className={styles.regionList}>
+              {topRegions.map(([country, count]) => (
+                <div key={country} className={styles.regionItem}>
+                  <span className={styles.regionName}>{country}</span>
+                  <span className={styles.regionCount}>{count} providers</span>
+                  <div className={styles.regionBar}>
+                    <div 
+                      className={styles.regionProgress}
+                      style={{ 
+                        width: `${(count / topRegions[0][1]) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
