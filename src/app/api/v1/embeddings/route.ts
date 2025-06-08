@@ -8,9 +8,8 @@ import {
   removeEmbeddingsProvision,
   updateEmbeddingsMetadata,
   updateEmbeddingsServiceMetadata,
+  rewardProvider,
 } from "@/lib/utils";
-import { trackUsageAndRewards } from "@/lib/rewards";
-import { v4 as uuidv4 } from 'uuid';
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -104,19 +103,8 @@ export async function POST(req: NextRequest) {
       await updateEmbeddingsServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 8) Track usage and award rewards
-    const requestId = uuidv4();
-    await trackUsageAndRewards(
-      requestId,
-      userId,
-      provision.providerId,
-      '/api/v1/embeddings',
-      model,
-      200, // successful response
-      data.prompt_eval_count, // input tokens
-      undefined, // no output tokens for embeddings
-      latency
-    );
+    // 8) Reward provider
+    await rewardProvider(provision.providerId, 0.01);
 
     // 9) Return with CORS
     return new NextResponse(JSON.stringify(data), {

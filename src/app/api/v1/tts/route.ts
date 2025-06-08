@@ -8,9 +8,8 @@ import {
   removeTTSProvision,
   updateTTSMetadata,
   updateTTSServiceMetadata,
+  rewardProvider,
 } from "@/lib/utils";
-import { trackUsageAndRewards } from "@/lib/rewards";
-import { v4 as uuidv4 } from 'uuid';
 
 /** Handle CORS preflight */
 export async function OPTIONS() {
@@ -104,19 +103,8 @@ export async function POST(req: NextRequest) {
       await updateTTSServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 7) Track usage and award rewards
-    const requestId = uuidv4();
-    await trackUsageAndRewards(
-      requestId,
-      userId,
-      provision.providerId,
-      '/api/v1/tts',
-      model,
-      200, // successful response
-      text.length, // estimate input "tokens" as character count
-      undefined, // no output tokens for TTS
-      latency
-    );
+    // 7) Reward
+    await rewardProvider(provision.providerId, 0.01);
 
     // 8) Return the WAV with "audio/wav" and CORS
     return new Response(nodeResp.body, {

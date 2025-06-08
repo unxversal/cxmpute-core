@@ -1,0 +1,82 @@
+/* src/components/dashboard/ReferralEntry/ReferralEntry.module.css */
+
+.referralCard {
+  /* Uses ThemeCard base */
+}
+
+.referralContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  text-align: center;
+}
+
+.iconWrapper {
+  width: 48px;
+  height: 48px;
+  background-color: var(--cxmpute-green);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.description {
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.referralForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.referralInput {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: var(--font-roboto);
+  transition: border-color 0.2s ease;
+  background-color: #fff;
+  color: #333;
+}
+
+.referralInput:focus {
+  outline: none;
+  border-color: var(--cxmpute-green);
+}
+
+.referralInput:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.referralInput::placeholder {
+  color: #999;
+  font-weight: 400;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .referralForm {
+    max-width: 100%;
+  }
+  
+  .referralInput {
+    font-size: 0.9rem;
+    padding: 10px 14px;
+  }
+  
+  .description {
+    font-size: 0.875rem;
+  }
+} 

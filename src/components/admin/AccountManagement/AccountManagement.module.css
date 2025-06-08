@@ -1,0 +1,215 @@
+/* src/components/admin/AccountManagement/AccountManagement.module.css */
+
+.accountManagementContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+.controlsCard {
+  /* Uses ThemeCard base */
+}
+
+.controlsContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tabButtons {
+  display: flex;
+  gap: 12px;
+}
+
+.searchSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInput {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchInput svg {
+  position: absolute;
+  left: 12px;
+  color: #666;
+}
+
+.searchInput input {
+  padding: 8px 12px 8px 40px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  width: 200px;
+  font-family: var(--font-roboto);
+}
+
+.searchInput input:focus {
+  outline: none;
+  border-color: var(--cxmpute-green);
+}
+
+.accountsList {
+  /* Uses ThemeCard base */
+}
+
+.loadingState {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: #666;
+}
+
+.emptyState {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+.accountsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.accountRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.accountRow:hover {
+  border-color: #ccc;
+  background-color: #f5f5f5;
+}
+
+.accountRow.suspended {
+  background-color: #ffeaea;
+  border-color: #ffcccc;
+}
+
+.accountInfo {
+  flex: 1;
+}
+
+.accountMain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.accountMain strong {
+  font-size: 1rem;
+  color: #000;
+}
+
+.suspendedBadge {
+  background-color: #ff4444;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.accountDetails {
+  display: flex;
+  gap: 20px;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.accountActions {
+  display: flex;
+  gap: 8px;
+}
+
+.modalTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warningIcon {
+  color: #ff6b35;
+}
+
+.confirmationContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.accountPreview {
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid var(--cxmpute-green);
+}
+
+.accountId {
+  font-size: 0.875rem;
+  color: #666;
+  font-family: monospace;
+}
+
+.warningText {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  color: #856404;
+  font-size: 0.875rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .controlsContent {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .searchSection {
+    justify-content: space-between;
+  }
+  
+  .searchInput input {
+    width: 150px;
+  }
+  
+  .accountRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .accountDetails {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .accountActions {
+    align-self: stretch;
+    justify-content: flex-end;
+  }
+} 

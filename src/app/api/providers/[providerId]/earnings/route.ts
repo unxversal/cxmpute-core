@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // GET /api/providers/{providerId}/earnings
 import { NextRequest, NextResponse } from "next/server";
-import { getProviderRewards } from "@/lib/rewards";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
 
 const raw = new DynamoDBClient({});
@@ -25,61 +24,59 @@ export async function GET(
     return NextResponse.json({ error: "Missing providerId" }, { status: 400 });
   }
 
+  // Optional: Basic authentication check
+  // const authHeader = req.headers.get('authorization');
+  // const providerAk = req.headers.get('x-provider-ak');
+  // Add authentication logic here if needed
+
   try {
-    // Get current month's rewards
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const currentRewards = await getProviderRewards(providerId, currentMonth);
-
-    // Get past 6 months of rewards for historical data
-    const earnings = [];
-    let totalPoints = 0;
-
-    for (let i = 0; i < 6; i++) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const month = date.toISOString().slice(0, 7); // YYYY-MM
-      
-      const monthRewards = await getProviderRewards(providerId, month);
-      const points = monthRewards?.totalPoints || 0;
-      totalPoints += points;
-      
-      earnings.unshift({
-        day: month + "-01", // Use first day of month for compatibility
-        amount: points
-      });
+    // Get provider data
+    const resp = await docClient.send(
+      new GetCommand({
+        TableName: Resource.ProviderTable.name,
+        Key: { providerId },
+      })
+    );
+    if (!resp.Item) {
+      return NextResponse.json({ error: "Provider not found" }, { status: 404 });
     }
 
-    // Get referrals count from ReferralRelationshipsTable
+    // Total earnings so far
+    const total = resp.Item.totalRewards ?? 0;
+
+    // Build past 30 days earnings array
+    const list = resp.Item.rewards || [];
+    const earnings = Array.from({ length: 30 }).map((_, i) => {
+      const day = getDateStr(i);
+      const entry = list.find((r: any) => r.day === day);
+      return { day, amount: entry?.amount ?? 0 };
+    }).reverse();
+
+    // Get referrals count using the ByReferredBy GSI
     let referralsCount = 0;
     try {
-      // Note: This will work once the new tables are deployed
-      // For now, return 0 referrals until deployment
-      // const referralsResp = await docClient.send(
-      //   new QueryCommand({
-      //     TableName: "ReferralRelationshipsTable", // Will be Resource.ReferralRelationshipsTable.name after deployment
-      //     IndexName: "ByReferrer",
-      //     KeyConditionExpression: "referrerId = :refId AND userType = :userType",
-      //     ExpressionAttributeValues: {
-      //       ":refId": providerId,
-      //       ":userType": "provider"
-      //     }
-      //   })
-      // );
-      // referralsCount = referralsResp.Items?.length ?? 0;
-      referralsCount = 0; // Default to 0 until tables are deployed
+      const referralsResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.ProviderTable.name,
+          IndexName: "ByReferredBy",
+          KeyConditionExpression: "referredBy = :refId",
+          ExpressionAttributeValues: {
+            ":refId": providerId
+          }
+        })
+      );
+      referralsCount = referralsResp.Items?.length ?? 0;
     } catch (error) {
       console.warn("Failed to fetch referrals count:", error);
       // Continue with referralsCount = 0
     }
 
-    // Calculate today's earnings (current month so far)
-    const earningsToday = currentRewards?.totalPoints || 0;
-
     return NextResponse.json({ 
-      total: totalPoints, 
+      total, 
       earnings,
       referralsCount,
-      earningsToday // Add today's earnings for CLI compatibility
+      referredBy: resp.Item.referredBy ?? null,
+      referralCode: resp.Item.referralCode ?? providerId // Default to providerId if not set
     }, { status: 200 });
   } catch (err: any) {
     console.error("Error fetching provider earnings:", err);
