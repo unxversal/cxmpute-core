@@ -536,6 +536,8 @@ export async function updateEmbeddingsMetadata(latency: number) {
         const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
         await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat }, }));
       }
+      // Update network stats
+      await updateNetworkStats("/embeddings", { endpoint: "/embeddings", latency });
     } catch (err) { console.error("Error updating embeddings metadata:", err); }
 }
 export async function updateEmbeddingsServiceMetadata(serviceName: string, serviceUrl: string | null) {
@@ -582,6 +584,8 @@ export async function updateScrapeMetadata(latency: number) {
       const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
       await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat, }, }));
     }
+    // Update network stats
+    await updateNetworkStats("/scrape", { endpoint: "/scrape", latency });
   } catch (err) { console.error("Error updating /scrape metadata:", err); }
 }
 export async function updateScrapeServiceMetadata(serviceName: string, serviceUrl: string | null) {
@@ -627,6 +631,8 @@ export async function updateTTSMetadata(latency: number) {
       const newAvgLat = oldCount > 0 ? (oldLat * oldCount + latency) / (oldCount + 1) : latency;
       await docClient.send(new PutCommand({ TableName: Resource.MetadataTable.name, Item: { ...oldItem, totalNumRequests: oldCount + 1, averageLatency: newAvgLat, }, }));
     }
+    // Update network stats
+    await updateNetworkStats("/tts", { endpoint: "/tts", latency });
   } catch (err) { console.error("Error updating TTS metadata:", err); }
 }
 export async function updateTTSServiceMetadata(serviceName: string, serviceUrl: string | null) {
@@ -648,3 +654,87 @@ export async function updateTTSServiceMetadata(serviceName: string, serviceUrl: 
 // If wallet linking is still a feature, it would fetch from UserTable.
 // e.g., export async function getLinkedWalletForUser(userId: string): Promise<string | null>
 // This depends on UserTable having a walletAddress attribute.
+
+/**
+ * Update network statistics - tracks provision counts and network health per endpoint/model
+ */
+export async function updateNetworkStats(endpointOrModel: string, additionalData?: Record<string, any>) {
+  const dateStr = getTodayDateString();
+  
+  try {
+    // Count current provisions for this endpoint/model
+    let currentProvisions = 0;
+    
+    // Check LLM provisions
+    if (endpointOrModel.includes("chat") || !endpointOrModel.includes("/")) {
+      const llmResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.LLMProvisionPoolTable.name,
+          IndexName: "ByModel",
+          KeyConditionExpression: "model = :model",
+          ExpressionAttributeValues: { ":model": endpointOrModel },
+          Select: "COUNT"
+        })
+      );
+      currentProvisions = llmResp.Count || 0;
+    }
+    // Check embeddings provisions
+    else if (endpointOrModel.includes("embeddings") || endpointOrModel.includes("embed")) {
+      const embResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.EmbeddingsProvisionPoolTable.name,
+          IndexName: "ByModel",
+          KeyConditionExpression: "model = :model",
+          ExpressionAttributeValues: { ":model": endpointOrModel },
+          Select: "COUNT"
+        })
+      );
+      currentProvisions = embResp.Count || 0;
+    }
+    // Check TTS provisions
+    else if (endpointOrModel.includes("tts")) {
+      const ttsResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.TTSProvisionPoolTable.name,
+          IndexName: "ByModel",
+          KeyConditionExpression: "model = :model",
+          ExpressionAttributeValues: { ":model": endpointOrModel },
+          Select: "COUNT"
+        })
+      );
+      currentProvisions = ttsResp.Count || 0;
+    }
+    // Check scraping provisions
+    else if (endpointOrModel.includes("scrape")) {
+      const scrapeResp = await docClient.send(
+        new QueryCommand({
+          TableName: Resource.ScrapingProvisionPoolTable.name,
+          IndexName: "ByServiceRandom",
+          KeyConditionExpression: "serviceType = :serviceType",
+          ExpressionAttributeValues: { ":serviceType": "scraping" },
+          Select: "COUNT"
+        })
+      );
+      currentProvisions = scrapeResp.Count || 0;
+    }
+
+    // Update or create network stats record
+    const updateItem: Record<string, any> = {
+      dateTimestamp: dateStr,
+      endpointOrModel,
+      currentNumProvisions: currentProvisions,
+      lastUpdated: new Date().toISOString(),
+      ...additionalData
+    };
+
+    await docClient.send(
+      new PutCommand({
+        TableName: Resource.NetworkStatsTable.name,
+        Item: updateItem
+      })
+    );
+
+  } catch (error) {
+    console.error("Error updating network stats:", error);
+  }
+}

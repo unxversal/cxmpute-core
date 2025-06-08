@@ -8,6 +8,7 @@ import {
   removeProvision,
   updateMetadata,
   updateServiceMetadata,
+  updateNetworkStats,
   rewardProvider,
 } from "@/lib/utils"; 
 
@@ -146,6 +147,7 @@ export async function POST(req: NextRequest) {
 
           const tps = (inputTokens + outputTokens) / timeTaken;
           await updateMetadata(model, model, inputTokens, outputTokens, latency, tps);
+          await updateNetworkStats(model, { endpoint: "/chat/completions", latency, tps });
 
           if (serviceTitle && serviceUrl) {
             await updateServiceMetadata(
@@ -198,6 +200,7 @@ export async function POST(req: NextRequest) {
       const tps = (inputTokens + outputTokens) / timeTaken;
 
       await updateMetadata(model, model, inputTokens, outputTokens, latency, tps);
+      await updateNetworkStats(model, { endpoint: "/chat/completions", latency, tps });
 
       if (serviceTitle && serviceUrl) {
         await updateServiceMetadata(
