@@ -53,6 +53,7 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
 
   // Load provisions on mount
   useEffect(() => {
+
     const fetchProvisions = async () => {
       setLoading(true);
       try {
@@ -67,16 +68,15 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
         setLoading(false);
       }
     };
+    
     fetchProvisions();
   }, []);
 
   // Filter provisions when search/filter changes
   useEffect(() => {
-
-  
     const filterProvisions = () => {
       let filtered = provisions;
-  
+
       // Filter by search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -88,12 +88,12 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
           provision.location?.city?.toLowerCase().includes(query)
         );
       }
-  
+
       // Filter by status
       if (statusFilter !== 'all') {
         filtered = filtered.filter(provision => provision.status === statusFilter);
       }
-  
+
       setFilteredProvisions(filtered);
     };
     filterProvisions();
@@ -113,6 +113,7 @@ const ProvisionManager: React.FC<ProvisionManagerProps> = ({ adminId }) => {
       setLoading(false);
     }
   };
+
   
 
   const toggleProvisionSelection = (provisionId: string) => {
