@@ -9,12 +9,12 @@ import DashboardButton from '../DashboardButton/DashboardButton'; // New themed 
 import ThemeCard from '../ThemeCard/ThemeCard'; // New themed card
 import ViewApiKeyModal from '../ViewApiKeyModal/ViewApiKeyModal';
 import VirtualApiKeysManagerModal from '../VirtualApiKeysManagerModal/VirtualApiKeysManagerModal';
+import ReferralEntry from '../ReferralEntry/ReferralEntry';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText, Speech, MessageCircleCode, ScanText, PocketKnife, BrainCircuit } from 'lucide-react'; // Added more icons
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
-import ReferralSection from '../ReferralSection';
-import { NotificationBanner } from '../../notifications/NotificationBanner';
+import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
@@ -25,6 +25,8 @@ interface UserSummary {
   apiKeys: any[]; // Define more strictly if ApiKeyInfo is stable
   credits: number;
   rewards: number;
+  referredBy: string | null;
+  referralCode: string;
 }
 
 // Helper to get themed colors (from original UserDashboard.tsx)
@@ -61,11 +63,13 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
         apiKeys: data.apiKeys || [],
         credits: data.credits || 0,
         rewards: data.rewards || 0,
+        referredBy: data.referredBy || null,
+        referralCode: data.referralCode || subject.id,
       });
     } catch (error: any) {
       console.error("Error fetching user summary:", error);
       setSummaryError(error.message || "Could not load summary data.");
-      setUserSummary({ apiKeys: [], credits: 0, rewards: 0 });
+      setUserSummary({ apiKeys: [], credits: 0, rewards: 0, referredBy: null, referralCode: subject.id });
     } finally {
       setIsLoadingSummary(false);
     }
@@ -101,6 +105,31 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
       .catch(() => notify.error(`Failed to copy ${type}.`));
   };
 
+  const handleReferralSubmit = async (referralCode: string) => {
+    try {
+      const response = await fetch(`/api/user/${subject.id}/referral`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ referralCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to apply referral code');
+      }
+
+      notify.success('Referral code applied successfully!');
+      // Refresh user summary to get updated referral information
+      await fetchUserSummaryData();
+    } catch (error: any) {
+      notify.error(error.message || 'Failed to apply referral code');
+      throw error; // Re-throw to let ReferralEntry handle loading state
+    }
+  };
+
   // Define service cards based on SystemProvisionReference or a custom list
   const serviceCardsData = [
     { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Speech size={24}/>, color: cxmputePurple, docLink: "/docs/text-to-speech" }, // Gift as placeholder
@@ -114,8 +143,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
   return (
     <div className={styles.userDashboardContainer}>
-      {/* Notifications */}
-      <NotificationBanner location="user_dashboard" />
+      <NotificationBanner motif="userDashboard" />
       
       {/* Hero Section - using ThemeCard */}
       <ThemeCard className={styles.heroCard}>
@@ -144,13 +172,6 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
         </div>
       </ThemeCard>
 
-      {/* Referral Section */}
-      <ReferralSection 
-        userId={subject.id}
-        userType="user"
-        hasReferrer={false} // TODO: Check if user has a referrer from API
-      />
-
       {/* Bottom Section: Service Cards & Graph/Stats Placeholder */}
       <h2 className={styles.sectionTitle}>Explore Our Services</h2>
 
@@ -171,13 +192,32 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
         </div>
 
         <div className={styles.secondaryInfoContainer}>
-             <ThemeCard title="Referral Codes" className={styles.referralInfoCard}>
-                 <p>Your User ID (for referrals):</p>
-                 <div className={styles.codeBox}>
-                     <span>{subject.id}</span>
-                     <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
-                 </div>
-            </ThemeCard>
+             {/* Show referral entry form only if user has no referee */}
+             {userSummary && !userSummary.referredBy && (
+               <ReferralEntry
+                 title="Enter Referral Code"
+                 description="Enter another user's ID to get referral rewards and support them!"
+                 placeholder="Enter User ID (e.g., usr_12345...)"
+                 onSubmit={handleReferralSubmit}
+                 isLoading={isLoadingSummary}
+               />
+             )}
+             
+             {/* Show referral codes section only if user has a referee or no summary loaded yet */}
+             {(!userSummary || userSummary.referredBy) && (
+               <ThemeCard title="Referral Codes" className={styles.referralInfoCard}>
+                   <p>Your User ID (for referrals):</p>
+                   <div className={styles.codeBox}>
+                       <span>{subject.id}</span>
+                       <DashboardButton variant="ghost" size="sm" onClick={() => handleCopyReferralCode(subject.id, "User ID")} iconLeft={<Copy size={14}/>} />
+                   </div>
+                   {userSummary?.referredBy && (
+                     <div style={{ marginTop: '12px' }}>
+                       <p style={{ fontSize: '0.9rem', color: '#666' }}>Referred by: {userSummary.referredBy}</p>
+                     </div>
+                   )}
+              </ThemeCard>
+             )}
 
             <ThemeCard title="Rewards" className={styles.rewardsInfoCard}>
                  <BarChart3 size={20} />

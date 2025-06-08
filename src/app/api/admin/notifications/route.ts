@@ -1,161 +1,110 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  createNotification, 
-  getAllNotifications, 
-  deleteNotification, 
-  updateNotification,
-  isAdminUser 
-} from '../../../../lib/admin';
+import { Resource } from 'sst';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { requireAdmin } from '@/lib/auth';
+import { v4 as uuidv4 } from 'uuid';
 
-// GET /api/admin/notifications - Get all notifications
-export async function GET(request: NextRequest) {
+const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+// GET - Fetch all notifications
+export async function GET() {
   try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
+    await requireAdmin();
 
-    const notifications = await getAllNotifications();
-    
+    const scanCommand = new ScanCommand({
+      TableName: Resource.NotificationsTable.name
+    });
+
+    const result = await dynamodb.send(scanCommand);
+
+    // Sort by most recent first
+    const notifications = (result.Items || []).sort((a, b) => 
+      new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
+    );
+
     return NextResponse.json({
       notifications,
-      success: true
+      count: notifications.length
     });
+
   } catch (error) {
-    console.error('Failed to get notifications:', error);
+    console.error('Error fetching notifications:', error);
     return NextResponse.json(
-      { error: 'Failed to get notifications' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/admin/notifications - Create notification
+// POST - Create new notification
 export async function POST(request: NextRequest) {
   try {
-    const adminEmail = request.headers.get('x-admin-email');
+    const admin = await requireAdmin();
     
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { location, title, content, startDate, endDate } = body;
+    const { title, content, motif, startDate, endDate, adminId } = await request.json();
     
-    if (!location || !title || !content || !startDate || !endDate) {
+    if (!title || !content || !motif || !startDate || !adminId) {
       return NextResponse.json(
-        { error: 'Missing required fields: location, title, content, startDate, endDate' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    const validLocations = ['homepage', 'user_dashboard', 'provider_dashboard'];
-    if (!validLocations.includes(location)) {
+    if (!['homepage', 'userDashboard', 'providerDashboard'].includes(motif)) {
       return NextResponse.json(
-        { error: 'Invalid location. Must be: homepage, user_dashboard, or provider_dashboard' },
+        { error: 'Invalid motif' },
         { status: 400 }
       );
     }
 
-    const notification = await createNotification(
-      location,
-      title,
-      content,
+    const notificationId = uuidv4();
+    const now = new Date().toISOString();
+    
+    // Determine status based on dates
+    const startTime = new Date(startDate).getTime();
+    const endTime = endDate ? new Date(endDate).getTime() : null;
+    const nowTime = Date.now();
+    
+    let status = 'scheduled';
+    if (startTime <= nowTime && (!endTime || endTime > nowTime)) {
+      status = 'active';
+    } else if (endTime && endTime <= nowTime) {
+      status = 'expired';
+    }
+
+    const notification = {
+      notificationId,
+      title: title.trim(),
+      content: content.trim(),
+      motif,
       startDate,
       endDate,
-      adminEmail
-    );
-    
+      status,
+      createdDate: now,
+      createdBy: adminId,
+      isActive: status === 'active'
+    };
+
+    const putCommand = new PutCommand({
+      TableName: Resource.NotificationsTable.name,
+      Item: notification
+    });
+
+    await dynamodb.send(putCommand);
+
+    console.log(`Admin ${admin.properties.email} created notification: ${title}`);
+
     return NextResponse.json({
-      notification,
+      success: true,
       message: 'Notification created successfully',
-      success: true
+      notification
     });
+
   } catch (error) {
-    console.error('Failed to create notification:', error);
+    console.error('Error creating notification:', error);
     return NextResponse.json(
-      { error: 'Failed to create notification' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT /api/admin/notifications - Update notification
-export async function PUT(request: NextRequest) {
-  try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { notificationId, ...updates } = body;
-    
-    if (!notificationId) {
-      return NextResponse.json(
-        { error: 'Missing required field: notificationId' },
-        { status: 400 }
-      );
-    }
-
-    await updateNotification(notificationId, updates, adminEmail);
-    
-    return NextResponse.json({
-      message: 'Notification updated successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Failed to update notification:', error);
-    return NextResponse.json(
-      { error: 'Failed to update notification' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/admin/notifications - Delete notification
-export async function DELETE(request: NextRequest) {
-  try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
-    const notificationId = searchParams.get('notificationId');
-    
-    if (!notificationId) {
-      return NextResponse.json(
-        { error: 'Missing required parameter: notificationId' },
-        { status: 400 }
-      );
-    }
-
-    await deleteNotification(notificationId, adminEmail);
-    
-    return NextResponse.json({
-      message: 'Notification deleted successfully',
-      success: true
-    });
-  } catch (error) {
-    console.error('Failed to delete notification:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete notification' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

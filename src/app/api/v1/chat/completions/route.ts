@@ -8,9 +8,8 @@ import {
   removeProvision,
   updateMetadata,
   updateServiceMetadata,
-} from "@/lib/utils";
-import { trackUsageAndRewards } from "@/lib/rewards";
-import { v4 as uuidv4 } from 'uuid'; 
+  rewardProvider,
+} from "@/lib/utils"; 
 
 const CREDITS_NEEDED = 0;
 
@@ -158,19 +157,7 @@ export async function POST(req: NextRequest) {
               outputTokens
             );
           }
-          // Track usage and award rewards
-          const requestId = uuidv4();
-          await trackUsageAndRewards(
-            requestId,
-            userId,
-            provision.providerId,
-            '/api/v1/chat/completions',
-            model,
-            200, // successful streaming response
-            inputTokens,
-            outputTokens,
-            latency
-          );
+          await rewardProvider(provision.providerId, 0.01);
         },
       });
 
@@ -222,19 +209,7 @@ export async function POST(req: NextRequest) {
           outputTokens
         );
       }
-      // Track usage and award rewards
-      const requestId = uuidv4();
-      await trackUsageAndRewards(
-        requestId,
-        userId,
-        provision.providerId,
-        '/api/v1/chat/completions',
-        model,
-        200, // successful response
-        inputTokens,
-        outputTokens,
-        latency
-      );
+      await rewardProvider(provision.providerId, 0.01);
 
       return new NextResponse(JSON.stringify(chatResponse), {
         status: 200,

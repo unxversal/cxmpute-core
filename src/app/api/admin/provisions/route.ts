@@ -1,76 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  disconnectAllProvisions,
-  disconnectProviderProvisions, 
-  disconnectSpecificProvision,
-  isAdminUser 
-} from '../../../../lib/admin';
+import { Resource } from 'sst';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { requireAdmin } from '@/lib/auth';
 
-// DELETE /api/admin/provisions - Disconnect provisions
-export async function DELETE(request: NextRequest) {
+const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+export async function GET(_request: NextRequest) {
   try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
+    await requireAdmin();
 
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action'); // 'all', 'provider', 'specific'
-    const providerId = searchParams.get('providerId');
-    const provisionId = searchParams.get('provisionId');
-
-    let result;
-    let message;
-
-    switch (action) {
-      case 'all':
-        result = await disconnectAllProvisions(adminEmail);
-        message = `Disconnected ${result} provisions`;
-        break;
-        
-      case 'provider':
-        if (!providerId) {
-          return NextResponse.json(
-            { error: 'Missing providerId parameter for provider action' },
-            { status: 400 }
-          );
-        }
-        result = await disconnectProviderProvisions(providerId, adminEmail);
-        message = `Disconnected ${result} provisions for provider ${providerId}`;
-        break;
-        
-      case 'specific':
-        if (!provisionId) {
-          return NextResponse.json(
-            { error: 'Missing provisionId parameter for specific action' },
-            { status: 400 }
-          );
-        }
-        await disconnectSpecificProvision(provisionId, adminEmail);
-        message = `Disconnected provision ${provisionId}`;
-        result = 1;
-        break;
-        
-      default:
-        return NextResponse.json(
-          { error: 'Invalid action. Must be "all", "provider", or "specific"' },
-          { status: 400 }
-        );
-    }
-    
-    return NextResponse.json({
-      disconnectedCount: result,
-      message,
-      success: true
+    // Get all provisions
+    const provisionsCommand = new ScanCommand({
+      TableName: Resource.ProvisionsTable.name
     });
+
+    const provisionsResult = await dynamodb.send(provisionsCommand);
+    const provisions = provisionsResult.Items || [];
+
+    // Enhance with provider information
+    const enhancedProvisions = await Promise.all(
+      provisions.map(async (provision) => {
+        let providerEmail = 'Unknown';
+        
+        // Try to get provider email from ProviderTable
+        try {
+          const providerCommand = new GetCommand({
+            TableName: Resource.ProviderTable.name,
+            Key: { providerId: provision.providerId }
+          });
+          
+          const providerResult = await dynamodb.send(providerCommand);
+          if (providerResult.Item) {
+            providerEmail = providerResult.Item.providerEmail || provision.providerId;
+          }
+        } catch {
+          console.warn('Could not fetch provider info for:', provision.providerId);
+        }
+
+        // Determine provision status (simplified - could be enhanced with health checks)
+        const status = provision.lastHeartbeat 
+          ? (new Date().getTime() - new Date(provision.lastHeartbeat).getTime() < 5 * 60 * 1000 ? 'online' : 'offline')
+          : 'unknown';
+
+        return {
+          ...provision,
+          providerEmail,
+          status,
+          services: provision.services || [],
+          tier: provision.tier || 'Unknown'
+        };
+      })
+    );
+
+    // Sort by most recent first
+    enhancedProvisions.sort((a, b) => 
+      new Date((b as any).createdDate || 0).getTime() - new Date((a as any).createdDate || 0).getTime()
+    );
+
+    return NextResponse.json({
+      provisions: enhancedProvisions,
+      count: enhancedProvisions.length
+    });
+
   } catch (error) {
-    console.error('Failed to disconnect provisions:', error);
+    console.error('Error fetching provisions:', error);
     return NextResponse.json(
-      { error: 'Failed to disconnect provisions' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

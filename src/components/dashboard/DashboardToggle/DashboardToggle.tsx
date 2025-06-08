@@ -4,7 +4,7 @@
 import React from 'react';
 import styles from './DashboardToggle.module.css';
 import DashboardButton from '../DashboardButton/DashboardButton'; // Using our new DashboardButton
-import { User, Briefcase } from 'lucide-react';
+import { User, Briefcase, Shield } from 'lucide-react';
 
 export type DashboardViewType = "user" | "provider";
 
@@ -12,12 +12,14 @@ interface DashboardToggleProps {
   activeView: DashboardViewType;
   onViewChange: (view: DashboardViewType) => void;
   isProviderViewAvailable?: boolean;
+  isAdmin?: boolean;
 }
 
 const DashboardToggle: React.FC<DashboardToggleProps> = ({
   activeView,
   onViewChange,
   isProviderViewAvailable = true,
+  isAdmin = false,
 }) => {
   return (
     <div className={styles.toggleContainer}>
@@ -40,6 +42,18 @@ const DashboardToggle: React.FC<DashboardToggleProps> = ({
         aria-pressed={activeView === 'provider'}
         text="Provider View"
       />
+      
+      {/* Admin button - only show for admin users */}
+      {isAdmin && (
+        <DashboardButton
+          variant="accentOrange"
+          href="/admin"
+          className={styles.toggleButton}
+          iconLeft={<Shield size={16} />}
+          text="Admin Panel"
+          title="Access admin dashboard"
+        />
+      )}
     </div>
   );
 };
