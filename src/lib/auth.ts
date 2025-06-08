@@ -1,6 +1,7 @@
 // src/lib/auth.ts
 import { NextResponse } from "next/server";
 import { auth as getAuthenticatedSubject } from "@/app/actions"; // Assuming your actions.ts is in app/
+import { ADMIN_EMAILS } from './privateutils';
 
 /**
  * Type definition for the user subject returned by your auth() function.
@@ -53,11 +54,11 @@ export async function requireAdmin(): Promise<AuthenticatedUserSubject> {
 
   // If you needed to check against ADMIN_EMAILS directly using an email from the subject:
   // (This assumes 'email' is part of subject.properties - adjust if it's not)
-  // const userEmail = subject.properties.email;
-  // if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
-  //   console.warn(`requireAdmin: User ${subject.properties.id} (Email: ${userEmail}) is not in ADMIN_EMAILS list.`);
-  //   throw NextResponse.json({ error: "Forbidden: Admin access denied." }, { status: 403 });
-  // }
+  const userEmail = subject.properties.email;
+  if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
+    console.warn(`requireAdmin: User ${subject.properties.id} (Email: ${userEmail}) is not in ADMIN_EMAILS list.`);
+    throw NextResponse.json({ error: "Forbidden: Admin access denied." }, { status: 403 });
+  }
 
 
   // console.log(`requireAdmin: Admin access granted for user ${subject.properties.id}`);

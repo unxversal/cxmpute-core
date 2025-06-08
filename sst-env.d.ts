@@ -195,6 +195,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "SuspendedAccountsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "TTSProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"

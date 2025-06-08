@@ -1,0 +1,164 @@
+/* src/components/ui/NotificationBanner/NotificationBanner.module.css */
+
+.notificationBanners {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.notificationBanner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.notificationBanner:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.bannerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.bannerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.bellIcon {
+  color: #ffd700;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.bannerTitle {
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.bannerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+}
+
+.dismissButton {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+  color: white;
+}
+
+.dismissButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.bannerContent {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.contentText {
+  color: #333;
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.contentText strong {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.contentText em {
+  font-style: italic;
+  color: #4a5568;
+}
+
+.bannerFooter {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.bannerFooter small {
+  color: #718096;
+  font-size: 0.8rem;
+}
+
+/* Variant styles for different motifs */
+.notificationBanner[data-motif="homepage"] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.notificationBanner[data-motif="userDashboard"] {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.notificationBanner[data-motif="providerDashboard"] {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .bannerHeader {
+    padding: 10px 12px;
+  }
+  
+  .bannerTitle {
+    font-size: 0.9rem;
+  }
+  
+  .bannerContent {
+    padding: 12px;
+  }
+  
+  .contentText {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .bannerLeft {
+    gap: 8px;
+  }
+  
+  .bannerTitle {
+    font-size: 0.85rem;
+  }
+  
+  .bannerRight {
+    gap: 6px;
+  }
+} 

@@ -61,7 +61,15 @@ async function ensureUser(email: string): Promise<{ // Renamed and return type u
   } else {
     providerId = uuidv4().replace(/-/g, "");
     providerAk = uuidv4().replace(/-/g, "");
-    await ddbDoc.send(new PutCommand({ TableName: PROVIDER_TABLE, Item: { providerId, providerEmail: email, apiKey: providerAk }}));
+    await ddbDoc.send(new PutCommand({ 
+      TableName: PROVIDER_TABLE, 
+      Item: { 
+        providerId, 
+        providerEmail: email, 
+        apiKey: providerAk,
+        referralCode: providerId // Set referral code to providerId
+      }
+    }));
   }
 
   /* ➜ 2. User */
@@ -85,7 +93,16 @@ async function ensureUser(email: string): Promise<{ // Renamed and return type u
     // When creating a new user, walletAddress would be initially undefined unless collected at signup
     await ddbDoc.send(new PutCommand({
         TableName: USER_TABLE,
-        Item: { userId, providerId, userAks, providerAk, userAk, email /* walletAddress could be added here if known */ },
+        Item: { 
+          userId, 
+          providerId, 
+          userAks, 
+          providerAk, 
+          userAk, 
+          email,
+          referralCode: userId // Set referral code to userId
+          /* walletAddress could be added here if known */ 
+        },
     }));
     userWalletAddress = undefined; // Or set if known
   }

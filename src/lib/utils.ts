@@ -558,9 +558,9 @@ export async function updateEmbeddingsServiceMetadata(serviceName: string, servi
 /* -------------------------------------------------------------------------- */
 
 export async function selectScrapingProvision() {
-  const r = Math.random(); const gsiName = "ByRandom";
-  let response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "randomValue > :r", ExpressionAttributeValues: { ":r": r, }, Limit: 1, ScanIndexForward: true, }));
-  if (!response.Items || response.Items.length === 0) { response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "randomValue < :r", ExpressionAttributeValues: { ":r": r, }, Limit: 1, ScanIndexForward: false, })); }
+  const r = Math.random(); const gsiName = "ByServiceRandom";
+  let response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "serviceType = :st AND randomValue > :r", ExpressionAttributeValues: { ":st": "scraping", ":r": r, }, Limit: 1, ScanIndexForward: true, }));
+  if (!response.Items || response.Items.length === 0) { response = await docClient.send(new QueryCommand({ TableName: Resource.ScrapingProvisionPoolTable.name, IndexName: gsiName, KeyConditionExpression: "serviceType = :st AND randomValue < :r", ExpressionAttributeValues: { ":st": "scraping", ":r": r, }, Limit: 1, ScanIndexForward: false, })); }
   if (!response.Items || response.Items.length === 0) throw new Error("No scraping provisions available");
   return response.Items[0];
 }

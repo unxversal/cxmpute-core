@@ -27,6 +27,8 @@ export async function GET(
       apiKeys: res.Item.apiKeys ?? [],
       credits: res.Item.credits ?? 0,
       rewards: res.Item.totalRewards ?? 0,
+      referredBy: res.Item.referredBy ?? null,
+      referralCode: res.Item.referralCode ?? res.Item.userId, // Default to userId if not set
     },
     { status: 200 },
   );

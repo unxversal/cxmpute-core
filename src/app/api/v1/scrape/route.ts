@@ -8,9 +8,8 @@ import {
   removeScrapingProvision,
   updateScrapeMetadata,
   updateScrapeServiceMetadata,
+  rewardProvider,
 } from "@/lib/utils";
-import { trackUsageAndRewards } from "@/lib/rewards";
-import { v4 as uuidv4 } from 'uuid';
 
 /** CORS preflight */
 export async function OPTIONS() {
@@ -92,19 +91,8 @@ export async function POST(req: NextRequest) {
       await updateScrapeServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 7) Track usage and award rewards
-    const requestId = uuidv4();
-    await trackUsageAndRewards(
-      requestId,
-      userId,
-      provision.providerId,
-      '/api/v1/scrape',
-      'scraper', // model name for scraping
-      200, // successful response
-      urls.length, // "input tokens" as number of URLs
-      undefined, // no output tokens for scraping
-      latency
-    );
+    // 7) Reward
+    await rewardProvider(provision.providerId, 0.01);
 
     // 8) Return JSON with CORS
     return new NextResponse(JSON.stringify(data), {

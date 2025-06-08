@@ -1,179 +1,171 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  isAdminUser 
-} from '../../../../lib/admin';
-import { 
-  setPricingConfig,
-  toggleMainnet,
-  getAllPricingConfig,
-  isMainnetMode
-} from '../../../../lib/rewards';
+import { Resource } from 'sst';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { requireAdmin } from '@/lib/auth';
 
-// GET /api/admin/pricing - Get pricing configuration
-export async function GET(request: NextRequest) {
+const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+
+// GET - Fetch current pricing configuration
+export async function GET() {
   try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
+    await requireAdmin();
 
-    const [pricing, mainnetMode] = await Promise.all([
-      getAllPricingConfig(),
-      isMainnetMode()
-    ]);
-    
-    return NextResponse.json({
-      pricing,
-      isMainnet: mainnetMode,
-      success: true
+    const scanCommand = new ScanCommand({
+      TableName: Resource.PricingConfigTable.name
     });
+
+    const result = await dynamodb.send(scanCommand);
+
+    // Sort by endpoint and model
+    const configs = (result.Items || []).sort((a, b) => {
+      if (a.endpoint !== b.endpoint) {
+        return a.endpoint.localeCompare(b.endpoint);
+      }
+      return (a.model || '').localeCompare(b.model || '');
+    });
+
+    return NextResponse.json({
+      configs,
+      count: configs.length,
+      isInitialized: configs.length > 0
+    });
+
   } catch (error) {
-    console.error('Failed to get pricing config:', error);
+    console.error('Error fetching pricing config:', error);
     return NextResponse.json(
-      { error: 'Failed to get pricing config' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/admin/pricing - Update pricing configuration
+// POST - Update or create pricing configuration
 export async function POST(request: NextRequest) {
   try {
-    const adminEmail = request.headers.get('x-admin-email');
+    const admin = await requireAdmin();
     
-    if (!adminEmail || !isAdminUser(adminEmail)) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { action, service, pricing } = body;
-
-    let result;
-    let message;
-
-    switch (action) {
-      case 'update_service':
-        if (!service || !pricing) {
-          return NextResponse.json(
-            { error: 'Missing required fields: service, pricing' },
-            { status: 400 }
-          );
-        }
-        await setPricingConfig(service, pricing.pricePerUnit, pricing.unit, adminEmail);
-        message = `Updated pricing for ${service}`;
-        break;
-
-      case 'switch_mainnet':
-        await toggleMainnet(true, adminEmail);
-        message = 'Switched to mainnet mode (paid services)';
-        break;
-
-      case 'switch_testnet':
-        await toggleMainnet(false, adminEmail);
-        message = 'Switched to testnet mode (free services)';
-        break;
-
-      default:
-        return NextResponse.json(
-          { error: 'Invalid action. Must be "update_service", "switch_mainnet", or "switch_testnet"' },
-          { status: 400 }
-        );
-    }
+    const { endpoint, model, basePrice, markup, currency, unit, adminId } = await request.json();
     
-    return NextResponse.json({
-      message,
-      success: true
-    });
-  } catch (error) {
-    console.error('Failed to update pricing:', error);
-    return NextResponse.json(
-      { error: 'Failed to update pricing' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST /api/admin/pricing/init - Initialize pricing (run init script)
-export async function PUT(request: NextRequest) {
-  try {
-    const adminEmail = request.headers.get('x-admin-email');
-    
-    if (!adminEmail || !isAdminUser(adminEmail)) {
+    if (!endpoint || basePrice === undefined || markup === undefined || !currency || !unit || !adminId) {
       return NextResponse.json(
-        { error: 'Unauthorized: Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const { mode } = body; // 'testnet' or 'mainnet'
-
-    if (!mode || !['testnet', 'mainnet'].includes(mode)) {
-      return NextResponse.json(
-        { error: 'Invalid mode. Must be "testnet" or "mainnet"' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Run init pricing logic inline
-    if (mode === 'testnet') {
-      // Set all pricing to 0 for testnet
-      const testnetPricing = [
-        { key: 'tide_pool_input', price: 0, unit: '1000_tokens' },
-        { key: 'blue_surge_input', price: 0, unit: '1000_tokens' },
-        { key: 'open_ocean_input', price: 0, unit: '1000_tokens' },
-        { key: 'mariana_depth_input', price: 0, unit: '1000_tokens' },
-        { key: 'tide_pool_output', price: 0, unit: '1000_tokens' },
-        { key: 'blue_surge_output', price: 0, unit: '1000_tokens' },
-        { key: 'open_ocean_output', price: 0, unit: '1000_tokens' },
-        { key: 'mariana_depth_output', price: 0, unit: '1000_tokens' },
-        { key: 'embeddings', price: 0, unit: '1000_tokens' },
-        { key: 'tts', price: 0, unit: 'minute' },
-        { key: 'scrape', price: 0, unit: 'request' },
-      ];
-      
-      for (const config of testnetPricing) {
-        await setPricingConfig(config.key, config.price, config.unit, adminEmail);
-      }
-      await toggleMainnet(false, adminEmail);
-      
-    } else {
-      // Set mainnet pricing
-      const mainnetPricing = [
-        { key: 'tide_pool_input', price: 0.0002, unit: '1000_tokens' },
-        { key: 'blue_surge_input', price: 0.0005, unit: '1000_tokens' },
-        { key: 'open_ocean_input', price: 0.0015, unit: '1000_tokens' },
-        { key: 'mariana_depth_input', price: 0.0040, unit: '1000_tokens' },
-        { key: 'tide_pool_output', price: 0.0004, unit: '1000_tokens' },
-        { key: 'blue_surge_output', price: 0.0010, unit: '1000_tokens' },
-        { key: 'open_ocean_output', price: 0.0030, unit: '1000_tokens' },
-        { key: 'mariana_depth_output', price: 0.0080, unit: '1000_tokens' },
-        { key: 'embeddings', price: 0.0001, unit: '1000_tokens' },
-        { key: 'tts', price: 0.015, unit: 'minute' },
-        { key: 'scrape', price: 0.001, unit: 'request' },
-      ];
-      
-      for (const config of mainnetPricing) {
-        await setPricingConfig(config.key, config.price, config.unit, adminEmail);
-      }
-      await toggleMainnet(true, adminEmail);
+    // Validate values
+    if (basePrice < 0 || markup < 0) {
+      return NextResponse.json(
+        { error: 'Prices and markup must be non-negative' },
+        { status: 400 }
+      );
     }
+
+    const configId = `${endpoint}${model ? `#${model}` : ''}`;
+    const now = new Date().toISOString();
     
-    return NextResponse.json({
-      message: `Pricing initialized in ${mode} mode`,
-      success: true
+    // Calculate final price
+    const finalPrice = basePrice * (1 + markup / 100);
+
+    const config = {
+      configId,
+      endpoint,
+      model: model || null,
+      basePrice: Number(basePrice),
+      markup: Number(markup),
+      finalPrice: Number(finalPrice.toFixed(6)),
+      currency,
+      unit,
+      updatedDate: now,
+      updatedBy: adminId
+    };
+
+    const putCommand = new PutCommand({
+      TableName: Resource.PricingConfigTable.name,
+      Item: config
     });
+
+    await dynamodb.send(putCommand);
+
+    console.log(`Admin ${admin.properties.email} updated pricing for ${endpoint}${model ? ` (${model})` : ''}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Pricing configuration updated successfully',
+      config
+    });
+
   } catch (error) {
-    console.error('Failed to initialize pricing:', error);
+    console.error('Error updating pricing config:', error);
     return NextResponse.json(
-      { error: 'Failed to initialize pricing' },
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Initialize default pricing for all endpoints
+export async function PUT(request: NextRequest) {
+  try {
+    const admin = await requireAdmin();
+    
+    const { adminId } = await request.json();
+    
+    if (!adminId) {
+      return NextResponse.json(
+        { error: 'Admin ID required' },
+        { status: 400 }
+      );
+    }
+
+    // Default pricing configuration
+    const defaultConfigs = [
+      { endpoint: '/chat/completions', basePrice: 0.002, markup: 20, currency: 'USD', unit: 'per 1K tokens' },
+      { endpoint: '/embeddings', basePrice: 0.0001, markup: 20, currency: 'USD', unit: 'per 1K tokens' },
+      { endpoint: '/tts', basePrice: 0.015, markup: 25, currency: 'USD', unit: 'per 1K characters' },
+      { endpoint: '/scrape', basePrice: 0.01, markup: 30, currency: 'USD', unit: 'per request' },
+      { endpoint: '/image', basePrice: 0.04, markup: 25, currency: 'USD', unit: 'per image' },
+      { endpoint: '/video', basePrice: 0.12, markup: 30, currency: 'USD', unit: 'per video' },
+      { endpoint: '/m', basePrice: 0.01, markup: 20, currency: 'USD', unit: 'per request' }
+    ];
+
+    const now = new Date().toISOString();
+    const putPromises = defaultConfigs.map(config => {
+      const configId = config.endpoint;
+      const finalPrice = config.basePrice * (1 + config.markup / 100);
+      
+      return dynamodb.send(new PutCommand({
+        TableName: Resource.PricingConfigTable.name,
+        Item: {
+          configId,
+          endpoint: config.endpoint,
+          model: null,
+          basePrice: config.basePrice,
+          markup: config.markup,
+          finalPrice: Number(finalPrice.toFixed(6)),
+          currency: config.currency,
+          unit: config.unit,
+          updatedDate: now,
+          updatedBy: adminId
+        }
+      }));
+    });
+
+    await Promise.all(putPromises);
+
+    console.log(`Admin ${admin.properties.email} initialized default pricing configuration`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Default pricing configuration initialized successfully',
+      configsCreated: defaultConfigs.length
+    });
+
+  } catch (error) {
+    console.error('Error initializing pricing config:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

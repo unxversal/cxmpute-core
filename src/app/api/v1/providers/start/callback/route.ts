@@ -129,6 +129,7 @@ async function addToAppropriatePool(
         TableName: Resource.ScrapingProvisionPoolTable.name,
         Item: {
           provisionId,
+          serviceType: "scraping",
           randomValue,
           provisionEndpoint,
           location

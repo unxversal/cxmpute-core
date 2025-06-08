@@ -1,0 +1,348 @@
+/* src/components/admin/NotificationManager/NotificationManager.module.css */
+
+.notificationManagerContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
+
+/* Create Notification Section */
+.createCard {
+  /* Uses ThemeCard base */
+}
+
+.createForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formRow {
+  display: flex;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.formGroup label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.formInput, .formSelect, .formTextarea {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: var(--font-roboto);
+  transition: border-color 0.2s ease;
+}
+
+.formInput:focus, .formSelect:focus, .formTextarea:focus {
+  outline: none;
+  border-color: var(--cxmpute-green);
+}
+
+.formTextarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.motifSelect {
+  /* Specific styling for motif select */
+}
+
+.motifOption {
+  padding: 8px;
+}
+
+.dateTimeGroup {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+
+.dateTimeInput {
+  flex: 1;
+}
+
+.durationButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.durationButton {
+  padding: 6px 12px;
+  border: 2px solid #e0e0e0;
+  background-color: white;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.durationButton:hover {
+  border-color: var(--cxmpute-green);
+}
+
+.durationButton.active {
+  background-color: var(--cxmpute-green);
+  border-color: var(--cxmpute-green);
+  color: white;
+}
+
+/* Preview Section */
+.previewCard {
+  /* Uses ThemeCard base */
+}
+
+.previewContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewBanner {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  background-color: #f8f9fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.previewBanner:hover {
+  border-color: var(--cxmpute-green);
+}
+
+.previewBannerText {
+  font-size: 0.9rem;
+  color: #333;
+  margin: 0;
+}
+
+.previewExpandIcon {
+  color: #666;
+  transition: transform 0.2s ease;
+}
+
+.previewExpandIcon.expanded {
+  transform: rotate(180deg);
+}
+
+.previewPopup {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.previewPopup h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.previewContent {
+  color: #555;
+  line-height: 1.6;
+}
+
+.previewContent p {
+  margin: 0 0 12px 0;
+}
+
+.previewContent p:last-child {
+  margin-bottom: 0;
+}
+
+/* Active Notifications Section */
+.activeCard {
+  /* Uses ThemeCard base */
+}
+
+.notificationsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notificationItem {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: white;
+  transition: border-color 0.2s ease;
+}
+
+.notificationItem:hover {
+  border-color: var(--cxmpute-green);
+}
+
+.notificationHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.notificationInfo {
+  flex: 1;
+}
+
+.notificationTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.notificationMeta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.motifBadge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+}
+
+.motifBadge.homepage {
+  background-color: var(--cxmpute-green);
+}
+
+.motifBadge.userDashboard {
+  background-color: var(--cxmpute-purple);
+}
+
+.motifBadge.providerDashboard {
+  background-color: var(--cxmpute-orange);
+}
+
+.statusBadge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.statusBadge.active {
+  background-color: #28a745;
+  color: white;
+}
+
+.statusBadge.scheduled {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.statusBadge.expired {
+  background-color: #6c757d;
+  color: white;
+}
+
+.notificationDates {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+}
+
+.notificationBanner {
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 8px;
+}
+
+.notificationActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.loadingState {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  color: #666;
+  font-size: 1rem;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px;
+  color: #666;
+  text-align: center;
+}
+
+.emptyState svg {
+  color: #ccc;
+}
+
+/* Form Validation */
+.formError {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.formGroup.error .formInput,
+.formGroup.error .formSelect,
+.formGroup.error .formTextarea {
+  border-color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .formRow {
+    flex-direction: column;
+  }
+
+  .dateTimeGroup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .durationButtons {
+    justify-content: center;
+  }
+
+  .notificationHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notificationActions {
+    align-self: flex-end;
+  }
+
+  .notificationMeta {
+    flex-wrap: wrap;
+  }
+} 

@@ -6,6 +6,7 @@ import Button from "@/components/button/button";
 import { useState } from "react";
 import FAQCard from "@/components/faqCard/faqCard";
 import Map from "@/components/map/map";
+import NotificationBanner from "@/components/ui/NotificationBanner/NotificationBanner";
 
 const cxmputeGreen = "#20a191";
 const cxmputePink = "#fe91e8";
@@ -52,6 +53,9 @@ export default function Home() {
           </ul>
         </div>
       </header>
+      
+      <NotificationBanner motif="homepage" />
+      
       {/* Who is cxmpute for */}
       <div className={styles.content}>
         <div className={styles.hero}>

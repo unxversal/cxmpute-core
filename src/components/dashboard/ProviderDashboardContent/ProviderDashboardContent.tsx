@@ -8,13 +8,13 @@ import DashboardButton from '../DashboardButton/DashboardButton';
 import ThemeCard from '../ThemeCard/ThemeCard';
 import ViewApiKeyModal from '../ViewApiKeyModal/ViewApiKeyModal';
 import ThemeModal from '../ThemeModal/ThemeModal';
+import ReferralEntry from '../ReferralEntry/ReferralEntry';
 import { notify } from '@/components/ui/NotificationToaster/NotificationToaster';
 import type { AuthenticatedUserSubject } from '@/lib/auth';
 import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
+import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 import Link from 'next/link';
 import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader } from 'lucide-react'; // Added Loader2
-import ReferralSection from '../ReferralSection';
-import { NotificationBanner } from '../../notifications/NotificationBanner';
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -23,6 +23,9 @@ interface ProviderDashboardProps {
 interface ProviderEarningsData {
   total: number;
   earnings: RewardEntry[];
+  referralsCount: number;
+  referredBy: string | null;
+  referralCode: string;
 }
 
 const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject }) => {
@@ -87,7 +90,13 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
       }
       
       if (newEarningsData !== null || !isRefreshAction) {
-        setEarningsData(newEarningsData || { total: 0, earnings: [] });
+        setEarningsData(newEarningsData || { 
+          total: 0, 
+          earnings: [], 
+          referralsCount: 0, 
+          referredBy: null, 
+          referralCode: subject.providerId 
+        });
       }
       if (newProvisionsData.length > 0 || !isRefreshAction) {
         setProvisions(newProvisionsData);
@@ -110,7 +119,13 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
       setFetchError(errorMessage);
       if (isRefreshAction && loadingToastId) notify.error(errorMessage, { id: loadingToastId });
       else if (isRefreshAction) notify.error(errorMessage);
-      if (!earningsData && !isRefreshAction) setEarningsData({ total: 0, earnings: [] }); // Ensure defaults if initial load failed completely
+      if (!earningsData && !isRefreshAction) setEarningsData({ 
+        total: 0, 
+        earnings: [], 
+        referralsCount: 0, 
+        referredBy: null, 
+        referralCode: subject.providerId 
+      }); // Ensure defaults if initial load failed completely
       if (provisions.length === 0 && !isRefreshAction) setProvisions([]);
     } finally {
       setIsInitialLoading(false);
@@ -155,6 +170,31 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
   const initiateDeleteProvision = (provision: ProvisionRecord) => { /* ... (same) ... */
     setProvisionToDelete(provision);
   };
+  const handleProviderReferralSubmit = async (referralCode: string) => {
+    try {
+      const response = await fetch(`/api/providers/${subject.providerId}/referral`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ referralCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to apply referral code');
+      }
+
+      notify.success('Referral code applied successfully!');
+      // Refresh provider dashboard to get updated referral information
+      await fetchProviderDashboardData(true);
+    } catch (error: any) {
+      notify.error(error.message || 'Failed to apply referral code');
+      throw error; // Re-throw to let ReferralEntry handle loading state
+    }
+  };
+
   const confirmDeleteProvision = async () => { /* ... (same, ensure fetchProviderDashboardData(true) is called on success) ... */
     if (!provisionToDelete || !currentProviderAk) return;
     setIsDeletingProvisionId(provisionToDelete.provisionId);
@@ -289,8 +329,7 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
 
   return (
     <div className={styles.providerDashboardContainer}>
-      {/* Notifications */}
-      <NotificationBanner location="provider_dashboard" />
+      <NotificationBanner motif="providerDashboard" />
       
       <ThemeCard className={styles.heroCard}>
         <div className={styles.heroContent}>
@@ -318,13 +357,6 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
         </div>
       </ThemeCard>
 
-      {/* Referral Section */}
-      <ReferralSection 
-        userId={subject.providerId}
-        userType="provider"
-        hasReferrer={false} // TODO: Check if provider has a referrer from API
-      />
-
       <div className={styles.bottomSection}>
         <div className={styles.provisionsListContainer}>
           <ThemeCard title="My Provisions" className={styles.fullHeightCard}
@@ -344,9 +376,32 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
         </div>
 
         <div className={styles.earningsDetailContainer}>
-          <ThemeCard title="Earnings Breakdown" className={styles.fullHeightCard}>
-            {renderEarningsContent()}
-          </ThemeCard>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Show referral entry form only if provider has no referee */}
+            {earningsData && !earningsData.referredBy && (
+              <ReferralEntry
+                title="Enter Referral Code"
+                description="Enter another provider's ID to get referral rewards and support them!"
+                placeholder="Enter Provider ID (e.g., prov_12345...)"
+                onSubmit={handleProviderReferralSubmit}
+                isLoading={isInitialLoading}
+              />
+            )}
+            
+            <ThemeCard title="Earnings Breakdown" className={styles.fullHeightCard}>
+              {renderEarningsContent()}
+              {earningsData?.referredBy && (
+                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+                  <p style={{ fontSize: '0.9rem', color: '#666', margin: 0 }}>
+                    Referred by: <strong>{earningsData.referredBy}</strong>
+                  </p>
+                  <p style={{ fontSize: '0.85rem', color: '#888', margin: '4px 0 0 0' }}>
+                    Referrals earned: {earningsData.referralsCount}
+                  </p>
+                </div>
+              )}
+            </ThemeCard>
+          </div>
         </div>
       </div>
 
