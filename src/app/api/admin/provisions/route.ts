@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Resource } from 'sst';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, ScanCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
@@ -6,7 +6,7 @@ import { requireAdmin } from '@/lib/auth';
 
 const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     await requireAdmin();
 
@@ -55,6 +55,7 @@ export async function GET(_request: NextRequest) {
 
     // Sort by most recent first
     enhancedProvisions.sort((a, b) => 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       new Date((b as any).createdDate || 0).getTime() - new Date((a as any).createdDate || 0).getTime()
     );
 
