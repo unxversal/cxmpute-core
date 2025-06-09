@@ -139,7 +139,7 @@ export default function ModelDetailPage({
               </Link>
             </li>
             <li>
-              <a href="/docs">
+              <a href="/d">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
               </a>
             </li>

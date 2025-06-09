@@ -50,7 +50,7 @@ export default function ModelsPage() {
           <ul>
             
             <li>
-              <a href="/docs">
+              <a href="/d">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
               </a>
             </li>

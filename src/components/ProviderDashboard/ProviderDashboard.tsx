@@ -26,7 +26,7 @@ export default function ProviderDashboard({ subject }: { subject: Subject }) {
                     <h1>Provider Dashboard</h1>
                     <h2>Welcome to cxmpute.cloud! Get started below:</h2>
                     <div className={styles.buttonContainer}>
-                        <a href="/docs/provider" target="_blank" rel="noopener noreferrer">
+                        <a href="/d/provider" target="_blank" rel="noopener noreferrer">
                             <Button text="Documentation" backgroundColor="var(--cxmpute-purple)" />
                         </a>
                         <a >
@@ -61,7 +61,7 @@ export default function ProviderDashboard({ subject }: { subject: Subject }) {
                         >
                             <h2>Sample Provision</h2>
                             <p>Location</p>
-                            <a className={styles.cardButtonContainer} href="/docs/text-to-speech" target="_blank" rel="noopener noreferrer">
+                            <a className={styles.cardButtonContainer} href="/d/text-to-speech" target="_blank" rel="noopener noreferrer">
                                 <Button text="Delete provision" backgroundColor="var(--cxmpute-red)" />
                             </a>
                         </div>

@@ -338,7 +338,7 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
             <h1 className={styles.dashboardTitle}>Provider Dashboard</h1>
             <h2 className={styles.welcomeMessage}>Manage your compute provisions and track earnings.</h2>
             <div className={styles.heroButtonContainer}>
-              <DashboardButton href="/docs/provider" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Provider Docs" />
+              <DashboardButton href="/d/provider" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Provider Docs" />
               <DashboardButton onClick={() => setIsViewProviderAkModalOpen(true)} variant="accentOrange" iconLeft={<KeyRound size={16}/>} text="View Provider AK" />
               <DashboardButton href="/maximize" target="_blank" rel="noopener noreferrer" variant="accentYellow" iconLeft={<HelpCircle size={16}/>} text="Maximize Earnings" />
             </div>
