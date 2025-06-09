@@ -765,6 +765,13 @@
   padding-top: 0;
 }
 
+.ctaMap{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .mapContainer{
   width: 100%;
   gap: 20px;
