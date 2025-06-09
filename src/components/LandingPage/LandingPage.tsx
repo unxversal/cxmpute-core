@@ -1,10 +1,10 @@
 "use client"
 
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./LandingPage.module.css";
 import Button from "@/components/button/button";
 import { useState } from "react";
-import FAQCard from "@/components/faqCard/faqCard";
 import Map from "@/components/map/map";
 import NotificationBanner from "@/components/ui/NotificationBanner/NotificationBanner";
 
@@ -20,15 +20,7 @@ const cxmputeSlate = "#d4d4cb";
 
 
 export default function Home() {
-
-  const [identity, setIdentity] = useState("");
-
-  // a function which instakes a string and sets the identity to it, and then scrolls to the #identitySpecific div
-  const setIdentityAndScroll = (identity: string) => {
-    setIdentity(identity);
-    const element = document.getElementById("identitySpecific");
-    element?.scrollIntoView({ behavior: "smooth" });
-  };
+  const [selectedModelType, setSelectedModelType] = useState("text");
 
   return (
     <div className={styles.page}>
@@ -41,7 +33,7 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><a href="/download" >
+            <li><a href="/docs/provider" >
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
             </a></li>
             <li><a href="/docs" >
@@ -56,25 +48,25 @@ export default function Home() {
       
       <NotificationBanner motif="homepage" />
       
-      {/* Who is cxmpute for */}
       <div className={styles.content}>
+        {/* Hero Section */}
         <div className={styles.hero}>
-            <div className={styles.heroLeft}>
+          <div className={styles.heroLeft}>
             <h3>Welcome to the Cxmpute network!</h3>
             <h1>Use or provide computing power, storage, and more.</h1>
             <p>Cxmpute connects providers of computing hardware with users who leverage a range of computing services.</p>
             <div className={styles.heroButtons}>
-              <a href="/download" target="_blank">
-              <Button text="Start earning as a provider" backgroundColor={cxmputeYellow}/>
+              <a href="/docs/provider" target="_blank">
+                <Button text="Start providing" backgroundColor={cxmputeYellow}/>
               </a>
               <a href="/docs" target="_blank">
-              <Button text="Start using Cxmpute services" backgroundColor={cxmputePink}/>
+                <Button text="Start using" backgroundColor={cxmputePink}/>
               </a>
             </div>
-            <a href="/101" target="_blank">
+            <a href="/101">
               <Button text="Cxmpute in 90 seconds" backgroundColor={cxmputePurple}/>
             </a>
-            </div>
+          </div>
           <div className={styles.heroRight}>
             <Image
               src="/images/dolphinhero.png"
@@ -84,817 +76,361 @@ export default function Home() {
             />
           </div>
         </div>
+
+        {/* Cxmpute for [parties] */}
         <div className={styles.whoIsCxmputeFor}>
-          <h3>Who is Cxmpute for?</h3>
-          <h1>Here&apos;s what Cxmpute does for you:</h1>
-          <p>I am a...</p>
-            <div className={styles.whoIsCxmputeForCards}>
+          <h3>Cxmpute for</h3>
+          <h1>Three key stakeholders</h1>
+          <div className={styles.whoIsCxmputeForCards}>
             <div className={styles.whoIsCxmputeForCard}>
-              <div className={styles.whoIsCxmputeForCardImage}
-              style={{ backgroundColor: cxmputePurple }}
-              >
-              <Image
-                src="/images/code.svg"
-                alt="code icon"
-                fill
-                style={{ objectFit: "contain" }}
-              />
+              <div className={styles.whoIsCxmputeForCardImage} style={{ backgroundColor: cxmputePurple }}>
+                <Image src="/images/code.svg" alt="code icon" fill style={{ objectFit: "contain" }} />
               </div>
-              <span className={styles.whoIsCxmputeForCard__title}>Developer</span>
+              <span className={styles.whoIsCxmputeForCard__title}>Companies & Developers</span>
               <p className={styles.whoIsCxmputeForCard__content}>Access flexible, decentralized infrastructure to build, test, and deploy faster—without the limitations of traditional cloud services.</p>
-              <button className={styles.whoIsCxmputeForCard__button}
-                style={{ "--select-bg-color": cxmputePurple } as React.CSSProperties}
-                onClick={() => setIdentityAndScroll("developer")}
-              >
-                That&apos;s me!
-              </button>
             </div>
             <div className={styles.whoIsCxmputeForCard}>
-              <div className={styles.whoIsCxmputeForCardImage}
-              style={{ backgroundColor: cxmputeGreen }}
-              >
-              <Image
-                src="/images/brain-electricity.svg"
-                alt="brain icon"
-                fill
-                style={{ objectFit: "contain" }}
-              />
+              <div className={styles.whoIsCxmputeForCardImage} style={{ backgroundColor: cxmputeYellow }}>
+                <div className={styles.imageWrapper}>
+                  <Image src="/images/server.png" alt="datacenter image" fill style={{ objectFit: "contain" }} />
+                </div>
               </div>
-              <span className={styles.whoIsCxmputeForCard__title}>ML Engineer</span>
-              <p className={styles.whoIsCxmputeForCard__content}>Train and run AI models at scale using cost-efficient in a familiar Jupyter Environment, with globally distributed compute resources designed for scale, performance, and reliability.</p>
-              <button className={styles.whoIsCxmputeForCard__button}
-                style={{ "--select-bg-color": cxmputeGreen } as React.CSSProperties}
-                onClick={() => setIdentityAndScroll("mlEngineer")}
-              >
-                That&apos;s me!
-              </button>
-            </div>
-            <div className={styles.whoIsCxmputeForCard}>
-              <div className={styles.whoIsCxmputeForCardImage}
-              style={{ backgroundColor: cxmputePink }}
-              >
-              <div className={styles.imageWrapper}>
-                <Image
-                  src="/images/computer.png"
-                  alt="computer image"
-                  fill
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
-              </div>
-              <span className={styles.whoIsCxmputeForCard__title}>Individual Compute Provider</span>
-              <p className={styles.whoIsCxmputeForCard__content}>Monetize your idle computer resources by contributing to a decentralized network—and get rewarded for your unused power.</p>
-              <button className={styles.whoIsCxmputeForCard__button}
-                style={{ "--select-bg-color": cxmputePink } as React.CSSProperties}
-                onClick={() => setIdentityAndScroll("individualComputeProvider")}
-              >
-                That&apos;s me!
-              </button>
-            </div>
-            <div className={styles.whoIsCxmputeForCard}>
-              <div className={styles.whoIsCxmputeForCardImage}
-              style={{ backgroundColor: cxmputeYellow }}
-              >
-              <div className={styles.imageWrapper}>
-                <Image
-                  src="/images/server.png"
-                  alt="server image"
-                  fill
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
-              </div>
-              <span className={styles.whoIsCxmputeForCard__title}>Enterprise Compute Provider</span>
+              <span className={styles.whoIsCxmputeForCard__title}>Datacenters</span>
               <p className={styles.whoIsCxmputeForCard__content}>Maximize the ROI of your infrastructure by offering your datacenter capacity to a global marketplace for decentralized compute.</p>
-              <button className={styles.whoIsCxmputeForCard__button}
-                style={{ "--select-bg-color": cxmputeYellow } as React.CSSProperties}
-                onClick={() => setIdentityAndScroll("enterpriseComputeProvider")}
-              >
-                That&apos;s me!
-              </button>
             </div>
-            </div>
-        </div>
-        <div className={styles.identitySpecific} id="identitySpecific">
-          {identity === "" && (
-            <>
-            </>
-          )}
-          {identity === "developer" && (
-            <div className={`${styles.whoIsCxmputeForCard} ${styles.idenitytSpecificContainer}`}
-              style={{ 
-                  width: "100%", 
-                  backgroundColor: cxmputePurple, 
-                  margin: "40px", 
-                  maxWidth: "1300px",
-                  minHeight: "60vh"
-                 }}
-            >
-                <div className={styles.ISLeft}>
-                  <h3>Cxmpute for</h3>
-                  <h1>Developers</h1>
-                  <p>Easy access to powerful machines that will otherwise cost you an arm and a leg.</p>
-                  <a href="/services" target="_blank">
-                  <Button text="Explore the full feature list" backgroundColor={cxmputeSlate}/>
-                  </a>
-                  <a href="/dashboard" target="_blank">
-                  <Button text="Get started now" backgroundColor={cxmputeSlate}/>
-                  </a>
-                  <span>Or keep scrolling to learn more about Cxmpute :)</span>
+            <div className={styles.whoIsCxmputeForCard}>
+              <div className={styles.whoIsCxmputeForCardImage} style={{ backgroundColor: cxmputePink }}>
+                <div className={styles.imageWrapper}>
+                  <Image src="/images/computer.png" alt="computer image" fill style={{ objectFit: "contain" }} />
                 </div>
-                <div className={styles.ISRight}>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"VIRTUAL MACHINES"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>Cxmpute offers VMs optimized for specific hardware configurations</p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"SERVERLESS COMPUTE"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>Cxmpute’s Serverless service provides event-driven compute without the need to manage traditional servers.</p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"AI INFERENCE"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>On-demand API endpoint for AI inference with a big library of SOTA AI models.</p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"AI AGENTS"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>AI-Agents-as-a-service. Interact with agents orchestrate workflows, and execute complex tasks via GUI or API.</p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"CODESPACES"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>Code Spaces provides a familiar but cloud-based development environment for coding, testing, and deploying applications. </p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                  <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"PYTHON NOTEBOOKS"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                  >
-                    <div className={styles.ISTop}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}
-                      style={{
-                        height: "50px",
-                        width: "50px",
-                        marginBottom: "10px",
-                        "--specific-feature-color": '#e9b50b' 
-                      } as React.CSSProperties}
-                    >
-                      <Image
-                        src="/images/code.svg"
-                        alt="search icon"
-                        fill
-                        style={{ objectFit: "contain" }}
-                      />
-                    </button>
-                    <p>PyNotebooks allow users to run Python-based data science and machine learning workflows in an interactive environment. Access larger accelerators and environments than the competition.</p>
-                    </div>
-
-                    <div className={styles.ISBottom}>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      Read the docs
-                    </button>
-                    <button className={styles.idenitytSpecificInput__button__shadow}>
-                      See code examples
-                    </button>
-                    </div>
-                  </div>
-                </div>
-            </div>
-
-          )}
-          {identity === "mlEngineer" && (
-            <div className={`${styles.whoIsCxmputeForCard} ${styles.idenitytSpecificContainer}`}
-                style={{ 
-                    width: "100%", 
-                    backgroundColor: cxmputeGreen, 
-                    margin: "40px", 
-                    maxWidth: "1300px",
-                    minHeight: "60vh"
-                  }}
-              >
-                  <div className={styles.ISLeft}>
-                    <h3>Cxmpute for</h3>
-                    <h1>ML Engineers</h1>
-                    <p>Easy access to powerful machines that will otherwise cost you an arm and a leg.</p>
-                    <a href="/services" target="_blank">
-                    <Button text="Explore the full feature list" backgroundColor={cxmputeSlate}/>
-                    </a>
-                    <a href="/dashboard" target="_blank">
-                    <Button text="Get started now" backgroundColor={cxmputeSlate}/>
-                    </a>
-                    <span>Or keep scrolling to learn more about Cxmpute :)</span>
-                  </div>
-                  <div className={styles.ISRight}>
-                  <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"PYTHON NOTEBOOKS"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>PyNotebooks allow users to run Python-based data science and machine learning workflows in an interactive environment. Access larger accelerators and environments than the competition.</p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                    <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"VIRTUAL MACHINES"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>Cxmpute offers VMs optimized for specific hardware configurations</p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                    <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"SERVERLESS COMPUTE"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>Cxmpute’s Serverless service provides event-driven compute without the need to manage traditional servers.</p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                    <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"AI INFERENCE"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>On-demand API endpoint for AI inference with a big library of SOTA AI models.</p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                    <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"AI AGENTS"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>AI-Agents-as-a-service. Interact with agents orchestrate workflows, and execute complex tasks via GUI or API.</p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                    <div className={styles.idenitytSpecificInput__container}
-                      style={{ "--specific-feature": '"CODESPACES"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                    >
-                      <div className={styles.ISTop}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}
-                        style={{
-                          height: "50px",
-                          width: "50px",
-                          marginBottom: "10px",
-                          "--specific-feature-color": '#e9b50b' 
-                        } as React.CSSProperties}
-                      >
-                        <Image
-                          src="/images/code.svg"
-                          alt="search icon"
-                          fill
-                          style={{ objectFit: "contain" }}
-                        />
-                      </button>
-                      <p>Code Spaces provides a familiar but cloud-based development environment for coding, testing, and deploying applications. </p>
-                      </div>
-
-                      <div className={styles.ISBottom}>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        Read the docs
-                      </button>
-                      <button className={styles.idenitytSpecificInput__button__shadow}>
-                        See code examples
-                      </button>
-                      </div>
-                    </div>
-                  </div>
               </div>
-          )}
-          {identity === "individualComputeProvider" && (
-                    <div className={`${styles.whoIsCxmputeForCard} ${styles.idenitytSpecificContainer}`}
-                        style={{ 
-                            width: "100%", 
-                            backgroundColor: cxmputePink, 
-                            margin: "40px", 
-                            maxWidth: "1300px",
-                            minHeight: "60vh"
-                          }}
-                      >
-                          <div className={styles.ISLeft}>
-                            <h3>Cxmpute for</h3>
-                            <h1>Individuals</h1>
-                            <p>Turn your idle computer into a passive income generator—earn rewards effortlessly.</p>
-                            <a href="/download" target="_blank">
-                            <Button text="Get started in 5 minutes" backgroundColor={cxmputeGreen}/>
-                            </a>
-                            <span>Or keep scrolling to learn more about Cxmpute :)</span>
-                          </div>
-                          <div className={styles.ISRight}>
-                          <div className={styles.idenitytSpecificInput__container}
-                              style={{ "--specific-feature": '"STEP 1"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                            >
-                                <h1>Create an account in the dashboard</h1>
-                          </div>
-                          <div className={styles.idenitytSpecificInput__container}
-                              style={{ "--specific-feature": '"STEP 2"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                            >
-                                <h1>Download the Cxmpute Provider App</h1>
-                          </div>
-                          <div className={styles.idenitytSpecificInput__container}
-                              style={{ "--specific-feature": '"STEP 3"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                            >
-                                <h1>Follow the instructions in the app to complete the onboarding steps.</h1>
-                          </div>
-                          <div className={styles.idenitytSpecificInput__container}
-                              style={{ "--specific-feature": '"STEP 4"', "--specific-feature-color": '#e9b50b' } as React.CSSProperties}
-                            >
-                                <h1>Turn on your Cxmpute provider node and start earning!</h1>
-                          </div>
-                          </div>
-                      </div>
-          )}
-          {identity === "enterpriseComputeProvider" && (
-            <div className={`${styles.whoIsCxmputeForCard} ${styles.idenitytSpecificContainer}`}
-              style={{ 
-                  width: "100%", 
-                  backgroundColor: cxmputeYellow, 
-                  margin: "40px", 
-                  maxWidth: "1300px",
-                  minHeight: "60vh"
-                }}
-            >
-                <div className={styles.ISLeft}>
-                  <h3>Cxmpute for</h3>
-                  <h1>Enterprise Providers</h1>
-                  <p>Whether you run a boutique data center or a vast compute network, Cxmpute empowers you to optimize resource utilization, scale seamlessly, and access new revenue streams.</p>
-                  <a href="/download" target="_blank">
-                  <Button text="Get started in 5 minutes" backgroundColor={cxmputeGreen}/>
-                  </a>
-                  <a href="/contact" target="_blank">
-                  <Button text="Or contact us to book a call" backgroundColor={cxmputeGreen}/>
-                  </a>
-                  <span>Or keep scrolling to learn more about Cxmpute :)</span>
-                </div>
-                <div className={styles.ISRight}>
-                <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"STEP 1"', "--specific-feature-color": cxmputePurple } as React.CSSProperties}
-                  >
-                      <h1>Create an account in the dashboard</h1>
-                </div>
-                <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"STEP 2"', "--specific-feature-color": cxmputePurple } as React.CSSProperties}
-                  >
-                      <h1>Download the Cxmpute Provider App</h1>
-                </div>
-                <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"STEP 3"', "--specific-feature-color": cxmputePurple } as React.CSSProperties}
-                  >
-                      <h1>Follow the instructions in the app to complete the onboarding steps.</h1>
-                </div>
-                <div className={styles.idenitytSpecificInput__container}
-                    style={{ "--specific-feature": '"STEP 4"', "--specific-feature-color": cxmputePurple } as React.CSSProperties}
-                  >
-                      <h1>Turn on your Cxmpute provider node and start earning!</h1>
-                </div>
-                </div>
-            </div>
-          )}
-        </div>
-        <div className={styles.protected}>
-          <div className={styles.protectedContainer}>
-            <div className={styles.protectedImageContainer}>
-              <div className={styles.imageWrapper2}>
-                <Image
-                  src="/images/shield.png"
-                  alt="Cxmpute protects your privacy"
-                  fill
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
-            </div>
-            <div className={styles.protectedTextContainer}>
-              <h1>Cxmpute protects your privacy</h1>
-              <p>At Cxmpute, our philosophy is to secure your computing resources from unauthorized use. It is impossible for Cxmpute to access your personal files or monitor your activity. Cxmpute is a network designed solely for contributing unused computing power, ensuring that your data remains private and your device stays protected while you help power the next generation of decentralized technology.</p>
+              <span className={styles.whoIsCxmputeForCard__title}>Individuals</span>
+              <p className={styles.whoIsCxmputeForCard__content}>Monetize your idle computer resources by contributing to a decentralized network—and get rewarded for your unused power.</p>
             </div>
           </div>
         </div>
-        <div className={styles.architecture}>
-          <div className={styles.architectureContainer}>
-            <div className={styles.ALeft}>
-              <h1>Cxmpute Network Architecture</h1>
+
+        {/* About - Manifesto */}
+        <div className={styles.about}>
+          <div className={styles.aboutContainer}>
+            <h1>About Cxmpute</h1>
+            <div className={styles.manifestoContent}>
+              <p>Computing power should be accessible to everyone, not controlled by a few tech giants. That&apos;s why we&apos;re building a decentralized network where anyone can contribute their idle computing resources and earn rewards, while users get access to affordable, scalable AI and compute services.</p>
+              <p>Our mission is to democratize computing by creating a global network that benefits all participants—from individual computer owners to large enterprises—while providing developers with powerful, cost-effective alternatives to traditional cloud services.</p>
             </div>
-            <div className={styles.ARight}>
-              <div className={styles.architectureLayer}
-                style={{ "--architecture-layer-color": cxmputePurple } as React.CSSProperties}
-              >
-                <h1>Cxmpute Core</h1>
-                <p>The main hub for users to access services, manage workloads, and deploy AI models. It offers a simple interface and powerful APIs, making it easy for anyone to leverage Cxmpute’s decentralized computing.</p>
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div className={styles.howItWorks}>
+          <h1>How it works</h1>
+          <div className={styles.howItWorksContainer}>
+            <div className={styles.howItWorksSection}>
+              <div className={styles.howItWorksCard} style={{ backgroundColor: cxmputeGreen }}>
+                <h2>For Users</h2>
+                <h3>One API, many models, cheaper than your cheapest cloud</h3>
+                <p>Access dozens of AI models through our simple, OpenAI-compatible API. Pay only for what you use with transparent pricing that beats traditional cloud providers.</p>
+                <div className={styles.howItWorksFeatures}>
+                  <div className={styles.feature}>✨ Public beta rewards program</div>
+                  <div className={styles.feature}>🔗 OpenAI-compatible API</div>
+                  <div className={styles.feature}>💰 Transparent, competitive pricing</div>
+                </div>
+                <a href="/docs">
+                  <Button text="Learn More" backgroundColor={cxmputeSlate}/>
+                </a>
               </div>
-              <div className={styles.architectureLayer}
-                style={{ "--architecture-layer-color": cxmputeGreen } as React.CSSProperties}
-              >
-                <h1>Financial Layer</h1>
-                <p>Blockchain layers for automated payments and rewards distribution. Cxmpute&apos;s multi-chain architecture allows you to participate with your preferred blockchain.</p>
-              </div>
-              <div className={styles.architectureLayer}
-                style={{ "--architecture-layer-color": cxmputeYellow } as React.CSSProperties}
-              >
-                <h1>Orchestration Network Layer</h1>
-                <p>Manages requests and matches users with the best providers based on pricing, hardware, and availability. It ensures smooth operation of services like serverless compute, AI inference, and distributed training.</p>
-              </div>
-              <div className={styles.architectureLayer}
-                style={{ "--architecture-layer-color": cxmputePink } as React.CSSProperties}
-              >
-                <h1>Provider Network Layer</h1>
-                <p>The core of Cxmpute’s infrastructure. This global network provides scalable, secure computing power for AI inference, serverless apps, and distributed workloads. Providers earn rewards by sharing their resources.</p>
+            </div>
+            <div className={styles.howItWorksSection}>
+              <div className={styles.howItWorksCard} style={{ backgroundColor: cxmputePink }}>
+                <h2>For Providers</h2>
+                <h3>Passive income as simple as downloading an app</h3>
+                <p>Turn your idle computer into a revenue stream. Download our app, complete the simple setup, and start earning rewards while you sleep.</p>
+                <div className={styles.howItWorksFeatures}>
+                  <div className={styles.feature}>💸 Earn passive income</div>
+                  <div className={styles.feature}>🎁 Public beta rewards program</div>
+                  <div className={styles.feature}>🛡️ Privacy-first approach</div>
+                </div>
+                <a href="/docs/provider">
+                  <Button text="Learn More" backgroundColor={cxmputeSlate}/>
+                </a>
               </div>
             </div>
           </div>
         </div>
-        <div className={styles.token}>
-          <div className={styles.tokenContainer}>
-            <div className={styles.ARight}>
-              <div className={styles.cxptToken}>
-                <Image
-                  src="/images/8.png"
-                  alt="Cxmpute token"
-                  fill
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
+
+        {/* Partners */}
+        <div className={styles.partners}>
+          <div className={styles.partnersContainer}>
+            <h1>Built on Peaq</h1>
+            <div className={styles.partnerLogo}>
+              <Image src="/images/peaq.png" alt="Peaq logo" fill style={{ objectFit: "contain" }} />
             </div>
-            <div className={styles.ALeft}>
-              <h1>$CXPT Token</h1>
-              <p>The Cxmpute token is a utility token that lets providers optionally stake tokens to demonstrate reputation and enhance network security. It rewards users for participation and grants access to special features and services. The token is not live yet, but stay tuned for updates!</p>
+            <p>Cxmpute is built on the Peaq network, leveraging cutting-edge blockchain technology for secure, decentralized compute orchestration.</p>
+          </div>
+        </div>
+
+        {/* All your AI needs, one endpoint */}
+        <div className={styles.aiEndpoint}>
+          <div className={styles.aiEndpointContainer}>
+            <h1>All your AI needs, one endpoint</h1>
+            <p>Explore our comprehensive model catalog and test models in interactive playgrounds</p>
+            
+            <div className={styles.modelTypeSelector}>
+              {["text", "vision", "thinking", "tool", "tts", "code", "multilingual", "embeddings"].map((type) => (
+                <button
+                  key={type}
+                  className={`${styles.modelTypeButton} ${selectedModelType === type ? styles.active : ""}`}
+                  onClick={() => setSelectedModelType(type)}
+                  style={{ backgroundColor: selectedModelType === type ? cxmputeYellow : cxmputeSlate }}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)} Models
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.playgroundContainer}>
+              <div className={styles.playgroundLeft}>
+                <div className={styles.playgroundDemo}>
+                  {selectedModelType === "text" && (
+                    <div className={styles.textPlayground}>
+                      <div className={styles.playgroundHeader}>
+                        <select className={styles.modelSelect}>
+                          <option>llama3.1:8b</option>
+                          <option>llama3.1:70b</option>
+                          <option>gpt-4o-mini</option>
+                        </select>
+                        <button className={styles.copyButton}>Copy model string</button>
+                        <button className={styles.refreshButton}>↻</button>
+                      </div>
+                      <div className={styles.chatInterface}>
+                        <div className={styles.chatMessages}>
+                          <div className={styles.userMessage}>Hello, how are you?</div>
+                          <div className={styles.aiMessage}>Hello! I&apos;m doing well, thank you for asking. How can I help you today?</div>
+                        </div>
+                        <input className={styles.chatInput} placeholder="Type your message..." />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedModelType === "tts" && (
+                    <div className={styles.ttsPlayground}>
+                      <div className={styles.playgroundHeader}>
+                        <h3>Text-to-Speech Playground</h3>
+                      </div>
+                      <textarea className={styles.ttsInput} placeholder="Enter text to convert to speech..."></textarea>
+                      <div className={styles.ttsControls}>
+                        <select className={styles.voiceSelect}>
+                          <option>af_bella</option>
+                          <option>af_nicole</option>
+                          <option>af_sarah</option>
+                        </select>
+                        <input type="range" className={styles.speedSlider} min="0.5" max="2" step="0.1" defaultValue="1" />
+                        <span>Speed: 1.0x</span>
+                      </div>
+                      <button className={styles.generateButton}>Generate Speech</button>
+                      <div className={styles.audioOutput}>
+                        <div className={styles.audioPlaceholder}>Generated audio will appear here</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedModelType === "embeddings" && (
+                    <div className={styles.embeddingsPlayground}>
+                      <div className={styles.playgroundHeader}>
+                        <select className={styles.modelSelect}>
+                          <option>nomic-embed-text</option>
+                          <option>all-MiniLM-L6-v2</option>
+                        </select>
+                      </div>
+                      <textarea className={styles.embeddingInput} placeholder="Enter text to embed..."></textarea>
+                      <div className={styles.vectorOutput}>
+                        <div className={styles.vectorPlaceholder}>Vector output will appear here</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Placeholder for other model types */}
+                  {!["text", "tts", "embeddings"].includes(selectedModelType) && (
+                    <div className={styles.playgroundPlaceholder}>
+                      <h3>{selectedModelType.charAt(0).toUpperCase() + selectedModelType.slice(1)} Models Playground</h3>
+                      <p>Interactive playground for {selectedModelType} models coming soon!</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className={styles.playgroundActions}>
+                  <a href="/dashboard">
+                    <Button text="Get API Key" backgroundColor={cxmputeGreen}/>
+                  </a>
+                  <a href="/docs">
+                    <Button text="Sample Code" backgroundColor={cxmputePurple}/>
+                  </a>
+                </div>
+              </div>
+
+              <div className={styles.playgroundRight}>
+                <div className={styles.modelDescription}>
+                  <h3>{selectedModelType.charAt(0).toUpperCase() + selectedModelType.slice(1)} Models</h3>
+                  {selectedModelType === "text" && (
+                    <p>Access state-of-the-art language models for text generation, conversation, and reasoning tasks. From fast 8B parameter models to powerful 70B+ models.</p>
+                  )}
+                  {selectedModelType === "tts" && (
+                    <p>Convert text to natural-sounding speech with various voice options and customizable speed settings.</p>
+                  )}
+                  {selectedModelType === "embeddings" && (
+                    <p>Generate high-quality vector embeddings for semantic search, RAG applications, and similarity matching.</p>
+                  )}
+                  {!["text", "tts", "embeddings"].includes(selectedModelType) && (
+                    <p>Specialized models for {selectedModelType} tasks with advanced capabilities and optimized performance.</p>
+                  )}
+                </div>
+                
+                <Link href="/models">
+                  <Button text="See All Models" backgroundColor={cxmputeYellow}/>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Compute Monetization */}
+        <div className={styles.computeMonetization}>
+          <div className={styles.computeMonetizationContainer}>
+            <div className={styles.monetizationLeft}>
+              <Image src="/images/8.png" alt="Monetization" fill style={{ objectFit: "contain" }} />
+            </div>
+            <div className={styles.monetizationRight}>
+              <h1>Compute Monetization</h1>
+              <p>Transform your idle computing resources into a steady income stream. Whether you have a gaming PC, a server rack, or an entire data center, Cxmpute enables you to monetize your unused capacity.</p>
+              <div className={styles.monetizationFeatures}>
+                <div className={styles.monetizationFeature}>💰 Passive income generation</div>
+                <div className={styles.monetizationFeature}>📊 Real-time earnings tracking</div>
+                <div className={styles.monetizationFeature}>⚡ Instant rewards distribution</div>
+                <div className={styles.monetizationFeature}>🔒 Secure and private</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Hardware-agnostic global network */}
+        <div className={styles.globalNetwork}>
+          <div className={styles.globalNetworkContainer}>
+            <h1>Hardware-agnostic global network that benefits all involved parties</h1>
+            <div className={styles.networkBenefits}>
+              <div className={styles.networkBenefit}>
+                <h3>For Developers</h3>
+                <p>Access to diverse hardware configurations, competitive pricing, and global availability.</p>
+                <a href="/docs">
+                  <Button text="Learn more about developer benefits" backgroundColor={cxmputePurple}/>
+                </a>
+              </div>
+              <div className={styles.networkBenefit}>
+                <h3>For Providers</h3>
+                <p>Monetize any hardware type, from consumer GPUs to enterprise data centers.</p>
+                <a href="/docs/provider">
+                  <Button text="Learn more about provider benefits" backgroundColor={cxmputeYellow}/>
+                </a>
+              </div>
+              <div className={styles.networkBenefit}>
+                <h3>For the Ecosystem</h3>
+                <p>Democratized access to computing power and reduced environmental impact through better resource utilization.</p>
+                <a href="/101">
+                  <Button text="Learn more about ecosystem benefits" backgroundColor={cxmputeGreen}/>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Latest News */}
         <div className={styles.blog}>
           <div className={styles.blogContainer}>
-            <h1 className={styles.blogTitle}>Read more: browse our latest news</h1>
+            <h1 className={styles.blogTitle}>Latest News</h1>
             <div className={styles.blogCards}>
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
-                  <Image
-                    src="/images/8.png"
-                    alt="Cxmpute blog"
-                    fill
-                    style={{ objectFit: "contain" }}
-                  />
+                  <Image src="/images/8.png" alt="Rewards" fill style={{ objectFit: "contain" }} />
                 </div>
                 <div className={styles.blogCardText}>
-                  <h1>Cxmpute 101: What is Cxmpute?</h1>
-                  <p>Before we dive into Cxmpute 101, let’s start with an analogy to understand idle compute power. Imagine your computer as a power plant with extra capacity sitting idle most of the...</p>
-                  <a href="/101" target="_blank">
-                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                  <h1>Rewards and Testnet Now Live</h1>
+                  <p>Join our public beta and start earning rewards while testing the future of decentralized compute. Get started today and be part of the revolution.</p>
+                  <a href="/dashboard" target="_blank">
+                    <Button text="Join Testnet" backgroundColor={cxmputeYellow} />
                   </a>
                 </div>
               </div>
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
-                  <Image
-                    src="/images/6.png"
-                    alt="Cxmpute blog"
-                    fill
-                    style={{ objectFit: "contain" }}
-                  />
+                  <Image src="/images/6.png" alt="Roadmap" fill style={{ objectFit: "contain" }} />
                 </div>
                 <div className={styles.blogCardText}>
                   <h1>Cxmpute Roadmap</h1>
                   <p>Our Future Vision and How We&apos;ll Get There. Our journey is guided by a clear blueprint that transforms vision into reality—one inspiring step at a time.</p>
                   <a href="/roadmap" target="_blank">
-                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                    <Button text="View Roadmap" backgroundColor={cxmputeYellow} />
                   </a>
                 </div>
               </div>
               <div className={styles.blogCard}>
                 <div className={styles.blogCardImage}>
-                  <Image
-                    src="/images/7.png"
-                    alt="Cxmpute blog"
-                    fill
-                    style={{ objectFit: "contain" }}
-                  />
+                  <Image src="/images/7.png" alt="Services" fill style={{ objectFit: "contain" }} />
                 </div>
                 <div className={styles.blogCardText}>
                   <h1>Cxmpute Services Overview</h1>
-                  <p>Imagine a bustling digital marketplace where every piece of idle compute power is transformed into a vibrant service—this is the heart of Cxmpute. Today, we’re taking you on a tour of our extensive suite of services that...</p>
+                  <p>Imagine a bustling digital marketplace where every piece of idle compute power is transformed into a vibrant service—this is the heart of Cxmpute.</p>
                   <a href="/services" target="_blank">
-                    <Button text="Read more" backgroundColor={cxmputeYellow} />
+                    <Button text="Explore Services" backgroundColor={cxmputeYellow} />
                   </a>
                 </div>
               </div>
-              <div className={styles.blogCard}>
-                <div className={styles.blogCardImage}>
-                  <Image
-                    src="/images/8.png"
-                    alt="Cxmpute blog"
-                    fill
-                    style={{ objectFit: "contain" }}
-                  />
-                </div>
-                <div className={styles.blogCardText}>
-                  <h1>How to maximize your earnings as a provider</h1>
-                  <p>Ready to boost your earnings on the Cxmpute network? Whether you’re just starting out or already part of our growing community, here are some quick tips to help you maximize...</p>
-                  <a href="/maximize" target="_blank">
-                    <Button text="Read more" backgroundColor={cxmputeYellow} />
-                  </a>
-                </div>
-              </div>
-              
             </div>
           </div>
         </div>
-        <div className={styles.faq}>
-          <div className={styles.faqContainer}>
-            <h1>Frequently Asked Questions</h1>
-            <FAQCard
-              question="Is my personal data truly safe with Cxmpute?"
-              answer="Absolutely. Cxmpute is built on a philosophy of strict privacy. We only harness your unused computing power and never access your personal files or monitor your online activity, ensuring your data remains completely secure."
-            />
-            <FAQCard
-              question="Will running Cxmpute slow down my device or affect my internet speed?"
-              answer="Not necessarily—you control exactly how much of your device's computing power Cxmpute uses. If you want to maximize your rewards, you can configure it to tap into more resources when you're not using your computer. For example, if you're going to bed, you can allow Cxmpute to operate at full capacity overnight, maximizing rewards without interrupting your daily activities. Conversely, if you need to use your device during the day, you can adjust the settings so that Cxmpute uses only a portion of your available power. Importantly, mining sessions only begin when you explicitly turn them on—Cxmpute is never active without your permission. The flexibility of these settings can vary by device and category, with more powerful systems generally offering greater customization. For further details on eligible devices and recommended configurations, please refer to our Get Started page."
-            />
-            <FAQCard
-              question="How complicated is the installation and setup process?"
-              answer="We’ve made it extremely user-friendly. The setup is straightforward—even if you’re not tech-savvy—thanks to our intuitive interface and step-by-step instructions. You set it up once and then watch the rewards accumulate effortlessly."
-            />
-            <FAQCard
-              question="How does Cxmpute ensure fair rewards for my unused computing power?"
-              answer="Our reward mechanism is transparent and automated. All our code is open-source and available on our GitHub. Using a robust multi-chain architecture, Cxmpute calculates rewards based on your contributed idle capacity and distributes them fairly, so you always get your due share without any extra effort."
-            />
-            <FAQCard
-              question="What if I run into technical issues or experience downtime?"
-              answer="Our dedicated support team is here to help. Contact us via our Discord if you encounter any issues. The platform is built for high reliability and is continuously monitored to address any issues swiftly, ensuring minimal disruption to your experience."
-            />
-            <FAQCard
-              question="Can I control when and how my resources are used?"
-              answer="Yes, you remain in complete control. Cxmpute leverages only your idle computing power. This means you decide when to run it, and your primary activities and system performance remain unaffected."
-            />
-            <FAQCard
-              question="What if I have concerns about long-term reliability and support?"
-              answer="We’re committed to continuous improvement and customer satisfaction. Our platform is regularly updated, and our support team is always available to assist you—ensuring you enjoy a seamless, reliable experience with Cxmpute."
-            />
-          </div>
-        </div>
 
-        <div className={styles.mapt}>
-          <div className={styles.mapContainer}>
-            <Map/>
-            <div className={styles.mapTextOverlay}>
-              <div className={styles.mapOverlayImage}>
-                <Image
-                  src="/images/3.png"
-                  alt="Cxmpute Dolphin Logo"
-                  fill
-                  style={{ objectFit: "contain" }}
-                />
-              </div>
-              <h1>Start earning off your computing power</h1>
-              <a href="/download" target="_blank">
-                <Button text="Get started" backgroundColor={cxmputeYellow} />
+        {/* Join the community */}
+        <div className={styles.community}>
+          <div className={styles.communityContainer}>
+            <h1>Join the Community</h1>
+            <p>Connect with thousands of developers, providers, and enthusiasts building the future of decentralized compute.</p>
+            <div className={styles.communityLinks}>
+              <a href="https://discord.com/invite/CJGA7B2zKT" target="_blank">
+                <Button text="Join Discord" backgroundColor={cxmputePurple}/>
+              </a>
+              <a href="https://x.com/cxmpute" target="_blank">
+                <Button text="Follow on X" backgroundColor={cxmputeGreen}/>
+              </a>
+              <a href="https://github.com/unxversal" target="_blank">
+                <Button text="GitHub" backgroundColor={cxmputeSlate}/>
               </a>
             </div>
           </div>
         </div>
 
+        {/* Map section - What role will you play? */}
+        <div className={styles.mapt}>
+          <div className={styles.mapContainer}>
+            <Map/>
+            <div className={styles.mapTextOverlay}>
+              <div className={styles.mapOverlayImage}>
+                <Image src="/images/3.png" alt="Cxmpute Dolphin Logo" fill style={{ objectFit: "contain" }} />
+              </div>
+              <h1>What role will you play?</h1>
+              <div className={styles.mapRoles}>
+                <a href="/docs">
+                  <Button text="Build" backgroundColor={cxmputePurple} />
+                </a>
+                <a href="/docs/provider">
+                  <Button text="Provide" backgroundColor={cxmputeYellow} />
+                </a>
+                <a href="/dashboard">
+                  <Button text="Trade" backgroundColor={cxmputeGreen} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
       <footer className={styles.footer}>
         <div className={styles.footerContainer}>
           <div className={styles.footerLeft}>
@@ -980,7 +516,6 @@ export default function Home() {
                   style={{ objectFit: "contain" }}
                 />
               </a>
-
             </div>
             <div className={styles.footerButtons}>
               <a href="/download" target="_blank">
@@ -994,6 +529,5 @@ export default function Home() {
         </div>
       </footer>
     </div>
-
   );
 }
