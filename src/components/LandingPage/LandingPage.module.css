@@ -1147,16 +1147,594 @@
   pointer-events: none;
 }
 
-.backgroundPattern {
-  position: absolute;
-  top: 0;
-  left: 0;
+/* About Section */
+.about {
   width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.aboutContainer {
+  width: 100%;
+  max-width: 1300px;
+  background-color: #91a8eb;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 48px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.aboutContainer:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.aboutContainer h1 {
+  font-size: 48px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.manifestoContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.manifestoContent p {
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* How it Works Section */
+.howItWorks {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.howItWorks h1 {
+  font-size: 48px;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.howItWorksContainer {
+  width: 100%;
+  max-width: 1300px;
+  display: flex;
+  gap: 32px;
+}
+
+.howItWorksSection {
+  flex: 1;
+}
+
+.howItWorksCard {
+  padding: 32px;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  transition: transform 0.3s, box-shadow 0.3s;
   height: 100%;
-  z-index: 0;
-  background: 
-    radial-gradient(circle, rgba(150, 100, 255, 0.10) 2px, transparent 2px) 0 0 / 40px 40px,
-    radial-gradient(circle, rgba(255, 100, 200, 0.10) 2px, transparent 2px) 20px 20px / 40px 40px;
-  opacity: 0.8;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.howItWorksCard:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.howItWorksCard h2 {
+  font-size: 32px;
+  margin-bottom: 16px;
+}
+
+.howItWorksCard h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.howItWorksCard p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  flex-grow: 1;
+}
+
+.howItWorksFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.feature {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Partners Section */
+.partners {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.partnersContainer {
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+  background-color: #f8cb46;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 48px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.partnersContainer:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.partnersContainer h1 {
+  font-size: 48px;
+  margin-bottom: 32px;
+}
+
+.partnerLogo {
+  position: relative;
+  width: 200px;
+  height: 100px;
+  margin: 0 auto 24px auto;
+}
+
+.partnersContainer p {
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* AI Endpoint Section */
+.aiEndpoint {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.aiEndpointContainer {
+  width: 100%;
+  max-width: 1400px;
+}
+
+.aiEndpointContainer h1 {
+  font-size: 48px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.aiEndpointContainer > p {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 32px;
+}
+
+.modelTypeSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.modelTypeButton {
+  padding: 12px 24px;
+  border: 3px solid #000;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 6px 6px 0 #000;
+}
+
+.modelTypeButton:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000;
+}
+
+.modelTypeButton.active {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000;
+}
+
+.playgroundContainer {
+  display: flex;
+  gap: 32px;
+  background-color: #f0f0f0;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 32px;
+}
+
+.playgroundLeft {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.playgroundRight {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.playgroundDemo {
+  background-color: #fff;
+  border: 3px solid #000;
+  border-radius: 10px;
+  padding: 24px;
+  min-height: 300px;
+}
+
+.playgroundHeader {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.modelSelect, .voiceSelect {
+  padding: 8px 12px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  font-weight: bold;
+}
+
+.copyButton, .refreshButton, .generateButton {
+  padding: 8px 16px;
+  border: 2px solid #000;
+  background: #f8cb46;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.copyButton:hover, .refreshButton:hover, .generateButton:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 #000;
+}
+
+.chatInterface {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chatMessages {
+  min-height: 200px;
+  padding: 16px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  background: #f9f9f9;
+}
+
+.userMessage, .aiMessage {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 5px;
+}
+
+.userMessage {
+  background: #91a8eb;
+  margin-left: auto;
+  width: fit-content;
+  max-width: 70%;
+}
+
+.aiMessage {
+  background: #20a191;
+  width: fit-content;
+  max-width: 70%;
+}
+
+.chatInput {
+  padding: 12px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.ttsInput, .embeddingInput {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  margin-bottom: 16px;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.ttsControls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.speedSlider {
+  width: 100px;
+}
+
+.audioOutput, .vectorOutput {
+  padding: 16px;
+  border: 2px solid #000;
+  border-radius: 5px;
+  background: #f9f9f9;
+  min-height: 60px;
+}
+
+.audioPlaceholder, .vectorPlaceholder {
+  color: #666;
+  font-style: italic;
+}
+
+.playgroundPlaceholder {
+  text-align: center;
+  padding: 48px;
+  color: #666;
+}
+
+.playgroundActions {
+  display: flex;
+  gap: 16px;
+}
+
+.modelDescription {
+  background-color: #fff;
+  border: 3px solid #000;
+  border-radius: 10px;
+  padding: 24px;
+}
+
+.modelDescription h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.modelDescription p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* Compute Monetization Section */
+.computeMonetization {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.computeMonetizationContainer {
+  width: 100%;
+  max-width: 1300px;
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  background-color: #fe91e8;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 48px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.computeMonetizationContainer:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.monetizationLeft {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  flex-shrink: 0;
+}
+
+.monetizationRight {
+  flex: 1;
+}
+
+.monetizationRight h1 {
+  font-size: 48px;
+  margin-bottom: 24px;
+}
+
+.monetizationRight p {
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.monetizationFeatures {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.monetizationFeature {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* Global Network Section */
+.globalNetwork {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.globalNetworkContainer {
+  width: 100%;
+  max-width: 1300px;
+  text-align: center;
+}
+
+.globalNetworkContainer h1 {
+  font-size: 48px;
+  margin-bottom: 48px;
+}
+
+.networkBenefits {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+}
+
+.networkBenefit {
+  flex: 1;
+  background-color: #d4d4cb;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 32px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.networkBenefit:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.networkBenefit h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.networkBenefit p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* Community Section */
+.community {
+  width: 100%;
+  padding: 54px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.communityContainer {
+  width: 100%;
+  max-width: 800px;
+  text-align: center;
+  background-color: #20a191;
+  border: 6px solid #000;
+  border-radius: 20px;
+  box-shadow: 12px 12px 0 #000;
+  padding: 48px;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.communityContainer:hover {
+  transform: translate(-5px, -5px);
+  box-shadow: 17px 17px 0 #000;
+}
+
+.communityContainer h1 {
+  font-size: 48px;
+  margin-bottom: 24px;
+}
+
+.communityContainer p {
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.communityLinks {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+/* Map Roles */
+.mapRoles {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* Responsive updates */
+@media (max-width: 992px) {
+  .howItWorksContainer {
+    flex-direction: column;
+  }
+  
+  .playgroundContainer {
+    flex-direction: column;
+  }
+  
+  .computeMonetizationContainer {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .networkBenefits {
+    flex-direction: column;
+  }
+  
+  .modelTypeSelector {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .aboutContainer h1,
+  .howItWorks h1,
+  .partnersContainer h1,
+  .aiEndpointContainer h1,
+  .monetizationRight h1,
+  .globalNetworkContainer h1,
+  .communityContainer h1 {
+    font-size: 36px;
+  }
+  
+  .modelTypeSelector {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .playgroundActions,
+  .communityLinks,
+  .mapRoles {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .monetizationLeft {
+    width: 200px;
+    height: 200px;
+  }
 }

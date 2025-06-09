@@ -59,3 +59,17 @@
     margin-top: 24px;
     width: max-content;
 }
+
+.docWrapper ul {
+    padding-left: 32px;
+    margin: 16px 0;
+}
+
+.docWrapper li {
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.docWrapper li strong {
+    font-weight: bold;
+}
