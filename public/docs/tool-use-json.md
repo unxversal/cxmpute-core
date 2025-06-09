@@ -1,6 +1,4 @@
-# Tool Use & JSON Mode
-
-Enable function calling and structured outputs with Cxmpute's advanced language models.
+Enable function calling and structured outputs with advanced language models.
 
 ## Overview
 
@@ -11,7 +9,7 @@ Cxmpute supports tool calling and structured outputs, allowing models to interac
 - **Function Calling**: Models can call predefined functions and tools
 - **Structured Outputs**: Force models to return specific JSON schemas
 - **OpenAI Compatible**: Works with existing OpenAI tool calling code
-- **Multiple Models**: Available on supported models (Llama 3.1, Mixtral, etc.)
+- **Multiple Models**: Available on supported models (Qwen3, Deepseek, Llama 3, etc.)
 
 ## Tool Calling
 
@@ -116,9 +114,19 @@ Process documents and forms into structured data.
 
 Tool calling and JSON mode are available on:
 
-- ✅ **Llama 3.1** (8B, 70B) - Full support
-- ✅ **Mixtral 8x7B** - Tool calling support
-- ✅ **Qwen 2.5** - JSON mode support
+- ✅ **Qwen 3** (4B, 8B, 14B, 30B, 32B) - Full tool calling support
+- ✅ **Llama 3.1** (8B) - Full tool calling support
+- ✅ **Llama 3.2** (1B, 3B) - Tool calling support
+- ✅ **Llama 3.3** (70B) - Tool calling support
+- ✅ **Qwen 2.5** (7B, 14B, 32B, 72B) - Tool calling support
+- ✅ **Qwen 2.5 Coder** (3B, 7B, 14B, 32B) - Tool calling support
+- ✅ **QwQ** (32B) - Reasoning with tool calling support
+- ✅ **Cogito** (3B, 8B, 14B, 32B, 70B) - Tool calling support
+- ✅ **Mistral** (7B) - Tool calling support
+- ✅ **Mistral Nemo** (12B) - Tool calling support
+- ✅ **Mistral Small 3.1** (24B) - Vision + tool calling support
+- ✅ **Phi-4 Mini** (3.8B) - Tool calling support
+- ✅ **Granite 3.2 Vision** (2B) - Vision + tool calling support
 - 🚧 **Other models** - Basic JSON formatting
 
 ## Examples
@@ -128,7 +136,6 @@ Visit our [GitHub repository](https://github.com/unxversal/cxmpute-core) for com
 ## Support
 
 - **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
-- **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 
 ---
