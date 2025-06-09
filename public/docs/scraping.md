@@ -19,7 +19,7 @@ Cxmpute's Web Scraping service provides reliable content extraction from web pag
 ### Basic Request
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/scrape \
+curl -X POST https://cxmpute.cloud/api/v1/scrape \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -34,7 +34,7 @@ curl -X POST https://api.cxmpute.cloud/v1/scrape \
 ```python
 import requests
 
-url = "https://api.cxmpute.cloud/v1/scrape"
+url = "https://cxmpute.cloud/api/v1/scrape"
 headers = {
     "Authorization": "Bearer YOUR_API_KEY",
     "X-User-Id": "YOUR_USER_ID",
@@ -101,7 +101,7 @@ Collect articles and blog posts for analysis:
 ```python
 def scrape_news_articles(urls):
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/scrape",
+        "https://cxmpute.cloud/api/v1/scrape",
         headers=headers,
         json={"urls": urls, "format": "markdown"}
     )
@@ -135,7 +135,7 @@ def research_scraper(search_urls, keywords):
     scraped_data = []
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/scrape",
+        "https://cxmpute.cloud/api/v1/scrape",
         headers=headers,
         json={"urls": search_urls, "format": "text"}
     )
@@ -163,7 +163,7 @@ Track product information and pricing:
 ```python
 def monitor_product_pages(product_urls):
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/scrape",
+        "https://cxmpute.cloud/api/v1/scrape",
         headers=headers,
         json={"urls": product_urls, "format": "html"}
     )
@@ -191,7 +191,7 @@ Collect API documentation and guides:
 ```python
 def scrape_documentation(doc_urls):
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/scrape",
+        "https://cxmpute.cloud/api/v1/scrape",
         headers=headers,
         json={"urls": doc_urls, "format": "markdown"}
     )
@@ -245,7 +245,7 @@ def scrape_urls_batch(urls, batch_size=10, max_retries=3):
         for attempt in range(max_retries):
             try:
                 response = requests.post(
-                    "https://api.cxmpute.cloud/v1/scrape",
+                    "https://cxmpute.cloud/api/v1/scrape",
                     headers=headers,
                     json={"urls": url_batch, "format": "markdown"},
                     timeout=60
@@ -321,7 +321,7 @@ def scrape_and_analyze(urls, analysis_type="summary"):
     
     # Scrape content
     scrape_response = requests.post(
-        "https://api.cxmpute.cloud/v1/scrape",
+        "https://cxmpute.cloud/api/v1/scrape",
         headers=headers,
         json={"urls": urls, "format": "text"}
     )
@@ -342,7 +342,7 @@ def scrape_and_analyze(urls, analysis_type="summary"):
             prompt = f"Extract the main keywords and topics from this text:\n\n{content[:2000]}"
         
         ai_response = requests.post(
-            "https://api.cxmpute.cloud/v1/chat/completions",
+            "https://cxmpute.cloud/api/v1/chat/completions",
             headers=headers,
             json={
                 "model": "llama3.1:8b",
@@ -390,7 +390,7 @@ def polite_scraper(urls, delay_range=(1, 3)):
             time.sleep(delay)
         
         response = requests.post(
-            "https://api.cxmpute.cloud/v1/scrape",
+            "https://cxmpute.cloud/api/v1/scrape",
             headers=headers,
             json={"urls": [url], "format": "markdown"}
         )
@@ -503,7 +503,7 @@ class ScrapingCache:
         # Scrape uncached URLs
         if urls_to_scrape:
             response = requests.post(
-                "https://api.cxmpute.cloud/v1/scrape",
+                "https://cxmpute.cloud/api/v1/scrape",
                 headers=headers,
                 json={"urls": urls_to_scrape, "format": format_type}
             )
@@ -528,7 +528,7 @@ results = cache.scrape_with_cache(["https://example.com", "https://test.com"])
 
 During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Error Handling
 
@@ -542,7 +542,7 @@ Common error codes and solutions:
 
 ## Support
 
-- **Discord**: [Community support](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
 - **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 

@@ -1,5 +1,3 @@
-# Cxmpute Documentation
-
 Welcome to the Cxmpute documentation! Cxmpute is a distributed AI/Compute services platform that connects users who need AI services with providers who offer compute resources, creating a global network of AI compute power.
 
 ## Quick Start
@@ -56,7 +54,7 @@ Cxmpute provides inference and related services powered by a global network of n
 
 ### 💰 **Cost-Effective**
 - Currently free during testnet phase
-- Future pricing to be determined (TBD)
+- Future pricing to be announced (TBA)
 - Competitive rates through decentralized provider network
 
 ### 🔒 **Secure & Reliable**
@@ -71,7 +69,7 @@ Visit the [Cxmpute Dashboard](https://cxmpute.cloud/dashboard) to create your ac
 
 ### 2. Make Your First Request
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/chat/completions \
+curl -X POST https://cxmpute.cloud/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -92,13 +90,13 @@ Try different AI services:
 
 🎉 **All services are currently free!** During our testnet phase, you can use all Cxmpute services without charges. Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 [Learn more about rewards →](/docs/rewards)
 
 ## Community & Support
 
-- **Discord**: Join our [community](https://discord.com/invite/CJGA7B2zKT) for support and latest news
+- **Discord**: Join our [community](https://discord.gg/vE3xvFsZA8) for support and latest news
 - **GitHub**: Check out our [open source code](https://github.com/unxversal/cxmpute-core)
 - **Email**: Contact us at support@cxmpute.cloud
 

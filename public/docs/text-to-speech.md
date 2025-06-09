@@ -19,7 +19,7 @@ Cxmpute's Text-to-Speech (TTS) service transforms written text into lifelike aud
 ### Basic Request
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/tts \
+curl -X POST https://cxmpute.cloud/api/v1/tts \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -35,7 +35,7 @@ curl -X POST https://api.cxmpute.cloud/v1/tts \
 ```python
 import requests
 
-url = "https://api.cxmpute.cloud/v1/tts"
+url = "https://cxmpute.cloud/api/v1/tts"
 headers = {
     "Authorization": "Bearer YOUR_API_KEY",
     "X-User-Id": "YOUR_USER_ID",
@@ -63,7 +63,7 @@ else:
 const fs = require('fs');
 
 async function generateSpeech() {
-  const response = await fetch('https://api.cxmpute.cloud/v1/tts', {
+  const response = await fetch('https://cxmpute.cloud/api/v1/tts', {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer YOUR_API_KEY',
@@ -150,7 +150,7 @@ def create_voiceover(script_segments):
     
     for i, text in enumerate(script_segments):
         response = requests.post(
-            "https://api.cxmpute.cloud/v1/tts",
+            "https://cxmpute.cloud/api/v1/tts",
             headers=headers,
             json={"text": text, "voice": "af_bella"}
         )
@@ -192,7 +192,7 @@ def create_pronunciation_guide(phrases):
     for phrase in phrases:
         # Generate audio for the phrase
         audio_response = requests.post(
-            "https://api.cxmpute.cloud/v1/tts",
+            "https://cxmpute.cloud/api/v1/tts",
             headers=headers,
             json={
                 "text": phrase["text"],
@@ -214,7 +214,7 @@ Add voice responses to chatbots and virtual assistants:
 def voice_assistant_response(user_message):
     # Get AI response
     chat_response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "llama3.1:8b",
@@ -226,7 +226,7 @@ def voice_assistant_response(user_message):
     
     # Convert to speech
     tts_response = requests.post(
-        "https://api.cxmpute.cloud/v1/tts",
+        "https://cxmpute.cloud/api/v1/tts",
         headers=headers,
         json={"text": ai_text, "voice": "af_nicole"}
     )
@@ -247,7 +247,7 @@ def create_audio_notification(message, urgency="normal"):
     }
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/tts",
+        "https://cxmpute.cloud/api/v1/tts",
         headers=headers,
         json={
             "text": message,
@@ -270,7 +270,7 @@ import requests
 
 def generate_single_audio(text_item):
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/tts",
+        "https://cxmpute.cloud/api/v1/tts",
         headers=headers,
         json={
             "text": text_item["text"],
@@ -322,7 +322,7 @@ def reliable_tts_request(text, voice="af_bella", max_retries=3):
     for attempt in range(max_retries):
         try:
             response = requests.post(
-                "https://api.cxmpute.cloud/v1/tts",
+                "https://cxmpute.cloud/api/v1/tts",
                 headers=headers,
                 json={"text": text, "voice": voice},
                 timeout=30
@@ -357,7 +357,7 @@ async def streaming_tts_response(prompt):
     
     # Stream text response
     text_response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "llama3.1:8b",
@@ -504,7 +504,7 @@ class TTSCache:
         
         # Generate new audio
         response = requests.post(
-            "https://api.cxmpute.cloud/v1/tts",
+            "https://cxmpute.cloud/api/v1/tts",
             headers=headers,
             json={"text": text, "voice": voice}
         )
@@ -525,11 +525,11 @@ audio = tts_cache.generate_or_get_cached("Welcome to our service!", "af_bella")
 
 During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support & Community
 
-- **Discord**: Join our [community](https://discord.com/invite/CJGA7B2zKT) for TTS tips and support
+- **Discord**: Join our [community](https://discord.gg/vE3xvFsZA8) for TTS tips and support
 - **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: Find more examples in our [GitHub repository](https://github.com/unxversal/cxmpute-core)
 

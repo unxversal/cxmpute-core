@@ -1,5 +1,3 @@
-# User Guide
-
 Welcome to Cxmpute! This guide will help you get started using our AI services through our simple, OpenAI-compatible APIs.
 
 ## Overview
@@ -63,7 +61,7 @@ X-User-Id: YOUR_USER_ID
 
 All API endpoints use the base URL:
 ```
-https://api.cxmpute.cloud
+https://cxmpute.cloud/api
 ```
 
 ## API Reference
@@ -138,7 +136,7 @@ data: [DONE]
 #### Example
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/chat/completions \
+curl -X POST https://cxmpute.cloud/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -198,7 +196,7 @@ POST /v1/embeddings
 #### Example
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/embeddings \
+curl -X POST https://cxmpute.cloud/api/v1/embeddings \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -239,7 +237,7 @@ Returns audio data in WAV format with `Content-Type: audio/wav`.
 #### Example
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/tts \
+curl -X POST https://cxmpute.cloud/api/v1/tts \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -293,7 +291,7 @@ POST /v1/scrape
 #### Example
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/scrape \
+curl -X POST https://cxmpute.cloud/api/v1/scrape \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -314,7 +312,7 @@ import openai
 
 client = openai.OpenAI(
     api_key="YOUR_API_KEY",
-    base_url="https://api.cxmpute.cloud/v1",
+    base_url="https://cxmpute.cloud/api/v1",
     default_headers={"X-User-Id": "YOUR_USER_ID"}
 )
 
@@ -333,7 +331,7 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: 'YOUR_API_KEY',
-  baseURL: 'https://api.cxmpute.cloud/v1',
+  baseURL: 'https://cxmpute.cloud/api/v1',
   defaultHeaders: {
     'X-User-Id': 'YOUR_USER_ID'
   }
@@ -414,7 +412,7 @@ During testnet, there are no strict rate limits. However, fair usage policies ap
 Need help? We're here for you:
 
 - **Discord**: Join our [community](https://discord.com/invite/CJGA7B2zKT) for real-time support
-- **Email**: Contact support@cxmpute.cloud
+- **Email**: Contact [support@cxmpute.cloud](https://tally.so/r/w4DvLA)
 - **GitHub**: Report issues on our [repository](https://github.com/unxversal/cxmpute-core)
 
 ## Next Steps

@@ -73,7 +73,7 @@ Force models to return data in specific JSON formats.
 ```python
 def get_structured_response(prompt, model="llama3.1:8b"):
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": model,
@@ -127,7 +127,7 @@ Visit our [GitHub repository](https://github.com/unxversal/cxmpute-core) for com
 
 ## Support
 
-- **Discord**: [Community support](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
 - **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 

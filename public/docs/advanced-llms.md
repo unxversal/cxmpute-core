@@ -27,7 +27,7 @@ Some models support "thinking" mode where you can see their reasoning process.
 
 ```python
 response = requests.post(
-    "https://api.cxmpute.cloud/v1/chat/completions",
+    "https://cxmpute.cloud/api/v1/chat/completions",
     headers=headers,
     json={
         "model": "deepseek-r1:8b",
@@ -74,7 +74,7 @@ def encode_image(image_path):
 image_base64 = encode_image("path/to/image.jpg")
 
 response = requests.post(
-    "https://api.cxmpute.cloud/v1/chat/completions",
+    "https://cxmpute.cloud/api/v1/chat/completions",
     headers=headers,
     json={
         "model": "llama3.2-vision",
@@ -130,7 +130,7 @@ def generate_code(task, language="python", model="codellama:13b"):
     """
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": model,
@@ -163,7 +163,7 @@ Domain-specific models for particular use cases.
 def analyze_medical_text(text):
     """Analyze medical text with specialized model"""
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "medical-llama:8b",
@@ -204,7 +204,7 @@ def process_long_document(document_text, query):
         model = "llama3.1:8b"
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": model,
@@ -228,7 +228,7 @@ def analyze_chart_with_context(image_base64, context_text):
     """Analyze charts and graphs with additional context"""
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "llama3.2-vision",
@@ -333,7 +333,7 @@ async def process_batch_advanced(prompts, model="llama3.1:8b"):
     
     async def single_request(session, prompt):
         async with session.post(
-            "https://api.cxmpute.cloud/v1/chat/completions",
+            "https://cxmpute.cloud/api/v1/chat/completions",
             headers=headers,
             json={
                 "model": model,
@@ -373,7 +373,7 @@ def robust_model_request(prompt, preferred_models, max_retries=3):
         for attempt in range(max_retries):
             try:
                 response = requests.post(
-                    "https://api.cxmpute.cloud/v1/chat/completions",
+                    "https://cxmpute.cloud/api/v1/chat/completions",
                     headers=headers,
                     json={
                         "model": model,
@@ -404,11 +404,11 @@ result = robust_model_request("Complex reasoning task", models)
 
 During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 
-- **Discord**: [Community support](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
 - **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 

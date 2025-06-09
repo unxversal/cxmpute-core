@@ -8,8 +8,9 @@ import {
   removeScrapingProvision,
   updateScrapeMetadata,
   updateScrapeServiceMetadata,
-  rewardProvider,
+  rewardUserForAPIUsage,
 } from "@/lib/utils";
+import { rewardProviderForWork } from "@/lib/providerRewards";
 
 /** CORS preflight */
 export async function OPTIONS() {
@@ -91,8 +92,9 @@ export async function POST(req: NextRequest) {
       await updateScrapeServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 7) Reward
-    await rewardProvider(provision.providerId, 0.01);
+    // 7) Reward provider and user
+    await rewardProviderForWork(provision.providerId, 'scraping', '/scrape', 0, 0, latency);
+    await rewardUserForAPIUsage(userId, '/scrape', 0); // No tokens for scraping
 
     // 8) Return JSON with CORS
     return new NextResponse(JSON.stringify(data), {
