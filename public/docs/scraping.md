@@ -1,5 +1,3 @@
-# Web Scraping
-
 Extract content from web pages intelligently using Cxmpute's distributed web scraping service.
 
 ## Overview
