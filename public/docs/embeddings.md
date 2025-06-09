@@ -1,5 +1,3 @@
-# Text Embeddings
-
 Generate high-quality vector embeddings for semantic search, RAG applications, and AI-powered features using Cxmpute's distributed embedding service.
 
 ## Overview
@@ -128,8 +126,7 @@ Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on p
 ## Support
 
 - **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
-- **Documentation**: [Complete API reference](/docs/user)
-- **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
+- **Contact**: [Contact us](https://tally.so/r/w4DvLA)
 
 ---
 

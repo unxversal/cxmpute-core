@@ -1,5 +1,3 @@
-# Text-to-Speech
-
 Convert text to natural, high-quality speech using Cxmpute's distributed text-to-speech service.
 
 ## Overview
@@ -107,11 +105,17 @@ POST /v1/tts
 
 | Voice | Description | Language | Style |
 |-------|-------------|----------|-------|
-| `af_bella` | Warm, professional female voice | English | Clear, pleasant |
-| `af_nicole` | Energetic female voice | English | Upbeat, dynamic |
-| `af_sarah` | Calm, soothing female voice | English | Gentle, relaxed |
-| `am_adam` | Professional male voice | English | Authoritative, clear |
-| `am_michael` | Friendly male voice | English | Warm, approachable |
+| `af` | Standard American female voice | English (US) | Natural, balanced |
+| `af_bella` | Warm, professional female voice | English (US) | Clear, pleasant |
+| `af_nicole` | Energetic female voice | English (US) | Upbeat, dynamic |
+| `af_sarah` | Calm, soothing female voice | English (US) | Gentle, relaxed |
+| `af_sky` | Bright, youthful female voice | English (US) | Light, cheerful |
+| `am_adam` | Professional male voice | English (US) | Authoritative, clear |
+| `am_michael` | Friendly male voice | English (US) | Warm, approachable |
+| `bf_emma` | Sophisticated British female voice | English (UK) | Elegant, refined |
+| `bf_isabella` | Classic British female voice | English (UK) | Traditional, articulate |
+| `bm_george` | Distinguished British male voice | English (UK) | Formal, authoritative |
+| `bm_lewis` | Modern British male voice | English (UK) | Contemporary, friendly |
 
 *More voices are continuously being added to our network.*
 
@@ -530,7 +534,6 @@ Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on p
 ## Support & Community
 
 - **Discord**: Join our [community](https://discord.gg/vE3xvFsZA8) for TTS tips and support
-- **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: Find more examples in our [GitHub repository](https://github.com/unxversal/cxmpute-core)
 
 ---
