@@ -44,7 +44,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
       {/* Sidebar Navigation */}
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
-          <Link href="/docs" className={styles.docsTitle}>
+          <Link href="/d" className={styles.docsTitle}>
             <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70}/>
             <h2>Documentation</h2>
           </Link>

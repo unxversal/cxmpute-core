@@ -180,10 +180,10 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+            <li><Link href="/d/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
             </Link></li>
-            <li><Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+            <li><Link href="/d" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
               <Button text="DOCUMENTATION" backgroundColor={cxmputePurple}/>
             </Link></li>
             <li><a href="/dashboard" >
@@ -202,10 +202,10 @@ export default function Home() {
             <h1>Use or provide computing power, storage, and more.</h1>
             <p>Cxmpute connects providers of computing hardware with users who leverage a range of computing services.</p>
             <div className={styles.heroButtons}>
-              <a href="/docs/provider" target="_blank">
+              <a href="/d/provider" target="_blank">
               <Button text="Start earning as a provider" backgroundColor={cxmputeYellow}/>
               </a>
-              <a href="/docs" target="_blank">
+              <a href="/d" target="_blank">
               <Button text="Start using Cxmpute services" backgroundColor={cxmputePink}/>
               </a>
             </div>
@@ -232,7 +232,7 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Companies + Developers</span>
               <p className={styles.whoIsCxmputeForCard__content}>Access AI Inference and compute services powered by a globally distributed network.</p>
-              <Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+              <Link href="/d" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Get Started" backgroundColor={cxmputePurple} />
               </Link>
             </div>
@@ -243,7 +243,7 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Datacenters</span>
               <p className={styles.whoIsCxmputeForCard__content}>Maximize the ROI of your infrastructure by offering your datacenter capacity to a global marketplace for decentralized compute.</p>
-              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+              <Link href="/d/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Join Network" backgroundColor={cxmputeYellow} />
               </Link>
             </div>
@@ -254,7 +254,7 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Individuals</span>
               <p className={styles.whoIsCxmputeForCard__content}>Monetize your idle computer resources by contributing to a decentralized network—and get rewarded for your unused power.</p>
-              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+              <Link href="/d/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Start Earning" backgroundColor={cxmputePink} />
               </Link>
             </div>
@@ -497,7 +497,7 @@ export default function Home() {
                   <span>Easy to get started (Get started in 10 secs)</span>
                 </div>
             </div>
-              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+              <Link href="/d/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Provide Cxmpute" backgroundColor={cxmputeYellow} />
               </Link>
         </div>
@@ -570,7 +570,7 @@ export default function Home() {
               </div>
               <span className={styles.newsCard__title}>Services Overview</span>
               <p className={styles.newsCard__content}>Explore our comprehensive suite of AI and computing services in detail.</p>
-              <Link href="/docs/user" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+              <Link href="/d/user" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Explore Services" backgroundColor={cxmputeOrange} />
                   </Link>
                 </div>
@@ -585,10 +585,10 @@ export default function Home() {
               </div>
               <h1>What role will you play?</h1>
               <div className={styles.ctaButtons}>
-                <Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+                <Link href="/d" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                   <Button text="Build" backgroundColor={cxmputeGreen} />
                 </Link>
-                <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
+                <Link href="/d/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                   <Button text="Provide" backgroundColor={cxmputeYellow} />
               </Link>
             </div>
@@ -690,7 +690,7 @@ export default function Home() {
               <a href="https://tally.so/r/w4DvLA" target="_blank">
                 <Button text="Contact" backgroundColor={cxmputeYellow} />
               </a>
-              <a href="/docs/provider" target="_blank">
+              <a href="/d/provider" target="_blank">
                 <Button text="Get started as a provider" backgroundColor={cxmputeYellow} />
               </a>
               <a href="/dashboard" target="_blank">
