@@ -1,5 +1,3 @@
-# Rewards & Referrals
-
 Earn rewards and grow the Cxmpute network through our comprehensive referral system! Both users and providers can earn through platform usage and by building referral networks.
 
 ## 🎉 System Overview
