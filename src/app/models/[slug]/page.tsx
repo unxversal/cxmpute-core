@@ -139,9 +139,9 @@ export default function ModelDetailPage({
               </Link>
             </li>
             <li>
-              <a href="/d">
+              <Link href="/d">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
-              </a>
+              </Link>
             </li>
             <li>
               <a href="/dashboard">
