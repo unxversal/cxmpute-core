@@ -57,6 +57,46 @@ for item in result["results"]:
         print(f"Failed to scrape {item['url']}")
 ```
 
+## API Limits
+
+### URL Limits
+
+- **Maximum URLs per request**: 50 URLs
+- **Batch processing**: For larger datasets, split into multiple requests
+- **Rate limiting**: Recommended delay of 1-2 seconds between requests
+
+### Handling Large Batches
+
+For processing more than 50 URLs, split your requests:
+
+```python
+def scrape_large_batch(urls, batch_size=50):
+    """Process large URL lists in batches"""
+    all_results = []
+    
+    for i in range(0, len(urls), batch_size):
+        batch = urls[i:i + batch_size]
+        
+        response = requests.post(
+            "https://cxmpute.cloud/api/v1/scrape",
+            headers=headers,
+            json={"urls": batch, "format": "markdown"}
+        )
+        
+        if response.status_code == 200:
+            all_results.extend(response.json()["results"])
+        
+        # Respectful delay between batches
+        time.sleep(1)
+        print(f"Processed batch {i//batch_size + 1}")
+    
+    return all_results
+
+# Usage
+large_url_list = ["https://example.com/page{}".format(i) for i in range(1, 200)]
+results = scrape_large_batch(large_url_list)
+```
+
 ## API Reference
 
 ### Endpoint
@@ -69,7 +109,7 @@ POST /v1/scrape
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `urls` | array | Yes | Array of URLs to scrape |
+| `urls` | array | Yes | Array of URLs to scrape (maximum 50 URLs per request) |
 | `format` | string | No | Output format: "markdown", "text", "html" (default: "markdown") |
 
 ### Response Format
@@ -534,7 +574,7 @@ Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on p
 
 Common error codes and solutions:
 
-- `400`: Invalid URL or malformed request
+- `400`: Invalid URL, malformed request, or too many URLs (max 50 per request)
 - `403`: Access denied or blocked by target site
 - `404`: Page not found
 - `408`: Request timeout

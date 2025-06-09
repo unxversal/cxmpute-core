@@ -349,7 +349,7 @@ Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on p
 ## Support
 
 - **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
-- **Documentation**: [Complete API reference](/docs/user) 
+- **Contact**: [https://tally.so/r/w4DvLA](https://tally.so/r/w4DvLA)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 - **Model Catalog**: [Browse all available models](https://cxmpute.cloud/models)
 

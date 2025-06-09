@@ -48,6 +48,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Provide at least one URL in "urls" array.' }, { status: 400 });
     }
 
+    // URL limit validation
+    const MAX_URLS_PER_REQUEST = 50;
+    if (urls.length > MAX_URLS_PER_REQUEST) {
+      return NextResponse.json({ 
+        error: `Too many URLs provided. Maximum ${MAX_URLS_PER_REQUEST} URLs allowed per request. For larger batches, please split into multiple requests.` 
+      }, { status: 400 });
+    }
+
     // 3) Select a healthy scraping node
     let isHealthy = false;
     let attempts = 0;
