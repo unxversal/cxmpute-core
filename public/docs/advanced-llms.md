@@ -416,9 +416,9 @@ Please review this code and provide:
 5. Refactored version if needed
 
 Code to review:
-```
+\`\`\`
 {code}
-```
+\`\`\`
 """
     
     response = requests.post(
@@ -443,9 +443,9 @@ Explain this code in detail:
 4. Potential use cases
 
 Code:
-```
+\`\`\`
 {code}
-```
+\`\`\`
 """
     
     response = requests.post(
@@ -501,9 +501,9 @@ def complete_code(partial_code, language="python", model="qwen2.5-coder:14b"):
     
     prompt = f"""Complete this {language} code. Only provide the completion, not the entire code:
 
-```{language}
+\`\`\`{language}
 {partial_code}
-```
+\`\`\`
 
 Complete the code from where it left off. Provide clean, efficient completion that follows best practices."""
     
@@ -658,9 +658,9 @@ def context_aware_completion(code_context, partial_code, model="deepseek-coder-v
 {code_context}
 
 Complete this partial code:
-```
+\`\`\`
 {partial_code}
-```
+\`\`\`
 
 Consider the existing code structure, naming conventions, and patterns used in the context."""
     
