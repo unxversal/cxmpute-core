@@ -45,7 +45,41 @@ export default function Home() {
     if (category === 'scraping') {
       return [{ Name: 'Web Scraping Service', Creator: 'Cxmpute' }]; // Mock for scraping
     }
-    return models.filter(model => model.Category.toLowerCase() === category.toLowerCase()).slice(0, 3);
+    // Show all models for these categories, not just 3
+    return models.filter(model => model.Category.toLowerCase() === category.toLowerCase());
+  };
+
+  // Get category color mapping
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'text': return cxmputePurple;
+      case 'vision': return cxmputeYellow;
+      case 'audio': return cxmputePink;
+      case 'embeddings': return cxmputeOrange;
+      case 'code': return cxmputeGreen;
+      case 'math': return cxmputeRed;
+      case 'scraping': return cxmputeSlate;
+      default: return cxmputeSlate;
+    }
+  };
+
+  // Function to darken a hex color for borders
+  const darkenColor = (hex: string, amount: number = 0.3) => {
+    // Remove # if present
+    const color = hex.replace('#', '');
+    
+    // Parse RGB values
+    const r = parseInt(color.substring(0, 2), 16);
+    const g = parseInt(color.substring(2, 4), 16);
+    const b = parseInt(color.substring(4, 6), 16);
+    
+    // Darken each component
+    const newR = Math.round(r * (1 - amount));
+    const newG = Math.round(g * (1 - amount));
+    const newB = Math.round(b * (1 - amount));
+    
+    // Convert back to hex
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
   };
 
   // Sample code for different categories
@@ -191,7 +225,7 @@ export default function Home() {
         <div className={styles.whoIsCxmputeFor}>
           <h3>Who is Cxmpute for?</h3>
           <h1>Here&apos;s what Cxmpute does for you:</h1>
-          <div className={styles.whoIsCxmputeForCards}>
+            <div className={styles.whoIsCxmputeForCards}>
             <div className={styles.whoIsCxmputeForCard}>
               <div className={styles.whoIsCxmputeForCardImage} style={{ backgroundColor: cxmputePurple }}>
                 <Users size={48} />
@@ -237,156 +271,192 @@ export default function Home() {
             <a href="/roadmap">
               <Button text="See Our Vision" backgroundColor={cxmputePurple} />
             </a>
-          </div>
-        </div>
+              </div>
+              </div>
         <div className={styles.partners}>
           <h3>Built on</h3>
           <div className={styles.partnersContainer}>
             <div className={styles.partnerLogo}>
               <Image src="/images/peaq.png" alt="Peaq logo" width={200} height={80} style={{ objectFit: "contain" }} />
             </div>
-          </div>
+            </div>
         </div>
         <div className={styles.aiEndpoint}>
           <h3>All your AI needs, one endpoint</h3>
           <h1>Explore our comprehensive AI model collection</h1>
           
-          <div className={styles.aiEndpointGrid}>
-            <div className={styles.playgroundLeft}>
-              <div className={styles.modelSelector}>
-                <label>Select Model:</label>
-                <select className={styles.modelDropdown}>
-                  {getModelsByCategory(selectedCategory).map((model, idx) => (
-                    <option key={idx} value={model.Name}>{model.Name}</option>
-                  ))}
-                </select>
-                <button className={styles.copyModelBtn} onClick={() => navigator.clipboard.writeText(getModelsByCategory(selectedCategory)[0]?.Name || '')}>
-                  <Copy size={16} />
-                </button>
-              </div>
-
-              <div className={styles.lightCodeBlock}>
-                <div className={styles.lightCodeHeader}>
-                  <span>Sample Request</span>
-                  <button className={styles.lightCopyBtn}>
-                    <Copy size={16} />
-                    Copy
-                  </button>
+          <div className={styles.aiCategoriesContainer}>
+            <div className={styles.aiCategoriesGrid}>
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'text' ? styles.selectedCategory : ''}`} 
+                              style={{ 
+                  backgroundColor: getCategoryColor('text'),
+                  borderColor: selectedCategory === 'text' ? darkenColor(getCategoryColor('text')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('text')}
+              >
+                <div className={styles.categoryIcon}>
+                  <MessageSquare size={24} />
                 </div>
-                <pre className={styles.lightCodeContent}>
-                  <code>{getSampleCode(selectedCategory)}</code>
-                </pre>
-              </div>
+                <h3>Text Models</h3>
+                <p>Powerful language models for text generation, conversation, reasoning, and general AI tasks.</p>
+                    </div>
 
-              <div className={styles.modelsList}>
-                <h4>Available {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Models:</h4>
-                {getModelsByCategory(selectedCategory).map((model, idx) => (
-                  <div key={idx} className={styles.modelItem}>
-                    <strong>{model.Name}</strong>
-                    <span className={styles.modelMeta}>by {model.Creator}</span>
-                  </div>
-                ))}
-              </div>
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'vision' ? styles.selectedCategory : ''}`} 
+                                      style={{ 
+                  backgroundColor: getCategoryColor('vision'),
+                  borderColor: selectedCategory === 'vision' ? darkenColor(getCategoryColor('vision')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('vision')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Eye size={24} />
+                    </div>
+                <h3>Vision Models</h3>
+                <p>Advanced vision-language models that can understand and analyze images, charts, and documents.</p>
+                    </div>
 
-              <div className={styles.playgroundActions}>
-                <a href="/dashboard">
-                  <Button text="Get API Key" backgroundColor={cxmputeGreen} />
-                </a>
-                <Link href={`/models?category=${selectedCategory}`}>
-                  <Button text={`View all ${selectedCategory} models`} backgroundColor={cxmputePurple} />
-                </Link>
-              </div>
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'audio' ? styles.selectedCategory : ''}`} 
+                      style={{
+                  backgroundColor: getCategoryColor('audio'),
+                  borderColor: selectedCategory === 'audio' ? darkenColor(getCategoryColor('audio')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('audio')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Volume2 size={24} />
+                    </div>
+                <h3>Text-to-Speech</h3>
+                <p>Natural text-to-speech synthesis with multiple voice options and high-quality audio output.</p>
+                    </div>
+
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'embeddings' ? styles.selectedCategory : ''}`} 
+                      style={{
+                  backgroundColor: getCategoryColor('embeddings'),
+                  borderColor: selectedCategory === 'embeddings' ? darkenColor(getCategoryColor('embeddings')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('embeddings')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Search size={24} />
+                </div>
+                <h3>Embeddings</h3>
+                <p>Transform text into high-dimensional vectors for semantic search and RAG applications.</p>
             </div>
 
-            <div className={styles.aiCategoriesContainer}>
-              <Link href="/models">
-                <Button text="See all models: Model gallery" backgroundColor={cxmputeGreen} />
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'code' ? styles.selectedCategory : ''}`} 
+                style={{ 
+                  backgroundColor: getCategoryColor('code'),
+                  borderColor: selectedCategory === 'code' ? darkenColor(getCategoryColor('code')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('code')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Code size={24} />
+                  </div>
+                <h3>Code Models</h3>
+                <p>Specialized coding models for code generation, debugging, and programming assistance.</p>
+                      </div>
+
+              <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'math' ? styles.selectedCategory : ''}`} 
+                        style={{
+                  backgroundColor: getCategoryColor('math'),
+                  borderColor: selectedCategory === 'math' ? darkenColor(getCategoryColor('math')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('math')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Calculator size={24} />
+                      </div>
+                <h3>Math Models</h3>
+                <p>Mathematical reasoning models optimized for solving complex equations and quantitative problems.</p>
+                      </div>
+
+                            <div 
+                className={`${styles.aiCategoryCard} ${selectedCategory === 'scraping' ? styles.selectedCategory : ''}`} 
+                style={{ 
+                  backgroundColor: getCategoryColor('scraping'),
+                  borderColor: selectedCategory === 'scraping' ? darkenColor(getCategoryColor('scraping')) : '#000'
+                }}
+                onClick={() => setSelectedCategory('scraping')}
+              >
+                <div className={styles.categoryIcon}>
+                  <Globe size={24} />
+                </div>
+                <h3>Web Scraping</h3>
+                <p>Distributed web scraping service that extracts and processes content from web pages efficiently.</p>
+              </div>
+
+              <Link href="/models" className={styles.aiCategoryCard} style={{ backgroundColor: cxmputeGreen }}>
+                <div className={styles.categoryIcon}>
+                  <MessageSquare size={24} />
+                </div>
+                <h3>All Models</h3>
+                <p>Explore our complete model gallery with all available AI models and services in one place.</p>
               </Link>
-              
-              <div className={styles.aiCategoriesGrid}>
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'text' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputePurple }}
-                  onClick={() => setSelectedCategory('text')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <MessageSquare size={24} />
+            </div>
+          </div>
+
+          <div className={styles.playgroundSection}>
+            <div className={styles.playgroundContent}>
+              <div className={styles.playgroundLeft}>
+                <div className={styles.modelSelector}>
+                  <label>Select Model:</label>
+                  <select className={styles.modelDropdown}>
+                    {getModelsByCategory(selectedCategory).map((model, idx) => (
+                      <option key={idx} value={model.Name}>{model.Name}</option>
+                    ))}
+                  </select>
+                  <button className={styles.copyModelBtn} onClick={() => navigator.clipboard.writeText(getModelsByCategory(selectedCategory)[0]?.Name || '')}>
+                    <Copy size={16} />
+                      </button>
+                      </div>
+
+                <div className={styles.lightCodeBlock}>
+                  <div className={styles.lightCodeHeader}>
+                    <span>Sample Request</span>
+                    <button className={styles.lightCopyBtn}>
+                      <Copy size={16} />
+                      Copy
+                      </button>
                   </div>
-                  <h3>Text Models</h3>
-                  <p>Powerful language models for text generation, conversation, reasoning, and general AI tasks.</p>
+                  <pre className={styles.lightCodeContent}>
+                    <code>{getSampleCode(selectedCategory)}</code>
+                  </pre>
+              </div>
+
+                <div className={styles.playgroundActions}>
+                  <a href="/dashboard">
+                    <Button text="Get API Key" backgroundColor={cxmputeGreen} />
+                  </a>
+                </div>
                 </div>
 
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'vision' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputeYellow }}
-                  onClick={() => setSelectedCategory('vision')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Eye size={24} />
-                  </div>
-                  <h3>Vision Models</h3>
-                  <p>Advanced vision-language models that can understand and analyze images, charts, and documents.</p>
+              <div className={styles.playgroundRight}>
+                <h4>{selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} {selectedCategory === 'scraping' ? 'Service' : 'Models'}</h4>
+                <p>{selectedCategory === 'scraping' 
+                  ? 'Distributed web scraping service details and capabilities.' 
+                  : 'Available models in this category with their creators and capabilities.'}</p>
+                
+                {/* <h4>Available {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} {selectedCategory === 'scraping' ? 'Service' : 'Models'}:</h4> */}
+
+                <div className={styles.modelsList}>
+                  {getModelsByCategory(selectedCategory).map((model, idx) => (
+                    <div key={idx} className={styles.modelItem}>
+                      <strong>{model.Name}</strong>
+                      <span className={styles.modelMeta}>by {model.Creator}</span>
+                </div>
+                  ))}
                 </div>
 
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'audio' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputePink }}
-                  onClick={() => setSelectedCategory('audio')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Volume2 size={24} />
-                  </div>
-                  <h3>Text-to-Speech</h3>
-                  <p>Natural text-to-speech synthesis with multiple voice options and high-quality audio output.</p>
-                </div>
-
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'embeddings' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputeOrange }}
-                  onClick={() => setSelectedCategory('embeddings')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Search size={24} />
-                  </div>
-                  <h3>Embeddings</h3>
-                  <p>Transform text into high-dimensional vectors for semantic search and RAG applications.</p>
-                </div>
-
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'code' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputeGreen }}
-                  onClick={() => setSelectedCategory('code')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Code size={24} />
-                  </div>
-                  <h3>Code Models</h3>
-                  <p>Specialized coding models for code generation, debugging, and programming assistance.</p>
-                </div>
-
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'math' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputeRed }}
-                  onClick={() => setSelectedCategory('math')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Calculator size={24} />
-                  </div>
-                  <h3>Math Models</h3>
-                  <p>Mathematical reasoning models optimized for solving complex equations and quantitative problems.</p>
-                </div>
-
-                <div 
-                  className={`${styles.aiCategoryCard} ${selectedCategory === 'scraping' ? styles.selectedCategory : ''}`} 
-                  style={{ backgroundColor: cxmputeSlate }}
-                  onClick={() => setSelectedCategory('scraping')}
-                >
-                  <div className={styles.categoryIcon}>
-                    <Globe size={24} />
-                  </div>
-                  <h3>Web Scraping</h3>
-                  <p>Intelligent web scraping service that extracts and processes content from web pages.</p>
-                </div>
+                <Link href={selectedCategory === 'scraping' ? '/docs/scraping' : `/models?category=${selectedCategory}`}>
+                  <Button text={selectedCategory === 'scraping' ? 'Learn about web scraping' : `View all ${selectedCategory} models`} backgroundColor={cxmputePurple} />
+                </Link>
               </div>
             </div>
           </div>
@@ -422,15 +492,15 @@ export default function Home() {
                 <div className={styles.monetizationFeature}>
                   <Monitor size={24} />
                   <span>Supports a wide range of GPUs and Devices</span>
-                </div>
+              </div>
                 <div className={styles.monetizationFeature}>
                   <DollarSign size={24} />
                   <span>Monetize your idle machines</span>
-                </div>
+              </div>
                 <div className={styles.monetizationFeature}>
                   <Zap size={24} />
                   <span>Easy to get started (Get started in 10 secs)</span>
-                </div>
+              </div>
               </div>
               <a href="/docs/provider">
                 <Button text="Provide Cxmpute" backgroundColor={cxmputeYellow} />
@@ -485,8 +555,8 @@ export default function Home() {
               <p className={styles.newsCard__content}>Join our testnet to earn rewards while helping us build the future of decentralized compute.</p>
               <a href="/rewards">
                 <Button text="Join Testnet" backgroundColor={cxmputePink} />
-              </a>
-            </div>
+                  </a>
+                </div>
 
             <div className={styles.newsCard}>
               <div className={styles.newsCardImage} style={{ backgroundColor: cxmputePurple }}>
@@ -496,8 +566,8 @@ export default function Home() {
               <p className={styles.newsCard__content}>See our vision for the future of decentralized computing and how we plan to get there.</p>
               <a href="/roadmap">
                 <Button text="View Roadmap" backgroundColor={cxmputePurple} />
-              </a>
-            </div>
+                  </a>
+                </div>
 
             <div className={styles.newsCard}>
               <div className={styles.newsCardImage} style={{ backgroundColor: cxmputeOrange }}>
