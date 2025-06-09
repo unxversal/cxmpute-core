@@ -1,13 +1,45 @@
-import { getDocBySlug } from "@/lib/docs";
+import { getDocBySlug, docs } from "@/lib/docs";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import styles from "./docs.module.css";
+import styles from "../docs.module.css";
 import Link from "next/link";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 
-export default function DocsHomePage() {
-  const doc = getDocBySlug(''); // Get the home doc (index.md)
+interface DocPageProps {
+  params: {
+    slug: string;
+  };
+}
+
+export async function generateStaticParams() {
+  return docs
+    .filter(doc => doc.slug !== '') // Exclude the home page
+    .map((doc) => ({
+      slug: doc.slug,
+    }));
+}
+
+export async function generateMetadata({ params }: DocPageProps) {
+  const { slug } = await params;
+  const doc = getDocBySlug(slug);
+  
+  if (!doc) {
+    return {
+      title: 'Page Not Found | Cxmpute Docs',
+      description: 'The requested documentation page could not be found.',
+    };
+  }
+
+  return {
+    title: `${doc.title} | Cxmpute Docs`,
+    description: doc.description,
+  };
+}
+
+export default async function DocPage({ params }: DocPageProps) {
+  const { slug } = await params;
+  const doc = getDocBySlug(slug);
   
   if (!doc) {
     notFound();
@@ -77,4 +109,4 @@ export default function DocsHomePage() {
       </div>
     </div>
   );
-}
+} 

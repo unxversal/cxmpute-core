@@ -153,8 +153,17 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
             <h1 className={styles.dashboardTitle}>User Dashboard</h1>
             <h2 className={styles.welcomeMessage}>Welcome to Cxmpute! Manage your account and explore services.</h2>
             <div className={styles.heroButtonContainer}>
-              <DashboardButton href="/docs" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
-              <DashboardButton onClick={() => setIsVirtualKeysModalOpen(true)} variant="accentOrange" iconLeft={<KeyRound size={16}/>} text="Manage API Keys" />
+              <DashboardButton href="/docs/user" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
+              <DashboardButton onClick={() => {
+                setIsViewUserAkModalOpen(true);
+                // Show helpful explanation toast
+                setTimeout(() => {
+                  notify.success("💡 This is your base API key - use it for all API requests. Keep it secure!", { 
+                    duration: 6000
+                  });
+                }, 500);
+              }} variant="primary" iconLeft={<KeyRound size={16}/>} text="View Base API Key" />
+              <DashboardButton onClick={() => setIsVirtualKeysModalOpen(true)} variant="accentOrange" iconLeft={<Activity size={16}/>} text="Manage Virtual Keys" />
               {/* "Manage Account" could link to a future profile settings page */}
               <DashboardButton href="#" iconLeft={<Settings size={16}/>} text="Manage Account" disabled title="Account management coming soon"/>
             </div>

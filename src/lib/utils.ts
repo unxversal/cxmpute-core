@@ -479,15 +479,35 @@ export async function rewardProvider(providerId: string, reward: number) {
     provider.rewards = updatedRewards;
     provider.totalRewards = parseFloat(newTotal.toFixed(6));
 
-
     await docClient.send(
       new PutCommand({
         TableName: Resource.ProviderTable.name,
         Item: provider, // Put the entire modified provider item
       })
     );
+
+    // NEW: Process referral chain after awarding provider
+    const { processReferralChain } = await import('./referralRewards');
+    await processReferralChain(providerId, 'provider', reward, docClient);
+    
   } catch (error) {
     console.error("Error rewarding provider:", error);
+  }
+}
+
+/**
+ * NEW: Reward user for API usage and process referral chain
+ */
+export async function rewardUserForAPIUsage(
+  userId: string,
+  endpoint: string,
+  tokenCount: number = 0
+) {
+  try {
+    const { rewardUserForUsage } = await import('./referralRewards');
+    await rewardUserForUsage(userId, endpoint, tokenCount, docClient);
+  } catch (error) {
+    console.error(`Error rewarding user ${userId} for API usage:`, error);
   }
 }
 

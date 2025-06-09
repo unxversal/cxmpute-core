@@ -86,6 +86,15 @@ export async function POST(
 
     await dynamodb.send(updateCommand);
 
+    // Add direct referral bonus to the referrer
+    try {
+      const { addDirectReferralBonus } = await import('@/lib/referralRewards');
+      await addDirectReferralBonus(referralCode, 'user', dynamodb);
+    } catch (error) {
+      console.error('Error adding direct referral bonus:', error);
+      // Don't fail the main operation if bonus fails
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Referral code applied successfully'

@@ -43,6 +43,7 @@ export async function GET(
 
     // Total earnings so far
     const total = resp.Item.totalRewards ?? 0;
+    const referralTotal = resp.Item.totalReferralRewards ?? 0;
 
     // Build past 30 days earnings array
     const list = resp.Item.rewards || [];
@@ -74,6 +75,8 @@ export async function GET(
     return NextResponse.json({ 
       total, 
       earnings,
+      referralRewards: referralTotal,
+      totalEarnings: total + referralTotal,
       referralsCount,
       referredBy: resp.Item.referredBy ?? null,
       referralCode: resp.Item.referralCode ?? providerId // Default to providerId if not set

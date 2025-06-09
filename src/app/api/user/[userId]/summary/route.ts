@@ -27,6 +27,10 @@ export async function GET(
       apiKeys: res.Item.apiKeys ?? [],
       credits: res.Item.credits ?? 0,
       rewards: res.Item.totalRewards ?? 0,
+      // NEW: Usage and referral rewards
+      usageRewards: res.Item.totalUsageRewards ?? 0,
+      referralRewards: res.Item.totalReferralRewards ?? 0,
+      totalEarnings: (res.Item.totalUsageRewards ?? 0) + (res.Item.totalReferralRewards ?? 0),
       referredBy: res.Item.referredBy ?? null,
       referralCode: res.Item.referralCode ?? res.Item.userId, // Default to userId if not set
     },

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Server, Globe, Zap, Users, TrendingUp, Cpu, HardDrive, Wifi, Loader } from 'lucide-react';
 import ProviderMap from '@/components/stats/ProviderMap';
 import styles from './stats.module.css';
+import Image from 'next/image';
 
 interface StatsData {
   overview: {
@@ -97,7 +98,6 @@ export default function StatsPage() {
     return (
       <div className={styles.loadingContainer}>
         <Loader className={styles.loadingSpinner} size={48} />
-        <h2>Loading Cxmpute Network Stats...</h2>
       </div>
     );
   }
@@ -121,10 +121,15 @@ export default function StatsPage() {
   return (
     <div className={styles.statsContainer}>
       <header className={styles.header}>
-        <h1>CXMPUTE NETWORK STATISTICS</h1>
-        <div className={styles.lastUpdated}>
-          <Activity size={16} />
-          Last updated: {lastRefresh?.toLocaleTimeString()}
+        <div className={styles.titleContainer}>
+          <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70}/>
+          <div className={styles.titleSection}>
+            <h1>CXMPUTE NETWORK STATISTICS</h1>
+            <div className={styles.lastUpdated}>
+              <Activity size={16} />
+              Last updated: {lastRefresh?.toLocaleTimeString()}
+            </div>
+          </div>
         </div>
       </header>
 
