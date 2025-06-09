@@ -1,0 +1,251 @@
+/* CSS Variables for theming */
+.light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --bg-active: #e6fffa;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-tertiary: #718096;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e0;
+  --accent-color: #20a191;
+  --accent-hover: #2c7a7b;
+  --sidebar-bg: #f8fafc;
+  --sidebar-border: #e2e8f0;
+}
+
+.dark {
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a1f2e;
+  --bg-tertiary: #1e2533;
+  --bg-hover: #2d3748;
+  --bg-active: #0d2818;
+  --text-primary: #f7fafc;
+  --text-secondary: #e6e6e6;
+  --text-tertiary: #a0aec0;
+  --border-color: #2d3748;
+  --border-hover: #4a5568;
+  --accent-color: #20a191;
+  --accent-hover: #68d391;
+  --sidebar-bg: #1a1f2e;
+  --sidebar-border: #2d3748;
+}
+
+.docsLayout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Sidebar Styles */
+.sidebar {
+  width: 280px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.sidebarHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.docsTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.docsTitle:hover {
+  color: var(--accent-color);
+}
+
+.docsTitle h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* Navigation Styles */
+.navigation {
+  padding: 1rem 0;
+}
+
+.categorySection {
+  margin-bottom: 0.5rem;
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.categoryHeader:hover {
+  background-color: var(--bg-hover);
+  color: var(--accent-color);
+}
+
+.docsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-tertiary);
+  transition: background-color 0.3s ease;
+}
+
+.docsList li {
+  margin: 0;
+}
+
+.docLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 2rem;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.docLink:hover {
+  background-color: var(--bg-hover);
+  color: var(--accent-color);
+  border-left-color: var(--accent-color);
+}
+
+.docLink.active {
+  background-color: var(--bg-active);
+  color: var(--accent-color);
+  border-left-color: var(--accent-color);
+  font-weight: 500;
+}
+
+.docLink span {
+  flex: 1;
+}
+
+/* Main Content Styles */
+.mainContent {
+  flex: 1;
+  margin-left: 280px;
+  background-color: var(--bg-primary);
+  transition: background-color 0.3s ease;
+}
+
+.contentHeader {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.contentWrapper {
+  max-width: 4xl;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 260px;
+  }
+  
+  .mainContent {
+    margin-left: 260px;
+  }
+  
+  .contentWrapper {
+    padding: 1.5rem;
+  }
+  
+  .contentHeader {
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .docsLayout {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  .mainContent {
+    margin-left: 0;
+  }
+  
+  .contentWrapper {
+    padding: 1rem;
+  }
+  
+  .contentHeader {
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Mobile navigation adjustments */
+  .categoryHeader {
+    padding: 0.5rem 1rem;
+  }
+  
+  .docLink {
+    padding: 0.5rem 1.5rem;
+  }
+}
+
+/* Scrollbar Styling */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+} 

@@ -8,8 +8,9 @@ import {
   removeScrapingProvision,
   updateScrapeMetadata,
   updateScrapeServiceMetadata,
-  rewardProvider,
+  rewardUserForAPIUsage,
 } from "@/lib/utils";
+import { rewardProviderForWork } from "@/lib/providerRewards";
 
 /** CORS preflight */
 export async function OPTIONS() {
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
     const { urls, format = "html", ...rest } = body || {};
     if (!Array.isArray(urls) || urls.length === 0) {
       return NextResponse.json({ error: 'Provide at least one URL in "urls" array.' }, { status: 400 });
+    }
+
+    // URL limit validation
+    const MAX_URLS_PER_REQUEST = 50;
+    if (urls.length > MAX_URLS_PER_REQUEST) {
+      return NextResponse.json({ 
+        error: `Too many URLs provided. Maximum ${MAX_URLS_PER_REQUEST} URLs allowed per request. For larger batches, please split into multiple requests.` 
+      }, { status: 400 });
     }
 
     // 3) Select a healthy scraping node
@@ -91,8 +100,9 @@ export async function POST(req: NextRequest) {
       await updateScrapeServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 7) Reward
-    await rewardProvider(provision.providerId, 0.01);
+    // 7) Reward provider and user
+    await rewardProviderForWork(provision.providerId, 'scraping', '/scrape', 0, 0, latency);
+    await rewardUserForAPIUsage(userId, '/scrape', 0); // No tokens for scraping
 
     // 8) Return JSON with CORS
     return new NextResponse(JSON.stringify(data), {

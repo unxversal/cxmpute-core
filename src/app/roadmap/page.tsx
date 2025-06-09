@@ -62,7 +62,7 @@ export default function Roadmap() {
         <p>
           Our roadmap doesn’t end with the mainnet launch. We’re already dreaming bigger: expanding service offerings,
           reinforcing security protocols, and forging strategic partnerships that propel Cxmpute into new realms of innovation.
-          With community feedback and decentralized governance at the heart of our journey, the future is a canvas waiting
+          With community feedback at the heart of our journey, the future is a canvas waiting
           to be painted with bold, revolutionary ideas.
         </p>
         <p>
