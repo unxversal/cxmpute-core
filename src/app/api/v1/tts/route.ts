@@ -8,8 +8,9 @@ import {
   removeTTSProvision,
   updateTTSMetadata,
   updateTTSServiceMetadata,
-  rewardProvider,
+  rewardUserForAPIUsage,
 } from "@/lib/utils";
+import { rewardProviderForWork } from "@/lib/providerRewards";
 
 /** Handle CORS preflight */
 export async function OPTIONS() {
@@ -103,8 +104,9 @@ export async function POST(req: NextRequest) {
       await updateTTSServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 7) Reward
-    await rewardProvider(provision.providerId, 0.01);
+    // 7) Reward provider and user  
+    await rewardProviderForWork(provision.providerId, model, '/tts', 0, 0, latency);
+    await rewardUserForAPIUsage(userId, '/tts', 0); // No tokens for TTS
 
     // 8) Return the WAV with "audio/wav" and CORS
     return new Response(nodeResp.body, {

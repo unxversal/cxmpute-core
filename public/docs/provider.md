@@ -1,5 +1,3 @@
-# Provider Guide
-
 Transform your computer into an AI compute provider and start earning rewards! This guide will walk you through becoming part of the Cxmpute network.
 
 ## What is a Cxmpute Provider?
@@ -28,15 +26,16 @@ We categorize devices into different tiers based on their capabilities. **We nee
 
 #### Minimum Requirements
 - **OS**: macOS 10.15+, Linux (Ubuntu 18.04+), Windows 10+
-- **RAM**: 4GB+ (8GB+ recommended for LLM services)
+- **RAM**: 4GB+ (16GB+ recommended for LLM services)
 - **Storage**: 10GB+ free space
 - **Internet**: Stable broadband connection
 
 #### Optimal Requirements
 - **GPU**: NVIDIA GPU with 8GB+ VRAM (for LLM hosting)
 - **RAM**: 16GB+ (32GB+ for large models)
-- **CPU**: Multi-core processor (Intel i5/AMD Ryzen 5+)
+- **CPU**: Multi-core processor (Intel i5/AMD Ryzen 5+/Apple Silicon)
 - **Internet**: High-speed connection (100+ Mbps)
+If your system is supported by llama.cpp, your device is eligible to be a provider.
 
 ## Getting Started
 
@@ -104,7 +103,7 @@ cxmpute-provider.exe
 
 When you run `cxmpute-provider` for the first time, you'll see:
 
-```
+```bash
  ██████╗██╗  ██╗███╗   ███╗██████╗ ██╗   ██╗████████╗███████╗
 ██╔════╝╚██╗██╔╝████╗ ████║██╔══██╗██║   ██║╚══██╔══╝██╔════╝
 ██║      ╚███╔╝ ██╔████╔██║██████╔╝██║   ██║   ██║   █████╗  
@@ -126,7 +125,7 @@ The CLI will guide you through:
 
 After setup, you'll see your **provider dashboard**:
 
-```
+```bash
 ╭────────────────────────────────────────────────────────╮
 │ PROVIDER/REFERRAL ID: abc123...                        │
 ╰────────────────────────────────────────────────────────╯
@@ -150,7 +149,7 @@ After setup, you'll see your **provider dashboard**:
 
 **🎉 Congratulations!** Your node is running and earning rewards.
 
-**Join our [Discord community](https://discord.com/invite/CJGA7B2zKT)** to stay updated on earnings announcements, connect with other providers, and get support!
+**Join our [Discord community](https://discord.gg/vE3xvFsZA8)** to stay updated on earnings announcements, connect with other providers, and get support!
 
 ## Maximizing Your Earnings
 
@@ -158,7 +157,7 @@ After setup, you'll see your **provider dashboard**:
 
 #### Service Types & Rewards
 
-During testnet, providers earn points and rewards for all services. Mainnet earnings structure is **to be determined (TBD)**.
+During testnet, providers earn points and rewards for all services. Mainnet earnings structure is **to be announced (TBA)**.
 
 - **🤖 LLM Inference**: Points for token generation (varies by model)
 - **🔍 Embeddings**: Points for embedding requests
@@ -167,7 +166,7 @@ During testnet, providers earn points and rewards for all services. Mainnet earn
 
 #### Best Practices
 
-1. **⏰ Uptime**: Keep your provider running 24/7 for maximum earnings
+1. **⏰ Uptime**: Keep your provider running as much as you can for maximum earnings
 2. **🚀 Performance**: Ensure stable internet and optimal hardware
 3. **👥 Referrals**: Invite others and earn from their activity ([learn more](/docs/rewards))
 4. **🔄 Updates**: Keep your CLI updated for new features
@@ -211,7 +210,7 @@ At the end of each **epoch** (usually a month), revenue is distributed proportio
 Your node will automatically provide services based on your hardware capabilities:
 
 ### 🤖 LLM Inference (`/chat/completions`)
-- **Requirements**: 4GB+ VRAM recommended
+- **Requirements**: 16GB+ VRAM recommended
 - **Models**: Various sizes from 7B to 70B+ parameters
 - **Earnings**: Highest earning potential
 
@@ -261,13 +260,6 @@ Your node will automatically provide services based on your hardware capabilitie
 - Ensure stable internet connection (100+ Mbps recommended)
 - Maximize uptime - run 24/7 for consistent earnings
 - Check for software conflicts (antivirus, firewall)
-
-### Log Files
-
-Provider logs are stored in:
-- **macOS**: `~/Library/Logs/cxmpute-provider/`
-- **Linux**: `~/.local/share/cxmpute-provider/logs/`
-- **Windows**: `%APPDATA%\cxmpute-provider\logs\`
 
 ### Status Indicators
 
@@ -351,7 +343,7 @@ cxmpute-provider
 ## Support
 
 ### Getting Help
-- **Discord**: Join our [community](https://discord.com/invite/CJGA7B2zKT) for real-time support
+- **Discord**: Join our [community](https://discord.gg/vE3xvFsZA8) for real-time support
 - **GitHub**: Report issues on our [repository](https://github.com/unxversal/cxmpute-core)
 - **Email**: Contact support@cxmpute.cloud
 

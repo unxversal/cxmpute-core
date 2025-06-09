@@ -1,5 +1,3 @@
-# Text-to-Text (LLM)
-
 Generate human-like text responses using state-of-the-art language models through Cxmpute's distributed AI network.
 
 ## Overview
@@ -19,7 +17,7 @@ Cxmpute's Text-to-Text service provides access to powerful large language models
 ### Basic Chat Completion
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/chat/completions \
+curl -X POST https://cxmpute.cloud/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -36,7 +34,7 @@ curl -X POST https://api.cxmpute.cloud/v1/chat/completions \
 ```python
 import requests
 
-url = "https://api.cxmpute.cloud/v1/chat/completions"
+url = "https://cxmpute.cloud/api/v1/chat/completions"
 headers = {
     "Authorization": "Bearer YOUR_API_KEY",
     "X-User-Id": "YOUR_USER_ID",
@@ -65,7 +63,7 @@ import openai
 
 client = openai.OpenAI(
     api_key="YOUR_API_KEY",
-    base_url="https://api.cxmpute.cloud/v1",
+    base_url="https://cxmpute.cloud/api/v1",
     default_headers={"X-User-Id": "YOUR_USER_ID"}
 )
 
@@ -122,7 +120,7 @@ import requests
 import json
 
 def stream_chat_completion(messages, model="llama3.1:8b"):
-    url = "https://api.cxmpute.cloud/v1/chat/completions"
+    url = "https://cxmpute.cloud/api/v1/chat/completions"
     headers = {
         "Authorization": "Bearer YOUR_API_KEY",
         "X-User-Id": "YOUR_USER_ID",
@@ -178,7 +176,7 @@ class ChatBot:
         })
         
         response = requests.post(
-            "https://api.cxmpute.cloud/v1/chat/completions",
+            "https://cxmpute.cloud/api/v1/chat/completions",
             headers=headers,
             json={
                 "model": "llama3.1:8b",
@@ -225,7 +223,7 @@ def generate_blog_post(topic, tone="professional", length="medium"):
     """
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "llama3.1:70b",
@@ -260,7 +258,7 @@ def code_assistant(task, language="python"):
     """
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "codellama:13b",
@@ -291,7 +289,7 @@ def generate_with_creativity(prompt, creativity_level="balanced"):
     }
     
     response = requests.post(
-        "https://api.cxmpute.cloud/v1/chat/completions",
+        "https://cxmpute.cloud/api/v1/chat/completions",
         headers=headers,
         json={
             "model": "llama3.1:8b",
@@ -315,7 +313,7 @@ def resilient_chat_completion(messages, model="llama3.1:8b", max_retries=3):
     for attempt in range(max_retries):
         try:
             response = requests.post(
-                "https://api.cxmpute.cloud/v1/chat/completions",
+                "https://cxmpute.cloud/api/v1/chat/completions",
                 headers=headers,
                 json={
                     "model": model,
@@ -346,11 +344,11 @@ def resilient_chat_completion(messages, model="llama3.1:8b", max_retries=3):
 
 During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 
-- **Discord**: [Community support](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
 - **Documentation**: [Complete API reference](/docs/user) 
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 - **Model Catalog**: [Browse all available models](https://cxmpute.cloud/models)

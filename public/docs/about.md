@@ -1,5 +1,3 @@
-# About Cxmpute
-
 Cxmpute is a distributed AI/Compute services platform that connects users who need AI services with providers who offer compute resources, creating a global network of AI compute power.
 
 ## Our Mission
@@ -24,7 +22,7 @@ Cxmpute creates a **decentralized marketplace** where:
 
 ### The Network
 
-```
+```bash
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Users & Apps  │    │  Cxmpute Core    │    │    Providers    │
 │                 │    │  (AWS/Platform)  │    │                 │
@@ -126,8 +124,8 @@ Cxmpute creates a **decentralized marketplace** where:
 
 **Provider Network**
 - **React Ink CLI**: Professional terminal interface
-- **Ollama Integration**: Local LLM serving
-- **Tunneling**: Secure public access via Tunnelmole
+- **Ollama/llama.cpp Integration**: Local LLM serving
+- **Tunneling**: Secure public access via ngrok
 - **Multi-platform**: macOS, Linux, Windows support
 
 ### Security & Privacy
@@ -156,7 +154,7 @@ Cxmpute creates a **decentralized marketplace** where:
 
 During our testnet phase, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ### Future Model (TBD)
 
@@ -170,22 +168,6 @@ Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay upda
 - **Community-Driven**: Network grows through user and provider satisfaction
 - **Efficient Resource Use**: Better utilization of existing hardware
 - **Fair Economics**: Balanced system benefiting all participants
-
-## Network Statistics
-
-### Global Reach
-
-- **Providers**: Thousands of active compute providers
-- **Coverage**: 50+ countries with growing presence
-- **Capacity**: Petabytes of available compute power
-- **Uptime**: 99.5%+ network availability
-
-### Performance Metrics
-
-- **Latency**: <200ms average response time globally
-- **Throughput**: Millions of requests processed daily
-- **Reliability**: Automatic failover and health monitoring
-- **Scalability**: Dynamic scaling based on demand
 
 ## Roadmap & Vision
 
@@ -202,14 +184,13 @@ Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay upda
 🚧 **In Progress**
 - Advanced model support and custom models
 - Enhanced provider analytics and optimization
-- Mobile SDK and expanded API features
+- Typescript and Python SDK and expanded API features
 - Mainnet launch with pricing structure (TBD)
 
 ### Long Term (12+ months)
 
 🔮 **Planned**
 - Cross-chain integration and payment options
-- Advanced governance and DAO features
 - Enterprise partnerships and custom solutions
 - Global expansion and regulatory compliance
 
@@ -224,7 +205,7 @@ Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay upda
 
 ### Community Channels
 
-- **Discord**: [Real-time community chat](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Real-time community chat](https://discord.gg/vE3xvFsZA8)
 - **GitHub**: [Open source development](https://github.com/unxversal/cxmpute-core)
 - **Twitter**: [@cxmpute](https://twitter.com/cxmpute) for news and updates
 - **Reddit**: [r/cxmpute](https://reddit.com/r/cxmpute) for discussions

@@ -9,8 +9,9 @@ import {
   updateMetadata,
   updateServiceMetadata,
   updateNetworkStats,
-  rewardProvider,
-} from "@/lib/utils"; 
+  rewardUserForAPIUsage,
+} from "@/lib/utils";
+import { rewardProviderForWork } from "@/lib/providerRewards"; 
 
 const CREDITS_NEEDED = 0;
 
@@ -159,7 +160,8 @@ export async function POST(req: NextRequest) {
               outputTokens
             );
           }
-          await rewardProvider(provision.providerId, 0.01);
+          await rewardProviderForWork(provision.providerId, model, '/chat/completions', inputTokens, outputTokens, latency);
+          await rewardUserForAPIUsage(userId, '/chat/completions', inputTokens + outputTokens);
         },
       });
 
@@ -212,7 +214,8 @@ export async function POST(req: NextRequest) {
           outputTokens
         );
       }
-      await rewardProvider(provision.providerId, 0.01);
+      await rewardProviderForWork(provision.providerId, model, '/chat/completions', inputTokens, outputTokens, latency);
+      await rewardUserForAPIUsage(userId, '/chat/completions', inputTokens + outputTokens);
 
       return new NextResponse(JSON.stringify(chatResponse), {
         status: 200,

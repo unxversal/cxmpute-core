@@ -88,7 +88,7 @@ export default function Home() {
     
     switch (category) {
       case 'text':
-        return `curl -X POST https://api.cxmpute.cloud/v1/chat/completions \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -100,7 +100,7 @@ export default function Home() {
     "temperature": 0.8
   }'`;
       case 'vision':
-        return `curl -X POST https://api.cxmpute.cloud/v1/chat/completions \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -115,7 +115,7 @@ export default function Home() {
     }]
   }'`;
       case 'embeddings':
-        return `curl -X POST https://api.cxmpute.cloud/v1/embeddings \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/embeddings \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -124,7 +124,7 @@ export default function Home() {
     "input": "Your text to embed"
   }'`;
       case 'audio':
-        return `curl -X POST https://api.cxmpute.cloud/v1/tts \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/tts \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -134,7 +134,7 @@ export default function Home() {
   }' \\
   --output speech.wav`;
       case 'code':
-        return `curl -X POST https://api.cxmpute.cloud/v1/chat/completions \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -145,7 +145,7 @@ export default function Home() {
     ]
   }'`;
       case 'scraping':
-        return `curl -X POST https://api.cxmpute.cloud/v1/scrape \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/scrape \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -154,7 +154,7 @@ export default function Home() {
     "format": "markdown"
   }'`;
       default:
-        return `curl -X POST https://api.cxmpute.cloud/v1/chat/completions \\
+        return `curl -X POST https://cxmpute.cloud/api/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "X-User-Id: YOUR_USER_ID" \\
   -H "Content-Type: application/json" \\
@@ -627,7 +627,7 @@ export default function Home() {
                 />
               </a>
               <a
-                href="https://discord.com/invite/CJGA7B2zKT"
+                href="https://discord.gg/vE3xvFsZA8"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.footerSocialLink}
@@ -686,6 +686,9 @@ export default function Home() {
             <div className={styles.footerButtons}>
               <a href="/stats" target="_blank">
                 <Button text="Network Stats" backgroundColor={cxmputeYellow} />
+              </a>
+              <a href="https://tally.so/r/w4DvLA" target="_blank">
+                <Button text="Contact" backgroundColor={cxmputeYellow} />
               </a>
               <a href="/docs/provider" target="_blank">
                 <Button text="Get started as a provider" backgroundColor={cxmputeYellow} />

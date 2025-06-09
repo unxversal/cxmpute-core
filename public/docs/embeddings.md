@@ -19,7 +19,7 @@ Cxmpute's Text Embeddings service converts text into dense vector representation
 ### Basic Request
 
 ```bash
-curl -X POST https://api.cxmpute.cloud/v1/embeddings \
+curl -X POST https://cxmpute.cloud/api/v1/embeddings \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -H "X-User-Id: YOUR_USER_ID" \
   -H "Content-Type: application/json" \
@@ -34,7 +34,7 @@ curl -X POST https://api.cxmpute.cloud/v1/embeddings \
 ```python
 import requests
 
-url = "https://api.cxmpute.cloud/v1/embeddings"
+url = "https://cxmpute.cloud/api/v1/embeddings"
 headers = {
     "Authorization": "Bearer YOUR_API_KEY",
     "X-User-Id": "YOUR_USER_ID",
@@ -123,11 +123,11 @@ Classify text using embedding-based similarity.
 
 During our **testnet phase**, all services are completely **free** for all users! Pricing for the mainnet launch is **to be determined (TBD)**.
 
-Join our [Discord community](https://discord.com/invite/CJGA7B2zKT) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
+Join our [Discord community](https://discord.gg/vE3xvFsZA8) to stay updated on pricing announcements, give feedback, and connect with other developers building with Cxmpute.
 
 ## Support
 
-- **Discord**: [Community support](https://discord.com/invite/CJGA7B2zKT)
+- **Discord**: [Community support](https://discord.gg/vE3xvFsZA8)
 - **Documentation**: [Complete API reference](/docs/user)
 - **Examples**: [GitHub repository](https://github.com/unxversal/cxmpute-core)
 

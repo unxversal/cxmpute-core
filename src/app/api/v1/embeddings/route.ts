@@ -8,8 +8,9 @@ import {
   removeEmbeddingsProvision,
   updateEmbeddingsMetadata,
   updateEmbeddingsServiceMetadata,
-  rewardProvider,
+  rewardUserForAPIUsage,
 } from "@/lib/utils";
+import { rewardProviderForWork } from "@/lib/providerRewards";
 
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -103,8 +104,10 @@ export async function POST(req: NextRequest) {
       await updateEmbeddingsServiceMetadata(serviceTitle, serviceUrl);
     }
 
-    // 8) Reward provider
-    await rewardProvider(provision.providerId, 0.01);
+    // 8) Reward provider and user
+    const tokenCount = data.prompt_eval_count || 0; // Use prompt tokens for embeddings
+    await rewardProviderForWork(provision.providerId, model, '/embeddings', tokenCount, 0, latency);
+    await rewardUserForAPIUsage(userId, '/embeddings', tokenCount);
 
     // 9) Return with CORS
     return new NextResponse(JSON.stringify(data), {

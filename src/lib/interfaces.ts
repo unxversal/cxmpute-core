@@ -15,6 +15,15 @@ export interface RewardEntry {
   amount: number;
 }
 
+// NEW: Referral reward tracking
+export interface ReferralRewardEntry {
+  day: string;           // e.g., "2025-01-15"
+  amount: number;        // Reward amount earned
+  type: 'direct' | 'primary' | 'secondary' | 'tertiary';
+  sourceId: string;      // ID of the person who generated this reward
+  sourceAmount?: number; // Original amount that generated this referral reward
+}
+
 export interface DiagnosticsType {
   osType: "macOS" | "Windows" | "Linux";
   gpu?: {
@@ -77,6 +86,9 @@ export interface ProviderRecord {
   totalRewards?: number;
   referredBy?: string; // Provider ID of the referee
   referralCode?: string; // The provider's own referral code (same as providerId)
+  // NEW: Referral reward tracking
+  referralRewards?: ReferralRewardEntry[];
+  totalReferralRewards?: number;
 }
 
 export interface ProvisionRecord {
@@ -148,6 +160,12 @@ export interface UserRecord { // This is for UserTable
   admin?: boolean;
   referredBy?: string; // User ID of the referee
   referralCode?: string; // The user's own referral code (same as userId)
+  // NEW: Referral reward tracking
+  referralRewards?: ReferralRewardEntry[];
+  totalReferralRewards?: number;
+  // NEW: User usage rewards
+  usageRewards?: RewardEntry[];
+  totalUsageRewards?: number;
 }
 
 // TraderRecord is removed as TradersTable is removed.
