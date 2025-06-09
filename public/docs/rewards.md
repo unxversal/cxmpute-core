@@ -6,20 +6,37 @@ Earn rewards and grow the Cxmpute network through our comprehensive referral sys
 
 Cxmpute operates a **multi-tier rewards system** with:
 
-✅ **Provider Earnings**: Real rewards for compute work served  
+✅ **Tiered Provider Earnings**: Rewards based on hardware capability and model complexity  
 ✅ **User Points**: Earn points for API usage and activity  
 ✅ **Multi-Level Referrals**: Earn from your referrals' referrals' referrals  
 ✅ **Automatic Distribution**: Rewards processed in real-time  
 ✅ **Direct Referral Bonuses**: Instant rewards when someone uses your code  
+✅ **Performance Incentives**: Bonuses for fast, reliable service
 
 ## How Rewards Work
 
 ### For Providers
 
-**💰 Compute Earnings**
-- Earn rewards for actual API requests served
-- Payment based on tokens generated, requests processed, and uptime
-- Daily earnings accumulation with 30-day history
+**💰 Tiered Compute Earnings**
+
+Providers earn based on **hardware tier**, **model complexity**, and **actual work performed**:
+
+| Tier | VRAM | Base Reward | Token Multiplier | Description |
+|------|------|-------------|------------------|-------------|
+| **Tide Pool** | ≤4GB | 0.005 | 0.00001 | Entry-level models |
+| **Blue Surge** | 4-8GB | 0.015 | 0.00003 | Mid-tier workhorses |
+| **Open Ocean** | 8-22GB | 0.035 | 0.00007 | High-end performance |
+| **Mariana Depth** | 22GB+ | 0.075 | 0.00015 | Premium powerhouses |
+
+**Service Multipliers:**
+- **Chat Completions**: 1.0× (full rate)
+- **TTS**: 0.6× (moderate compute)
+- **Embeddings**: 0.3× (lighter workload)
+- **Web Scraping**: 0.2× (network-bound)
+
+**Performance Bonuses:**
+- **Fast Response** (<2s): +10% bonus
+- **Slow Response** (>10s): -10% penalty
 
 **🎯 Referral Network Earnings**
 - **Direct Bonus**: 50 points when someone uses your Provider ID as referral
@@ -39,6 +56,56 @@ Cxmpute operates a **multi-tier rewards system** with:
 - **Primary Level**: 15% of your direct referrals' usage points
 - **Secondary Level**: 8% of your secondary referrals' usage points
 - **Tertiary Level**: 4% of your tertiary referrals' usage points
+
+## Provider Earnings Examples
+
+### Real Reward Calculations
+
+**Example 1: 70B Model (Mariana Depth) - 1000 tokens**
+```
+Base Reward: 0.075 × 1.0 (chat) × 3.0 (complexity) = 0.225
+Token Reward: 1000 × 0.00015 × 1.0 = 0.15
+Total: 0.375 per request
+```
+
+**Example 2: 7B Model (Blue Surge) - 1000 tokens**
+```
+Base Reward: 0.015 × 1.0 (chat) × 1.0 (complexity) = 0.015
+Token Reward: 1000 × 0.00003 × 1.0 = 0.03
+Total: 0.045 per request
+```
+
+**Example 3: Embeddings (any tier) - 500 tokens**
+```
+Base Reward: 0.035 × 0.3 (embeddings) × 1.5 (complexity) = 0.01575
+Token Reward: 500 × 0.00007 × 0.3 = 0.0105
+Total: 0.02625 per request
+```
+
+### Model Complexity Tiers
+
+| Model | Tier | Complexity | Typical Earnings |
+|-------|------|------------|------------------|
+| **Llama3-70B** | Mariana Depth | 3.0× | Highest |
+| **Mixtral-8x7B** | Open Ocean | 2.5× | High |
+| **Llama3-13B** | Open Ocean | 1.5× | Medium-High |
+| **Llama3-8B** | Blue Surge | 1.0× | Medium |
+| **Mistral-7B** | Blue Surge | 1.0× | Medium |
+| **Phi-3-Mini** | Tide Pool | 0.5× | Light |
+| **Gemma-2B** | Tide Pool | 0.3× | Minimal |
+
+### Referral Earnings Impact
+
+**If you refer a high-earning provider:**
+- Provider earns 0.375 per request
+- **You earn**: 0.0375 (10%) as primary referrer
+- **Your referrer earns**: 0.01875 (5%) as secondary referrer
+- **Their referrer earns**: 0.009375 (2.5%) as tertiary referrer
+
+**Monthly scaling example:**
+- Referred provider: 1000 requests/month × 0.375 = 375 total earnings
+- **Your monthly bonus**: 37.5 from this one referral
+- **With 5 similar referrals**: 187.5 monthly passive income
 
 ## User Points System
 
@@ -133,6 +200,7 @@ If someone referred you:
 
 **Providers can track:**
 - Compute earnings from actual work
+- Earnings breakdown by tier and model
 - Referral network growth
 - Referral rewards by level
 - Combined earnings summary
@@ -162,15 +230,29 @@ If someone referred you:
 ### For Providers
 
 **🚀 High-Value Strategies:**
-1. **Maintain High Uptime**: More availability = more earnings = more value to referrers
-2. **Refer Serious Providers**: Target people with good hardware and commitment
-3. **Share Real Earnings**: Demonstrate actual profitability
-4. **Help with Setup**: Support your referrals to ensure their success
+1. **Upgrade Hardware**: Higher tiers earn significantly more per request
+2. **Maintain High Uptime**: More availability = more earnings = more value to referrers
+3. **Optimize Performance**: Fast responses get 10% bonuses
+4. **Refer Serious Providers**: Target people with good hardware and commitment
+5. **Share Real Earnings**: Demonstrate actual profitability
 
 **💡 Pro Tips:**
-- Provider referrals earn more due to higher earning potential
-- Focus on hardware communities and gaming forums
-- Share your actual earnings to build trust
+- **Mariana Depth providers** (22GB+) earn 5-15× more than Tide Pool
+- Focus on chat completions for highest earning potential
+- Fast hardware gets performance bonuses
+- Provider referrals compound significantly due to higher earning potential
+
+### Tier Upgrade Benefits
+
+**Moving from Blue Surge (8GB) to Open Ocean (16GB):**
+- Base reward: 0.015 → 0.035 (+133%)
+- Token multiplier: 0.00003 → 0.00007 (+133%)
+- **Result**: ~2.3× earnings increase
+
+**Moving to Mariana Depth (22GB+):**
+- Base reward: 0.035 → 0.075 (+114%)
+- Token multiplier: 0.00007 → 0.00015 (+114%)
+- **Result**: ~2.1× additional increase
 
 ## Best Practices
 
@@ -197,42 +279,45 @@ If someone referred you:
 - "Building an AI app with Cxmpute APIs"
 - "Cxmpute vs OpenAI: Cost and performance comparison"
 - "How I earn $X per month with my gaming PC"
+- "Provider tier comparison: Is upgrading worth it?"
 
 **🎥 Video Content:**
-- Provider setup walkthroughs
-- Real earnings demonstrations
+- Provider setup walkthroughs by tier
+- Real earnings demonstrations with calculations
 - API integration tutorials
+- Hardware optimization guides
 
 **💬 Community Engagement:**
 - Help troubleshoot issues in Discord
 - Share usage examples and case studies
 - Answer questions about the platform
+- Compare earnings across different hardware setups
 
 ## Referral Network Examples
 
 ### Example 1: Active Developer Network
 
-**You refer:** 5 active developers  
-**They refer:** 3 developers each (15 total)  
-**They refer:** 2 developers each (30 total)
+**You refer:** 5 active developers (each earning 100 points/month)  
+**They refer:** 3 developers each (15 total, 50 points/month each)  
+**They refer:** 2 developers each (30 total, 25 points/month each)
 
 **Your Monthly Earnings:**
-- Direct referrals: 15% of 5 developers' usage
-- Secondary referrals: 8% of 15 developers' usage  
-- Tertiary referrals: 4% of 30 developers' usage
-- **Total**: Percentage of 50 developers' combined usage
+- Direct referrals: 15% × (5 × 100) = 75 points
+- Secondary referrals: 8% × (15 × 50) = 60 points  
+- Tertiary referrals: 4% × (30 × 25) = 30 points
+- **Total**: 165 points/month passive income
 
-### Example 2: Provider Hardware Network
+### Example 2: High-End Provider Network
 
-**You refer:** 3 serious providers  
-**They refer:** 2 providers each (6 total)  
-**They refer:** 1 provider each (6 total)
+**You refer:** 3 Mariana Depth providers (1000 requests/month @ 0.375 each)  
+**They refer:** 2 providers each (6 total, 500 requests/month @ 0.375)  
+**They refer:** 1 provider each (6 total, 300 requests/month @ 0.375)
 
 **Your Monthly Earnings:**
-- Direct referrals: 10% of 3 providers' compute earnings
-- Secondary referrals: 5% of 6 providers' compute earnings
-- Tertiary referrals: 2.5% of 6 providers' compute earnings
-- **Total**: Percentage of 15 providers' combined earnings
+- Direct referrals: 10% × (3 × 375) = 112.5
+- Secondary referrals: 5% × (6 × 187.5) = 56.25
+- Tertiary referrals: 2.5% × (6 × 112.5) = 16.875
+- **Total**: 185.625/month passive income
 
 ## Technical Details
 
@@ -240,10 +325,10 @@ If someone referred you:
 
 All rewards are processed automatically using recursive referral chain lookups:
 
-1. **User makes API call** → User gets usage points
-2. **System finds referrer** → Primary referrer gets 15% bonus
-3. **System finds referrer's referrer** → Secondary referrer gets 8% bonus
-4. **System finds tertiary referrer** → Tertiary referrer gets 4% bonus
+1. **Provider serves request** → Provider gets tiered reward based on model/hardware
+2. **System finds referrer** → Primary referrer gets 10% bonus
+3. **System finds referrer's referrer** → Secondary referrer gets 5% bonus
+4. **System finds tertiary referrer** → Tertiary referrer gets 2.5% bonus
 
 ### Data Storage
 
@@ -251,6 +336,7 @@ All rewards are processed automatically using recursive referral chain lookups:
 - Referral relationships are permanent once set
 - Real-time calculations with efficient database queries
 - Full audit trail of all reward distributions
+- Performance metrics tracked for bonus calculations
 
 ## API Endpoints
 
@@ -267,10 +353,11 @@ GET /api/providers/{providerId}/referral-stats
 ```
 
 **Response includes:**
-- Total earnings breakdown
-- Referral network size
-- Reward history
+- Total earnings breakdown (usage vs referral rewards)
+- Referral network size by level
+- Reward history and trends
 - Performance metrics
+- Tier information (providers)
 
 ## Support & FAQs
 
@@ -288,11 +375,17 @@ A: No limits! The more active your network, the more you earn.
 **Q: What if someone I referred stops using Cxmpute?**
 A: You keep all previously earned rewards, but future earnings from them stop.
 
+**Q: How do provider tiers affect referral earnings?**
+A: Higher-tier providers earn more per request, so referring them generates more referral income for you.
+
 **Q: Can I refer people outside my account type?**
 A: Users can only refer users, providers can only refer providers.
 
 **Q: How are percentages calculated?**
 A: Percentages are based on the original earner's rewards, and everyone gets their full amount plus bonuses.
+
+**Q: What's the best tier to target for referrals?**
+A: Mariana Depth providers (22GB+) generate the highest referral income due to their premium earnings.
 
 ### Getting Help
 
