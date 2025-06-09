@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getDocsByCategory } from "@/lib/docs";
-import { ChevronDown, ChevronRight, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useCallback } from "react";
 import { ThemeToggle } from "@/components/docs/ThemeToggle";
 import styles from "./layout.module.css";
+import Image from "next/image";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
@@ -44,7 +45,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
       <aside className={styles.sidebar}>
         <div className={styles.sidebarHeader}>
           <Link href="/docs" className={styles.docsTitle}>
-            <FileText size={24} />
+            <Image src="/images/1.png" alt="cxmpute logo" height={70} width={70}/>
             <h2>Documentation</h2>
           </Link>
         </div>

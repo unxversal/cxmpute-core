@@ -258,8 +258,8 @@ export default function Home() {
                 <Button text="Start Earning" backgroundColor={cxmputePink} />
               </a>
             </div>
-          </div>
-        </div>
+              </div>
+              </div>
         <div className={styles.manifesto}>
           <h3>Our Manifesto</h3>
           <h1>We are building a more open, fair, and accessible cloud</h1>
@@ -271,16 +271,16 @@ export default function Home() {
             <a href="/roadmap">
               <Button text="See Our Vision" backgroundColor={cxmputePurple} />
             </a>
-              </div>
-              </div>
+                </div>
+                    </div>
         <div className={styles.partners}>
           <h3>Built on</h3>
           <div className={styles.partnersContainer}>
             <div className={styles.partnerLogo}>
               <Image src="/images/peaq.png" alt="Peaq logo" width={200} height={80} style={{ objectFit: "contain" }} />
-            </div>
-            </div>
-        </div>
+                    </div>
+                  </div>
+                    </div>
         <div className={styles.aiEndpoint}>
           <h3>All your AI needs, one endpoint</h3>
           <h1>Explore our comprehensive AI model collection</h1>
@@ -293,7 +293,7 @@ export default function Home() {
             <div className={styles.aiCategoriesGrid}>
               <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'text' ? styles.selectedCategory : ''}`} 
-                              style={{ 
+                      style={{
                   backgroundColor: getCategoryColor('text'),
                   borderColor: selectedCategory === 'text' ? darkenColor(getCategoryColor('text')) : '#000'
                 }}
@@ -301,14 +301,14 @@ export default function Home() {
               >
                 <div className={styles.categoryIcon}>
                   <MessageSquare size={24} />
-                </div>
+                    </div>
                 <h3>Text Models</h3>
                 <p>Powerful language models for text generation, conversation, reasoning, and general AI tasks.</p>
                     </div>
 
               <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'vision' ? styles.selectedCategory : ''}`} 
-                                      style={{ 
+                      style={{
                   backgroundColor: getCategoryColor('vision'),
                   borderColor: selectedCategory === 'vision' ? darkenColor(getCategoryColor('vision')) : '#000'
                 }}
@@ -334,11 +334,11 @@ export default function Home() {
                     </div>
                 <h3>Text-to-Speech</h3>
                 <p>Natural text-to-speech synthesis with multiple voice options and high-quality audio output.</p>
-                    </div>
+            </div>
 
               <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'embeddings' ? styles.selectedCategory : ''}`} 
-                      style={{
+                style={{ 
                   backgroundColor: getCategoryColor('embeddings'),
                   borderColor: selectedCategory === 'embeddings' ? darkenColor(getCategoryColor('embeddings')) : '#000'
                 }}
@@ -346,14 +346,14 @@ export default function Home() {
               >
                 <div className={styles.categoryIcon}>
                   <Search size={24} />
-                </div>
+                  </div>
                 <h3>Embeddings</h3>
                 <p>Transform text into high-dimensional vectors for semantic search and RAG applications.</p>
-            </div>
+                      </div>
 
               <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'code' ? styles.selectedCategory : ''}`} 
-                style={{ 
+                        style={{
                   backgroundColor: getCategoryColor('code'),
                   borderColor: selectedCategory === 'code' ? darkenColor(getCategoryColor('code')) : '#000'
                 }}
@@ -361,7 +361,7 @@ export default function Home() {
               >
                 <div className={styles.categoryIcon}>
                   <Code size={24} />
-                  </div>
+                      </div>
                 <h3>Code Models</h3>
                 <p>Specialized coding models for code generation, debugging, and programming assistance.</p>
                       </div>
@@ -420,18 +420,18 @@ export default function Home() {
                       <Copy size={16} />
                       Copy
                       </button>
-                  </div>
+                      </div>
                   <pre className={styles.lightCodeContent}>
                     <code>{getSampleCode(selectedCategory)}</code>
                   </pre>
-              </div>
+                    </div>
 
                 <div className={styles.playgroundActions}>
                   <a href="/dashboard">
                     <Button text="Get API Key" backgroundColor={cxmputeGreen} />
                   </a>
-                </div>
-                </div>
+                          </div>
+                          </div>
 
               <div className={styles.playgroundRight}>
                 <h4>{selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} {selectedCategory === 'scraping' ? 'Service' : 'Models'}</h4>
@@ -446,17 +446,17 @@ export default function Home() {
                     <div key={idx} className={styles.modelItem}>
                       <strong>{model.Name}</strong>
                       <span className={styles.modelMeta}>by {model.Creator}</span>
-                </div>
+                          </div>
                   ))}
-                </div>
+                          </div>
 
                 <Link href={selectedCategory === 'scraping' ? '/docs/scraping' : `/models?category=${selectedCategory}`}>
                   <Button text={selectedCategory === 'scraping' ? 'Learn about web scraping' : `View all ${selectedCategory} models`} backgroundColor={cxmputePurple} />
                 </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+                          </div>
+                          </div>
+                      </div>
+                </div>
         <div className={styles.computeMonetization}>
           <h3>Compute Monetization</h3>
           <h1>Turn your idle hardware into income</h1>
@@ -479,30 +479,30 @@ export default function Home() {
    │     [GPUs] [CPUs] [TPUs] [Datacenters] [Edge]   │
    └─────────────────────────────────────────────────┘
                 `}</pre>
-              </div>
-            </div>
+                </div>
+                </div>
 
             <div className={styles.monetizationContent}>
               <div className={styles.monetizationFeatures}>
                 <div className={styles.monetizationFeature}>
                   <Monitor size={24} />
                   <span>Supports a wide range of GPUs and Devices</span>
-              </div>
+                </div>
                 <div className={styles.monetizationFeature}>
                   <DollarSign size={24} />
                   <span>Monetize your idle machines</span>
-              </div>
+                </div>
                 <div className={styles.monetizationFeature}>
                   <Zap size={24} />
                   <span>Easy to get started (Get started in 10 secs)</span>
-              </div>
-              </div>
+                </div>
+            </div>
               <a href="/docs/provider">
                 <Button text="Provide Cxmpute" backgroundColor={cxmputeYellow} />
               </a>
-            </div>
-          </div>
         </div>
+              </div>
+            </div>
         <div className={styles.globalNetwork}>
           <h3>Hardware-agnostic global network</h3>
           <h1>Benefits all involved parties</h1>
@@ -512,7 +512,7 @@ export default function Home() {
               <div className={styles.benefitsHeader}>
                 <Users size={32} />
                 <h3>User Benefits</h3>
-              </div>
+            </div>
               <ul className={styles.benefitsList}>
                 <li><CheckCircle size={16} /> Access to a wide range of SOTA models</li>
                 <li><CheckCircle size={16} /> High throughput performance</li>
@@ -520,13 +520,13 @@ export default function Home() {
                 <li><CheckCircle size={16} /> Privacy - take back control</li>
                 <li><CheckCircle size={16} /> Pay as you go and subscription plans</li>
               </ul>
-            </div>
+          </div>
 
             <div className={styles.benefitsCard} style={{ backgroundColor: cxmputeYellow }}>
               <div className={styles.benefitsHeader}>
                 <Building2 size={32} />
                 <h3>Provider Benefits</h3>
-              </div>
+        </div>
               <ul className={styles.benefitsList}>
                 <li><CheckCircle size={16} /> Passive income from idle resources</li>
                 <li><CheckCircle size={16} /> Flexible participation options</li>
@@ -535,8 +535,8 @@ export default function Home() {
                 <li><CheckCircle size={16} /> Community-driven network growth</li>
               </ul>
             </div>
-          </div>
-        </div>
+              </div>
+              </div>
         <div className={styles.latestNews}>
           <h3>Latest News</h3>
           <h1>Stay updated with Cxmpute</h1>
@@ -572,10 +572,10 @@ export default function Home() {
               <p className={styles.newsCard__content}>Explore our comprehensive suite of AI and computing services in detail.</p>
               <a href="/docs/user">
                 <Button text="Explore Services" backgroundColor={cxmputeOrange} />
-              </a>
-            </div>
-          </div>
-        </div>
+                  </a>
+                </div>
+              </div>
+                </div>
         <div className={styles.ctaMap}>
           <div className={styles.mapContainer}>
             <Map/>
@@ -590,11 +590,11 @@ export default function Home() {
                 </a>
                 <a href="/docs/provider">
                   <Button text="Provide" backgroundColor={cxmputeYellow} />
-                </a>
-              </div>
+              </a>
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <footer className={styles.footer}>

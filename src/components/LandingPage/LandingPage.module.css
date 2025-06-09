@@ -871,6 +871,37 @@
     height: 400px;
   }
 
+  .hero {
+    padding: 60px 24px;
+  }
+
+  .manifesto,
+  .aiEndpoint,
+  .computeMonetization,
+  .globalNetwork,
+  .latestNews,
+  .ctaMap {
+    padding: 60px 24px;
+  }
+
+  .aiCategoriesGrid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+  }
+
+  .playgroundContent {
+    gap: 30px;
+  }
+
+  .computeMonetizationGrid {
+    gap: 30px;
+  }
+
+  .benefitsGrid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 30px;
+  }
+
   .ALeft h1 {
     font-size: 48px;
   }
@@ -880,33 +911,70 @@
   }
 }
 
-/* 992px breakpoint */
+/* 992px breakpoint - Tablets */
 @media (max-width: 992px) {
+  /* Header responsive */
+  .header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .menu ul {
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Hero responsive */
   .hero {
-    padding: 60px 16px;
+    padding: 40px 16px;
     flex-direction: column;
-    align-items: center;
     text-align: center;
   }
   
   .heroLeft {
     width: 100%;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
+  }
+
+  .heroLeft h1 {
+    font-size: 42px;
   }
   
   .heroRight {
     width: 100%;
-    height: 400px;
+    height: 350px;
   }
-  
+
+  .heroButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* Who is Cxmpute for responsive */
   .whoIsCxmputeFor {
-    padding: 60px 16px;
+    padding: 40px 16px;
   }
-  
+
+  .whoIsCxmputeFor h1 {
+    font-size: 42px;
+    text-align: center;
+  }
+
+  .whoIsCxmputeForCards {
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+
+  /* Manifesto responsive */
   .manifesto {
-    padding: 80px 16px;
+    padding: 40px 16px;
   }
-  
+
   .manifesto h1,
   .aiEndpoint h1,
   .computeMonetization h1,
@@ -918,63 +986,168 @@
   .manifestoActions {
     flex-direction: column;
     align-items: center;
+    gap: 16px;
   }
-  
+
+  /* Partners responsive */
+  .partners {
+    padding: 40px 16px;
+    text-align: center;
+  }
+
+  .partnersContainer {
+    display: flex;
+    justify-content: center;
+  }
+
+  /* AI Endpoint responsive */
+  .aiEndpoint {
+    padding: 40px 16px;
+  }
+
   .aiCategoriesGrid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 20px;
   }
-  
+
   .playgroundContent {
     grid-template-columns: 1fr;
     gap: 30px;
   }
+
+  .playgroundSection {
+    padding: 30px;
+  }
+
+  /* Compute Monetization responsive */
+  .computeMonetization {
+    padding: 40px 32px;
+    text-align: center;
+  }
   
   .computeMonetizationGrid {
     grid-template-columns: 1fr;
-    gap: 40px;
+    gap: 30px;
     text-align: center;
+  }
+
+  .networkAsciiArt {
+    font-size: 10px;
+    padding: 20px 0;
+  }
+
+  .monetizationContent {
+    align-items: center;
+  }
+
+  /* Global Network responsive */
+  .globalNetwork {
+    padding: 40px 16px;
   }
   
   .benefitsGrid {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 24px;
+  }
+
+  /* Latest News responsive */
+  .latestNews {
+    padding: 40px 16px;
   }
   
   .newsCards {
     flex-direction: column;
     align-items: center;
+    padding: 16px;
+  }
+
+  /* CTA Map responsive */
+  .ctaMap {
+    padding: 40px 16px 0 16px;
+  }
+
+  /* Footer responsive */
+  .footerContainer {
+    flex-direction: column;
+    height: auto;
+    padding: 24px;
+    gap: 24px;
+  }
+
+  .footerRight {
+    align-items: center;
+  }
+
+  .footerButtons {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .footerButtons a {
+    width: 100%;
   }
 }
 
-/* 768px breakpoint */
+/* 768px breakpoint - Large phones/small tablets */
 @media (max-width: 768px) {
-  .hero {
-    padding: 40px 16px;
-  }
-  
-  .heroLeft h1 {
-    font-size: 36px;
-  }
-  
-  .heroButtons {
+  /* Header responsive */
+  .header {
     flex-direction: column;
-  }
-  
-  .whoIsCxmputeFor {
-    padding: 40px 16px;
-  }
-  
-  .whoIsCxmputeFor h1 {
     text-align: center;
   }
-  
+
+  .header h1 {
+    font-size: 18px;
+  }
+
+  .menu ul {
+    justify-content: center;
+  }
+
+  /* Hero responsive */
+  .hero {
+    padding: 30px 16px;
+  }
+
+  .heroLeft h1 {
+    font-size: 32px;
+  }
+
+  .heroLeft h3 {
+    font-size: 18px;
+  }
+
+  .heroRight {
+    height: 280px;
+  }
+
+  .heroButtons {
+    align-items: center;
+  }
+
+  /* Who is Cxmpute for responsive */
+  .whoIsCxmputeFor {
+    padding: 30px 16px;
+  }
+
+  .whoIsCxmputeFor h1 {
+    font-size: 32px;
+  }
+
+  .whoIsCxmputeForCard {
+    width: 100%;
+    max-width: 350px;
+  }
+
+  /* Section titles responsive */
   .manifesto, 
   .aiEndpoint, 
   .computeMonetization, 
   .globalNetwork, 
   .latestNews {
-    padding: 40px 16px;
+    padding: 30px 16px;
   }
   
   .manifesto h1,
@@ -982,63 +1155,173 @@
   .computeMonetization h1,
   .globalNetwork h1,
   .latestNews h1 {
-    font-size: 32px;
+    font-size: 28px;
   }
-  
-  .playgroundSection {
-    padding: 30px;
+
+  .manifesto h3,
+  .aiEndpoint h3,
+  .computeMonetization h3,
+  .globalNetwork h3,
+  .latestNews h3 {
+    font-size: 20px;
   }
-  
-  .benefitsCard,
-  .newsCard {
-    padding: 30px;
-  }
-  
-  .lightAsciiArt {
-    font-size: 10px;
-    padding: 20px;
-  }
-  
-  .ctaButtons {
-    flex-direction: column;
+
+  .manifestoActions {
     align-items: center;
   }
-  
-  .modelSelector {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+
+  /* Partners responsive */
+  .partners {
+    padding: 30px 16px;
+    text-align: center;
   }
-  
-  .modelSelector label {
-    min-width: auto;
+
+  .partnerLogo {
+    max-width: 150px;
   }
-  
+
+  /* AI Endpoint responsive */
   .aiCategoriesGrid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
+
+  .aiCategoryCard {
+    padding: 24px;
+  }
+
+  /* Hide playground section on smaller screens */
+  .playgroundSection {
+    display: none;
+  }
+
+  /* Compute Monetization responsive */
+  .computeMonetization {
+    padding: 30px 24px;
+    text-align: center;
+  }
+
+  .networkAsciiArt {
+    font-size: 8px;
+    padding: 15px 0;
+  }
+
+  .monetizationFeature {
+    font-size: 16px;
+    justify-content: center;
+  }
+
+  .monetizationContent {
+    align-items: center;
+  }
+
+  /* Global Network responsive */
+  .benefitsCard {
+    padding: 24px;
+  }
+
+  .benefitsHeader h3 {
+    font-size: 24px;
+  }
+
+  /* Latest News responsive */
+  .newsCard {
+    padding: 24px;
+    width: 100%;
+    max-width: 350px;
+  }
+
+  .newsCard__title {
+    font-size: 24px;
+  }
+
+  /* CTA responsive */
+  .ctaButtons {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .mapTextOverlay h1 {
+    font-size: 24px;
+  }
+
+  /* Footer responsive */
+  .footerSocialLinks {
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .footerButtons {
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  .footerButtons a {
+    padding: 4px 0;
+  }
 }
 
-/* 480px breakpoint */
+/* 480px breakpoint - Standard phones */
 @media (max-width: 480px) {
+  /* Header responsive */
+  .menu {
+    display: none;
+  }
+  
+  .header {
+    padding: 12px 16px;
+    text-align: center;
+  }
+
+  /* Hero responsive */
   .hero {
     padding: 20px 16px;
   }
-  
+
   .heroLeft h1 {
     font-size: 28px;
   }
-  
+
+  .heroLeft h3 {
+    font-size: 16px;
+  }
+
+  .heroLeft p {
+    font-size: 14px;
+  }
+
+  .heroRight {
+    height: 250px;
+  }
+
+  .heroButtons {
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Who is Cxmpute for responsive */
   .whoIsCxmputeFor {
     padding: 20px 16px;
   }
-  
-  .whoIsCxmputeForCards {
-    flex-direction: column;
-    align-items: center;
+
+  .whoIsCxmputeFor h1 {
+    font-size: 24px;
   }
-  
+
+  .whoIsCxmputeFor h3 {
+    font-size: 18px;
+  }
+
+  .whoIsCxmputeForCard {
+    padding: 16px;
+  }
+
+  .whoIsCxmputeForCard__title {
+    font-size: 24px;
+  }
+
+  /* All sections responsive */
   .manifesto,
   .aiEndpoint,
   .computeMonetization,
@@ -1046,75 +1329,178 @@
   .latestNews {
     padding: 20px 16px;
   }
-  
-  .playgroundSection,
-  .benefitsCard,
-  .newsCard {
-    padding: 20px;
+
+  .manifesto h1,
+  .aiEndpoint h1,
+  .computeMonetization h1,
+  .globalNetwork h1,
+  .latestNews h1 {
+    font-size: 24px;
   }
-  
-  .lightCodeContent {
-    font-size: 12px;
-    padding: 15px;
+
+  .manifesto h3,
+  .aiEndpoint h3,
+  .computeMonetization h3,
+  .globalNetwork h3,
+  .latestNews h3 {
+    font-size: 18px;
   }
-  
-  .lightAsciiArt {
-    font-size: 8px;
-    padding: 15px;
+
+  .manifestoActions {
+    align-items: center;
+    gap: 12px;
   }
-  
+
+  /* Partners responsive */
+  .partners {
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  /* AI Endpoint responsive */
   .aiCategoryCard {
     padding: 20px;
   }
-  
-  .playgroundActions {
-    flex-direction: column;
-  }
-  
-  .menu {
+
+  /* Playground remains hidden */
+  .playgroundSection {
     display: none;
   }
-  
-  .header {
-    flex-direction: column;
+
+  /* Compute Monetization responsive */
+  .computeMonetization {
+    padding: 20px 20px;
+    text-align: center;
+  }
+
+  .networkAsciiArt {
+    font-size: 6px;
+    padding: 10px 0;
+  }
+
+  .monetizationFeatures {
+    align-items: center;
+  }
+
+  .monetizationFeature {
+    justify-content: center;
+  }
+
+  .monetizationContent {
+    align-items: center;
+  }
+
+  /* Global Network responsive */
+  .benefitsCard {
+    padding: 20px;
+  }
+
+  .benefitsHeader h3 {
+    font-size: 20px;
+  }
+
+  .benefitsList li {
+    font-size: 14px;
+  }
+
+  /* Latest News responsive */
+  .newsCard {
+    padding: 16px;
+  }
+
+  .newsCard__title {
+    font-size: 20px;
+  }
+
+  .newsCard__content {
+    font-size: 14px;
+  }
+
+  /* CTA responsive */
+  .ctaMap {
+    padding: 20px 16px 0 16px;
+  }
+
+  .mapTextOverlay h1 {
+    font-size: 20px;
+  }
+
+  .ctaButtons {
+    align-items: center;
+  }
+
+  /* Footer responsive */
+  .footerContainer {
+    padding: 16px;
+  }
+
+  .footerSocialLink {
+    width: 35px;
+    height: 35px;
+  }
+
+  .footerButtons {
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .footerButtons a {
+    width: 100%;
+    padding: 6px 0;
   }
 }
 
 /* 320px breakpoint */
 @media (max-width: 320px) {
-  /* Further reduce font sizes */
-  .heroLeft h1,
-  .ISLeft h1 {
-    font-size: 28px;
+  /* Hero responsive */
+  .heroLeft h1 {
+    font-size: 24px;
   }
-  .heroLeft p,
-  .ISLeft p {
+
+  .heroLeft h3 {
     font-size: 14px;
   }
 
-  /* Narrow testimonials */
-  .testimonialsContainer {
-    padding: 8px;
-  }
-  .testimonial {
-    padding: 24px;
-    min-width: 250px;
-    font-size: 16px;
+  .heroLeft p {
+    font-size: 13px;
   }
 
-  /* Blog cards layout */
-  .blogCards {
-    flex-direction: column;
-    align-items: center;
-  }
-  .blogCard {
-    max-width: 280px;
+  .heroRight {
+    height: 200px;
   }
 
-  /* Footer social icons */
+  /* All sections */
+  .manifesto h1,
+  .aiEndpoint h1,
+  .computeMonetization h1,
+  .globalNetwork h1,
+  .latestNews h1 {
+    font-size: 20px;
+  }
+
+  /* Who is Cxmpute for responsive */
+  .whoIsCxmputeFor h1 {
+    font-size: 20px;
+  }
+
+  .whoIsCxmputeForCard__title {
+    font-size: 20px;
+  }
+
+  /* Network ASCII art */
+  .networkAsciiArt {
+    font-size: 5px;
+    padding: 8px 0;
+  }
+
+  /* Footer responsive */
   .footerSocialLink {
-    width: 35px;
-    height: 35px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .footerButtons {
+    gap: 8px;
   }
 }
 
@@ -1818,6 +2204,13 @@
   
   .modelSelector label {
     min-width: auto;
+  }
+
+  .footerButtons{
+    margin-top: 20px;
+  }
+  .footer{
+    height: 80%;
   }
 }
 
