@@ -1,5 +1,3 @@
-# Advanced LLMs
-
 Explore advanced capabilities of Cxmpute's large language models including thinking models, vision understanding, structured outputs, and specialized coding models.
 
 ## Overview
