@@ -286,6 +286,10 @@ export default function Home() {
           <h1>Explore our comprehensive AI model collection</h1>
           
           <div className={styles.aiCategoriesContainer}>
+            <Link href="/models">
+              <Button text="See all models: Model gallery" backgroundColor={cxmputeGreen} />
+            </Link>
+            
             <div className={styles.aiCategoriesGrid}>
               <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'text' ? styles.selectedCategory : ''}`} 
@@ -377,9 +381,9 @@ export default function Home() {
                 <p>Mathematical reasoning models optimized for solving complex equations and quantitative problems.</p>
                       </div>
 
-                            <div 
+              <div 
                 className={`${styles.aiCategoryCard} ${selectedCategory === 'scraping' ? styles.selectedCategory : ''}`} 
-                style={{ 
+                        style={{
                   backgroundColor: getCategoryColor('scraping'),
                   borderColor: selectedCategory === 'scraping' ? darkenColor(getCategoryColor('scraping')) : '#000'
                 }}
@@ -387,20 +391,12 @@ export default function Home() {
               >
                 <div className={styles.categoryIcon}>
                   <Globe size={24} />
-                </div>
+                      </div>
                 <h3>Web Scraping</h3>
                 <p>Distributed web scraping service that extracts and processes content from web pages efficiently.</p>
-              </div>
-
-              <Link href="/models" className={styles.aiCategoryCard} style={{ backgroundColor: cxmputeGreen }}>
-                <div className={styles.categoryIcon}>
-                  <MessageSquare size={24} />
-                </div>
-                <h3>All Models</h3>
-                <p>Explore our complete model gallery with all available AI models and services in one place.</p>
-              </Link>
-            </div>
-          </div>
+                      </div>
+                    </div>
+                      </div>
 
           <div className={styles.playgroundSection}>
             <div className={styles.playgroundContent}>
@@ -467,22 +463,21 @@ export default function Home() {
           
           <div className={styles.computeMonetizationGrid}>
             <div className={styles.networkVisualization}>
-              <div className={styles.lightAsciiArt}>
+              <div className={styles.networkAsciiArt}>
                 <pre>{`
-    ┌─────────┐    ┌─────────┐    ┌─────────┐
-    │ GPU-A   │────│ GPU-B   │────│ GPU-C   │
-    │ [IDLE]  │    │ [ACTIVE]│    │ [IDLE]  │
-    └─────────┘    └─────────┘    └─────────┘
-         │              │              │
-    ┌─────────┐    ┌─────────┐    ┌─────────┐
-    │ CPU-D   │────│ ROUTER  │────│ GPU-E   │
-    │ [IDLE]  │    │ [CXMPTE]│    │ [ACTIVE]│
-    └─────────┘    └─────────┘    └─────────┘
-         │              │              │
-    ┌─────────┐    ┌─────────┐    ┌─────────┐
-    │ GPU-F   │────│ CPU-G   │────│ GPU-H   │
-    │ [ACTIVE]│    │ [IDLE]  │    │ [IDLE]  │
-    └─────────┘    └─────────┘    └─────────┘
+   ┌─────────────────────────────────────────────────┐
+   │                 GLOBAL USERS                    │
+   └─────────────┬─────────────┬─────────────────────┘
+                 │             │
+   ┌─────────────▼─────────────▼─────────────────────┐
+   │            CXMPUTE ORCHESTRATOR                 │
+   │     [Load Balancer] [Task Router] [Rewards]     │
+   └─────────────────────┬───────────────────────────┘
+                         │
+   ┌─────────────────────▼───────────────────────────┐
+   │        GLOBAL DISTRIBUTED CXMPUTE NETWORK       │
+   │     [GPUs] [CPUs] [TPUs] [Datacenters] [Edge]   │
+   └─────────────────────────────────────────────────┘
                 `}</pre>
               </div>
             </div>
@@ -575,7 +570,7 @@ export default function Home() {
               </div>
               <span className={styles.newsCard__title}>Services Overview</span>
               <p className={styles.newsCard__content}>Explore our comprehensive suite of AI and computing services in detail.</p>
-              <a href="/services">
+              <a href="/docs/user">
                 <Button text="Explore Services" backgroundColor={cxmputeOrange} />
               </a>
             </div>
@@ -689,6 +684,9 @@ export default function Home() {
               </a>
             </div>
             <div className={styles.footerButtons}>
+              <a href="/stats" target="_blank">
+                <Button text="Network Stats" backgroundColor={cxmputeYellow} />
+              </a>
               <a href="/docs/provider" target="_blank">
                 <Button text="Get started as a provider" backgroundColor={cxmputeYellow} />
               </a>
