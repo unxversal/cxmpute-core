@@ -180,12 +180,12 @@ export default function Home() {
         </div>
         <div className={styles.menu}>
           <ul>
-            <li><a href="/docs/provider" >
+            <li><Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
               <Button text="DOWNLOAD" backgroundColor={cxmputeYellow}/>
-            </a></li>
-            <li><a href="/docs" >
+            </Link></li>
+            <li><Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
               <Button text="DOCUMENTATION" backgroundColor={cxmputePurple}/>
-            </a></li>
+            </Link></li>
             <li><a href="/dashboard" >
               <Button text=" DASHBOARD" backgroundColor={cxmputeGreen}/>
             </a></li>
@@ -232,9 +232,9 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Companies + Developers</span>
               <p className={styles.whoIsCxmputeForCard__content}>Access AI Inference and compute services powered by a globally distributed network.</p>
-              <a href="/docs">
+              <Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Get Started" backgroundColor={cxmputePurple} />
-              </a>
+              </Link>
             </div>
 
             <div className={styles.whoIsCxmputeForCard}>
@@ -243,9 +243,9 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Datacenters</span>
               <p className={styles.whoIsCxmputeForCard__content}>Maximize the ROI of your infrastructure by offering your datacenter capacity to a global marketplace for decentralized compute.</p>
-              <a href="/docs/provider">
+              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Join Network" backgroundColor={cxmputeYellow} />
-              </a>
+              </Link>
             </div>
 
             <div className={styles.whoIsCxmputeForCard}>
@@ -254,9 +254,9 @@ export default function Home() {
               </div>
               <span className={styles.whoIsCxmputeForCard__title}>Individuals</span>
               <p className={styles.whoIsCxmputeForCard__content}>Monetize your idle computer resources by contributing to a decentralized network—and get rewarded for your unused power.</p>
-              <a href="/docs/provider">
+              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Start Earning" backgroundColor={cxmputePink} />
-              </a>
+              </Link>
             </div>
               </div>
               </div>
@@ -497,9 +497,9 @@ export default function Home() {
                   <span>Easy to get started (Get started in 10 secs)</span>
                 </div>
             </div>
-              <a href="/docs/provider">
+              <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Provide Cxmpute" backgroundColor={cxmputeYellow} />
-              </a>
+              </Link>
         </div>
               </div>
             </div>
@@ -570,9 +570,9 @@ export default function Home() {
               </div>
               <span className={styles.newsCard__title}>Services Overview</span>
               <p className={styles.newsCard__content}>Explore our comprehensive suite of AI and computing services in detail.</p>
-              <a href="/docs/user">
+              <Link href="/docs/user" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                 <Button text="Explore Services" backgroundColor={cxmputeOrange} />
-                  </a>
+                  </Link>
                 </div>
               </div>
                 </div>
@@ -585,12 +585,12 @@ export default function Home() {
               </div>
               <h1>What role will you play?</h1>
               <div className={styles.ctaButtons}>
-                <a href="/docs">
+                <Link href="/docs" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                   <Button text="Build" backgroundColor={cxmputeGreen} />
-                </a>
-                <a href="/docs/provider">
+                </Link>
+                <Link href="/docs/provider" style={{textDecoration: 'none', color: 'inherit', display: 'inline-block'}}>
                   <Button text="Provide" backgroundColor={cxmputeYellow} />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ declare module "sst" {
       "type": "sst.aws.Auth"
       "url": string
     }
-    "CxmputeSite": {
+    "CxmputeWebSite": {
       "type": "sst.aws.Nextjs"
       "url": string
     }
