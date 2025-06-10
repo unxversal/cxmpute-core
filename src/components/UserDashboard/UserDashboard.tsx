@@ -26,7 +26,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     <h1>User Dashboard</h1>
                     <h2>Welcome to cxmpute.cloud! Get started below:</h2>
                     <div className={styles.buttonContainer}>
-                        <a href="/docs/user" target="_blank" rel="noopener noreferrer">
+                        <a href="/d/user" target="_blank" rel="noopener noreferrer">
                             <Button text="Documentation" backgroundColor="var(--cxmpute-purple)" />
                         </a>
                         <a >
@@ -57,7 +57,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Text-to-Speech</h2>
                         <p>Generate human-like speech with multiple voice options.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/text-to-speech" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/text-to-speech" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>
@@ -67,7 +67,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Text-to-Text</h2>
                         <p>Utilize SOTA open-source text generation models for cheaper, faster results. Multilinguality (over 100+ languages) supported.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/text-to-text" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/text-to-text" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>
@@ -77,7 +77,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Embeddings</h2>
                         <p>Generate embeddings from a wide choice of models, varying in size, speed, and quality.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/embeddings" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/embeddings" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>
@@ -87,7 +87,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Scraping</h2>
                         <p>Access our global network of residential proxies and scrape data from any website.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/scraping" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/scraping" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>
@@ -97,7 +97,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Tool Use + JSON</h2>
                         <p>Use the latest and most capable models with tool use, function calling abilities, and JSON schema support.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/tool-use" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/tool-use" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>
@@ -107,7 +107,7 @@ export default function UserDashboard({ subject }: { subject: Subject }) {
                     >
                         <h2>Multimodal</h2>
                         <p>Generate human-like speech with multiple voices with SOTA models.</p>
-                        <a className={styles.cardButtonContainer} href="/docs/multimodal" target="_blank" rel="noopener noreferrer">
+                        <a className={styles.cardButtonContainer} href="/d/multimodal" target="_blank" rel="noopener noreferrer">
                             <Button text="Learn More" backgroundColor="var(--cxmpute-slate)" />
                         </a>
                     </div>

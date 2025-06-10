@@ -7,9 +7,9 @@ import Link from "next/link";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 
 interface DocPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateStaticParams() {

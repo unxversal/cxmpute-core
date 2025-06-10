@@ -5,7 +5,7 @@
 export default $config({
   app(input) {
     return {
-      name: "cxmpute-core",
+      name: "cxmpute-cloud",
       removal: input?.stage === "production" ? "retain" : "remove",
       protect: ["production"].includes(input?.stage),
       home: "aws",
@@ -223,16 +223,15 @@ export default $config({
           providerRegistrationSecret,
         ],
       },
-      // domain: 'auth.cxmpute.cloud'
+      domain: 'auth.cxmpute.cloud'
     });
 
     // --- Next.js Site ---
     // Link tables to the NextJS app
-    new sst.aws.Nextjs("CxmputeSite", {
+    new sst.aws.Nextjs("CxmputeWebSite", {
       domain: {
         name: "cxmpute.cloud",
         redirects: ["www." + "cxmpute.cloud"],
-        aliases: ["trade.cxmpute.cloud"], // Consider if trade.cxmpute.cloud alias is still needed or should redirect to main site.
       },
       link: [
         // General Platform Resources
