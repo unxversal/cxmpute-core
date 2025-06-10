@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { models } from '@/lib/references';
 import styles from './models.module.css';
 import { Search, Info } from 'lucide-react';
@@ -50,9 +51,9 @@ export default function ModelsPage() {
           <ul>
             
             <li>
-              <a href="/docs">
+              <Link href="/d">
                 <Button text="DOCUMENTATION" backgroundColor={cxmputePurple} />
-              </a>
+              </Link>
             </li>
             <li>
               <a href="/dashboard">

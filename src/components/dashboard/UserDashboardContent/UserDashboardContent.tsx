@@ -132,12 +132,12 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
 
   // Define service cards based on SystemProvisionReference or a custom list
   const serviceCardsData = [
-    { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Speech size={24}/>, color: cxmputePurple, docLink: "/docs/text-to-speech" }, // Gift as placeholder
-    { title: "Text-to-Text", description: "Utilize SOTA open-source text generation models for cheaper, faster results. Over 100+ languages supported.", icon: <MessageCircleCode size={24}/>, color: cxmputeOrange, docLink: "/docs/text-to-text" },
-    { title: "Embeddings", description: "Generate text embeddings for semantic search, RAG, and classification.", icon: <Zap size={24}/>, color: cxmputeGreen, docLink: "/docs/embeddings" },
-    { title: "Web Scraping", description: "Leverage our distributed network to scrape web data efficiently and bypass blocks.", icon: <ScanText size={24}/>, color: 'var(--cxmpute-red)', docLink: "/docs/scraping" }, // Settings as placeholder
-    { title: "Tool Use & JSON", description: "Utilize the latest and most capable models with tool use, function calling abilities, and JSON schema support.", icon: <PocketKnife size={24}/>, color: cxmputeYellow, docLink: "/docs/tool-use-json" }, // HelpCircle as placeholder
-    { title: "Advanced LLMs", description: "Explore models capable of reasoning, multimodal support, and finetunes for coding and math use cases.", icon: <BrainCircuit size={24}/>, color: cxmputePink, docLink: "/docs/advanced-llms" }, // FileText as placeholder
+    { title: "Text-to-Speech", description: "Convert text into natural-sounding speech with multiple voice options.", icon: <Speech size={24}/>, color: cxmputePurple, docLink: "/d/text-to-speech" }, // Gift as placeholder
+    { title: "Text-to-Text", description: "Utilize SOTA open-source text generation models for cheaper, faster results. Over 100+ languages supported.", icon: <MessageCircleCode size={24}/>, color: cxmputeOrange, docLink: "/d/text-to-text" },
+    { title: "Embeddings", description: "Generate text embeddings for semantic search, RAG, and classification.", icon: <Zap size={24}/>, color: cxmputeGreen, docLink: "/d/embeddings" },
+    { title: "Web Scraping", description: "Leverage our distributed network to scrape web data efficiently and bypass blocks.", icon: <ScanText size={24}/>, color: 'var(--cxmpute-red)', docLink: "/d/scraping" }, // Settings as placeholder
+    { title: "Tool Use & JSON", description: "Utilize the latest and most capable models with tool use, function calling abilities, and JSON schema support.", icon: <PocketKnife size={24}/>, color: cxmputeYellow, docLink: "/d/tool-use-json" }, // HelpCircle as placeholder
+    { title: "Advanced LLMs", description: "Explore models capable of reasoning, multimodal support, and finetunes for coding and math use cases.", icon: <BrainCircuit size={24}/>, color: cxmputePink, docLink: "/d/advanced-llms" }, // FileText as placeholder
   ];
 
 
@@ -153,7 +153,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
             <h1 className={styles.dashboardTitle}>User Dashboard</h1>
             <h2 className={styles.welcomeMessage}>Welcome to Cxmpute! Manage your account and explore services.</h2>
             <div className={styles.heroButtonContainer}>
-              <DashboardButton href="/docs/user" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
+              <DashboardButton href="/d/user" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
               <DashboardButton onClick={() => {
                 setIsViewUserAkModalOpen(true);
                 // Show helpful explanation toast
@@ -233,7 +233,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
                     <h2 className={styles.rewardsAmount}>{userSummary?.rewards.toLocaleString() || '0'}</h2>
                  }
                  <p className={styles.rewardsHint}>Rewards are typically distributed for platform activities and referrals.</p>
-                  <DashboardButton text="Learn more about rewards" href="/docs/rewards" target="_blank" rel="noopener noreferrer" size="sm" style={{ marginTop: '10px' }} variant='primary'/>
+                  <DashboardButton text="Learn more about rewards" href="/d/rewards" target="_blank" rel="noopener noreferrer" size="sm" style={{ marginTop: '10px' }} variant='primary'/>
             </ThemeCard>
         </div>
       </div>

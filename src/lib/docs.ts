@@ -12,7 +12,7 @@ import {
   Brain,
   LucideIcon
 } from "lucide-react";
-import docsContent from './docs-content.json';
+import docsContent from './docs-content';
 
 export interface Doc {
     slug: string;
