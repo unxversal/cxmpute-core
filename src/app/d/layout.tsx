@@ -36,7 +36,7 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
   }, []);
 
   const getDocPath = (slug: string) => {
-    return slug === '' ? '/docs' : `/docs/${slug}`;
+    return slug === '' ? '/d' : `/d/${slug}`;
   };
 
   return (
