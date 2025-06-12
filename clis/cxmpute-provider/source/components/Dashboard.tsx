@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Text, Box, Newline } from 'ink';
 import Spinner from 'ink-spinner';
 import { DOLPHIN_ANSI_FIVE, DOLPHIN_ANSI_SIX, generateFigletText } from '../lib/utils.js';
-import Link from 'ink-link';
 
 // Define colors at the top or import from a theme file if you have one
 const figletColors = ['#f8cb46', '#d64989', '#f76707']; // Yellow, Pink, Orange
@@ -146,9 +145,7 @@ export default function Dashboard({
                             <Text bold>REFERRALS: </Text>
                             <Text>{isLoading ? '...' : referralsCount}</Text>
                         </Box>
-                        <Link url="https://cxmpute.cloud/referrals">
                             <Text color={currentFigletColor} bold> LEARN MORE</Text>
-                        </Link>
                     </Box>
 
                     {/* Device Tier */}

@@ -49,7 +49,7 @@ export default $config({
     });
 
     const authEmail = new sst.aws.Email("AuthEmail", {
-      sender: "cxmpute.cloud",
+      sender: $app.stage === "production" ? "cxmpute.cloud" : "dev.cxmpute.cloud",
     });
 
     // LLM Provision Pool Table
@@ -218,20 +218,24 @@ export default $config({
         handler: "auth/index.handler",
         link: [
           providerTable,
-          userTable, // Removed TradersTable, BalancesTable
+          userTable,
           authEmail,
           providerRegistrationSecret,
         ],
       },
-      domain: 'auth.cxmpute.cloud'
+      ...$app.stage === "production" && {
+        domain: 'auth.cxmpute.cloud'
+      }
     });
 
     // --- Next.js Site ---
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeWebSite", {
-      domain: {
-        name: "cxmpute.cloud",
-        redirects: ["www." + "cxmpute.cloud"],
+      ...$app.stage === "production" && {
+        domain: {
+          name: "cxmpute.cloud",
+          redirects: ["www." + "cxmpute.cloud"],
+        },
       },
       link: [
         // General Platform Resources
