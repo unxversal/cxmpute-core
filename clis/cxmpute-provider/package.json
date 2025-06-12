@@ -81,8 +81,14 @@
 	},
 	"prettier": "@vdemedes/prettier-config",
 	"pkg": {
-		"scripts": "dist/**/*.js",
-		"assets": [],
+		"scripts": [
+			"dist/**/*.js",
+			"node_modules/**/*.js"
+		],
+		"assets": [
+			"dist/**/*",
+			"node_modules/**/*"
+		],
 		"targets": [
 			"node18-linux-x64",
 			"node18-macos-x64",
