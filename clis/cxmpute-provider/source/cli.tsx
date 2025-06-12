@@ -3,10 +3,27 @@ import React from 'react';
 import {render} from 'ink';
 // import meow from 'meow';
 import App from './app.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// --- Environment Variable Loading ---
+// Get the directory of the current module.
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const __filename = fileURLToPath(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const __dirname = path.dirname(__filename);
+
+// Construct the path to the root of the cxmpute-core project.
+// This assumes the CLI is in /clis/cxmpute-provider/dist (or source).
+const projectRoot = path.resolve(__dirname, '..', '..', '..');
+
+// Load the .env file from the project root.
+dotenv.config({ path: path.join(projectRoot, '.env') });
+// --- End Environment Variable Loading ---
 
 // const cli = meow(
-// 	`
-// 	Usage
+// 	`// 	Usage
 // 	  $ cxmpute-provider
 
 // 	Description

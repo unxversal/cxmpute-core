@@ -68,7 +68,7 @@ export async function registerDevice(payload: Omit<RegisterDevicePayload, 'regis
         // Fallback to environment variable for development
         registrationSecret = process.env['CXMPUTE_PROVIDER_SECRET'];
     }
-    
+
     if (!registrationSecret) {
         return { 
             success: false, 

@@ -5,13 +5,82 @@
 
 declare module "sst" {
   export interface Resource {
+    "AdvertisementTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "AuthEmail": {
+      "configSet": string
+      "sender": string
+      "type": "sst.aws.Email"
+    }
+    "CxmputeAuth": {
+      "type": "sst.aws.Auth"
+      "url": string
+    }
     "CxmputeWebSite": {
       "type": "sst.aws.Nextjs"
       "url": string
     }
+    "EmbeddingsProvisionPoolTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "GraphsBucket": {
+      "name": string
+      "type": "sst.aws.Bucket"
+    }
+    "LLMProvisionPoolTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "MetadataTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "NetworkStatsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "NotificationsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "PricingConfigTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "ProviderRegistrationSecret": {
       "type": "sst.sst.Secret"
       "value": string
+    }
+    "ProviderTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ProvisionsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ScrapingProvisionPoolTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ServiceMetadataTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "SuspendedAccountsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "TTSProvisionPoolTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "UserTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
     }
   }
 }
