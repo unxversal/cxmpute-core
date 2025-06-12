@@ -49,7 +49,7 @@ export default $config({
     });
 
     const authEmail = new sst.aws.Email("AuthEmail", {
-      sender: "cxmpute.cloud",
+      sender: $app.stage === "production" ? "cxmpute.cloud" : "dev.cxmpute.cloud",
     });
 
     // LLM Provision Pool Table
