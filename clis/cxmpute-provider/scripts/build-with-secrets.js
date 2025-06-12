@@ -39,17 +39,23 @@ try {
     fs.writeFileSync(CONFIG_OUTPUT_PATH, config);
     console.log('✅ Config file generated');
     
-    // 4. Build TypeScript
+    // 4. Clean dist directory
+    console.log('🧹 Cleaning dist directory...');
+    if (fs.existsSync(path.join(__dirname, '../dist'))) {
+        fs.rmSync(path.join(__dirname, '../dist'), { recursive: true, force: true });
+    }
+    
+    // 5. Build TypeScript
     console.log('🔨 Compiling TypeScript...');
     execSync('npm run build', { stdio: 'inherit' });
     
-    // 5. Create binaries directory
+    // 6. Create binaries directory
     const binariesDir = path.join(__dirname, '../binaries');
     if (!fs.existsSync(binariesDir)) {
         fs.mkdirSync(binariesDir);
     }
     
-    // 6. Build binaries with pkg
+    // 7. Build binaries with pkg
     console.log('📦 Building binaries...');
     const targets = [
         'node18-linux-x64',
@@ -64,7 +70,8 @@ try {
         const outputPath = path.join(binariesDir, `${target}-${outputName}`);
         
         try {
-            execSync(`npx pkg dist/cli.js --target ${target} --output "${outputPath}"`, { 
+            // Use --no-bytecode to avoid issues with native modules
+            execSync(`npx pkg . --target ${target} --output "${outputPath}" --no-bytecode`, { 
                 stdio: 'inherit' 
             });
             console.log(`✅ Built: ${outputPath}`);
@@ -73,7 +80,7 @@ try {
         }
     }
     
-    // 7. Clean up config file (security)
+    // 8. Clean up config file (security)
     console.log('🧹 Cleaning up temporary files...');
     fs.unlinkSync(CONFIG_OUTPUT_PATH);
     
