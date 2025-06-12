@@ -218,20 +218,24 @@ export default $config({
         handler: "auth/index.handler",
         link: [
           providerTable,
-          userTable, // Removed TradersTable, BalancesTable
+          userTable,
           authEmail,
           providerRegistrationSecret,
         ],
       },
-      domain: 'auth.cxmpute.cloud'
+      ...$app.stage === "production" && {
+        domain: 'auth.cxmpute.cloud'
+      }
     });
 
     // --- Next.js Site ---
     // Link tables to the NextJS app
     new sst.aws.Nextjs("CxmputeWebSite", {
-      domain: {
-        name: "cxmpute.cloud",
-        redirects: ["www." + "cxmpute.cloud"],
+      ...$app.stage === "production" && {
+        domain: {
+          name: "cxmpute.cloud",
+          redirects: ["www." + "cxmpute.cloud"],
+        },
       },
       link: [
         // General Platform Resources
