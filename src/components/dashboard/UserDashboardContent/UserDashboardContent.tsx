@@ -15,6 +15,7 @@ import type { AuthenticatedUserSubject } from '@/lib/auth';
 import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, FileText, Speech, MessageCircleCode, ScanText, PocketKnife, BrainCircuit } from 'lucide-react'; // Added more icons
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
 import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
+import LinkWalletButton from '@/components/ui/LinkWalletButton/LinkWalletButton';
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
@@ -153,6 +154,7 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
             <h1 className={styles.dashboardTitle}>User Dashboard</h1>
             <h2 className={styles.welcomeMessage}>Welcome to Cxmpute! Manage your account and explore services.</h2>
             <div className={styles.heroButtonContainer}>
+              <LinkWalletButton accountType="user" accountId={subject.id} className={styles.walletLinkBtn} />
               <DashboardButton href="/d/user" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
               <DashboardButton onClick={() => {
                 setIsViewUserAkModalOpen(true);

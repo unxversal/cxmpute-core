@@ -63,5 +63,18 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.0",
     "typescript": "^5"
-  }
+  },
+  "description": "Cxmpute Core is the central platform powering the Cxmpute ecosystem. It encompasses a distributed AI/Compute services platform and a comprehensive suite of DeFi protocols built on the Peaq network.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unxversal/cxmpute-core.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/unxversal/cxmpute-core/issues"
+  },
+  "homepage": "https://github.com/unxversal/cxmpute-core#readme"
 }
