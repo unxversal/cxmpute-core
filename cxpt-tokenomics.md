@@ -2,7 +2,7 @@
 
 ## Overview
 
-CXPT (Cxmpute Token) is the native utility token powering the Cxmpute ecosystem. It facilitates compute resource allocation, rewards distribution, and platform governance.
+CXPT (Cxmpute Token) is the utility token powering the Cxmpute platform. The platform uses CXPT to facilitate compute resource allocation and provider rewards, with a focus on efficient resource distribution and platform sustainability.
 
 ## Token Distribution
 
@@ -10,10 +10,10 @@ Total Supply: 1,000,000,000 CXPT
 
 | Category | Percentage | Amount | Vesting Period |
 |----------|------------|---------|----------------|
-| Founding Team | 30% | 300,000,000 | 4 years, 1 year cliff |
-| Community | 48% | 480,000,000 | Released over 5 years |
-| Treasury | 15% | 150,000,000 | Controlled by governance |
-| DEX/CEX Liquidity | 7% | 70,000,000 | Released over 2 years |
+| Platform Reserve | 30% | 300,000,000 | Controlled by admin |
+| Provider Rewards | 48% | 480,000,000 | Released based on admin schedule |
+| Platform Operations | 15% | 150,000,000 | Controlled by admin |
+| Market Liquidity | 7% | 70,000,000 | Managed by admin |
 
 ## Token Utility
 
@@ -29,11 +29,7 @@ Total Supply: 1,000,000,000 CXPT
   - Compute power provided
   - Uptime and reliability
   - Service quality metrics
-
-### 3. Governance
-- Token holders can participate in platform governance
-- Vote on protocol parameters
-- Propose and vote on platform upgrades
+  - Admin-determined reward structure
 
 ## Pricing Models
 
@@ -50,9 +46,24 @@ Total Supply: 1,000,000,000 CXPT
   - Compute resource type
   - Provider availability
 
-## Reward Distribution
+## Credit System
 
-### Provider Rewards
+### Vault Management
+1. **Credit Tracking**
+   - Loaded Credits: Total credits deposited by users
+   - Spent Credits: Credits consumed for compute resources
+   - Protocol Balance: Admin-determined split from total revenue
+
+2. **Credit Flow**
+   - All payments (subscription/usage) go to vault
+   - Admin determines split between:
+     - Provider rewards
+     - Protocol revenue
+     - Platform operations
+
+### Reward Distribution
+
+#### Provider Rewards
 1. **Base Rewards**
    - Points system converted to CXPT
    - Based on compute power provided
@@ -63,7 +74,7 @@ Total Supply: 1,000,000,000 CXPT
    - Response Time: 0.9x - 1.1x
    - Network Demand: 0.5x - 2.0x
 
-### User Rewards
+#### User Rewards
 1. **Referral Program**
    - Earn CXPT for referring new users
    - Tiered reward structure
@@ -80,39 +91,64 @@ Total Supply: 1,000,000,000 CXPT
 - Burn mechanism for fee collection
 
 ### Fee Structure
-1. **Transaction Fees**
-   - 0.1% per transaction
-   - 50% burned
-   - 50% to treasury
 
-2. **Protocol Fees**
-   - 2% of compute costs
-   - Distributed to:
-     - Protocol (40%)
-     - Providers (40%)
-     - Users (20%)
+#### Compute Service Pricing
+
+Compute services are priced based on service tiers and usage:
+
+| Tier | Price per 1K Tokens (Input/Output) |
+|------|-----------------------------------|
+| **Tide Pool** | $0.0002 / $0.0004 |
+| **Blue Surge** | $0.0005 / $0.0010 |
+| **Open Ocean** | $0.0015 / $0.0030 |
+| **Mariana Depth** | $0.0040 / $0.0080 |
+
+#### Specialized Services
+
+| Service | Unit | Price |
+|---------|------|-------|
+| **Text-to-Speech** | Per minute of audio | $0.015 |
+| **Web Scraping** | Per page scraped | $0.001 |
+| **Embeddings** | Per 1K tokens | $0.0001 |
+
+#### Subscription Plans
+
+| Plan | Monthly Fee | Max Concurrent | Rate Limit (RPM) | Monthly Tokens |
+|------|-------------|----------------|------------------|----------------|
+| **Starter** | $19 | 1 request | 20 RPM | 2M tokens |
+| **Professional** | $79 | 3 requests | 100 RPM | 8M tokens |
+| **Scale** | $299 | 8 requests | 500 RPM | 40M tokens |
+| **Enterprise** | Custom | 20+ requests | 2000+ RPM | 200M+ tokens |
+
+#### Revenue Distribution
+
+All revenue from compute services is distributed according to admin-determined ratios between:
+- Protocol revenue
+- Provider rewards
+- Platform operations
 
 ### Value Accrual
 1. **Token Burns**
    - Regular burns from fees
    - Deflationary pressure
 
-2. **Staking Rewards**
-   - Earn rewards for staking
-   - Enhanced platform benefits
+2. **Future Staking**
+   - Potential future feature
+   - Not currently implemented
 
-## Governance
+## Platform Administration
 
-### Voting Power
-- 1 CXPT = 1 vote
-- Minimum stake for proposals
-- Delegation allowed
+### Admin Controls
+- Reward distribution parameters
+- Fee structures
+- Platform parameters
+- Emergency controls
 
-### Governance Parameters
-- Fee adjustments
-- Reward distribution
-- Protocol upgrades
-- Treasury management
+### Revenue Management
+- Protocol revenue allocation
+- Provider reward distribution
+- Platform operations funding
+- Market operations
 
 ## Implementation Phases
 
@@ -128,8 +164,8 @@ Total Supply: 1,000,000,000 CXPT
 
 ### Phase 3: Full Implementation
 - Complete token utility
-- Governance activation
 - Advanced features
+- Platform optimization
 
 ## Risk Management
 
@@ -138,10 +174,10 @@ Total Supply: 1,000,000,000 CXPT
 - Liquidity management
 - Market manipulation
 
-### Protocol Risks
+### Platform Risks
 - Smart contract security
-- Governance attacks
-- Economic attacks
+- Operational security
+- Economic stability
 
 ## Monitoring & Analytics
 
