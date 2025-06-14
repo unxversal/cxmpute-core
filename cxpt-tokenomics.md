@@ -1,193 +1,129 @@
-# CXPT Tokenomics
+<!-- cxpt-tokenomics.md -->
+
+# CXPT Tokenomics (v0.3 · June 2025)
 
 ## Overview
+CXPT (Cxmpute Token) is the utility token powering the Cxmpute platform. It acts as the medium of exchange for compute purchases, the unit of provider rewards, and the sink for protocol fee burns. The design emphasizes **cost transparency for users** and **predictable upside for node operators**.
 
-CXPT (Cxmpute Token) is the utility token powering the Cxmpute platform. The platform uses CXPT to facilitate compute resource allocation and provider rewards, with a focus on efficient resource distribution and platform sustainability.
+---
 
 ## Token Distribution
+**Fixed Total Supply:** 1 000 000 000 CXPT  
+No further minting is possible.
 
-Total Supply: 1,000,000,000 CXPT
+| Category | % of Supply | Amount (CXPT) | Vesting / Control |
+|----------|-------------|---------------|-------------------|
+| Founding Team | 30 % | 300 000 000 | Time-locked multisig (4-year linear) |
+| Community Incentives | 48 % | 480 000 000 | RewardDistributor (providers & airdrops) |
+| Treasury | 15 % | 150 000 000 | Ops multisig (growth & grants) |
+| Liquidity & Market Making | 7 % | 70 000 000 | AMM & CEX liquidity programs |
 
-| Category | Percentage | Amount | Vesting Period |
-|----------|------------|---------|----------------|
-| Platform Reserve | 30% | 300,000,000 | Controlled by admin |
-| Provider Rewards | 48% | 480,000,000 | Released based on admin schedule |
-| Platform Operations | 15% | 150,000,000 | Controlled by admin |
-| Market Liquidity | 7% | 70,000,000 | Managed by admin |
+> **Burn Mechanism** – 5 % of every user payment (PAYG or subscription) is automatically burned, creating ongoing deflation as usage grows.
+
+---
 
 ## Token Utility
+1. **Compute Payment** – All PAYG calls and subscription fees are settled in CXPT (fiat on-ramp available).  
+2. **Provider Rewards** – Node operators receive CXPT based on a points formula (see *Reward Distribution*).  
+3. **Governance (TBA)** – Post-v1, staked CXPT will secure protocol parameter votes.
 
-### 1. Compute Resource Allocation
-- Users pay for compute resources in CXPT
-- Two pricing models:
-  - Subscription-based (monthly CXPT payments)
-  - Usage-based (pay-per-compute)
-
-### 2. Provider Rewards
-- Providers earn CXPT for providing compute resources
-- Rewards distributed based on:
-  - Compute power provided
-  - Uptime and reliability
-  - Service quality metrics
-  - Admin-determined reward structure
+---
 
 ## Pricing Models
+### A. Subscription
+* Pre-paid monthly CXPT fee → large token bucket at a **15–60 % discount** to PAYG.
+* Unlimited rollover 50% of unused tokens for **30 days**.
+* Priority queue weight + 12-month price lock at no extra cost.
 
-### Subscription Model
-- Monthly CXPT payments
-- Tiered subscription levels
-- Unused compute rolls over (up to 50%)
-- Priority access during high demand
+### B. Pay-As-You-Go (PAYG)
+* Billed per 1 000 tokens processed, priced dynamically per tier.
+* **Spot Compute** option gives up to **-70 %** rebate when network utilisation < 30 %.  
+* Automatic scaling surcharge (≤ +15 %) when utilisation > 90 %.
 
-### Usage-Based Model
-- Pay-per-compute in CXPT
-- Dynamic pricing based on:
-  - Network demand
-  - Compute resource type
-  - Provider availability
+---
 
 ## Credit System
+* **Vault Contract** receives all user payments.  
+* Every 24 h the vault:
+  1. Burns 5 % of inflow.  
+  2. Allocates remaining CXPT between **Provider Rewards (default 70 %)** and **Protocol Revenue (30 %)**.  
+  3. Streams provider share to RewardDistributor for pro-rata payout.
 
-### Vault Management
-1. **Credit Tracking**
-   - Loaded Credits: Total credits deposited by users
-   - Spent Credits: Credits consumed for compute resources
-   - Protocol Balance: Admin-determined split from total revenue
+---
 
-2. **Credit Flow**
-   - All payments (subscription/usage) go to vault
-   - Admin determines split between:
-     - Provider rewards
-     - Protocol revenue
-     - Platform operations
+## Reward Distribution
+### 1. Base Points (per successful request)
 
-### Reward Distribution
+| Tier | VRAM | Base Pts |
+|------|------|----------|
+| Tide Pool | ≤ 4 GB | 1 |
+| Blue Surge | 4 – 8 GB | 3 |
+| Open Ocean | 8 – 22 GB | 7 |
+| Mariana Depth | 22 GB + | 15 |
 
-#### Provider Rewards
-1. **Base Rewards**
-   - Points system converted to CXPT
-   - Based on compute power provided
-   - Adjusted by performance multipliers
+Specialised services: TTS = 2 pts / min, Scrape = 0.5 pts, Embedding = 1 pt.
 
-2. **Performance Multipliers**
-   - Uptime: 0.8x - 1.2x
-   - Response Time: 0.9x - 1.1x
-   - Network Demand: 0.5x - 2.0x
+### 2. Performance Multipliers
 
-#### User Rewards
-1. **Referral Program**
-   - Earn CXPT for referring new users
-   - Tiered reward structure
+| Metric | Range | Notes |
+|--------|-------|-------|
+| Uptime | 0.80 – **1.30** | ≥ 99.95 % earns 1.30× |
+| p50 Latency | 0.85 – 1.15 | < 300 ms earns 1.15× |
+| Network Demand | 0.5 – 2.0 | Auto-adjusted hourly |
 
-2. **Loyalty Program**
-   - Long-term user rewards
-   - Usage-based bonuses
+**Monthly Reward = Σ(base × uptime × latency × demand).**
 
-## Token Economics
+---
 
-### Supply Mechanics
-- Fixed total supply
-- No additional minting
-- Burn mechanism for fee collection
+## Compute Service Pricing (PAYG)
 
-### Fee Structure
+| Tier | **Price per 1 K Tokens**<br>(Input / Output) |
+|------|---------------------------------------------|
+| Tide Pool | **$0.00015 / $0.00030** |
+| Blue Surge | **$0.00035 / $0.00070** |
+| Open Ocean | **$0.00120 / $0.00240** |
+| Mariana Depth | **$0.00350 / $0.00700** |
 
-#### Compute Service Pricing
-
-Compute services are priced based on service tiers and usage:
-
-| Tier | Price per 1K Tokens (Input/Output) |
-|------|-----------------------------------|
-| **Tide Pool** | $0.0002 / $0.0004 |
-| **Blue Surge** | $0.0005 / $0.0010 |
-| **Open Ocean** | $0.0015 / $0.0030 |
-| **Mariana Depth** | $0.0040 / $0.0080 |
-
-#### Specialized Services
+### Specialised
 
 | Service | Unit | Price |
 |---------|------|-------|
-| **Text-to-Speech** | Per minute of audio | $0.015 |
-| **Web Scraping** | Per page scraped | $0.001 |
-| **Embeddings** | Per 1K tokens | $0.0001 |
+| Text-to-Speech | min | **$0.008** |
+| Web Scraping | page | **$0.0006** |
+| Embeddings | 1 K tokens | **$0.00002** |
 
-#### Subscription Plans
+---
 
-| Plan | Monthly Fee | Max Concurrent | Rate Limit (RPM) | Monthly Tokens |
-|------|-------------|----------------|------------------|----------------|
-| **Starter** | $19 | 1 request | 20 RPM | 2M tokens |
-| **Professional** | $79 | 3 requests | 100 RPM | 8M tokens |
-| **Scale** | $299 | 8 requests | 500 RPM | 40M tokens |
-| **Enterprise** | Custom | 20+ requests | 2000+ RPM | 200M+ tokens |
+## Subscription Plans
 
-#### Revenue Distribution
+| Plan | Monthly Fee | Concurrency | RPM | Token Bucket | Effective $ / 1 M |
+|------|-------------|-------------|-----|--------------|--------------------|
+| **Starter** | **$15** | 1 | 40 | **20 M** | $0.75 |
+| **Pro** | **$69** | 4 | 200 | **100 M** | $0.69 |
+| **Scale** | **$249** | 15 | 1 000 | **600 M** | $0.41 |
+| **Enterprise** | custom | 50 + | 5 000 + | 3 B + | negotiable |
 
-All revenue from compute services is distributed according to admin-determined ratios between:
-- Protocol revenue
-- Provider rewards
-- Platform operations
+All buckets rollover 100 % for 90 days.
 
-### Value Accrual
-1. **Token Burns**
-   - Regular burns from fees
-   - Deflationary pressure
+---
 
-2. **Future Staking**
-   - Potential future feature
-   - Not currently implemented
+## Phased Implementation
+| Phase | Target Date | Key Features |
+|-------|-------------|--------------|
+| **1 – Testnet** | live | Free usage, points accrual |
+| **2 – Mainnet Launch** | Jul-2025 | CXPT TGE, PAYG live |
+| **3 – Full Utility** | Sep-2025 | Subscriptions, Spot Compute, staking roadmap |
 
-## Platform Administration
+---
 
-### Admin Controls
-- Reward distribution parameters
-- Fee structures
-- Platform parameters
-- Emergency controls
+## Risks & Mitigations
+* **Market Volatility** – burn + capped supply offset downward pressure.  
+* **Liquidity** – 7 % allocation managed across AMMs & CEX.  
+* **Smart-Contract** – audits before Phase 2; on-chain bug-bounty.  
 
-### Revenue Management
-- Protocol revenue allocation
-- Provider reward distribution
-- Platform operations funding
-- Market operations
+---
 
-## Implementation Phases
-
-### Phase 1: Testnet
-- Free usage
-- Points accumulation
-- No real token value
-
-### Phase 2: Mainnet Launch
-- Token generation
-- Initial distribution
-- Basic functionality
-
-### Phase 3: Full Implementation
-- Complete token utility
-- Advanced features
-- Platform optimization
-
-## Risk Management
-
-### Market Risks
-- Price volatility
-- Liquidity management
-- Market manipulation
-
-### Platform Risks
-- Smart contract security
-- Operational security
-- Economic stability
-
-## Monitoring & Analytics
-
-### Key Metrics
-- Token distribution
-- Usage patterns
-- Reward distribution
-- Burn rates
-
-### Reporting
-- Monthly token reports
-- Quarterly audits
-- Annual reviews 
+## Monitoring & Reporting
+* **Real-time dashboard** – supply, burns, rewards, utilisation.  
+* **Monthly reports** – token flows & treasury.  
+* **Quarterly audits** – external smart-contract & finance review.

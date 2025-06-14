@@ -1,201 +1,131 @@
-# On-chain Addition Plan
+<!-- onchain-addition-plan.md -->
 
-## Overview
+# On-Chain Upgrade Plan (v0.1 · June 2025)
 
-This document outlines the implementation plan for integrating peaq network functionality into the Cxmpute platform. The integration focuses on three main areas:
+This document explains how Cxmpute will extend its architecture with peaq-based Decentralised Identifiers (DIDs), on-chain wallet linking and state-synchronised provisions.
 
-1. Provider DID Management
-2. User/Provider Wallet Linking
-3. Provision State Management
+---
 
-## Provider DID Management
+## 1. Scope
 
-### DID Creation Flow
+1. Provider CLI generates a draft DID for every new provision.
+2. Backend API finalises and stores the DID by injecting the provider's wallet address.
+3. DID `state` field mirrors the provision lifecycle — `started → running → off`.
+4. Users and Providers can link their EVM wallets from the dashboards.
+5. All logic must default to **Agung testnet** until an admin flips `CHAIN_STAGE` to `mainnet`.
 
-1. **Provider CLI DID Creation**
-   - When a new provision is created, the CLI will:
-     - Generate a new DID document with initial state
-     - Include provider wallet address
-     - Set initial state as "started" or "off"
-     - Include provision metadata (model, endpoint, tier, location)
-     - Send DID to backend API for completion
+---
 
-2. **Backend API DID Completion**
-   - API route will:
-     - Receive DID from provider CLI
-     - Add provider wallet address
-     - Sign and complete DID
-     - Store DID in database
-     - Return completed DID to provider
+## 2. Data-Model Changes
 
-### DID State Management
+### 2.1 `ProvisionsTable`
 
-1. **State Transitions**
-   - "started" → "running" (when provision starts)
-   - "running" → "off" (when provision stops)
-   - Each state change requires DID update
+| Field | Type | Description |
+|-------|------|-------------|
+| `did` | string | The DID string (`did:peaq:evm:<hash>`) |
+| `didState` | string | `started`, `running`, `off` |
+| `deviceTier` | string | Tier label (e.g. `"Blue Surge"`) |
+| `country` | string | ISO-3166 country code |
+| `providerWallet` | string | EVM wallet address |
 
-2. **DID Update Process**
-   - Provider sends state change request
-   - Backend verifies request
-   - Updates DID state
-   - Stores updated DID
-   - Returns confirmation
+### 2.2 `ProviderTable` & `UserTable`
 
-## Wallet Linking Implementation
+Add the following attributes (with GSIs where noted):
 
-### User Dashboard
+* `walletAddress` (string)
+* `walletLinked` (boolean, GSI hash key)
 
-1. **Wallet Link Component**
-   - Add "Link Wallet" button
-   - Implement wallet connection flow
-   - Store wallet address in user record
-   - Display linked wallet status
+---
 
-2. **Wallet Management**
-   - Allow wallet disconnection
-   - Show wallet balance
-   - Display transaction history
+## 3. DID Document Schema
 
-### Provider Dashboard
-
-1. **Wallet Link Component**
-   - Similar to user dashboard
-   - Additional provider-specific features
-   - Link to provision DIDs
-
-2. **Wallet Management**
-   - Manage multiple provision wallets
-   - View provision-specific transactions
-   - Monitor earnings
-
-## Database Schema Updates
-
-### New Tables
-
-```sql
-CREATE TABLE provider_dids (
-    id UUID PRIMARY KEY,
-    provider_id UUID REFERENCES providers(id),
-    did_document JSONB,
-    state VARCHAR(20),
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
-CREATE TABLE user_wallets (
-    id UUID PRIMARY KEY,
-    user_id UUID REFERENCES users(id),
-    wallet_address VARCHAR(42),
-    created_at TIMESTAMP
-);
-
-CREATE TABLE provider_wallets (
-    id UUID PRIMARY KEY,
-    provider_id UUID REFERENCES providers(id),
-    wallet_address VARCHAR(42),
-    created_at TIMESTAMP
-);
+```json
+{
+  "id": "did:peaq:evm:<hash>",
+  "controller": "<providerWallet>",
+  "service": [{
+    "id": "#cxmpute",
+    "type": "provision",
+    "data": "<provisionId>"
+  }],
+  "extra": {
+    "providerId": "<providerId>",
+    "endpoint": "/chat/completions",
+    "deviceTier": "Blue Surge",
+    "country": "US",
+    "state": "started"
+  }
+}
 ```
 
-## API Routes
+*CLI* sends the `extra` block; *API* inserts `controller`.
 
-### New Routes
+---
 
-```typescript
-// Provider DID Management
-POST /api/v1/providers/did/create
-POST /api/v1/providers/did/update
-GET /api/v1/providers/did/:id
+## 4. Flow Overview
 
-// Wallet Management
-POST /api/v1/users/wallet/link
-POST /api/v1/providers/wallet/link
-DELETE /api/v1/users/wallet/unlink
-DELETE /api/v1/providers/wallet/unlink
+1. **Provision CREATE**  
+   CLI → `POST /api/v1/provision`  
+   ‑ body = draft DID + machine public key  
+   API signs DID, stores record, returns final DID.
+
+2. **Provision START / STOP**  
+   CLI → `PATCH /api/v1/provision/:id/state` `{ state: "running" | "off" }`  
+   API updates Dynamo + calls `sdk.did.update()`.
+
+3. **Wallet Linking**  
+   Dashboard ↔ `/api/v1/wallet/link`  
+   Signature‐based ownership proof → persist `walletAddress`.
+
+---
+
+## 5. CLI Enhancements (`cxmpute-provider`)
+
+* Add `peaq.ts` wrapper around `@peaq-network/sdk`.
+* Commands:
+  * `cxmpute provision register` – creates draft DID.
+  * `cxmpute provision start|stop` – state sync.
+  * `cxmpute wallet show` – prints provider wallet.
+* Machine private key stored in AES-encrypted keystore (`~/.cxmpute/.keys`).
+
+---
+
+## 6. API Route Stubs
+
+```
+POST   /api/v1/provision            → create + finalise DID
+PATCH  /api/v1/provision/:id/state  → update DID state
+POST   /api/v1/wallet/link          → link EVM wallet
 ```
 
-## Implementation Steps
+Handlers reside under `src/app/api/v1/provider/` and reuse the existing SST infrastructure.
 
-1. **Phase 1: DID Infrastructure**
-   - Implement DID creation in provider CLI
-   - Create backend DID management routes
-   - Set up DID storage and retrieval
+---
 
-2. **Phase 2: Wallet Linking**
-   - Add wallet components to dashboards
-   - Implement wallet connection flows
-   - Create wallet management routes
+## 7. Dashboard Updates
 
-3. **Phase 3: State Management**
-   - Implement provision state transitions
-   - Add DID state update logic
-   - Create state change verification
+* **LinkWalletButton** – MetaMask / WalletConnect integration, displays linked address.
+* Provider dashboard lists provisions with DID status chips.
+* User dashboard adds **Deposit CXPT** modal (stub until token launch).
 
-4. **Phase 4: Testing & Integration**
-   - Test DID creation and updates
-   - Verify wallet linking flows
-   - Validate state management
-   - End-to-end testing
+---
 
-## Security Considerations
+## 8. Environment & Feature Flags
 
-1. **DID Security**
-   - Secure storage of DID documents
-   - Proper signature verification
-   - Access control for DID updates
+* `CHAIN_STAGE` (`testnet` | `mainnet`) – controls RPC URLs & pricing.
+* `FEATURE_DID` – gate new flows until contracts are audited.
 
-2. **Wallet Security**
-   - Secure wallet connection process
-   - Private key protection
-   - Transaction signing security
+Admin switches flags via the existing `PricingConfigTable` UI.
 
-3. **State Management Security**
-   - Verify state change requests
-   - Prevent unauthorized updates
-   - Maintain audit trail
+---
 
-## Testing Plan
+## 9. Security Considerations
 
-1. **Unit Tests**
-   - DID creation and updates
-   - Wallet linking
-   - State transitions
+1. Backend never stores machine private keys.
+2. All DID updates are signed with the machine wallet.
+3. RPC credentials kept in AWS Secrets Manager.
+4. Rate-limit provision operations to prevent spam DIDs.
 
-2. **Integration Tests**
-   - End-to-end flows
-   - API route testing
-   - Database operations
+---
 
-3. **Security Tests**
-   - Access control
-   - Signature verification
-   - State change validation
-
-## Deployment Strategy
-
-1. **Staging Deployment**
-   - Deploy to testnet
-   - Verify DID creation
-   - Test wallet linking
-   - Validate state management
-
-2. **Production Deployment**
-   - Gradual rollout
-   - Monitor performance
-   - Collect feedback
-   - Address issues
-
-## Monitoring & Maintenance
-
-1. **Metrics to Track**
-   - DID creation success rate
-   - Wallet linking success rate
-   - State transition errors
-   - API response times
-
-2. **Maintenance Tasks**
-   - Regular DID verification
-   - Wallet address validation
-   - State consistency checks
-   - Performance optimization 
+End of file.

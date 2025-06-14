@@ -98,6 +98,8 @@ export interface ProvisionRecord {
   location?: Location;
   username?: string;      // Added: User's display name for this provision
   deviceName?: string;    // Added: User's nickname for this device
+  did?: string;           // Decentralised Identifier for this provision
+  didState?: "started" | "running" | "off";
 }
 
 export interface LLMProvisionRecord {

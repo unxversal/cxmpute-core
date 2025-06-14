@@ -7,6 +7,7 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   DeleteCommand,
+  PutCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
 import { 
@@ -87,9 +88,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid provider API key." }, { status: 401 });
     }
 
-    // 3. Remove the provision from all relevant pool tables
-    // If services are specified, we'll only remove from those pool tables
-    // Otherwise, remove from all possible pool tables
+    // 3. Update DID state to 'off' (best effort before removal)
+    try {
+      if ((provision as any).did) {
+        const { updateDidState } = await import("@/lib/peaq");
+        await updateDidState((provision as any).did as string, "off");
+        await docClient.send(new PutCommand({
+          TableName: Resource.ProvisionsTable.name,
+          Item: { ...provision, didState: "off" }
+        }));
+      }
+    } catch (peaqErr) {
+      console.error("Failed to update DID state:", peaqErr);
+    }
+
+    // 4. Remove the provision from all relevant pool tables
     const poolTables = [
       Resource.LLMProvisionPoolTable.name,
       Resource.EmbeddingsProvisionPoolTable.name,
@@ -118,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`Removed ${removedCount} services for provision ${provisionId}`);
 
-    // 4. Return success
+    // 5. Return success
     return NextResponse.json({ 
       success: true,
       message: `Successfully ended ${removedCount} services for provision ${provisionId}`
