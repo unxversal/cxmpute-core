@@ -18,6 +18,10 @@ export default $config({
     const providerRegistrationSecret = new sst.Secret("ProviderRegistrationSecret");
     const peaqRpcUrl = new sst.Secret("PeaqRpcUrl");
     const peaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");
+    const cxptAddress = new sst.Secret("CxptAddress");
+    const vaultAddress = new sst.Secret("CxptVaultAddress");
+    const rewardDistributorAddress = new sst.Secret("RewardDistributorAddress");
+    const communityVesterAddress = new sst.Secret("CommunityVesterAddress");
 
     // --- General Platform Tables & Resources ---
     // Provider Table
@@ -28,13 +32,15 @@ export default $config({
         apiKey: "string",
         referredBy: "string",
         referralCode: "string",
+        walletAddress: "string",
       },
       primaryIndex: { hashKey: "providerId" },
       globalIndexes: {
         ByApiKey: { hashKey: "apiKey" },
         ByEmail: { hashKey: "providerEmail" },
         ByReferredBy: { hashKey: "referredBy" },
-        ByReferralCode: { hashKey: "referralCode" }
+        ByReferralCode: { hashKey: "referralCode" },
+        ByWalletAddress: { hashKey: "walletAddress" }
       }
     });
 
@@ -122,13 +128,13 @@ export default $config({
     const userTable = new sst.aws.Dynamo("UserTable", {
       fields: {
         userId: "string",
-        userAk: "string",
         referredBy: "string",
         referralCode: "string",
+        walletAddress: "string",
       },
       primaryIndex: { hashKey: "userId" },
       globalIndexes: {
-        ByWalletAddress: { hashKey: "userAk" }, // Consider renaming GSI if userAk is not a wallet address
+        ByWalletAddress: { hashKey: "walletAddress" },
         ByReferredBy: { hashKey: "referredBy" },
         ByReferralCode: { hashKey: "referralCode" }
       }
@@ -262,6 +268,10 @@ export default $config({
         providerRegistrationSecret,
         peaqRpcUrl,
         peaqAdminPrivateKey,
+        cxptAddress,
+        vaultAddress,
+        rewardDistributorAddress,
+        communityVesterAddress,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });
