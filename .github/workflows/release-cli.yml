@@ -250,16 +250,24 @@ jobs:
           ls -la ${{ env.CLI_PATH }}/installers/linux/
           ls -la ${{ env.CLI_PATH }}/installers/windows/
           
+      - name: 📦 Prepare Release Files
+        run: |
+          mkdir -p release_files
+          cp ${{ env.CLI_PATH }}/installers/macos/install.sh release_files/macos-install.sh
+          cp ${{ env.CLI_PATH }}/installers/linux/install.sh release_files/linux-install.sh
+          cp ${{ env.CLI_PATH }}/installers/windows/install.ps1 release_files/windows-install.ps1
+          cp release_notes.md release_files/
+          
       - name: 🏷️ Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: 'Cxmpute Provider CLI ${{ steps.version.outputs.version }}'
-          body_path: release_notes.md
+          body_path: release_files/release_notes.md
           files: |
-            ${{ env.CLI_PATH }}/installers/macos/install.sh
-            ${{ env.CLI_PATH }}/installers/linux/install.sh
-            ${{ env.CLI_PATH }}/installers/windows/install.ps1
+            release_files/macos-install.sh
+            release_files/linux-install.sh
+            release_files/windows-install.ps1
           draft: false
           prerelease: false
           generate_release_notes: true
