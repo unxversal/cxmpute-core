@@ -217,6 +217,25 @@ jobs:
           - **Email**: support@cxmpute.cloud
           EOF
           
+      - name: 🔍 Verify Installer Files
+        run: |
+          echo "Checking installer files..."
+          INSTALLER_FILES=(
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/macos/install.sh"
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/linux/install.sh"
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/windows/install.ps1"
+          )
+          
+          for file in "${INSTALLER_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Error: File not found: $file"
+              exit 1
+            fi
+            echo "✅ Found: $file"
+          done
+          
+          echo "All installer files verified!"
+          
       - name: 🏷️ Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
