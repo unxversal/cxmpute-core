@@ -46,6 +46,14 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "PeaqAdminPrivateKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PeaqRpcUrl": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "PricingConfigTable": {
       "name": string
       "type": "sst.aws.Dynamo"

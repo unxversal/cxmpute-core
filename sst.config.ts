@@ -16,6 +16,8 @@ export default $config({
     // --- Define Secrets ---
     // Provider Registration Secret for CLI access control
     const providerRegistrationSecret = new sst.Secret("ProviderRegistrationSecret");
+    const peaqRpcUrl = new sst.Secret("PeaqRpcUrl");
+    const peaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");
 
     // --- General Platform Tables & Resources ---
     // Provider Table
@@ -258,6 +260,8 @@ export default $config({
         authEmail,
         // Secrets
         providerRegistrationSecret,
+        peaqRpcUrl,
+        peaqAdminPrivateKey,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });
