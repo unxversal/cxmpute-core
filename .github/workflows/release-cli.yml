@@ -154,42 +154,60 @@ jobs:
       - name: 📝 Generate Release Notes
         id: release_notes
         run: |
-          cat > release_notes.md << 'EOF'
+          cat > release_notes.md << EOF
           ## 🚀 Cxmpute Provider CLI ${{ steps.version.outputs.version }}
           
           Transform your computer into an AI compute provider and earn rewards! This CLI automatically handles hardware detection, service orchestration, and earnings tracking.
           
+          ### 📋 Prerequisites
+          
+          **macOS Users:**
+          - [Homebrew](https://brew.sh/) (for package management)
+          - Node.js 18.x (will be installed automatically if missing)
+          
+          **Linux Users:**
+          - Node.js 18.x (will be installed automatically if missing)
+          - One of these package managers:
+            - apt (Debian/Ubuntu)
+            - yum (RHEL/CentOS)
+            - dnf (Fedora)
+          
+          **Windows Users:**
+          - PowerShell 5.1 or later
+          - Node.js 18.x (will be installed automatically if missing)
+          - Administrator privileges
+          
           ### 📦 Installation
           
           **macOS Users:**
-          ```bash
+          \`\`\`bash
           # Option 1: Direct install
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/macos/install.sh | sudo bash
           
           # Option 2: Homebrew (coming soon)
           brew install cxmpute-provider
-          ```
+          \`\`\`
           
           **Linux Users:**
-          ```bash
+          \`\`\`bash
           # Direct install
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/linux/install.sh | sudo bash
-          ```
+          \`\`\`
           
           **Windows Users:**
-          ```powershell
+          \`\`\`powershell
           # Run in PowerShell as Administrator
           Set-ExecutionPolicy Bypass -Scope Process -Force
           [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
           iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/windows/install.ps1'))
-          ```
+          \`\`\`
           
           ### ⚡ Quick Start
           
           After installation, you can run the CLI from anywhere:
-          ```bash
+          \`\`\`bash
           cxmpute-provider
-          ```
+          \`\`\`
           
           ### 🆕 What's New
           

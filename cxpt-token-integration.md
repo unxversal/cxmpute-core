@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the technical implementation plan for integrating the CXPT token into the Cxmpute platform. The integration spans smart contracts, backend services, and frontend components.
+This document outlines the technical implementation plan for integrating the CXPT token into the Cxmpute platform. The integration spans smart contracts, backend services, and frontend components, with a focus on centralized administration and credit management.
 
 ## Smart Contracts
 
@@ -38,27 +38,42 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract CXPTVault is Ownable {
     IERC20 public cxptToken;
     
-    struct RewardPool {
-        uint256 protocolAmount;
-        uint256 providerAmount;
-        uint256 userAmount;
+    struct CreditTracking {
+        uint256 loadedCredits;    // Total credits deposited
+        uint256 spentCredits;     // Credits consumed
+        uint256 protocolBalance;  // Admin-determined protocol share
     }
     
-    RewardPool public rewardPool;
+    struct RewardPool {
+        uint256 providerRewards;  // Available for provider distribution
+        uint256 platformOps;      // Platform operations fund
+    }
+    
+    CreditTracking public credits;
+    RewardPool public rewards;
     
     constructor(address _cxptToken) {
         cxptToken = IERC20(_cxptToken);
     }
     
-    function depositFees(uint256 amount) external {
+    function depositCredits(uint256 amount) external {
         require(cxptToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        credits.loadedCredits += amount;
+    }
+    
+    function spendCredits(uint256 amount) external onlyOwner {
+        require(credits.loadedCredits >= amount, "Insufficient credits");
+        credits.loadedCredits -= amount;
+        credits.spentCredits += amount;
+    }
+    
+    function updateProtocolBalance(uint256 amount) external onlyOwner {
+        credits.protocolBalance = amount;
     }
     
     function distributeRewards(
         address[] calldata providers,
-        uint256[] calldata providerAmounts,
-        address[] calldata users,
-        uint256[] calldata userAmounts
+        uint256[] calldata providerAmounts
     ) external onlyOwner {
         // Distribution logic
     }
@@ -76,6 +91,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SubscriptionManager is Ownable {
     IERC20 public cxptToken;
+    address public vault;
     
     struct Subscription {
         uint256 amount;
@@ -87,6 +103,7 @@ contract SubscriptionManager is Ownable {
     mapping(address => Subscription) public subscriptions;
     
     function subscribe(uint256 amount, uint256 duration) external {
+        require(cxptToken.transferFrom(msg.sender, vault, amount), "Transfer failed");
         // Subscription logic
     }
 }
@@ -106,8 +123,8 @@ ALTER TABLE users ADD COLUMN subscription_end TIMESTAMP;
 ALTER TABLE providers ADD COLUMN cxpt_balance DECIMAL(20,8);
 ALTER TABLE providers ADD COLUMN total_earnings DECIMAL(20,8);
 
--- Token Transactions
-CREATE TABLE token_transactions (
+-- Credit Tracking
+CREATE TABLE credit_transactions (
     id UUID PRIMARY KEY,
     user_id UUID REFERENCES users(id),
     provider_id UUID REFERENCES providers(id),
@@ -115,6 +132,15 @@ CREATE TABLE token_transactions (
     type VARCHAR(20),
     status VARCHAR(20),
     created_at TIMESTAMP
+);
+
+-- Vault Tracking
+CREATE TABLE vault_balances (
+    id UUID PRIMARY KEY,
+    loaded_credits DECIMAL(20,8),
+    spent_credits DECIMAL(20,8),
+    protocol_balance DECIMAL(20,8),
+    updated_at TIMESTAMP
 );
 ```
 
@@ -131,9 +157,10 @@ POST /api/v1/subscriptions/create
 POST /api/v1/subscriptions/cancel
 GET /api/v1/subscriptions/status
 
-// Reward Management
-POST /api/v1/rewards/claim
-GET /api/v1/rewards/available
+// Admin Routes
+POST /api/v1/admin/vault/update-balance
+POST /api/v1/admin/vault/distribute-rewards
+GET /api/v1/admin/vault/status
 ```
 
 ### 3. Service Layer
@@ -146,18 +173,18 @@ class TokenService {
     async getBalance(userId: string): Promise<number>
 }
 
+// VaultService
+class VaultService {
+    async updateCreditTracking(amount: number, type: string): Promise<void>
+    async getVaultStatus(): Promise<VaultStatus>
+    async distributeRewards(providerId: string, amount: number): Promise<void>
+}
+
 // SubscriptionService
 class SubscriptionService {
     async createSubscription(userId: string, plan: string): Promise<void>
     async cancelSubscription(userId: string): Promise<void>
     async getSubscriptionStatus(userId: string): Promise<SubscriptionStatus>
-}
-
-// RewardService
-class RewardService {
-    async calculateRewards(providerId: string): Promise<number>
-    async distributeRewards(providerId: string): Promise<void>
-    async claimRewards(userId: string): Promise<void>
 }
 ```
 
@@ -179,30 +206,23 @@ const SubscriptionManager: React.FC = () => {
     // Plan selection
     // Payment processing
 }
-
-// RewardClaim.tsx
-const RewardClaim: React.FC = () => {
-    // Available rewards
-    // Claim button
-    // Reward history
-}
 ```
 
-### 2. Provider Dashboard Components
+### 2. Admin Dashboard Components
 
 ```typescript
-// ProviderEarnings.tsx
-const ProviderEarnings: React.FC = () => {
-    // Current earnings
-    // Performance metrics
+// VaultManager.tsx
+const VaultManager: React.FC = () => {
+    // Credit tracking
     // Reward distribution
+    // Protocol balance
 }
 
-// TokenManagement.tsx
-const TokenManagement: React.FC = () => {
-    // Token balance
-    // Withdrawal options
-    // Transaction history
+// ProviderRewards.tsx
+const ProviderRewards: React.FC = () => {
+    // Provider earnings
+    // Reward distribution
+    // Performance metrics
 }
 ```
 
@@ -230,14 +250,14 @@ const TokenManagement: React.FC = () => {
    - Token balance
    - Available providers
 3. Allocates resources
-4. Processes payment
+4. Processes payment to vault
 
 ### 4. Reward Distribution
 
 1. Track provider performance
 2. Calculate rewards
-3. Update provider balances
-4. Process distributions
+3. Admin approves distribution
+4. Process distributions from vault
 
 ## Testing Strategy
 
@@ -251,9 +271,9 @@ describe("CXPTToken", () => {
 })
 
 describe("Vault", () => {
-    it("should deposit fees")
+    it("should track credits correctly")
     it("should distribute rewards")
-    it("should track balances")
+    it("should maintain protocol balance")
 })
 ```
 
@@ -266,10 +286,10 @@ describe("Token Integration", () => {
     it("should manage subscriptions")
 })
 
-describe("Reward System", () => {
-    it("should calculate rewards")
+describe("Vault System", () => {
+    it("should track credit flow")
     it("should distribute rewards")
-    it("should process claims")
+    it("should maintain balances")
 })
 ```
 
@@ -300,7 +320,7 @@ describe("Reward System", () => {
 
 ### 1. Key Metrics
 
-- Token transactions
+- Credit transactions
 - Subscription conversions
 - Reward distributions
 - System performance
