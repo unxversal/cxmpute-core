@@ -182,16 +182,63 @@ Admin retains control only at configuration points (split ratios, Merkle root pu
 
 ---
 
-## 12. Current Testnet Addresses (Agung)
+## 12. Agung Testnet Addresses (June 2025)
+
+These contracts were deployed from commit `[main @ a1b2c3d]` and configured with a 2-of-4 multisig.
 
 ```
-CXPTToken        0xf19C0e1Fef0bAe2be417df5Fbd9442e84f156380
-RewardDistributor 0xcE45522442E11669ac2a1Fb7c98fbc6c9D726470
-Vault             0x38482E24f9Ecf3432C998CA0c3e5645C4f3b4710
-CommunityVester   0xC308D136c322C94a118d4E1283610D7741C5203e
+CXPTToken:               0x986620C895Bd55FBE5C44B88ED1C1FFD685aAC86
+MultisigControl:         0xB19C14cFEFE2F4B3d59D6DC1e55fd53c5764760E
+RewardDistributor:       0xa7c256f549ff4f2B16Bf640AD5D27CC131232965
+Vault:                   0x0332e37897280AB95412C8f06b1DDC5f2B8CC476
+CommunityVester:         0xA8Ec5B8ff742ED885775aDAf14854AfbaAF203C3
+SubscriptionManager:     0x2Ed1C879531901F31B60CF0caA9AcfdbCcfdD53F
 ```
 
-Ensure these are injected via SST secrets (`CXPT_ADDR`, `VAULT_ADDR`, etc.) for the testnet stage.
+Ensure these are set as fallback values for the corresponding SST secrets.
+
+---
+
+## 13. User Payment & Subscription Flows
+
+### PAYG Deposit Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Browser
+    participant Vault
+    participant API
+    participant UserTable
+
+    User->>Browser: Enters 100 CXPT, clicks "Deposit"
+    Browser->>User: Opens wallet (e.g., MetaMask) to sign transaction
+    User->>Vault: Signs & sends 100 CXPT via `transfer()`
+    Vault-->>Browser: Transaction receipt (txHash)
+    Browser->>API: POST /api/v1/pay/deposit <br/> { userId, txHash, amount }
+    API->>UserTable: Records deposit for audit trail
+    API-->>Browser: { "ok": true }
+    Browser->>User: Shows "Deposit Confirmed"
+```
+
+### Subscription Purchase Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Browser
+    participant SubscriptionManager
+    participant API
+    participant SubscriptionsTable
+
+    User->>Browser: Selects Plan #2, clicks "Purchase"
+    Browser->>API: POST /api/v1/pay/subscription <br/> { userId, planId: 2 }
+    API->>SubscriptionManager: `activatePlan(userAddress, 2)` <br/> (signed by PeaqAdminKey)
+    SubscriptionManager-->>API: Mints NFT, returns receipt
+    API->>SubscriptionsTable: Stores { userId, planId, tokenId, expiresAt }
+    API-->>Browser: { "ok": true, txHash, tokenId }
+    Browser->>User: Shows "Subscription Active!"
+```
 
 ---
 

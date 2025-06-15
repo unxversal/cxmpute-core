@@ -1,4 +1,24 @@
+"use client";
 import React, { useState } from "react";
+import { parseUnits } from "viem";
+import { useAccount, useWriteContract } from "wagmi";
+import toast from "react-hot-toast";
+import { Resource } from "sst";
+
+import { type Abi } from "viem";
+
+const ERC20_ABI: Abi = [
+  {
+    type: "function",
+    name: "transfer",
+    inputs: [
+      { name: "to", type: "address", internalType: "address" },
+      { name: "amount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+] as const;
 
 interface Props { onClose: () => void }
 
@@ -8,24 +28,29 @@ export const DepositTokensModal: React.FC<Props> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
   async function submit() {
-    // NB: In real flow, wallet interaction would send CXPT to Vault.
-    // Here we only mimic off-chain log entry.
+    if (!address) return toast.error("Connect wallet");
     setLoading(true);
-    setMsg(null);
     try {
-      const fakeTx = "0x" + Math.random().toString(16).slice(2);
-      const res = await fetch("/api/v1/pay/deposit", {
+      const hash = await writeContractAsync({
+        abi: ERC20_ABI,
+        address: process.env.NEXT_PUBLIC_CXPT_ADDRESS as `0x${string}`,
+        functionName: "transfer",
+        args: [process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`, parseUnits(amount.toString(), 18)],
+      });
+      toast.success("Tx sent " + hash.slice(0, 10) + "…");
+
+      await fetch("/api/v1/pay/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "self", txHash: fakeTx, amount: amount.toString() }),
+        body: JSON.stringify({ userId: "self", txHash: hash, amount: amount.toString() }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "failed");
-      setTxHash(fakeTx);
-      setMsg("Deposit recorded");
+      setTxHash(hash);
     } catch (e: any) {
-      setMsg(e.message);
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
