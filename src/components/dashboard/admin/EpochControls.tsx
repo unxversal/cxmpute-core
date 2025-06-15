@@ -60,20 +60,36 @@ export const EpochControls: React.FC = () => {
   return (
     <div style={{ border: "1px solid #ccc", padding: 16, borderRadius: 8 }}>
       <h3>Epoch Controls</h3>
-      <button
-        disabled={!!loadingAction}
-        onClick={() => trigger("/api/admin/rewards/rollover", "Rollover")}
-        style={{ marginRight: 8 }}
-      >
-        {loadingAction === "Rollover" ? "Publishing..." : "Build & Publish Root"}
-      </button>
-      <button
-        disabled={!!loadingAction}
-        onClick={() => trigger("/api/admin/vault/sweep", "Sweep")}
-      >
-        {loadingAction === "Sweep" ? "Sweeping..." : "Sweep Vault"}
-      </button>
-      {message && <p style={{ marginTop: 8 }}>{message}</p>}
+      <p style={{ marginTop: 0, marginBottom: 16, fontSize: 14, color: '#666' }}>
+        Manage the end-of-epoch processes for reward distribution.
+      </p>
+      
+      <div style={{ marginBottom: 16 }}>
+        <button
+          disabled={!!loadingAction}
+          onClick={() => trigger("/api/admin/rewards/rollover", "Rollover")}
+          style={{ marginRight: 8 }}
+        >
+          {loadingAction === "Rollover" ? "Publishing..." : "Build & Publish Root"}
+        </button>
+        <p style={{ marginTop: 4, fontSize: 12, color: '#666' }}>
+          Calculates provider rewards for the epoch, builds a Merkle tree, and publishes the root on-chain.
+        </p>
+      </div>
+
+      <div>
+        <button
+          disabled={!!loadingAction}
+          onClick={() => trigger("/api/admin/vault/sweep", "Sweep")}
+        >
+          {loadingAction === "Sweep" ? "Sweeping..." : "Sweep Vault"}
+        </button>
+        <p style={{ marginTop: 4, fontSize: 12, color: '#666' }}>
+          Transfers the total rewards from the main vault to the distribution contract for user claims.
+        </p>
+      </div>
+
+      {message && <p style={{ marginTop: 16 }}>{message}</p>}
       {pendingTx && (
         <p style={{ marginTop: 4 }}>
           <a href={`https://explorer.agung.peaq.network/tx/${pendingTx}`} target="_blank" rel="noopener noreferrer">
@@ -82,6 +98,17 @@ export const EpochControls: React.FC = () => {
           {confirmed && <span style={{ color: "green", marginLeft: 6 }}>✓</span>}
         </p>
       )}
+
+      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #eee' }}>
+        <h4>What does this all mean?</h4>
+        <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6 }}>
+          <p><strong>Epoch:</strong> An "epoch" is a specific period of time in your system. For example, an epoch could be a day or a week. At the end of each epoch, certain automated processes are run, like calculating rewards for users.</p>
+          <p><strong>Merkle Root:</strong> A Merkle root is a cryptographic way to securely and efficiently verify large amounts of data. In your case, it's likely that at the end of an epoch, you calculate rewards for all eligible users. A Merkle tree is built from this reward data, and the "Merkle root" is a single, unique hash that represents the entire set of rewards. This root is then stored on a smart contract.</p>
+          <p><strong>Build & Publish Root:</strong> This is the process of taking the epoch's data (like user rewards), building the Merkle tree, and publishing its root to the blockchain. Once the root is published, it serves as a commitment to the data. Users can then prove they are entitled to a reward using a "Merkle proof" without needing to store all the reward data on-chain, which saves a lot of gas fees.</p>
+          <p><strong>Sweep Vault:</strong> A "vault" is typically a smart contract that holds funds. "Sweeping the vault" is the action of transferring those funds. In this context, it likely means transferring the total rewards for an epoch from a treasury vault to a distribution contract, from which users can claim their individual rewards using their Merkle proofs.</p>
+          <p><strong>Epoch Mgmt / Epoch Controls:</strong> This is the section of your admin dashboard that provides the interface for an administrator to trigger and manage these epoch-related processes, like building the Merkle root and sweeping the vault.</p>
+        </div>
+      </div>
     </div>
   );
 };
