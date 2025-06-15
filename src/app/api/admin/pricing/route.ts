@@ -5,104 +5,39 @@ import { DynamoDBDocumentClient, PutCommand, ScanCommand } from '@aws-sdk/lib-dy
 import { requireAdmin } from '@/lib/auth';
 
 const dynamodb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const TABLE = Resource.PricingConfigTable.name;
 
 // GET - Fetch current pricing configuration
 export async function GET() {
-  try {
-    await requireAdmin();
-
-    const scanCommand = new ScanCommand({
-      TableName: Resource.PricingConfigTable.name
-    });
-
-    const result = await dynamodb.send(scanCommand);
-
-    // Sort by endpoint and model
-    const configs = (result.Items || []).sort((a, b) => {
-      if (a.endpoint !== b.endpoint) {
-        return a.endpoint.localeCompare(b.endpoint);
-      }
-      return (a.model || '').localeCompare(b.model || '');
-    });
-
-    return NextResponse.json({
-      configs,
-      count: configs.length,
-      isInitialized: configs.length > 0
-    });
-
-  } catch (error) {
-    console.error('Error fetching pricing config:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  await requireAdmin();
+  const res = await dynamodb.send(new ScanCommand({ TableName: TABLE }));
+  return NextResponse.json({ items: res.Items ?? [] });
 }
 
 // POST - Update or create pricing configuration
-export async function POST(request: NextRequest) {
-  try {
-    const admin = await requireAdmin();
-    
-    const { endpoint, model, basePrice, markup, currency, unit, adminId } = await request.json();
-    
-    if (!endpoint || basePrice === undefined || markup === undefined || !currency || !unit || !adminId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Validate values
-    if (basePrice < 0 || markup < 0) {
-      return NextResponse.json(
-        { error: 'Prices and markup must be non-negative' },
-        { status: 400 }
-      );
-    }
-
-    const configId = `${endpoint}${model ? `#${model}` : ''}`;
-    const now = new Date().toISOString();
-    
-    // Calculate final price
-    const finalPrice = basePrice * (1 + markup / 100);
-
-    const config = {
-      configId,
-      endpoint,
-      model: model || null,
-      basePrice: Number(basePrice),
-      markup: Number(markup),
-      finalPrice: Number(finalPrice.toFixed(6)),
-      currency,
-      unit,
-      updatedDate: now,
-      updatedBy: adminId
-    };
-
-    const putCommand = new PutCommand({
-      TableName: Resource.PricingConfigTable.name,
-      Item: config
-    });
-
-    await dynamodb.send(putCommand);
-
-    console.log(`Admin ${admin.properties.email} updated pricing for ${endpoint}${model ? ` (${model})` : ''}`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Pricing configuration updated successfully',
-      config
-    });
-
-  } catch (error) {
-    console.error('Error updating pricing config:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+export async function POST(req: NextRequest) {
+  await requireAdmin();
+  const body = await req.json();
+  const { configId, endpoint, model, basePrice, unit, currency, markup } = body || {};
+  if (!configId || !endpoint || basePrice === undefined || !unit || !currency) {
+    return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
+  await dynamodb.send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: {
+        configId,
+        endpoint,
+        model,
+        basePrice,
+        unit,
+        currency,
+        markup: markup ?? 0,
+        lastUpdated: new Date().toISOString(),
+      },
+    })
+  );
+  return NextResponse.json({ success: true });
 }
 
 // PUT - Initialize default pricing for all endpoints

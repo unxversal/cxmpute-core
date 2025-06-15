@@ -22,6 +22,7 @@ export default $config({
     const vaultAddress = new sst.Secret("CxptVaultAddress");
     const rewardDistributorAddress = new sst.Secret("RewardDistributorAddress");
     const communityVesterAddress = new sst.Secret("CommunityVesterAddress");
+    const MerkleUpdaterKey = new sst.Secret("MerkleUpdaterKey");
 
     // --- General Platform Tables & Resources ---
     // Provider Table
@@ -272,6 +273,7 @@ export default $config({
         vaultAddress,
         rewardDistributorAddress,
         communityVesterAddress,
+        MerkleUpdaterKey,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });
