@@ -20,7 +20,7 @@ contract RewardDistributor is Ownable {
     event MerkleRootUpdated(bytes32 root);
     event Claimed(address indexed account, uint256 amount);
 
-    constructor(address _token) Ownable(msg.sender) {
+    constructor(address _token, address initialOwner) Ownable(initialOwner) {
         token = CXPTToken(_token);
     }
 
@@ -58,5 +58,18 @@ contract RewardDistributor is Ownable {
     /// @param vault The address of the Vault contract to sweep.
     function sweepVault(address vault) external onlyOwner {
         IVault(vault).sweep();
+    }
+
+    /// ---------------------------------------------------------------------
+    /// Treasury / Protocol fee withdrawal
+    /// ---------------------------------------------------------------------
+
+    /// @notice Withdraw protocol fees accumulated in the distributor to a
+    ///         recipient address. Callable only by the owner (Multisig).
+    /// @param recipient Address to receive the funds
+    /// @param amount    Amount of CXPT tokens to withdraw
+    function withdrawProtocolFees(address recipient, uint256 amount) external onlyOwner {
+        require(recipient != address(0), "recipient zero");
+        token.transfer(recipient, amount);
     }
 } 

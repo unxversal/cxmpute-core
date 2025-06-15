@@ -16,6 +16,8 @@ import { KeyRound, BarChart3, Copy, Gift, Zap, Activity, Settings, HelpCircle, F
 import SkeletonLoader from '@/components/ui/SkeletonLoader/SkeletonLoader'; // Keep for loading state (should be light-themed)
 import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 import LinkWalletButton from '@/components/ui/LinkWalletButton/LinkWalletButton';
+import DepositTokensModal from '@/components/dashboard/user/DepositTokensModal';
+import SubscriptionPurchaseModal from '@/components/dashboard/user/SubscriptionPurchaseModal';
 
 // Define the structure of the subject properties this component expects
 interface UserDashboardProps {
@@ -48,6 +50,10 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
   const [currentUserAk, setCurrentUserAk] = useState<string | null>(subject.userAk);
 
   const [isVirtualKeysModalOpen, setIsVirtualKeysModalOpen] = useState(false);
+
+  // New modals
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showSubscribe, setShowSubscribe] = useState(false);
 
   const fetchUserSummaryData = useCallback(async () => {
     if (!subject.id) return;
@@ -177,7 +183,8 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
               {isLoadingSummary ? <SkeletonLoader width={100} height={40} /> : 
                 <h1 className={styles.creditsNumber}>{userSummary?.credits.toLocaleString() || '0'}</h1>
               }
-              <DashboardButton variant="accentYellow" text="Load Credits (Coming Soon)" disabled/>
+              <DashboardButton variant="accentYellow" text="Deposit CXPT" onClick={() => setShowDeposit(true)} />
+              <DashboardButton variant="accentPurple" text="Buy Subscription" onClick={() => setShowSubscribe(true)} style={{ marginLeft: 8 }} />
             </div>
           </div>
         </div>
@@ -260,6 +267,9 @@ const UserDashboardContent: React.FC<UserDashboardProps> = ({ subject }) => {
           userId={subject.id}
         />
       )}
+
+      {showDeposit && <DepositTokensModal onClose={() => setShowDeposit(false)} />}
+      {showSubscribe && <SubscriptionPurchaseModal onClose={() => setShowSubscribe(false)} />}
     </div>
   );
 };
