@@ -20,14 +20,14 @@ A full code review confirms the following gaps. This sprint will address a criti
 
 | Area | Gap / Stray TODO | Status in this Sprint |
 |------|------------------|------------------------|
-| Contracts | `SubscriptionManager` contract is missing. `RewardDistributor`'s ownership model needs to be set for secure treasury withdrawals. | ✅ **Will be implemented** |
+| Contracts | `SubscriptionManager` and a custom `MultisigControl` contract are missing. | ✅ **Will be implemented** |
 | Pricing Model | The pricing stored in DynamoDB is a flat rate, not the tiered model from the docs. | ✅ **Will be implemented** |
-| Treasury Mgmt | No secure, on-chain mechanism exists for the admin multisig to withdraw protocol fees from the `RewardDistributor`. | ✅ **Will be implemented (via On-Chain Safe)** |
+| Treasury Mgmt | No secure, on-chain mechanism exists for the admin multisig to withdraw protocol fees from the `RewardDistributor`. | ✅ **Will be implemented (via Custom Multisig)** |
 | Subscriptions | The `/api/pay/subscription` endpoint and associated logic are missing entirely. | ✅ **Will be implemented** |
-| DynamoDB | `ProviderPointsTable` and `SubscriptionsTable` are not defined in SST config. | ✅ **Will be implemented** |
+| DynamoDB | `ProviderPointsTable`, `SubscriptionsTable`, and `MultisigProposalsTable` are not defined in SST config. | ✅ **Will be implemented** |
 | Metadata | The epoch rollover endpoint has a `// TODO` for persisting the Merkle root to the `MetadataTable`. | ✅ **Will be implemented** |
 | Deposits | No PAYG `deposit` endpoint exists. Users cannot top up their CXPT balance. | ✅ **Will be implemented** |
-| Dashboard | No UI for new admin actions (epoch/pricing) or user actions (deposit/subscribe). Treasury UI will link to Gnosis Safe. | ✅ **Will be implemented** |
+| Dashboard | No UI for new admin actions (epoch/pricing/multisig) or user actions (deposit/subscribe). | ✅ **Will be implemented** |
 | Secrets | Signer private keys are loaded from SST `Resource` values, not secure secrets. | ✅ **Will be implemented** |
 | Automation | The daily rewards calculation is a manual API call. | ✅ **Will be implemented (as a disabled cron)** |
 | Docs | Integration documents are out of sync with recent contract changes and new features. | ✅ **Will be implemented** |
@@ -41,32 +41,26 @@ This sprint focuses on creating a complete, end-to-end, and secure workflow for 
 ## 4 · Execution Order (Bottom-Up Implementation)
 This checklist will be followed precisely to ensure dependencies are resolved before they are needed.
 
-### Step 1: On-Chain Setup & Smart Contracts
-*   **Action A (Manual Prerequisite)**: Create the On-Chain Treasury (Gnosis Safe).
-*   **File**: N/A (Manual process using web interface).
-*   **Details**: Before deploying contracts, the core admin team must create a Gnosis Safe wallet which will serve as the secure, multisignature treasury.
-    1.  **Navigate** to the [Safe{Wallet} web app](https://app.safe.global/).
-    2.  **Connect** a primary admin's wallet (e.g., MetaMask) to the desired Peaq network (start with Agung testnet).
-    3.  **Follow the UI** to "Create a new Safe". Add the wallet addresses of the other core admins as co-signers. A 2-of-3 or 3-of-5 signature policy is recommended for security.
-    4.  **Deploy & Record**: Complete the creation process. Securely record the on-chain address of the newly created Safe (e.g., `0x123...`). This address is required for the next step.
+### Step 1: Smart Contracts
+*   **Action A**: Create a `MultisigControl` contract.
+*   **File**: `contracts/contracts/MultisigControl.sol` (new file)
+*   **Details**: This contract will be the secure owner of the `RewardDistributor`. It will feature:
+    *   A list of owner addresses (the admins) and a signature threshold (e.g., 2-of-3).
+    *   A mechanism to propose, approve, and execute transactions, such as calling `withdrawProtocolFees` on the `RewardDistributor`.
 
-*   **Action B**: Modify the `RewardDistributor` to accept a designated owner at deployment.
-*   **File**: `contracts/contracts/RewardDistributor.sol`
-*   **Details**: Change the constructor from `constructor(address _token) Ownable(msg.sender)` to `constructor(address _token, address initialOwner) Ownable(initialOwner)`. This allows the deployer to create the contract while immediately and irrevocably setting the Gnosis Safe as the sole owner.
-
-*   **Action C**: Create the `SubscriptionManager` contract.
+*   **Action B**: Create the `SubscriptionManager` contract.
 *   **File**: `contracts/contracts/SubscriptionManager.sol` (new file)
-*   **Details**: A simple NFT-based contract where `activatePlan(user, planId)` mints an NFT representing the subscription. Its owner can be the `PeaqAdminPrivateKey` for operational control.
+*   **Details**: An NFT-based contract where `activatePlan(user, planId)` mints a subscription pass. Its owner can be the `PeaqAdminPrivateKey` for operational control.
 
-*   **Action D**: Add treasury withdrawal capability to `RewardDistributor`.
+*   **Action C**: Add treasury withdrawal capability to `RewardDistributor`.
 *   **File**: `contracts/contracts/RewardDistributor.sol`
-*   **Details**: Implement `function withdrawProtocolFees(address recipient, uint256 amount) external onlyOwner`. Since the `owner` is the Gnosis Safe, only a successful multisig proposal can execute this function.
+*   **Details**: Implement `function withdrawProtocolFees(address recipient, uint256 amount) external onlyOwner`. The `owner` will be the address of our new `MultisigControl` contract.
 
-*   **Action E**: Deploy and configure new contracts.
+*   **Action D**: Deploy and configure new contracts.
 *   **Details**:
-    1.  The Gnosis Safe address from Action A will be provided as an environment variable to the Hardhat deployment script.
-    2.  The script will be updated to read this address and pass it into the new `RewardDistributor` constructor during deployment.
-    3.  The script will deploy all contracts, and the new addresses will be updated in the backend via the `/admin/contracts` endpoint.
+    1.  The Hardhat deployment script will be updated to first deploy `MultisigControl`, passing in the admin wallet addresses.
+    2.  It will then deploy `RewardDistributor`, passing the `MultisigControl` contract's address into its constructor as the `initialOwner`.
+    3.  All new contract addresses will be updated in the backend via the `/admin/contracts` endpoint.
 
 ### Step 2: Data Layer (`sst.config.ts`)
 *   **Action A**: Define new DynamoDB tables.
@@ -74,6 +68,7 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 *   **Details**:
     *   `ProviderPointsTable`: PK `providerId`.
     *   `SubscriptionsTable`: PK `userId`. Stores active plan info.
+    *   `MultisigProposalsTable`: PK `proposalId`. Mirrors on-chain proposals for the dashboard UI.
 
 *   **Action B**: Overhaul the pricing configuration.
 *   **File**: `src/app/api/admin/pricing/route.ts`
@@ -83,7 +78,7 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 *   **Action**: Consolidate to a single admin private key for operational tasks and move it to secure storage.
 *   **Files**: `sst.config.ts`, all transaction-sending routes.
 *   **Details**:
-    1.  Define a single secret: `const PeaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");`. This key is for operational duties (publishing Merkle roots, minting subscriptions) and is **NOT** a treasury owner.
+    1.  Define a single secret: `const PeaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");`. This key is for operational duties (publishing Merkle roots, minting subscriptions) and is **NOT** a multisig signer.
     2.  Link this secret to all relevant functions.
     3.  Use `new ethers.Wallet(Resource.PeaqAdminPrivateKey.value, provider);` to create the signer instance in all transaction-sending routes.
 
@@ -92,9 +87,13 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 *   **File**: `src/app/api/admin/rewards/rollover/route.ts`
 *   **Details**: Use `Resource.ProviderPointsTable.name` and add a `PutCommand` to `MetadataTable` to record the Merkle root publication.
 
-*   **Action B**: Implement User Deposit & Subscription Endpoints.
+*   **Action B**: Implement Multisig Proposal API.
+*   **File**: New routes under `/api/admin/multisig/`.
+*   **Details**: A `GET` endpoint to list proposals from `MultisigProposalsTable` and a `POST` endpoint for an admin to create a new proposal record in the table. The actual on-chain signing (`approve`, `execute`) will be handled client-side.
+
+*   **Action C**: Implement User Deposit & Subscription Endpoints.
 *   **Files**: `/api/v1/pay/deposit/route.ts` and `/api/v1/pay/subscription/route.ts`
-*   **Details**: These endpoints will primarily serve to update off-chain caches (`UserTable`, `SubscriptionsTable`) after the user completes the required on-chain transactions (`approve`, `deposit`) from the client-side. The subscription route will also use the `PeaqAdminPrivateKey` to mint the subscription NFT via the `SubscriptionManager`.
+*   **Details**: These endpoints will primarily serve to update off-chain caches (`UserTable`, `SubscriptionsTable`) after the user completes the required on-chain transactions from the client-side. The subscription route will also use the `PeaqAdminPrivateKey` to mint the subscription NFT via the `SubscriptionManager`.
 
 ### Step 5: Automation (Optional Cron Job)
 *   **Action**: Define a disabled cron job for future automation.
@@ -106,7 +105,7 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 *   **Files**: New React components in `src/components/dashboard/admin/`.
 *   **Details**:
     *   `EpochControls.tsx`: Buttons for "Build & Publish Root" and "Sweep Vault".
-    *   `TreasuryControls.tsx`: A simple component that displays the protocol's balance in the `RewardDistributor` and provides a direct link to the Gnosis Safe UI for initiating withdrawals.
+    *   `TreasuryControls.tsx`: A UI to interact with the `MultisigControl` contract. It will allow admins to create proposals (e.g., withdraw fees), see pending proposals, and use their connected wallets to sign/approve and execute them.
     *   `PricingManager.tsx`: A UI to manage tiered pricing and subscription plans.
 
 *   **Action B**: Build User payment modals.
@@ -115,16 +114,15 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 ### Step 7: Documentation
 *   **Action**: Update all relevant markdown documents.
 *   **Files**: `cxpt-token-integration.md`, `cxpt-tokenomics.md`.
-*   **Details**: Ensure all new contracts, endpoints, and flows (subscriptions, on-chain Safe for treasury) are documented accurately.
+*   **Details**: Ensure all new contracts (including `MultisigControl`), endpoints, and flows are documented accurately.
 
 ---
 ## 5 · Deliverables Checklist
-- [ ] On-chain Gnosis Safe has been created and its address is available.
-- [ ] `RewardDistributor` constructor is updated to accept an `initialOwner`.
-- [ ] `SubscriptionManager` contract created.
-- [ ] `ProviderPointsTable` and `SubscriptionsTable` are defined and used.
+- [ ] `MultisigControl` and `SubscriptionManager` contracts are created and deployed.
+- [ ] `RewardDistributor` is owned by the `MultisigControl` contract.
+- [ ] All new DynamoDB tables are defined and used correctly.
 - [ ] Pricing logic and storage fully match documentation.
-- [ ] Admin dashboard links out to Gnosis Safe for secure, on-chain treasury withdrawals.
+- [ ] Admin dashboard includes a functional UI for the custom multisig wallet.
 - [ ] Subscription purchase endpoint and UI are functional.
 - [ ] PAYG deposit endpoint and modal are functional.
 - [ ] The single admin private key for operational tasks is migrated to SST Secrets.

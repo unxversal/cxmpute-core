@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
 import { ethers } from "ethers";
 import { requireAdmin } from "@/lib/auth";
@@ -12,8 +12,8 @@ export async function POST(_req: NextRequest) {
   await requireAdmin();
 
   // 1. gather point totals from Dynamo (placeholder table & fields)
-  const table = "ProviderPointsTable"; // TODO: replace with actual table when defined
-  const scan = await ddb.send(new ScanCommand({ TableName: table }));
+  // @ts-ignore – ProviderPointsTable is defined in sst.config but typings may be out of date
+  const scan = await ddb.send(new ScanCommand({ TableName: Resource.ProviderPointsTable.name }));
   const items: any[] = scan.Items ?? [];
   if (items.length === 0) {
     return NextResponse.json({ error: "no points data" }, { status: 400 });
@@ -33,8 +33,16 @@ export async function POST(_req: NextRequest) {
     const tx = await rd.updateMerkleRoot(root);
     await tx.wait();
 
-    // store metadata
-    await ddb.send(new ScanCommand({ TableName: Resource.MetadataTable.name })); // placeholder, could PutCommand
+    // Persist merkle root metadata (append entry keyed by endpoint+timestamp)
+    await ddb.send(new PutCommand({
+      TableName: Resource.MetadataTable.name,
+      Item: {
+        endpoint: "rewardsMerkleRoot",
+        dayTimestamp: Date.now().toString(),
+        root,
+        txHash: tx.hash,
+      }
+    }));
 
     return NextResponse.json({ success: true, tx: tx.hash, root });
   } catch (e: any) {
