@@ -43,11 +43,30 @@ No further minting is possible.
 ---
 
 ## Credit System
-* **Vault Contract** receives all user payments.  
-* Every 24 h the vault:
-  1. Burns 5 % of inflow.  
-  2. Allocates remaining CXPT between **Provider Rewards (default 70 %)** and **Protocol Revenue (30 %)**.  
-  3. Streams provider share to RewardDistributor for pro-rata payout.
+The **Vault** contract receives all user payments. Every 24 hours, the `RewardsCron` Lambda triggers a settlement that:
+1.  Burns 5 % of the Vault's accumulated balance.
+2.  Transfers the remaining 95 % to the `RewardDistributor` contract.
+
+From the `RewardDistributor`, funds are split into three streams: Provider Rewards, User Cashback, and Protocol Fees. The protocol's share is withdrawable only by the `MultisigControl` contract.
+
+### Treasury Management (Multisig)
+The `RewardDistributor` is owned by `MultisigControl`, a 2-of-4 multisignature wallet. This contract governs access to protocol fees. Any withdrawal requires approval from at least two of the four designated admin signers.
+
+```mermaid
+graph TD
+    subgraph On-Chain Treasury Flow
+        A[Vault] -- 95% of user payments --> B(RewardDistributor)
+        B -- Protocol Fee Share --> C{MultisigControl}
+        C -- Signed Proposal --> D[Treasury Wallet]
+    end
+    subgraph Off-Chain Admin UI
+        Admin1 -- Creates Proposal --> E(Dashboard)
+        Admin2 -- Approves Proposal --> E
+        E -- Triggers wallet signing --> C
+    end
+```
+
+This ensures no single entity can unilaterally access treasury funds, adding a layer of security and decentralization to protocol fee management.
 
 ---
 

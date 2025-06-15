@@ -1,4 +1,8 @@
+"use client";
 import React, { useEffect, useState } from "react";
+import { useAccount, useWriteContract } from "wagmi";
+import { encodeWithdraw, MULTISIG_ABI } from "@/lib/chain";
+import toast from "react-hot-toast";
 
 interface Proposal {
   proposalId: string;
@@ -15,6 +19,9 @@ export const TreasuryControls: React.FC = () => {
   const [form, setForm] = useState<{ target: string; value: string; data: string }>({ target: "", value: "0", data: "0x" });
   const [msg, setMsg] = useState<string | null>(null);
 
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
   async function fetchList() {
     const res = await fetch("/api/admin/multisig/proposals?executed=false");
     setProposals(await res.json());
@@ -25,24 +32,50 @@ export const TreasuryControls: React.FC = () => {
   }, []);
 
   async function createProposal() {
+    if (!address) {
+      toast.error("Connect wallet first");
+      return;
+    }
     setLoading(true);
-    setMsg(null);
     try {
+      // write on-chain first (propose)
+      const txHash = await writeContractAsync({
+        abi: MULTISIG_ABI,
+        address: process.env.NEXT_PUBLIC_MULTISIG_ADDRESS as `0x${string}`,
+        functionName: "propose",
+        args: [form.target as `0x${string}`, BigInt(form.value || "0"), form.data as `0x${string}`],
+      });
+      toast.success("Tx sent " + txHash.slice(0, 10) + "…");
+
+      // store off-chain record
       const proposalId = Date.now().toString();
-      const res = await fetch("/api/admin/multisig/proposals", {
+      await fetch("/api/admin/multisig/proposals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proposalId, ...form }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "failed");
-      setMsg("Proposal created");
+      setMsg("Proposal submitted");
       setForm({ target: "", value: "0", data: "0x" });
       await fetchList();
     } catch (e: any) {
-      setMsg(e.message);
+      toast.error(e.message || "Failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function approve(id: string) {
+    if (!address) return toast.error("Connect wallet");
+    try {
+      await writeContractAsync({
+        abi: MULTISIG_ABI,
+        address: process.env.NEXT_PUBLIC_MULTISIG_ADDRESS as `0x${string}`,
+        functionName: "approve",
+        args: [BigInt(id)],
+      });
+      toast.success("Approval tx sent");
+    } catch (e: any) {
+      toast.error(e.message);
     }
   }
 
@@ -80,6 +113,11 @@ export const TreasuryControls: React.FC = () => {
         {proposals.map((p) => (
           <li key={p.proposalId}>
             #{p.proposalId.slice(-6)} – {p.target.slice(0, 6)}… executed: {p.executed}
+            {p.executed !== "true" && (
+              <button style={{ marginLeft: 8 }} onClick={() => approve(p.proposalId)}>
+                Approve
+              </button>
+            )}
           </li>
         ))}
       </ul>

@@ -1,30 +1,13 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Roboto_Mono, Roboto } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Providers } from './Providers'; // Import the new client-side providers
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
-  subsets: ["latin"],
-});
-
-const roboto = Roboto({
-  variable: "--font-roboto",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Cxmpute - The World Datacenter",
-  description: "Redefining the utility of idle hardware.",
+  title: 'Cxmpute',
+  description: 'The DePIN for AI Inference',
 };
 
 export default function RootLayout({
@@ -34,8 +17,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} ${robotoMono.variable} ${roboto.variable}`}>
-        {children}
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

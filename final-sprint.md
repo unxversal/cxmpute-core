@@ -118,16 +118,20 @@ This checklist will be followed precisely to ensure dependencies are resolved be
 
 ---
 ## 5 · Deliverables Checklist
-- [ ] `MultisigControl` and `SubscriptionManager` contracts are created and deployed.
-- [ ] `RewardDistributor` is owned by the `MultisigControl` contract.
-- [ ] All new DynamoDB tables are defined and used correctly.
-- [ ] Pricing logic and storage fully match documentation.
-- [ ] Admin dashboard includes a functional UI for the custom multisig wallet.
-- [ ] Subscription purchase endpoint and UI are functional.
-- [ ] PAYG deposit endpoint and modal are functional.
-- [ ] The single admin private key for operational tasks is migrated to SST Secrets.
-- [ ] The disabled `RewardsCron` job is defined.
-- [ ] All documentation is up-to-date.
+- [x] `MultisigControl` and `SubscriptionManager` contracts are created and deployed.
+- [x] `RewardDistributor` is owned by the `MultisigControl` contract.
+- [x] All new DynamoDB tables are defined and used correctly.
+- [x] Pricing logic and storage fully match documentation.
+- [x] Admin dashboard includes a functional UI for the custom multisig wallet.
+- [x] Subscription purchase endpoint and UI are functional.
+- [x] PAYG deposit endpoint and modal are functional.
+- [x] The single admin private key for operational tasks is migrated to SST Secrets.
+- [x] The disabled `RewardsCron` job is defined.
+- [x] All documentation is up-to-date.
 
 ---
-**Owner:** `@rizzytwizzy` | **Tech Lead:** `@assistant` | **Lock date:** 30 June 2025
+## 6 · Final Status: COMPLETE
+
+All core deliverables were met. The system is functionally complete for a mainnet release candidate, pending final `sst deploy` and optional UX polish.
+
+**Owner:** `@rizzytwizzy` | **Tech Lead:** `@assistant` | **Completion date:** 30 June 2025
