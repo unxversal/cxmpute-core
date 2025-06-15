@@ -14,6 +14,10 @@ declare module "sst" {
       "sender": string
       "type": "sst.aws.Email"
     }
+    "CommunityVesterAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "CxmputeAuth": {
       "type": "sst.aws.Auth"
       "url": string
@@ -21,6 +25,14 @@ declare module "sst" {
     "CxmputeWebSite": {
       "type": "sst.aws.Nextjs"
       "url": string
+    }
+    "CxptAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "CxptVaultAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
     }
     "EmbeddingsProvisionPoolTable": {
       "name": string
@@ -33,6 +45,10 @@ declare module "sst" {
     "LLMProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
+    }
+    "MerkleUpdaterKey": {
+      "type": "sst.sst.Secret"
+      "value": string
     }
     "MetadataTable": {
       "name": string
@@ -69,6 +85,10 @@ declare module "sst" {
     "ProvisionsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
+    }
+    "RewardDistributorAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
     }
     "ScrapingProvisionPoolTable": {
       "name": string
