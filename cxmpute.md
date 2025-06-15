@@ -237,6 +237,121 @@ sequenceDiagram
     API-->>Browser: { "ok": true, tokenId }
 ```
 
+**Provider Node Registration:**
+```mermaid
+sequenceDiagram
+    actor Provider
+    participant CLI
+    participant API
+    participant peaq
+    participant ProvisionsTable
+
+    Provider->>CLI: cxmpute provision register
+    CLI->>CLI: Generate machine keypair
+    CLI->>API: POST /api/v1/provision/draft { publicKey, deviceTier }
+    API->>peaq: Create draft DID
+    peaq-->>API: DID created
+    API->>ProvisionsTable: Store provision + DID
+    API-->>CLI: Return provision details
+    CLI->>CLI: Store encrypted keys
+    CLI-->>Provider: Display connection info
+```
+
+**Model Inference Request:**
+```mermaid
+sequenceDiagram
+    actor User
+    participant API
+    participant LoadBalancer
+    participant Provider
+    participant UsageBilling
+
+    User->>API: POST /v1/completions { model, prompt }
+    API->>API: Validate credits/subscription
+    API->>LoadBalancer: Route to optimal provider
+    LoadBalancer->>Provider: Forward request
+    Provider->>Provider: Run inference
+    Provider-->>API: Return completion
+    API->>UsageBilling: Record usage
+    API-->>User: Return response
+```
+
+**Provider Reward Settlement:**
+```mermaid
+sequenceDiagram
+    participant Cron
+    participant RewardDistributor
+    participant ProvisionsTable
+    participant Vault
+    actor Provider
+
+    Cron->>ProvisionsTable: Calculate monthly points
+    Cron->>RewardDistributor: updateShares(merkleRoot)
+    RewardDistributor->>Vault: sweep()
+    Vault-->>RewardDistributor: Transfer CXPT
+    Provider->>RewardDistributor: claim()
+    RewardDistributor-->>Provider: Transfer rewards
+```
+
+**Spot Market Flow:**
+```mermaid
+sequenceDiagram
+    actor User
+    participant API
+    participant SpotOracle
+    participant Provider
+    participant UsageBilling
+
+    User->>API: POST /v1/spot/completions
+    API->>SpotOracle: Check utilization
+    SpotOracle-->>API: Current rebate (70%)
+    API->>Provider: Try route request
+    alt Provider Available
+        Provider-->>API: Completion
+        API->>UsageBilling: Record discounted usage
+        API-->>User: Return response
+    else Provider Busy
+        API-->>User: 503 + retry-after token
+    end
+```
+
+**Wallet Linking Flow:**
+```mermaid
+sequenceDiagram
+    actor User
+    participant Browser
+    participant API
+    participant UserTable
+
+    User->>Browser: Click "Link Wallet"
+    Browser->>User: Open MetaMask
+    User->>Browser: Sign challenge message
+    Browser->>API: POST /api/v1/wallet/link { signature }
+    API->>API: Verify signature
+    API->>UserTable: Update walletAddress
+    API-->>Browser: Return success
+    Browser-->>User: Show linked address
+```
+
+**Provider State Change:**
+```mermaid
+sequenceDiagram
+    actor Provider
+    participant CLI
+    participant API
+    participant peaq
+    participant ProvisionsTable
+
+    Provider->>CLI: cxmpute provision start
+    CLI->>CLI: Load machine keys
+    CLI->>API: PATCH /api/v1/provision/:id/state
+    API->>peaq: Update DID state
+    peaq-->>API: Confirm update
+    API->>ProvisionsTable: Update status
+    API-->>CLI: Return new state
+    CLI-->>Provider: Display status
+```
+
 ### 6.2. Phased Rollout
 
 | Phase | Target Date | Key Features |
