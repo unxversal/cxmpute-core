@@ -154,48 +154,60 @@ jobs:
       - name: 📝 Generate Release Notes
         id: release_notes
         run: |
-          cat > release_notes.md << 'EOF'
+          cat > release_notes.md << EOF
           ## 🚀 Cxmpute Provider CLI ${{ steps.version.outputs.version }}
           
           Transform your computer into an AI compute provider and earn rewards! This CLI automatically handles hardware detection, service orchestration, and earnings tracking.
           
-          ### 📦 Download for Your Platform
+          ### 📋 Prerequisites
           
           **macOS Users:**
-          - **Intel Macs**: `cxmpute-provider-macos` or `cxmpute-provider-macos-intel`
-          - **Apple Silicon (M1/M2/M3/M4)**: `cxmpute-provider-macos-arm64` or `cxmpute-provider-macos-m1`
+          - [Homebrew](https://brew.sh/) (for package management)
+          - Node.js 18.x (will be installed automatically if missing)
           
           **Linux Users:**
-          - **x64**: `cxmpute-provider-linux`
+          - Node.js 18.x (will be installed automatically if missing)
+          - One of these package managers:
+            - apt (Debian/Ubuntu)
+            - yum (RHEL/CentOS)
+            - dnf (Fedora)
           
           **Windows Users:**
-          - **x64**: `cxmpute-provider.exe` or `cxmpute-provider-windows.exe`
+          - PowerShell 5.1 or later
+          - Node.js 18.x (will be installed automatically if missing)
+          - Administrator privileges
+          
+          ### 📦 Installation
+          
+          **macOS Users:**
+          \`\`\`bash
+          # Option 1: Direct install
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/macos/install.sh | sudo bash
+          
+          # Option 2: Homebrew (coming soon)
+          brew install cxmpute-provider
+          \`\`\`
+          
+          **Linux Users:**
+          \`\`\`bash
+          # Direct install
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/linux/install.sh | sudo bash
+          \`\`\`
+          
+          **Windows Users:**
+          \`\`\`powershell
+          # Run in PowerShell as Administrator
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/windows/install.ps1'))
+          \`\`\`
           
           ### ⚡ Quick Start
           
-          **macOS/Linux:**
-          ```bash
-          # Download the file for your platform, then:
-          chmod +x cxmpute-provider-macos    # (or cxmpute-provider-linux)
-          ./cxmpute-provider-macos
-          ```
-          
-          **Windows:**
-          ```cmd
-          # Just run the .exe file:
-          cxmpute-provider.exe
-          ```
-          
-          **For global access (optional):**
-          ```bash
-          # macOS/Linux - install globally:
-          sudo mv cxmpute-provider-macos /usr/local/bin/cxmpute-provider
-          cxmpute-provider  # Now works from anywhere!
-          
-          # Windows - add to PATH or move to Windows folder:
-          move cxmpute-provider.exe C:\Windows\System32\cxmpute-provider.exe
-          cxmpute-provider  # Now works from anywhere!
-          ```
+          After installation, you can run the CLI from anywhere:
+          \`\`\`bash
+          cxmpute-provider
+          \`\`\`
           
           ### 🆕 What's New
           
@@ -223,14 +235,57 @@ jobs:
           - **Email**: support@cxmpute.cloud
           EOF
           
+      - name: 🔍 Verify Installer Files
+        run: |
+          echo "Checking installer files..."
+          INSTALLER_FILES=(
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/macos/install.sh"
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/linux/install.sh"
+            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/windows/install.ps1"
+          )
+          
+          for file in "${INSTALLER_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Error: File not found: $file"
+              exit 1
+            fi
+            echo "✅ Found: $file"
+          done
+          
+          echo "All installer files verified!"
+          
+      - name: 🔍 Debug File Locations
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Listing contents of workspace:"
+          ls -la
+          echo "Listing contents of CLI_PATH:"
+          ls -la ${{ env.CLI_PATH }}
+          echo "Listing contents of installers directory:"
+          ls -la ${{ env.CLI_PATH }}/installers/
+          echo "Listing contents of each installer subdirectory:"
+          ls -la ${{ env.CLI_PATH }}/installers/macos/
+          ls -la ${{ env.CLI_PATH }}/installers/linux/
+          ls -la ${{ env.CLI_PATH }}/installers/windows/
+          
+      - name: 📦 Prepare Release Files
+        run: |
+          mkdir -p release_files
+          cp ${{ env.CLI_PATH }}/installers/macos/install.sh release_files/macos-install.sh
+          cp ${{ env.CLI_PATH }}/installers/linux/install.sh release_files/linux-install.sh
+          cp ${{ env.CLI_PATH }}/installers/windows/install.ps1 release_files/windows-install.ps1
+          cp release_notes.md release_files/
+          
       - name: 🏷️ Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: 'Cxmpute Provider CLI ${{ steps.version.outputs.version }}'
-          body_path: release_notes.md
+          body_path: release_files/release_notes.md
           files: |
-            ${{ env.CLI_PATH }}/binaries/*
+            release_files/macos-install.sh
+            release_files/linux-install.sh
+            release_files/windows-install.ps1
           draft: false
           prerelease: false
           generate_release_notes: true

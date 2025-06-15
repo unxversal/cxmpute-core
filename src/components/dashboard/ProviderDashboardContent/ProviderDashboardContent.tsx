@@ -15,6 +15,7 @@ import type { RewardEntry, ProvisionRecord } from '@/lib/interfaces';
 import NotificationBanner from '@/components/ui/NotificationBanner/NotificationBanner';
 import Link from 'next/link';
 import { Server, KeyRound, RefreshCcw, Trash2, AlertTriangle, Power, HelpCircle, FileText, Loader, Copy } from 'lucide-react'; // Added Loader2
+import LinkWalletButton from '@/components/ui/LinkWalletButton/LinkWalletButton';
 
 interface ProviderDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
@@ -338,7 +339,8 @@ const ProviderDashboardContent: React.FC<ProviderDashboardProps> = ({ subject })
             <h1 className={styles.dashboardTitle}>Provider Dashboard</h1>
             <h2 className={styles.welcomeMessage}>Manage your compute provisions and track earnings.</h2>
             <div className={styles.heroButtonContainer}>
-              <DashboardButton href="/d/provider" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Provider Docs" />
+              <LinkWalletButton accountType="provider" accountId={subject.providerId} className={styles.walletLinkBtn} />
+              <DashboardButton href="/d/user" target="_blank" rel="noopener noreferrer" variant="accentPurple" iconLeft={<FileText size={16}/>} text="Documentation" />
               <DashboardButton onClick={() => setIsViewProviderAkModalOpen(true)} variant="accentOrange" iconLeft={<KeyRound size={16}/>} text="View Provider AK" />
               <DashboardButton href="/maximize" target="_blank" rel="noopener noreferrer" variant="accentYellow" iconLeft={<HelpCircle size={16}/>} text="Maximize Earnings" />
             </div>

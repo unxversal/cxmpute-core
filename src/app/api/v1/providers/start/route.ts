@@ -6,7 +6,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   GetCommand,
-  ScanCommand
+  ScanCommand,
+  PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import { Resource } from "sst";
 import { 
@@ -341,12 +342,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid provider API key." }, { status: 401 });
     }
 
-    // 3. Calculate services to spin up
+    // 3. Update DID state to 'running' (best effort)
+    try {
+      if ((provision as any).did) {
+        const { updateDidState } = await import("@/lib/peaq");
+        await updateDidState((provision as any).did as string, "running");
+        // Update Dynamo record as well
+        await docClient.send(new PutCommand({
+          TableName: Resource.ProvisionsTable.name,
+          Item: { ...provision, didState: "running" }
+        }));
+      }
+    } catch (peaqErr) {
+      console.error("Failed to update DID state:", peaqErr);
+    }
+
+    // 4. Calculate services to spin up
     const servicesToSpinUp = await calculateServices(availableResources as DeviceDiagnostics);
 
     console.log("Services to spin up:", servicesToSpinUp);
 
-    // 4. Return the services to spin up
+    // 5. Return the services to spin up
     return NextResponse.json({ 
       services: servicesToSpinUp 
     }, { status: 200 });

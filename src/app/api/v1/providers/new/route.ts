@@ -87,8 +87,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid provider API key." }, { status: 401 });
     }
 
-    // 5) Build the new provision record to store in ProvisionsTable
-    const newProvision: ProvisionRecord = {
+    // 5) Build the new provision record (initially, DID will be appended later)
+    const newProvision: ProvisionRecord & {
+      did?: string;
+      didState?: string;
+    } = {
       provisionId,
       providerId,
       deviceDiagnostics,
@@ -98,15 +101,43 @@ export async function POST(req: NextRequest) {
       ...(deviceName && { deviceName })
     };
 
-    // 6) Put it in ProvisionsTable
+    // 6) Create on-chain DID (peaq)
+    try {
+      const providerWallet = provider.providerWalletAddress;
+      if (providerWallet) {
+        const { compute } = deviceDiagnostics;
+        const deviceTier = compute?.gpu?.memory && compute.gpu.memory >= 8192 ? "Blue Surge" : "Tide Pool";
+
+        const { country } = location || { country: "" };
+
+        const did = await (await import("@/lib/peaq")).createMachineDid(
+          "0x0000000000000000000000000000000000000000", // machine placeholder
+          providerWallet,
+          {
+            providerId,
+            provisionId,
+            endpoint: "/chat/completions",
+            deviceTier,
+            country,
+            state: "started",
+          }
+        );
+
+        newProvision.did = did;
+        newProvision.didState = "started";
+      }
+    } catch (peaqErr) {
+      console.error("Failed to create DID on peaq:", peaqErr);
+      // Continue without blocking registration
+    }
+
+    // 7) Put it in ProvisionsTable (now including DID fields)
     await docClient.send(
       new PutCommand({
         TableName: Resource.ProvisionsTable.name,
-        Item: newProvision
+        Item: newProvision,
       })
     );
-
-    // 7) TODO: Call out to peaq here to add the provision
 
     console.log("New provision:", newProvision);
 

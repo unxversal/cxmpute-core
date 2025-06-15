@@ -82,6 +82,8 @@ export interface ProviderRecord {
   providerEmail?: string;
   apiKey?: string;
   providerWalletAddress?: string; // Kept as potentially general
+  walletAddress?: string;
+  walletLinked?: boolean;
   rewards?: RewardEntry[];
   totalRewards?: number;
   referredBy?: string; // Provider ID of the referee
@@ -98,6 +100,8 @@ export interface ProvisionRecord {
   location?: Location;
   username?: string;      // Added: User's display name for this provision
   deviceName?: string;    // Added: User's nickname for this device
+  did?: string;           // Decentralised Identifier for this provision
+  didState?: "started" | "running" | "off";
 }
 
 export interface LLMProvisionRecord {
@@ -150,7 +154,8 @@ export interface UserRecord { // This is for UserTable
   providerId: string; // FK to ProviderTable
   userAk: string; // User's primary API key for platform services
   email: string;
-  walletAddress?: string; // Kept as general platform feature
+  walletAddress?: string;
+  walletLinked?: boolean;
   apiKeys?: ApiKeyInfo[]; // For virtual API keys
   // userAds related to credit limits/routes for virtual keys (if this was the intent)
   // credits field for general platform credits, not DEX balances.

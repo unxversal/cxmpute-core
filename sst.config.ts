@@ -16,6 +16,16 @@ export default $config({
     // --- Define Secrets ---
     // Provider Registration Secret for CLI access control
     const providerRegistrationSecret = new sst.Secret("ProviderRegistrationSecret");
+    const peaqRpcUrl = new sst.Secret("PeaqRpcUrl");
+    const peaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");
+    const multisigAddress = new sst.Secret("MultisigAddress");
+    const rolloverUrl = new sst.Secret("RolloverUrl");
+    const cxptAddress = new sst.Secret("CxptAddress");
+    const vaultAddress = new sst.Secret("CxptVaultAddress");
+    const rewardDistributorAddress = new sst.Secret("RewardDistributorAddress");
+    const communityVesterAddress = new sst.Secret("CommunityVesterAddress");
+    const subscriptionManagerAddress = new sst.Secret("SubscriptionManagerAddress");
+    const MerkleUpdaterKey = new sst.Secret("MerkleUpdaterKey");
 
     // --- General Platform Tables & Resources ---
     // Provider Table
@@ -26,13 +36,15 @@ export default $config({
         apiKey: "string",
         referredBy: "string",
         referralCode: "string",
+        walletAddress: "string",
       },
       primaryIndex: { hashKey: "providerId" },
       globalIndexes: {
         ByApiKey: { hashKey: "apiKey" },
         ByEmail: { hashKey: "providerEmail" },
         ByReferredBy: { hashKey: "referredBy" },
-        ByReferralCode: { hashKey: "referralCode" }
+        ByReferralCode: { hashKey: "referralCode" },
+        ByWalletAddress: { hashKey: "walletAddress" }
       }
     });
 
@@ -120,13 +132,13 @@ export default $config({
     const userTable = new sst.aws.Dynamo("UserTable", {
       fields: {
         userId: "string",
-        userAk: "string",
         referredBy: "string",
         referralCode: "string",
+        walletAddress: "string",
       },
       primaryIndex: { hashKey: "userId" },
       globalIndexes: {
-        ByWalletAddress: { hashKey: "userAk" }, // Consider renaming GSI if userAk is not a wallet address
+        ByWalletAddress: { hashKey: "walletAddress" },
         ByReferredBy: { hashKey: "referredBy" },
         ByReferralCode: { hashKey: "referralCode" }
       }
@@ -210,6 +222,38 @@ export default $config({
       }
     });
 
+    // ------------------------------------------------------------------
+    // New tables for on-chain & billing sprint
+    // ------------------------------------------------------------------
+
+    // ProviderPointsTable – stores cumulative points earned per provider per epoch
+    const providerPointsTable = new sst.aws.Dynamo("ProviderPointsTable", {
+      fields: {
+        providerId: "string", // PK
+        epoch: "string", // optional GSI key for latest epoch queries
+      },
+      primaryIndex: { hashKey: "providerId" },
+      globalIndexes: {
+        ByEpoch: { hashKey: "epoch", rangeKey: "providerId" }
+      }
+    });
+
+    // SubscriptionsTable – tracks active subscription plans for users
+    const subscriptionsTable = new sst.aws.Dynamo("SubscriptionsTable", {
+      fields: {
+        userId: "string",
+      },
+      primaryIndex: { hashKey: "userId" }
+    });
+
+    // MultisigProposalsTable – off-chain mirror of on-chain multisig proposals for UI convenience
+    const multisigProposalsTable = new sst.aws.Dynamo("MultisigProposalsTable", {
+      fields: {
+        proposalId: "string",
+      },
+      primaryIndex: { hashKey: "proposalId" }
+    });
+
     const graphs = new sst.aws.Bucket("GraphsBucket"); // Assuming general platform bucket
 
     // --- Authentication ---
@@ -229,7 +273,16 @@ export default $config({
     });
 
     // --- Next.js Site ---
-    // Link tables to the NextJS app
+    // Rewards rollover cron (disabled)
+    new sst.aws.Cron("RewardsCron", {
+      enabled: false,
+      schedule: "rate(1 day)",
+      job: {
+        handler: "src/jobs/rewardsCron.handler",
+        link: [rolloverUrl],
+      },
+    });
+
     new sst.aws.Nextjs("CxmputeWebSite", {
       ...$app.stage === "production" && {
         domain: {
@@ -253,11 +306,24 @@ export default $config({
         notificationsTable,
         suspendedAccountsTable,
         pricingConfigTable,
+        providerPointsTable,
+        subscriptionsTable,
+        multisigProposalsTable,
         auth,
         graphs,
         authEmail,
         // Secrets
         providerRegistrationSecret,
+        peaqRpcUrl,
+        peaqAdminPrivateKey,
+        cxptAddress,
+        vaultAddress,
+        rewardDistributorAddress,
+        communityVesterAddress,
+        subscriptionManagerAddress,
+        MerkleUpdaterKey,
+        multisigAddress,
+        rolloverUrl,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });
