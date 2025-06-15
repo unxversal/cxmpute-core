@@ -6,7 +6,8 @@ import { requireAdmin } from "@/lib/auth";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
-// Resource typings may lag behind new tables – cast via any for now
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // @ts-ignore
 const PROPOSAL_TABLE: string = (Resource as any).MultisigProposalsTable.name;
 
@@ -18,7 +19,7 @@ const PROPOSAL_TABLE: string = (Resource as any).MultisigProposalsTable.name;
 export async function GET(req: NextRequest) {
   await requireAdmin();
   const executed = req.nextUrl.searchParams.get("executed");
-  // @ts-ignore MultisigProposalsTable binding
+  // @ts-ignore
   const scan = await ddb.send(new ScanCommand({ TableName: PROPOSAL_TABLE }));
   let items = scan.Items ?? [];
   if (executed === "false") {
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!proposalId || !target) {
     return NextResponse.json({ error: "missing fields" }, { status: 400 });
   }
-  // @ts-ignore MultisigProposalsTable binding
+  // @ts-ignore
   await ddb.send(new PutCommand({
     TableName: PROPOSAL_TABLE,
     Item: {

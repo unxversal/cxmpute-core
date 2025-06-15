@@ -50,7 +50,7 @@ The **Vault** contract receives all user payments. Every 24 hours, the `RewardsC
 From the `RewardDistributor`, funds are split into three streams: Provider Rewards, User Cashback, and Protocol Fees. The protocol's share is withdrawable only by the `MultisigControl` contract.
 
 ### Treasury Management (Multisig)
-The `RewardDistributor` is owned by `MultisigControl`, a 2-of-4 multisignature wallet. This contract governs access to protocol fees. Any withdrawal requires approval from at least two of the four designated admin signers.
+The `RewardDistributor` is owned by `MultisigControl`, a 2-of-4 custom multisignature contract. This contract governs access to protocol fees. Any withdrawal requires approval from at least two of the four designated admin signers.
 
 ```mermaid
 graph TD

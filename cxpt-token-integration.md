@@ -118,8 +118,8 @@ Legacy credit system remains until Phase 2 is complete.
 |----------|---------|-------|
 | `TokenTimelock` | Linear vesting for Founding-Team allocation (30 %) | 4-year drip with 6-month cliff. |
 | `CommunityVester` | Streams community-incentive bucket (48 %) to `RewardDistributor` on a daily schedule | Pull-based to save gas; callable by anyone. |
-| `TreasuryWallet` | Multisig (3/5) holding 15 % treasury funds | Subject to 48 h timelock for outbound tx. |
-| `LiquidityEscrow` | Releases 7 % to market-maker Gnosis Safe in 4 equal quarterly tranches | Prevents full dump day-1. |
+| `MultisigControl` | Custom multisig (2-of-4) holding 15 % treasury funds | Subject to 48 h timelock for outbound tx. |
+| `LiquidityEscrow` | Releases 7 % to market-maker wallet in 4 equal quarterly tranches | Prevents full dump day-1. |
 
 Implementation steps:
 
@@ -127,7 +127,7 @@ Implementation steps:
 2. Immediately distribute:
    • 300 M → `TokenTimelock`
    • 480 M → `CommunityVester`
-   • 150 M → `TreasuryWallet`
+   • 150 M → `MultisigControl`
    • 70 M  → `LiquidityEscrow`
 3. `TokenTimelock.release()` is callable monthly; emits `TokensReleased`.
 4. `CommunityVester.poke()` transfers yesterday's quota to `RewardDistributor` each UTC midnight.
@@ -156,8 +156,8 @@ Artifacts automatically injected into `NEXT_PUBLIC_CXPT_ADDRESS` etc. via SST se
 | `RewardDistributor` | Receives share from `Vault` each `sweep()`. | Any address can call `claim()` but tokens go only to msg.sender's accrued balance. <br/>`updateShares()` callable by `RewardsCron` Lambda or Admin multisig. | Users / providers wallets when they call `claim()`. |
 | `CommunityVester` | Loaded with 480 M CXPT at TGE. | Anyone can call `poke()` once per UTC day -> streams dailyEmission to `RewardDistributor`. No other transfer path. | Only `RewardDistributor`. |
 | `TokenTimelock` | 300 M locked at TGE. | Beneficiary multisig after cliff; `release()` linear vest monthly. | Beneficiary multisig wallet. |
-| `TreasuryWallet` | 150 M pre-mint + 30 % of protocol fees from `RewardDistributor` split. | 3/5 Gnosis Safe; guarded by 48 h timelock contract. | Op-ex spend, market buybacks, etc. (off-chain governance). |
-| `LiquidityEscrow` | 70 M pre-mint. | Market-maker safe can call `claimQuarter()` every 3 months (4 tranches). | Market-maker Gnosis Safe then DEX/CEX liquidity. |
+| `MultisigControl` | 150 M pre-mint + 30 % of protocol fees from `RewardDistributor` split. | 2-of-4 custom multisig; guarded by 48 h timelock contract. | Op-ex spend, market buybacks, etc. (off-chain governance). |
+| `LiquidityEscrow` | 70 M pre-mint. | Market-maker wallet can call `claimQuarter()` every 3 months (4 tranches). | Market-maker wallet then DEX/CEX liquidity. |
 
 ### CommunityVester Mechanics
 * Holds the community-incentive allocation (48 %).

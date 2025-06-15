@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/api/admin/vester/status/route.ts
 import { NextResponse } from "next/server";
 import { Resource } from "sst";

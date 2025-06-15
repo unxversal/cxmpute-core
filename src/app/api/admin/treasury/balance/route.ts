@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/api/admin/treasury/balance/route.ts
 
 import { NextResponse } from "next/server";
@@ -14,7 +13,7 @@ export async function GET() {
 
   const token = new ethers.Contract(Resource.CxptAddress.value, erc20Abi, provider);
   const vaultAddr = Resource.CxptVaultAddress.value;
-  const treasuryAddr = process.env.TREASURY_SAFE_ADDRESS ?? "0x000000000000000000000000000000000000dead";
+  const treasuryAddr = Resource.MultisigAddress.value ?? "0x000000000000000000000000000000000000dead";
 
   const [vaultBalRaw, treasuryBalRaw, decimals] = await Promise.all([
     token.balanceOf(vaultAddr),

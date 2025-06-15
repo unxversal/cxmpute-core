@@ -1,7 +1,7 @@
 'use client';
 
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { peaqAgung, peaq } from 'wagmi/chains';
+import { peaqAgung, peaq } from '@/lib/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 

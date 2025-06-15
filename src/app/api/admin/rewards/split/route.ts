@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/api/admin/rewards/split/route.ts
 
 import { NextRequest, NextResponse } from "next/server";

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/api/admin/contracts/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,7 +15,7 @@ const TABLE = Resource.PricingConfigTable.name; // reuse table
  */
 export async function GET() {
   const stageItem = await ddb.send(new GetCommand({ TableName: TABLE, Key: { configId: "stage" } }));
-  const stage = stageItem.Item?.value ?? process.env.NEXT_PUBLIC_CHAIN_STAGE ?? "testnet";
+  const stage = stageItem.Item?.value ?? "testnet";
 
   const addrKey = `contracts-${stage}`;
   const resp = await ddb.send(new GetCommand({ TableName: TABLE, Key: { configId: addrKey } }));

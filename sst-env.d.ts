@@ -54,6 +54,14 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "MultisigAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "MultisigProposalsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "NetworkStatsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
@@ -74,6 +82,10 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "ProviderPointsTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
     "ProviderRegistrationSecret": {
       "type": "sst.sst.Secret"
       "value": string
@@ -90,11 +102,23 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "RolloverUrl": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "ScrapingProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
     "ServiceMetadataTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "SubscriptionManagerAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "SubscriptionsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }

@@ -1,4 +1,4 @@
-import { keccak256, toUtf8Bytes, hexlify } from "ethers";
+import { keccak256, toUtf8Bytes } from "ethers";
 
 export interface LeafInput {
   address: string;
@@ -37,4 +37,6 @@ function solidityLeaf(addr: string, amount: bigint): Uint8Array {
   const amountHex = amount.toString(16).padStart(64, "0");
   const data = "0x" + addrBytes + amountHex;
   return toUtf8Bytes(data);
-} 
+}
+
+/* eslint-disable @typescript-eslint/no-unused-vars */ 

@@ -47,8 +47,8 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 # Download and extract the latest release
 Write-Status "Downloading latest release..."
-$latestRelease = (Invoke-WebRequest -Uri "https://api.github.com/repos/cxmpute/core/releases/latest" -UseBasicParsing).Content | ConvertFrom-Json
-$releaseUrl = "https://github.com/cxmpute/core/archive/refs/tags/$($latestRelease.tag_name).zip"
+$latestRelease = (Invoke-WebRequest -Uri "https://api.github.com/repos/unxversal/cxmpute-core/releases/latest" -UseBasicParsing).Content | ConvertFrom-Json
+$releaseUrl = "https://github.com/unxversal/cxmpute-core/archive/refs/tags/$($latestRelease.tag_name).zip"
 $zipFile = "$env:TEMP\cxmpute-provider.zip"
 
 Invoke-WebRequest -Uri $releaseUrl -OutFile $zipFile
