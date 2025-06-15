@@ -18,6 +18,8 @@ export default $config({
     const providerRegistrationSecret = new sst.Secret("ProviderRegistrationSecret");
     const peaqRpcUrl = new sst.Secret("PeaqRpcUrl");
     const peaqAdminPrivateKey = new sst.Secret("PeaqAdminPrivateKey");
+    const multisigAddress = new sst.Secret("MultisigAddress");
+    const rolloverUrl = new sst.Secret("RolloverUrl");
     const cxptAddress = new sst.Secret("CxptAddress");
     const vaultAddress = new sst.Secret("CxptVaultAddress");
     const rewardDistributorAddress = new sst.Secret("RewardDistributorAddress");
@@ -275,7 +277,10 @@ export default $config({
     new sst.aws.Cron("RewardsCron", {
       enabled: false,
       schedule: "rate(1 day)",
-      job: "src/jobs/rewardsCron.handler",
+      job: {
+        handler: "src/jobs/rewardsCron.handler",
+        link: [rolloverUrl],
+      },
     });
 
     new sst.aws.Nextjs("CxmputeWebSite", {
@@ -317,6 +322,8 @@ export default $config({
         communityVesterAddress,
         subscriptionManagerAddress,
         MerkleUpdaterKey,
+        multisigAddress,
+        rolloverUrl,
         // All DEX-related resources (tables, queues, topics, secrets) have been removed from this list.
       ]
     });

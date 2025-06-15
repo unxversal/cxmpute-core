@@ -1,4 +1,4 @@
-import { type Abi, encodeFunctionData } from 'viem';
+import {  encodeFunctionData } from 'viem';
 
 // Minimal ABIs for the contracts we need to interact with
 export const MULTISIG_ABI = [
@@ -60,4 +60,6 @@ export function encodeWithdraw(recipient: `0x${string}`, amount: bigint) {
     functionName: 'withdrawProtocolFees',
     args: [recipient, amount],
   });
-} 
+}
+
+/* eslint-disable @typescript-eslint/no-unused-vars */ 

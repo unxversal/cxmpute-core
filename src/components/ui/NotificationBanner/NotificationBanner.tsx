@@ -26,10 +26,6 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ motif, classNam
   const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
   const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetchActiveNotifications();
-  }, [motif]);
-
   const fetchActiveNotifications = async () => {
     try {
       const response = await fetch(`/api/notifications/active?motif=${motif}`);
@@ -43,6 +39,10 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ motif, classNam
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchActiveNotifications();
+  }, [fetchActiveNotifications]);
 
   const toggleExpanded = (notificationId: string) => {
     const newExpanded = new Set(expandedNotifications);

@@ -1,15 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { usePublicClient } from "wagmi";
 import toast from "react-hot-toast";
 
-interface Props {}
-
-// Simple admin utility panel for epoch-related actions.
-// 1. Build & publish Merkle root (calls /api/admin/rewards/rollover)
-// 2. Sweep vault (calls /api/admin/vault/sweep)
-export const EpochControls: React.FC<Props> = () => {
+// No props for component
+export const EpochControls: React.FC = () => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingTx, setPendingTx] = useState<string | null>(null);

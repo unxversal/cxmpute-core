@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { parseUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
 import toast from "react-hot-toast";
-import { Resource } from "sst";
 
 import { type Abi } from "viem";
 
@@ -30,16 +32,26 @@ export const DepositTokensModal: React.FC<Props> = ({ onClose }) => {
 
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const [config, setConfig] = useState<{ cxpt: string; vault: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/config/contracts")
+      .then((r) => r.json())
+      .then((conf) => setConfig({ cxpt: conf.cxpt as string, vault: conf.vault as string }))
+      .catch((e) => console.error("Failed to load contract addresses", e));
+  }, []);
 
   async function submit() {
     if (!address) return toast.error("Connect wallet");
     setLoading(true);
     try {
+      if (!config) throw new Error("Contract addresses not loaded");
+
       const hash = await writeContractAsync({
         abi: ERC20_ABI,
-        address: process.env.NEXT_PUBLIC_CXPT_ADDRESS as `0x${string}`,
+        address: config.cxpt as `0x${string}`,
         functionName: "transfer",
-        args: [process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`, parseUnits(amount.toString(), 18)],
+        args: [config.vault as `0x${string}`, parseUnits(amount.toString(), 18)],
       });
       toast.success("Tx sent " + hash.slice(0, 10) + "…");
 

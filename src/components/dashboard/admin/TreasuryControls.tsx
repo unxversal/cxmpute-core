@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 import React, { useEffect, useState } from "react";
 import { useAccount, useWriteContract } from "wagmi";
-import { encodeWithdraw, MULTISIG_ABI } from "@/lib/chain";
+import { MULTISIG_ABI } from "@/lib/chain";
 import toast from "react-hot-toast";
 
 interface Proposal {
@@ -21,6 +23,14 @@ export const TreasuryControls: React.FC = () => {
 
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const [multisigAddr, setMultisigAddr] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/config/contracts")
+      .then((r) => r.json())
+      .then((d) => setMultisigAddr(d.multisig as string))
+      .catch((e) => console.error("Failed to load contract addresses", e));
+  }, []);
 
   async function fetchList() {
     const res = await fetch("/api/admin/multisig/proposals?executed=false");
@@ -41,7 +51,7 @@ export const TreasuryControls: React.FC = () => {
       // write on-chain first (propose)
       const txHash = await writeContractAsync({
         abi: MULTISIG_ABI,
-        address: process.env.NEXT_PUBLIC_MULTISIG_ADDRESS as `0x${string}`,
+        address: (multisigAddr || "0x0000000000000000000000000000000000000000") as `0x${string}`,
         functionName: "propose",
         args: [form.target as `0x${string}`, BigInt(form.value || "0"), form.data as `0x${string}`],
       });
@@ -69,7 +79,7 @@ export const TreasuryControls: React.FC = () => {
     try {
       await writeContractAsync({
         abi: MULTISIG_ABI,
-        address: process.env.NEXT_PUBLIC_MULTISIG_ADDRESS as `0x${string}`,
+        address: (multisigAddr || "0x0000000000000000000000000000000000000000") as `0x${string}`,
         functionName: "approve",
         args: [BigInt(id)],
       });

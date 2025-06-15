@@ -33,7 +33,7 @@ function getAdminWallet() {
     throw new Error("Missing PEAQ_ADMIN_PRIVATE_KEY env var");
   }
   const provider = new ethers.JsonRpcProvider(
-    process.env.PEAQ_RPC_URL || "https://peaq-agung.api.onfinality.io/public"
+    Resource.PeaqRpcUrl.value || "https://peaq-agung.api.onfinality.io/public"
   );
   return new Wallet(priv, provider);
 }
@@ -83,7 +83,7 @@ export async function createMachineDid(
 
   const receipt: any = await Sdk.sendEvmTx({
     tx,
-    baseUrl: process.env.PEAQ_RPC_URL || "https://peaq-agung.api.onfinality.io/public",
+    baseUrl: Resource.PeaqRpcUrl.value || "https://peaq-agung.api.onfinality.io/public",
     seed: admin.privateKey,
   });
 
@@ -108,7 +108,7 @@ export async function updateDidState(
 
   await Sdk.sendEvmTx({
     tx: tx as any,
-    baseUrl: process.env.PEAQ_RPC_URL || "https://peaq-agung.api.onfinality.io/public",
+    baseUrl: Resource.PeaqRpcUrl.value || "https://peaq-agung.api.onfinality.io/public",
     seed: admin.privateKey,
   });
 } 

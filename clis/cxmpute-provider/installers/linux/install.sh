@@ -64,8 +64,8 @@ mkdir -p "$INSTALL_DIR"
 
 # Download and extract the latest release
 print_status "Downloading latest release..."
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/cxmpute/core/releases/latest | grep "tag_name" | cut -d '"' -f 4)
-RELEASE_URL="https://github.com/cxmpute/core/archive/refs/tags/${LATEST_RELEASE}.tar.gz"
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/unxversal/cxmpute-core/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+RELEASE_URL="https://github.com/unxversal/cxmpute-core/archive/refs/tags/${LATEST_RELEASE}.tar.gz"
 
 curl -L "$RELEASE_URL" -o /tmp/cxmpute-provider.tar.gz
 tar -xzf /tmp/cxmpute-provider.tar.gz -C /tmp

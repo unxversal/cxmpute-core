@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import toast from "react-hot-toast";
 import { type Abi } from "viem";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface Props { onClose: () => void }
 
@@ -30,6 +32,15 @@ export const SubscriptionPurchaseModal: React.FC<Props> = ({ onClose }) => {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const publicClient = usePublicClient();
+  const [addr, setAddr] = useState<string | null>(null);
+
+  // Fetch contract addresses from server once on mount
+  useEffect(() => {
+    fetch("/api/config/contracts")
+      .then((r) => r.json())
+      .then((j) => setAddr(j.subscriptionManager as string))
+      .catch((e) => console.error("Failed to load contract addresses", e));
+  }, []);
 
   async function purchase() {
     if (!address) return toast.error("Connect wallet first");
@@ -39,11 +50,12 @@ export const SubscriptionPurchaseModal: React.FC<Props> = ({ onClose }) => {
     try {
       if (!publicClient) throw new Error("Public client not ready");
 
+      if (!addr) throw new Error("Contract address not loaded");
+
       // 1. Trigger on-chain call from the connected wallet
       const hash = await writeContractAsync({
         abi: SUBSCRIPTION_MANAGER_ABI,
-        // @ts-ignore – public env var injected at build-time
-        address: process.env.NEXT_PUBLIC_SUB_MANAGER_ADDRESS as `0x${string}`,
+        address: addr as `0x${string}`,
         functionName: "activatePlan",
         args: [address as `0x${string}`, BigInt(planId)],
       });
