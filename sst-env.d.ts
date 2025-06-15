@@ -14,6 +14,10 @@ declare module "sst" {
       "sender": string
       "type": "sst.aws.Email"
     }
+    "CommunityVesterAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "CxmputeAuth": {
       "type": "sst.aws.Auth"
       "url": string
@@ -21,6 +25,14 @@ declare module "sst" {
     "CxmputeWebSite": {
       "type": "sst.aws.Nextjs"
       "url": string
+    }
+    "CxptAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "CxptVaultAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
     }
     "EmbeddingsProvisionPoolTable": {
       "name": string
@@ -34,7 +46,19 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "MerkleUpdaterKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "MetadataTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "MultisigAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "MultisigProposalsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
@@ -46,7 +70,19 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "PeaqAdminPrivateKey": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "PeaqRpcUrl": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "PricingConfigTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "ProviderPointsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
@@ -62,11 +98,27 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Dynamo"
     }
+    "RewardDistributorAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "RolloverUrl": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "ScrapingProvisionPoolTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }
     "ServiceMetadataTable": {
+      "name": string
+      "type": "sst.aws.Dynamo"
+    }
+    "SubscriptionManagerAddress": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "SubscriptionsTable": {
       "name": string
       "type": "sst.aws.Dynamo"
     }

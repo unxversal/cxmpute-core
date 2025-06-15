@@ -19,12 +19,14 @@ import AccountManagement from '../AccountManagement/AccountManagement';
 import NotificationManager from '../NotificationManager/NotificationManager';
 import ProvisionManager from '../ProvisionManager/ProvisionManager';
 import PricingManager from '../PricingManager/PricingManager';
+import EpochControls from '@/components/dashboard/admin/EpochControls';
+import TreasuryControls from '@/components/dashboard/admin/TreasuryControls';
 
 interface AdminDashboardProps {
   subject: AuthenticatedUserSubject['properties'];
 }
 
-type AdminTab = 'accounts' | 'notifications' | 'provisions' | 'pricing';
+type AdminTab = 'accounts' | 'notifications' | 'provisions' | 'pricing' | 'epoch' | 'treasury';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ subject }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('accounts');
@@ -57,7 +59,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ subject }) => {
       icon: <DollarSign size={20} />,
       description: 'Configure platform pricing and fee structures',
       component: <PricingManager adminId={subject.id} />
-    }
+    },
+    {
+      id: 'epoch' as AdminTab,
+      label: 'Epoch Mgmt',
+      icon: <Server size={20} />,
+      description: 'Build Merkle roots and sweep vault',
+      component: <EpochControls />,
+    },
+    {
+      id: 'treasury' as AdminTab,
+      label: 'Treasury',
+      icon: <DollarSign size={20} />,
+      description: 'Multisig treasury proposal controls',
+      component: <TreasuryControls />,
+    },
   ];
 
   const activeTabData = tabs.find(tab => tab.id === activeTab);
