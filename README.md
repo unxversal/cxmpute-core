@@ -1,12 +1,12 @@
 # Cxmpute Core
 
-Cxmpute Core is the central platform powering the Cxmpute ecosystem. It encompasses a distributed AI/Compute services platform and a comprehensive suite of DeFi protocols built on the Peaq network.
+Cxmpute Core is a decentralized AI/Compute services platform and comprehensive DeFi protocol suite built on the Peaq network. It provides a permissionless marketplace connecting users with distributed compute providers, offering OpenAI-compatible APIs at competitive prices.
 
 ![Architecture Overview](https://i.postimg.cc/HkdjKNT8/Screenshot-2025-05-18-at-8-12-40-PM.png)
 
 ## Overview
 
-Built with Next.js (App Router), TypeScript, and SST v3 for robust AWS serverless deployment, Cxmpute Core is designed for scalability and performance across two main domains:
+Built with Next.js (App Router), TypeScript, and SST v3 for robust AWS serverless deployment, Cxmpute Core operates across two main domains:
 
 **1. AI/Compute Services Platform:**
 *   **Distributed AI Gateway:** Connects users with decentralized compute providers
@@ -24,14 +24,30 @@ Built with Next.js (App Router), TypeScript, and SST v3 for robust AWS serverles
 
 ## Platform Architecture
 
+### High-Level Architecture
+
+Cxmpute integrates on-chain elements for trust and transparency with off-chain infrastructure for performance and efficiency:
+
+#### Core Components
+*   **Decentralized GPU Network:** A global network of providers running AI models
+*   **Backend API:** Manages user requests, billing, and node orchestration
+*   **Smart Contracts:** A suite of contracts on the peaq network for payments and rewards
+*   **Provider CLI (`cxmpute-provider`):** Command-line tool for node operators
+*   **Dashboards:** Web interfaces for users and providers
+
+#### On-Chain Identity & State (peaq)
+*   **Provider DIDs:** Every compute provision gets a unique DID (`did:peaq:evm:<hash>`)
+*   **State Synchronization:** Provision lifecycle tracked on-chain (`started` → `running` → `off`)
+*   **Wallet Integration:** Users and providers can link EVM wallets for direct protocol interaction
+
 ### AI/Compute Services Architecture
 
 The platform follows a serverless, event-driven architecture:
 
 1.  **Frontend Layer (Next.js):**
-    *   Serves user dashboards (`cxmpute.cloud`)
-    *   Provider onboarding and management interfaces
-    *   API route handlers (`src/app/api/v1/*`) for all AI services
+    *   User and provider dashboards (`cxmpute.cloud`)
+    *   API route handlers for all AI services
+    *   Real-time analytics and monitoring
 
 2.  **Authentication (OpenAuth):**
     *   Email-based authentication with code verification
@@ -42,49 +58,31 @@ The platform follows a serverless, event-driven architecture:
     *   Health monitoring and load balancing
     *   Randomized provision selection
     *   Automatic reward distribution
-    *   Service-specific provision pools (LLM, Embeddings, TTS, etc.)
+    *   Service-specific provision pools
 
 4.  **Infrastructure:**
-    *   AWS serverless stack (Lambda, DynamoDB, SQS, SNS, API Gateway, SES)
-    *   Real-time usage tracking and analytics
+    *   AWS serverless stack
+    *   Real-time usage tracking
     *   Credit-based billing system
 
 ### Unxversal DeFi Architecture
 
-The DeFi protocols operate on Peaq network with shared infrastructure:
+DeFi protocols on Peaq network with shared infrastructure:
 
 1.  **Smart Contract Layer:**
-    *   Immutable core contracts with governance-controlled parameters
-    *   Role-based access control with OpenZeppelin
+    *   Immutable core contracts
+    *   Role-based access control
     *   Cross-protocol composability
 
 2.  **Oracle Infrastructure:**
-    *   LayerZero-based price feeds from Ethereum Chainlink
+    *   LayerZero-based price feeds
     *   Cross-chain message verification
-    *   Fallback mechanisms for price stability
+    *   Fallback price mechanisms
 
-3.  **Order Management (DEX):**
-    *   NFT-encoded orders with off-chain discovery
-    *   On-chain settlement guarantees
+3.  **Order Management:**
+    *   NFT-encoded orders
+    *   On-chain settlement
     *   Permissionless indexer network
-
-## Key Features
-
-### AI/Compute Services
-*   **OpenAI Compatibility:** Drop-in replacement for OpenAI APIs
-*   **Provider Marketplace:** Decentralized network of compute providers
-*   **Real-time Analytics:** Usage tracking, performance metrics, provider rewards
-*   **Credit System:** Flexible billing with API key management
-*   **Health Monitoring:** Automatic failover and provider management
-*   **Multi-modal APIs:** Text, image, audio, and vision processing
-
-### Unxversal DeFi Protocols
-*   **NFT-Native Trading:** Orders as transferable ERC-721 tokens
-*   **Synthetic Assets:** USDC-backed sAssets (sBTC, sETH, etc.)
-*   **Cross-Margin Lending:** Unified collateral across all protocols
-*   **Perpetual Futures:** Up to 20x leverage with peer-to-peer funding
-*   **Governance:** veUNXV token with gauge-based emissions
-*   **Composability:** Protocols designed to work together seamlessly
 
 ## Directory Structure
 
@@ -98,63 +96,151 @@ cxmpute-core/
 │   │   │   │   ├── embeddings/ # Text embeddings
 │   │   │   │   ├── tts/      # Text-to-speech
 │   │   │   │   ├── scrape/   # Web scraping
+│   │   │   │   ├── m/        # Multi-modal endpoints
 │   │   │   │   └── providers/ # Provider management
-│   │   │   ├── admin/        # Admin endpoints
+│   │   │   ├── auth/         # Authentication endpoints
 │   │   │   ├── user/         # User management
-│   │   │   └── providers/    # Provider onboarding
-│   │   ├── dashboard/        # User dashboard pages
-│   │   ├── provider/         # Provider dashboard pages
-│   │   └── user/            # User profile pages
+│   │   │   └── admin/        # Admin controls
+│   │   ├── (dashboard)/      # Dashboard routes
+│   │   │   ├── provider/     # Provider pages
+│   │   │   ├── user/         # User pages
+│   │   │   └── admin/        # Admin pages
+│   │   └── (auth)/          # Auth-related pages
 │   ├── components/           # React components
 │   │   ├── dashboard/       # Dashboard components
-│   │   ├── ProviderDashboard/ # Provider-specific UI
-│   │   ├── UserDashboard/   # User-specific UI
-│   │   └── ui/              # Shared UI components
-│   └── lib/                 # Shared utilities
-│       ├── interfaces.ts    # TypeScript interfaces
-│       ├── utils.ts         # Core utility functions
-│       ├── auth.ts          # Authentication helpers
-│       └── references.ts    # Constants and references
-├── auth/                    # OpenAuth configuration
-│   ├── index.ts            # Auth handler
-│   └── subjects.ts         # User schema
-├── unxversal/              # DeFi protocols suite
-│   ├── packages/           # Smart contracts
-│   ├── docs/              # Protocol documentation
-│   ├── scripts/           # Deployment scripts
-│   └── test/              # Protocol tests
-├── clis/                   # Command-line tools
-│   └── cxmpute-provider/   # Provider CLI tool
-├── public/                 # Static assets
-├── sst.config.ts          # Serverless Stack configuration
-└── package.json           # Dependencies
+│   │   ├── providers/       # Provider-specific UI
+│   │   ├── users/          # User-specific UI
+│   │   └── ui/             # Shared UI components
+│   └── lib/                # Shared utilities
+│       ├── types/         # TypeScript types
+│       ├── utils/         # Utility functions
+│       ├── auth/          # Auth helpers
+│       └── constants/     # Constants
+├── contracts/             # Smart contracts
+│   ├── core/             # Core protocol contracts
+│   ├── periphery/        # Peripheral contracts
+│   └── interfaces/       # Contract interfaces
+├── cli/                  # Command-line tools
+│   └── cxmpute-provider/ # Provider CLI
+├── public/               # Static assets
+├── tests/               # Test suites
+│   ├── e2e/            # End-to-end tests
+│   ├── integration/    # Integration tests
+│   └── unit/           # Unit tests
+├── docs/                # Documentation
+├── scripts/             # Build/deploy scripts
+└── config/              # Configuration files
 ```
 
-## Key Technologies
+## Provider Rewards System
 
-### Core Stack
-*   **Framework:** Next.js 15 with App Router, React 19
-*   **Language:** TypeScript
-*   **Infrastructure:** SST v3 (Serverless Stack)
-*   **Cloud Provider:** Amazon Web Services (AWS)
-    *   Compute: Lambda
-    *   Database: DynamoDB
-    *   Messaging: SQS, SNS
-    *   API: API Gateway
-    *   Email: SES
+Cxmpute's philosophy is to "reward the best nodes, not the biggest whales." The system incentivizes reliability, performance, and uptime.
 
-### Blockchain & DeFi
-*   **Network:** Peaq EVM
-*   **Smart Contracts:** Solidity 0.8.x
-*   **Development:** Hardhat
-*   **Oracles:** LayerZero + Chainlink (via Ethereum)
-*   **Cross-chain:** LayerZero OFT standard
+### Service Tiers & Base Points
 
-### Authentication & Security
-*   **OpenAuth:** Email-based authentication
-*   **JWT:** Token-based session management
-*   **API Keys:** User-specific access control
-*   **Role-based Access:** OpenZeppelin AccessControl
+Points awarded per successful request:
+
+| Tier | VRAM Requirement | Typical Models | **Base Points / Req.** |
+|------|-----------------|----------------|-----------------------|
+| Tide Pool | ≤ 4 GB | Gemma-2B, Phi-3-mini | **1** |
+| Blue Surge | 4–8 GB | Mistral-7B, Llama-3-8B | **3** |
+| Open Ocean | 8–22 GB | Mixtral-8x7B, Llama-3-70B-Q4 | **7** |
+| Mariana Depth | 22 GB + | Llama-3-70B-FP16, Claude-3-Sonnet | **15** |
+
+**Specialised Services:**
+*   **Text-to-Speech:** 2 pts / min
+*   **Web Scraping:** 0.5 pts / page
+*   **Embeddings:** 1 pt / 1K tokens
+
+### Performance Multipliers
+
+| Multiplier | Range | Notes |
+|------------|-------|-------|
+| Uptime | 0.80 – **1.30** | ≥ 99.95% uptime → 1.30x |
+| p50 Latency | 0.85 – 1.15 | < 300 ms → 1.15x |
+| Network Demand | 0.5 – 2.0 | Auto-scaled hourly |
+
+## User Pricing & Plans
+
+Cxmpute aims to provide AI compute at prices 10-70% lower than traditional cloud providers.
+
+### Pay-As-You-Go (PAYG) Rates
+
+| Tier | **Price per 1K Tokens (Input / Output)** |
+|------|---------------------------------------------|
+| Tide Pool | **$0.00015 / $0.00030** |
+| Blue Surge | **$0.00035 / $0.00070** |
+| Open Ocean | **$0.00120 / $0.00240** |
+| Mariana Depth | **$0.00350 / $0.00700** |
+
+**Specialised Services:**
+
+| Service | Unit | **Price (USD)** |
+|---------|------|-----------|
+| Text-to-Speech | minute | **$0.008** |
+| Web Scraping | page | **$0.0006** |
+| Embeddings | 1K tokens | **$0.00002** |
+
+### Subscription Plans
+
+| Plan | Monthly Fee (USD) | Concurrency | RPM | Token Bucket | Effective $/1M |
+|------|-----------------|-------------|-----|--------------|-----------------------|
+| **Starter** | **$15** | 1 | 40 | **20 M** | $0.75 |
+| **Pro** | **$69** | 4 | 200 | **100 M** | $0.69 |
+| **Scale** | **$249** | 15 | 1,000 | **600 M** | $0.41 |
+| **Enterprise** | custom | 50+ | 5,000+ | 3 B+ | negotiable |
+
+**Benefits:**
+*   **Rollover:** 100% unused tokens roll over for 90 days
+*   **Priority Boost:** Higher queue weight during congestion
+*   **Overage Buffer:** 10% free overage allowance
+
+### Spot & Priority Tiers
+*   **Spot Compute:** Up to 70% rebate for flexible workloads
+*   **Priority Queue:** Subscription users get lower latency
+
+## Technical Integration Flows
+
+### Key Platform Flows
+
+**Provider Node Registration:**
+```mermaid
+sequenceDiagram
+    actor Provider
+    participant CLI
+    participant API
+    participant peaq
+    participant ProvisionsTable
+
+    Provider->>CLI: cxmpute provision register
+    CLI->>CLI: Generate machine keypair
+    CLI->>API: POST /api/v1/provision/draft
+    API->>peaq: Create draft DID
+    peaq-->>API: DID created
+    API->>ProvisionsTable: Store provision + DID
+    API-->>CLI: Return provision details
+    CLI->>CLI: Store encrypted keys
+    CLI-->>Provider: Display connection info
+```
+
+**Model Inference Request:**
+```mermaid
+sequenceDiagram
+    actor User
+    participant API
+    participant LoadBalancer
+    participant Provider
+    participant UsageBilling
+
+    User->>API: POST /v1/completions
+    API->>API: Validate credits/subscription
+    API->>LoadBalancer: Route to optimal provider
+    LoadBalancer->>Provider: Forward request
+    Provider->>Provider: Run inference
+    Provider-->>API: Return completion
+    API->>UsageBilling: Record usage
+    API-->>User: Return response
+```
 
 ## Setup and Deployment
 
@@ -354,4 +440,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-*Cxmpute Core: Where AI meets DeFi in a unified, permissionless ecosystem.*
+*Cxmpute Core: Decentralized AI Infrastructure for Everyone*
