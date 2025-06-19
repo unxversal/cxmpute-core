@@ -1,10 +1,10 @@
 import { SceneConfig } from '../types/scene';
 import { advancedPresets } from './advanced';
-import { heroPresets } from './hero-examples';
+import { heroExamples } from './hero-examples';
 
 export const presets: Record<string, SceneConfig> = {
   // Hero Section Examples (Non-interactive, optimized for showcasing)
-  ...heroPresets,
+  ...heroExamples,
   
   // Original examples (keeping for backward compatibility)
   neonWaves: {
@@ -12,10 +12,12 @@ export const presets: Record<string, SceneConfig> = {
     description: 'A cyberpunk-inspired scene with neon waves and floating orbs',
     camera: {
       position: [0, 5, 10],
-      target: [0, 0, 0],
       fov: 75,
-      enableDamping: true,
-      dampingFactor: 0.05,
+      controls: {
+        type: 'orbit',
+        enableDamping: true,
+        dampingFactor: 0.05,
+      }
     },
     environment: {
       type: 'gradient',
@@ -88,9 +90,12 @@ export const presets: Record<string, SceneConfig> = {
     camera: {
       position: [0, 0, 10],
       fov: 60,
-      autoRotate: true,
-      autoRotateSpeed: 0.5,
-      enableDamping: true,
+      controls: {
+        type: 'orbit',
+        autoRotate: true,
+        autoRotateSpeed: 0.5,
+        enableDamping: true,
+      }
     },
     environment: {
       type: 'gradient',
@@ -175,9 +180,10 @@ export const presets: Record<string, SceneConfig> = {
     },
     objects: [
       {
-        type: 'custom',
+        type: 'plane',
         position: [0, 0, 0],
-        scale: [10, 1, 10],
+        rotation: [-Math.PI / 2, 0, 0],
+        scale: [10, 10, 1],
         material: {
           type: 'standard',
           color: '#f0f0f0',
@@ -253,7 +259,7 @@ export const presets: Record<string, SceneConfig> = {
     ],
     lights: [
       {
-        type: 'rect',
+        type: 'rectArea',
         position: [0, 5, 0],
         width: 4,
         height: 4,

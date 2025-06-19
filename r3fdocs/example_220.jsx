@@ -1,0 +1,1 @@
+import { extend, useThree, useFrame } from '@react-three/fiber'

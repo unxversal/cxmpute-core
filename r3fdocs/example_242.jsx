@@ -1,0 +1,1 @@
+import { EffectComposer, N8AO, Bloom } from '@react-three/postprocessing'

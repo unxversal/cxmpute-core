@@ -397,11 +397,17 @@ function Object3D({ config }: { config: ObjectConfig }) {
   const groupRef = useRef<THREE.Group>(null)
   const mousePos = useRef<THREE.Vector3>(new THREE.Vector3())
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
+    const mesh = meshRef.current || groupRef.current
+    if (!mesh) return
+
+    // Basic rotation animation for boxes and spheres
+    if (config.type === 'box' || config.type === 'sphere' || config.type === 'torus') {
+      mesh.rotation.x += delta * 0.5
+      mesh.rotation.y += delta * 0.7
+    }
+
     if (!config.followMouse) return
-    
-    const target = meshRef.current || groupRef.current
-    if (!target) return
     
     const vector = new THREE.Vector3()
     vector.set(
@@ -414,7 +420,7 @@ function Object3D({ config }: { config: ObjectConfig }) {
     const distance = (config.followMouseDistance || 2) - state.camera.position.z
     mousePos.current.copy(state.camera.position).add(dir.multiplyScalar(distance))
 
-    target.position.lerp(mousePos.current, (config.followMouseSpeed || 0.1))
+    mesh.position.lerp(mousePos.current, (config.followMouseSpeed || 0.1))
   })
 
   const geometry = useMemo(() => {
