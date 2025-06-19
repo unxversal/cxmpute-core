@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './NotificationBanner.module.css';
 import { X, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 
@@ -26,7 +26,11 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ motif, classNam
   const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
   const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
 
-  const fetchActiveNotifications = async () => {
+  // Use `useCallback` to memoize the fetch function so it doesn't get recreated on
+  // every render. If the function reference changes every render it will trigger
+  // the `useEffect` below continuously, causing the flood of repeated requests
+  // you've been seeing in the logs.
+  const fetchActiveNotifications = useCallback(async () => {
     try {
       const response = await fetch(`/api/notifications/active?motif=${motif}`);
       if (response.ok) {
@@ -38,8 +42,9 @@ const NotificationBanner: React.FC<NotificationBannerProps> = ({ motif, classNam
     } finally {
       setLoading(false);
     }
-  };
+  }, [motif]);
 
+  // Call the memoized fetch function only when `motif` changes (or on mount).
   useEffect(() => {
     fetchActiveNotifications();
   }, [fetchActiveNotifications]);
