@@ -1,0 +1,7 @@
+.main{
+    position: absolute;
+    bottom: 20;
+    left: 20;
+    background-color: red;
+    padding: 20px;
+}   
