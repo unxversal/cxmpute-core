@@ -1,0 +1,1 @@
+import { useGLTF, MeshPortalMaterial, CameraControls, Text, Sky } from '@react-three/drei'

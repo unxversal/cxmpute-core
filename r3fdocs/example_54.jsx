@@ -1,0 +1,1 @@
+import { suspend } from 'suspend-react'

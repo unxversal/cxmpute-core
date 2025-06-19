@@ -1,0 +1,1 @@
+import Geo from './components/Geo'

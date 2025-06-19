@@ -1,0 +1,1 @@
+import { useGLTF, Edges } from '@react-three/drei'

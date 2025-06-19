@@ -1,0 +1,1 @@
+import { Perf } from 'r3f-perf'

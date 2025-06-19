@@ -56,6 +56,11 @@
     max-width: 600px;
 }
 
+.inputContainer.rightAligned {
+    left: auto;
+    right: 20px;
+}
+
 .inputContainer:hover {
     transform: translate(5px, 5px);
     box-shadow: 5px 5px 0 #000;
@@ -269,14 +274,16 @@
         padding: 15px;
     }
     
-    .inputContainer.centered {
+    .inputContainer.centered,
+    .inputContainer.rightAligned {
         left: 10px;
         right: 10px;
         transform: none;
         max-width: none;
     }
     
-    .inputContainer.centered:hover {
+    .inputContainer.centered:hover,
+    .inputContainer.rightAligned:hover {
         transform: translate(5px, 5px);
     }
     

@@ -1,0 +1,1 @@
+import { Bvh, Instances, Instance, OrbitControls, Environment, useGLTF } from '@react-three/drei'

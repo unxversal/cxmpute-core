@@ -1,0 +1,1 @@
+import { useGLTF, AccumulativeShadows, RandomizedLight, OrbitControls, Environment, Lightformer } from '@react-three/drei'
