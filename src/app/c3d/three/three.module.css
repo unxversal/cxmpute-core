@@ -1,7 +1,12 @@
-.main{
-    width: 100%;
-    position: relative;
+.main {
+    width: 100vw;
     height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
 
 .header {
@@ -25,20 +30,30 @@
 
 .content {
     width: 100%;
-    height: calc(100vh - 200px);
-    position: relative;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
-.inputContainer{
-    position: absolute;
+.inputContainer {
+    position: fixed;
     bottom: 20px;
     left: 20px;
     padding: 20px;
     border: 6px solid #000;
+    background: white;
     box-shadow: 12px 12px 0 #000;
-    transition: transform 0.3s, box-shadow 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s, left 0.3s, right 0.3s;
     width: 100%;
     max-width: 800px;
+    z-index: 1000;
+}
+
+.inputContainer.centered {
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 600px;
 }
 
 .inputContainer:hover {
@@ -46,18 +61,272 @@
     box-shadow: 5px 5px 0 #000;
 }
 
+.inputContainer.centered:hover {
+    transform: translateX(-50%) translate(5px, 5px);
+}
+
+.input {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
 .input input {
     outline: none;
     border: none;
-    padding: 10px 10px;
+    padding: 10px;
     border-radius: 10px;
     border: 3px black solid;
-    width: 100%;
+    flex: 1;
+    font-size: 16px;
+}
+
+.assetInput {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 2px dashed #666;
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+
+.assetInput input {
+    outline: none;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 2px solid #ccc;
+    flex: 1;
+    font-size: 14px;
 }
 
 .buttons {
-    margin-top: 10px;
-    width: 100%;
     display: flex;
     justify-content: space-between;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.left {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.right {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.presetSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.presetSection label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.presetCategories {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.presetCategory {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.categoryLabel {
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.presetCategory select {
+    outline: none;
+    border: 3px black solid;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: white;
+    min-width: 180px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.presetCategory select:hover {
+    background: #f5f5f5;
+}
+
+.assetsList {
+    margin-top: 15px;
+    padding: 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.assetsList h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.assets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.asset {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.assetType {
+    background: #007acc;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+}
+
+.assetName {
+    color: #333;
+    font-weight: 500;
+}
+
+.removeAsset {
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.removeAsset:hover {
+    background: #cc0000;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .inputContainer {
+        max-width: 700px;
+    }
+    
+    .buttons {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .right {
+        justify-content: flex-start;
+    }
+    
+    .presetCategories {
+        flex-direction: row;
+        gap: 10px;
+    }
+    
+    .presetCategory select {
+        min-width: 150px;
+    }
+}
+
+@media (max-width: 768px) {
+    .inputContainer {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+        width: auto;
+        padding: 15px;
+    }
+    
+    .inputContainer.centered {
+        left: 10px;
+        right: 10px;
+        transform: none;
+        max-width: none;
+    }
+    
+    .inputContainer.centered:hover {
+        transform: translate(5px, 5px);
+    }
+    
+    .left {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .presetCategories {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .presetCategory select {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .assetInput {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .assets {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .inputContainer {
+        padding: 12px;
+        bottom: 10px;
+    }
+    
+    .input input {
+        font-size: 14px;
+        padding: 8px;
+    }
+    
+    .assetInput input {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    
+    .presetSection label {
+        font-size: 12px;
+    }
+    
+    .presetCategory select {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
 }
