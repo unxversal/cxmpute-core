@@ -3,8 +3,9 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
-import React, { Suspense, useRef } from 'react';
+import React, { Suspense, useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import {
   visibleObjectsAtom,
   viewportSettingsAtom,
@@ -14,6 +15,7 @@ import {
   activeToolAtom,
   addObjectAtom,
   addOperationAtom,
+  orbitControlsRefAtom,
 } from '../stores/cadStore';
 import { CADObject, CADTool } from '../types/cad';
 import { useTheme } from '../hooks/useTheme';
@@ -188,6 +190,41 @@ function pointsToVec3(points: { x: number; y: number; z?: number }[]): THREE.Vec
   return points.map(p => new THREE.Vector3(p.x, p.y, p.z ?? 0));
 }
 
+// Viewport overlay controls component for zoom buttons
+function ViewportOverlayControls() {
+  const orbitControlsRef = useAtomValue(orbitControlsRefAtom);
+
+  const handleZoom = (factor: number) => {
+    if (orbitControlsRef?.current) {
+      if (factor > 1) {
+        orbitControlsRef.current.dollyOut(factor);
+      } else {
+        orbitControlsRef.current.dollyIn(1 / factor);
+      }
+      orbitControlsRef.current.update();
+    }
+  };
+
+  return (
+    <div className={styles.viewportOverlay}>
+      <button 
+        onClick={() => handleZoom(0.8)} 
+        title="Zoom In" 
+        className={styles.controlButton}
+      >
+        <ZoomIn size={18} />
+      </button>
+      <button 
+        onClick={() => handleZoom(1.2)} 
+        title="Zoom Out" 
+        className={styles.controlButton}
+      >
+        <ZoomOut size={18} />
+      </button>
+    </div>
+  );
+}
+
 // Scene component
 function CADScene() {
   const [visibleObjects] = useAtom(visibleObjectsAtom);
@@ -298,22 +335,75 @@ function CADScene() {
 // Camera setup with modified controls
 function CameraSetup() {
   const [viewportSettings] = useAtom(viewportSettingsAtom);
+  const activeTool = useAtomValue(activeToolAtom);
+  const controlsRef = useRef<any>(null);
+  const setOrbitControlsRef = useSetAtom(orbitControlsRefAtom);
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      setOrbitControlsRef(controlsRef);
+    }
+  }, [setOrbitControlsRef]);
+
+  useEffect(() => {
+    const currentControls = controlsRef.current;
+    if (currentControls) {
+      // Default settings for all tools
+      currentControls.enablePan = true;
+      currentControls.enableRotate = true;
+      currentControls.enableZoom = true;
+
+      switch (activeTool) {
+        case 'select':
+          currentControls.mouseButtons = {
+            LEFT: undefined, // Disables OrbitControls default left mouse - let TransformControls handle
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          };
+          currentControls.enablePan = false; // Disable pan for select mode
+          break;
+        case 'pan':
+          currentControls.mouseButtons = {
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          };
+          break;
+        case 'rotate':
+          currentControls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+          };
+          break;
+        case 'zoom':
+          currentControls.mouseButtons = {
+            LEFT: undefined,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          };
+          break;
+        default: // For primitive creation tools (box, cylinder, etc.)
+          currentControls.mouseButtons = {
+            LEFT: undefined, // Let canvas click handler work for placing primitives
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          };
+          currentControls.enablePan = false; // Prevent accidental panning during primitive placement
+          break;
+      }
+    }
+  }, [activeTool]);
   
   return (
     <OrbitControls
+      ref={controlsRef}
       target={viewportSettings.camera.target}
-      enablePan={true}
       enableZoom={true}
-      enableRotate={true}
       minDistance={0.1}
       maxDistance={1000}
       enableDamping={true}
       dampingFactor={0.05}
-      mouseButtons={{
-        LEFT: THREE.MOUSE.PAN, // Left mouse for panning only
-        MIDDLE: THREE.MOUSE.DOLLY, // Middle for zoom
-        RIGHT: THREE.MOUSE.ROTATE // Right click for rotate
-      }}
       keys={{
         LEFT: 'ArrowLeft',
         UP: 'ArrowUp', 
@@ -364,6 +454,9 @@ export default function CADViewport() {
           <Environment preset="studio" />
         </Suspense>
       </Canvas>
+
+      {/* Zoom Controls */}
+      <ViewportOverlayControls />
 
       {/* Viewport Controls */}
       <div className={styles.info}>

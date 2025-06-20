@@ -130,6 +130,7 @@ export type CADTool =
   | 'revolve'
   | 'fillet'
   | 'chamfer'
+  | 'shell'
   | 'union'
   | 'subtract'
   | 'intersect';
