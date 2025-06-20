@@ -2,7 +2,7 @@
 
 import { useAtom } from 'jotai';
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, CheckCircle, Circle, Palette } from 'lucide-react';
 import { selectedObjectsDataAtom, updateObjectAtom } from '../stores/cadStore';
 import { CADObject } from '../types/cad';
 import { useTheme } from '../hooks/useTheme';
@@ -31,6 +31,64 @@ function PropertyInput({ label, value, onChange, type = 'text', step }: Property
   );
 }
 
+interface ToggleSwitchProps {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function ToggleSwitch({ label, checked, onChange }: ToggleSwitchProps) {
+  return (
+    <div className={styles.formGroup}>
+      <label className={styles.label}>{label}</label>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`${styles.toggleButton} ${checked ? styles.checked : ''}`}
+      >
+        <div className={styles.toggleIcon}>
+          {checked ? <CheckCircle size={18} /> : <Circle size={18} />}
+        </div>
+        <span className={styles.toggleLabel}>{checked ? 'Visible' : 'Hidden'}</span>
+      </button>
+    </div>
+  );
+}
+
+interface SliderInputProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+function SliderInput({ label, value, onChange, min = -10, max = 10, step = 0.1 }: SliderInputProps) {
+  return (
+    <div className={styles.formGroup}>
+      <label className={styles.label}>{label}</label>
+      <div className={styles.sliderInputContainer}>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className={styles.slider}
+        />
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          step={step}
+          className={styles.numberInput}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface ColorPickerProps {
   label: string;
   value: string;
@@ -41,19 +99,15 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
   return (
     <div className={styles.formGroup}>
       <label className={styles.label}>{label}</label>
-      <div className={styles.toggle}>
+      <div className={styles.colorPickerContainer}>
+        <Palette size={16} className={styles.colorPickerIcon} />
         <input
           type="color"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={styles.colorInput}
         />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={styles.input}
-        />
+        <span className={styles.colorValue}>{value}</span>
       </div>
     </div>
   );
@@ -69,31 +123,10 @@ function Vector3Input({ label, value, onChange }: Vector3InputProps) {
   return (
     <div className={styles.formGroup}>
       <label className={styles.label}>{label}</label>
-      <div className={styles.vectorInput}>
-        <input
-          type="number"
-          value={value[0]}
-          onChange={(e) => onChange([parseFloat(e.target.value) || 0, value[1], value[2]])}
-          step={0.1}
-          className={styles.input}
-          placeholder="X"
-        />
-        <input
-          type="number"
-          value={value[1]}
-          onChange={(e) => onChange([value[0], parseFloat(e.target.value) || 0, value[2]])}
-          step={0.1}
-          className={styles.input}
-          placeholder="Y"
-        />
-        <input
-          type="number"
-          value={value[2]}
-          onChange={(e) => onChange([value[0], value[1], parseFloat(e.target.value) || 0])}
-          step={0.1}
-          className={styles.input}
-          placeholder="Z"
-        />
+      <div className={styles.vectorGroup}>
+        <SliderInput label="X" value={value[0]} onChange={(v) => onChange([v, value[1], value[2]])} />
+        <SliderInput label="Y" value={value[1]} onChange={(v) => onChange([value[0], v, value[2]])} />
+        <SliderInput label="Z" value={value[2]} onChange={(v) => onChange([value[0], value[1], v])} />
       </div>
     </div>
   );
@@ -177,15 +210,11 @@ export default function PropertyPanel() {
             {selectedObject.type}
           </div>
         </div>
-        <div className={styles.toggle}>
-          <input
-            type="checkbox"
-            checked={selectedObject.visible}
-            onChange={(e) => handlePropertyUpdate({ visible: e.target.checked })}
-            className={styles.toggleSwitch}
-          />
-          <label className={styles.label}>Visible</label>
-        </div>
+        <ToggleSwitch
+          label="Visibility"
+          checked={selectedObject.visible}
+          onChange={(visible) => handlePropertyUpdate({ visible })}
+        />
       </PropertySection>
 
       {/* Transform */}
@@ -244,20 +273,21 @@ export default function PropertyPanel() {
       {properties.dimensions && (
         <PropertySection title="Dimensions">
           {Object.entries(properties.dimensions).map(([key, value]) => (
-            <PropertyInput
+            <SliderInput
               key={key}
               label={key.charAt(0).toUpperCase() + key.slice(1)}
-              value={value}
+              value={value as number}
               onChange={(newValue) => handlePropertyUpdate({ 
                 properties: { 
                   ...properties, 
                   dimensions: { 
                     ...properties.dimensions, 
-                    [key]: newValue as number 
+                    [key]: newValue
                   } 
                 } 
               })}
-              type="number"
+              min={0}
+              max={50}
               step={0.1}
             />
           ))}
