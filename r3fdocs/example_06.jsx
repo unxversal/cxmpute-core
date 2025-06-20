@@ -1,1 +1,0 @@
-import { CuboidCollider, BallCollider, Physics, RigidBody } from '@react-three/rapier'

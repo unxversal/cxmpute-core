@@ -1,1 +1,0 @@
-import { Image, ScrollControls, useScroll, Billboard, Text } from '@react-three/drei'

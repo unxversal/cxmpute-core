@@ -1,1 +1,0 @@
-import { RGBELoader } from 'three-stdlib'

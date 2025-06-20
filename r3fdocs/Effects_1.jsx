@@ -1,1 +1,0 @@
-import Effects from './components/Effects'

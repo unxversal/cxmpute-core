@@ -1,1 +1,0 @@
-import { useGLTF, useAnimations, PerspectiveCamera } from "@react-three/drei"

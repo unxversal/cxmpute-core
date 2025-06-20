@@ -1,0 +1,477 @@
+/* File Manager Modal */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  width: 90%;
+  max-width: 480px;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideIn 0.3s ease-out;
+  transition: all 0.2s ease;
+}
+
+.modal[data-theme="dark"] {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+}
+
+.modal[data-theme="light"] {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid;
+}
+
+.modal[data-theme="dark"] .header {
+  border-bottom-color: #333;
+}
+
+.modal[data-theme="light"] .header {
+  border-bottom-color: #e5e5e5;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.modal[data-theme="dark"] .title {
+  color: #e4e4e7;
+}
+
+.modal[data-theme="light"] .title {
+  color: #18181b;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal[data-theme="dark"] .closeButton {
+  background-color: #2a2a2a;
+  color: #a1a1aa;
+}
+
+.modal[data-theme="light"] .closeButton {
+  background-color: #f4f4f5;
+  color: #71717a;
+}
+
+.modal[data-theme="dark"] .closeButton:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.modal[data-theme="light"] .closeButton:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+/* Modal Content */
+.content {
+  padding: 24px;
+}
+
+/* Form Section */
+.section {
+  margin-bottom: 24px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  letter-spacing: -0.025em;
+}
+
+.modal[data-theme="dark"] .sectionTitle {
+  color: #d4d4d8;
+}
+
+.modal[data-theme="light"] .sectionTitle {
+  color: #374151;
+}
+
+/* Form Group */
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.modal[data-theme="dark"] .label {
+  color: #a1a1aa;
+}
+
+.modal[data-theme="light"] .label {
+  color: #6b7280;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.modal[data-theme="dark"] .input,
+.modal[data-theme="dark"] .select {
+  background-color: #262626;
+  border-color: #404040;
+  color: #e4e4e7;
+}
+
+.modal[data-theme="light"] .input,
+.modal[data-theme="light"] .select {
+  background-color: #ffffff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+.modal[data-theme="dark"] .input:focus,
+.modal[data-theme="dark"] .select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.modal[data-theme="light"] .input:focus,
+.modal[data-theme="light"] .select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Format Options */
+.formatOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.formatOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal[data-theme="dark"] .formatOption {
+  border-color: #404040;
+  color: #d4d4d8;
+}
+
+.modal[data-theme="light"] .formatOption {
+  border-color: #d4d4d8;
+  color: #374151;
+}
+
+.modal[data-theme="dark"] .formatOption:hover {
+  border-color: #525252;
+  background-color: #1a1a1a;
+}
+
+.modal[data-theme="light"] .formatOption:hover {
+  border-color: #a1a1aa;
+  background-color: #f9f9f9;
+}
+
+.formatOption.selected {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.modal[data-theme="dark"] .formatOption.selected {
+  color: #93c5fd;
+}
+
+.modal[data-theme="light"] .formatOption.selected {
+  color: #1d4ed8;
+}
+
+.formatRadio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.modal[data-theme="dark"] .formatRadio {
+  border-color: #525252;
+}
+
+.modal[data-theme="light"] .formatRadio {
+  border-color: #a1a1aa;
+}
+
+.formatOption.selected .formatRadio {
+  border-color: #3b82f6;
+}
+
+.formatOption.selected .formatRadio::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+}
+
+.formatInfo {
+  flex: 1;
+}
+
+.formatName {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.formatDesc {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Progress Bar */
+.progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.modal[data-theme="dark"] .progress {
+  background-color: #2a2a2a;
+}
+
+.modal[data-theme="light"] .progress {
+  background-color: #f3f4f6;
+}
+
+.progressBar {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.progressText {
+  font-size: 12px;
+  text-align: center;
+}
+
+.modal[data-theme="dark"] .progressText {
+  color: #a1a1aa;
+}
+
+.modal[data-theme="light"] .progressText {
+  color: #6b7280;
+}
+
+/* Modal Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid;
+}
+
+.modal[data-theme="dark"] .actions {
+  border-top-color: #333;
+}
+
+.modal[data-theme="light"] .actions {
+  border-top-color: #e5e5e5;
+}
+
+.button {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.button.secondary {
+  background: none;
+}
+
+.modal[data-theme="dark"] .button.secondary {
+  border-color: #404040;
+  color: #a1a1aa;
+}
+
+.modal[data-theme="light"] .button.secondary {
+  border-color: #d4d4d8;
+  color: #71717a;
+}
+
+.modal[data-theme="dark"] .button.secondary:hover {
+  border-color: #525252;
+  background-color: #1a1a1a;
+  color: #e4e4e7;
+}
+
+.modal[data-theme="light"] .button.secondary:hover {
+  border-color: #a1a1aa;
+  background-color: #f9f9f9;
+  color: #18181b;
+}
+
+.button.primary {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.button.primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Drag and Drop Area */
+.dropArea {
+  border: 2px dashed;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal[data-theme="dark"] .dropArea {
+  border-color: #404040;
+  background-color: #1a1a1a;
+}
+
+.modal[data-theme="light"] .dropArea {
+  border-color: #d4d4d8;
+  background-color: #f9f9f9;
+}
+
+.dropArea.dragOver {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.dropIcon {
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.dropText {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.modal[data-theme="dark"] .dropText {
+  color: #a1a1aa;
+}
+
+.modal[data-theme="light"] .dropText {
+  color: #6b7280;
+}
+
+.dropSubtext {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.modal[data-theme="dark"] .dropSubtext {
+  color: #71717a;
+}
+
+.modal[data-theme="light"] .dropSubtext {
+  color: #9ca3af;
+} 

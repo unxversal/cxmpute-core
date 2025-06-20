@@ -1,0 +1,333 @@
+/* Layer Manager */
+.container {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] {
+  background-color: #111111;
+}
+
+.container[data-theme="light"] {
+  background-color: #fafafa;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid;
+}
+
+.container[data-theme="dark"] .header {
+  border-bottom-color: #333;
+}
+
+.container[data-theme="light"] .header {
+  border-bottom-color: #e5e5e5;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.container[data-theme="dark"] .title {
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .title {
+  color: #18181b;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .addButton {
+  background-color: #1f1f1f;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .addButton {
+  background-color: #ffffff;
+  color: #71717a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.container[data-theme="dark"] .addButton:hover {
+  background-color: #3b82f6;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.container[data-theme="light"] .addButton:hover {
+  background-color: #3b82f6;
+  color: #ffffff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Content */
+.content {
+  flex: 1;
+  padding: 8px;
+}
+
+/* Layer Item */
+.layerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 2px;
+}
+
+.container[data-theme="dark"] .layerItem {
+  color: #d4d4d8;
+}
+
+.container[data-theme="light"] .layerItem {
+  color: #374151;
+}
+
+.container[data-theme="dark"] .layerItem:hover {
+  background-color: #1a1a1a;
+}
+
+.container[data-theme="light"] .layerItem:hover {
+  background-color: #f0f0f0;
+}
+
+.layerItem.active {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.container[data-theme="dark"] .layerItem.active {
+  color: #93c5fd;
+}
+
+.container[data-theme="light"] .layerItem.active {
+  color: #1d4ed8;
+}
+
+/* Layer Color */
+.layerColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .layerColor {
+  border-color: #404040;
+}
+
+.container[data-theme="light"] .layerColor {
+  border-color: #d4d4d8;
+}
+
+.layerColor:hover {
+  transform: scale(1.1);
+}
+
+/* Layer Name */
+.layerName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 0;
+}
+
+.layerNameInput {
+  flex: 1;
+  padding: 2px 6px;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  outline: none;
+}
+
+.container[data-theme="dark"] .layerNameInput {
+  border-color: #3b82f6;
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .layerNameInput {
+  border-color: #3b82f6;
+  color: #18181b;
+}
+
+/* Layer Count */
+.layerCount {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+.container[data-theme="dark"] .layerCount {
+  background-color: #2a2a2a;
+  color: #71717a;
+}
+
+.container[data-theme="light"] .layerCount {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Layer Controls */
+.layerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: none;
+}
+
+.container[data-theme="dark"] .controlButton {
+  color: #71717a;
+}
+
+.container[data-theme="light"] .controlButton {
+  color: #9ca3af;
+}
+
+.container[data-theme="dark"] .controlButton:hover {
+  background-color: #2a2a2a;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .controlButton:hover {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.controlButton.active {
+  color: #3b82f6;
+}
+
+.controlButton.delete:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  flex: 1;
+}
+
+.emptyStateIcon {
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.emptyStateText {
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.container[data-theme="dark"] .emptyStateText {
+  color: #71717a;
+}
+
+.container[data-theme="light"] .emptyStateText {
+  color: #9ca3af;
+}
+
+.emptyStateSubtext {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.container[data-theme="dark"] .emptyStateSubtext {
+  color: #52525b;
+}
+
+.container[data-theme="light"] .emptyStateSubtext {
+  color: #d1d5db;
+}
+
+/* Drag and Drop */
+.layerItem.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+.layerItem.dropTarget {
+  border: 2px dashed #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* Scrollbar */
+.container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.container[data-theme="dark"]::-webkit-scrollbar-track {
+  background-color: #1f1f1f;
+}
+
+.container[data-theme="light"]::-webkit-scrollbar-track {
+  background-color: #f4f4f5;
+}
+
+.container[data-theme="dark"]::-webkit-scrollbar-thumb {
+  background-color: #404040;
+  border-radius: 2px;
+}
+
+.container[data-theme="light"]::-webkit-scrollbar-thumb {
+  background-color: #d4d4d8;
+  border-radius: 2px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .container {
+    width: 240px;
+  }
+} 

@@ -1,1 +1,0 @@
-import { Canvas, useThree, useFrame, useLoader } from '@react-three/fiber'

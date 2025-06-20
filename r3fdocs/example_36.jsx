@@ -1,1 +1,0 @@
-import { Canvas, extend } from '@react-three/fiber'
