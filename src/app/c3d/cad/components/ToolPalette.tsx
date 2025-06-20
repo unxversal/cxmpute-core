@@ -2,6 +2,7 @@
 'use client';
 
 import { useAtom, useAtomValue } from 'jotai';
+import { useState, useRef } from 'react';
 import { 
   MousePointer, 
   Move, 
@@ -14,14 +15,104 @@ import {
   Pencil,
   Plus,
   Minus,
-  Layers
+  Layers,
+  X,
+  Minus as Line,
+  MoreHorizontal as HorizontalLine,
+  MoreVertical as VerticalLine,
+  Zap,
+  CheckCircle
 } from 'lucide-react';
-import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom } from '../stores/cadStore';
+import { 
+  activeToolAtom, 
+  addObjectAtom, 
+  selectedObjectsAtom, 
+  removeObjectAtom, 
+  cadObjectsAtom,
+  isSketchingAtom,
+  sketchModeAtom,
+  startSketchAtom,
+  addDrawingOperationAtom,
+  finishSketchAtom,
+  cancelSketchAtom
+} from '../stores/cadStore';
 import { CADTool } from '../types/cad';
 import { cadEngine } from '../lib/cadEngine';
 import { useTheme } from '../hooks/useTheme';
 import styles from './ToolPalette.module.css';
 import { toast } from 'sonner';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (value: string) => void;
+  title: string;
+  placeholder?: string;
+  inputType?: 'text' | 'number';
+  defaultValue?: string;
+}
+
+// Custom Modal Component to replace browser alert/confirm
+function Modal({ isOpen, onClose, onConfirm, title, placeholder = '', inputType = 'number', defaultValue = '' }: ModalProps) {
+  const [inputValue, setInputValue] = useState(defaultValue);
+  const { theme } = useTheme();
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      onConfirm(inputValue.trim());
+      setInputValue('');
+      onClose();
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div 
+        className={styles.modalContent} 
+        data-theme={theme} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>{title}</h3>
+          <button onClick={onClose} className={styles.modalCloseButton}>
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className={styles.modalForm}>
+          <input
+            type={inputType}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder={placeholder}
+            className={styles.modalInput}
+            autoFocus
+            step={inputType === 'number' ? '0.1' : undefined}
+            min={inputType === 'number' ? '0.1' : undefined}
+          />
+          <div className={styles.modalButtons}>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className={styles.modalCancelButton}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className={styles.modalConfirmButton}
+              disabled={!inputValue.trim()}
+            >
+              Confirm
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 interface ToolButtonProps {
   tool: CADTool;
@@ -29,6 +120,52 @@ interface ToolButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+}
+
+// Tooltip component
+function Tooltip({ children, content }: { children: React.ReactNode; content: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseEnter = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const tooltipTop = rect.top - 8; // 8px gap above the button
+      let tooltipLeft = rect.left + rect.width / 2; // Center horizontally
+      
+      // Prevent tooltip from going off the left edge
+      const tooltipWidth = content.length * 8 + 20; // Rough estimate
+      if (tooltipLeft - tooltipWidth / 2 < 10) {
+        tooltipLeft = tooltipWidth / 2 + 10;
+      }
+      
+      setPosition({ top: tooltipTop, left: tooltipLeft });
+      setIsVisible(true);
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={styles.tooltipContainer}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      {children}
+      {isVisible && (
+        <div 
+          className={styles.tooltip}
+          style={{
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+          }}
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
@@ -48,6 +185,7 @@ function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
       'revolve': '',
       'fillet': '',
       'chamfer': '',
+      'shell': '',
       'union': '',
       'subtract': '',
       'intersect': ''
@@ -58,13 +196,14 @@ function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
   };
 
   return (
-    <button
-      onClick={onClick}
-      className={`${styles.toolButton} ${isActive ? styles.active : ''}`}
-      title={getTooltip(label, tool)}
-    >
-      {icon}
-    </button>
+    <Tooltip content={getTooltip(label, tool)}>
+      <button
+        onClick={onClick}
+        className={`${styles.toolButton} ${isActive ? styles.active : ''}`}
+      >
+        {icon}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -84,16 +223,155 @@ function ToolSection({ title, children }: ToolSectionProps) {
   );
 }
 
+// Sketch Toolbar Component
+function SketchToolbar() {
+  const [isSketchingValue] = useAtom(isSketchingAtom);
+  const [sketchMode] = useAtom(sketchModeAtom);
+  const [, addOperation] = useAtom(addDrawingOperationAtom);
+  const [, finishSketch] = useAtom(finishSketchAtom);
+  const [, cancelSketch] = useAtom(cancelSketchAtom);
+  const { theme } = useTheme();
+
+  if (!isSketchingValue) return null;
+
+  const handleAddLine = async (type: 'hLine' | 'vLine' | 'line') => {
+    try {
+      const distance = parseFloat(prompt(`Enter ${type === 'hLine' ? 'horizontal' : type === 'vLine' ? 'vertical' : 'diagonal'} line distance:`) || '10');
+      if (type === 'line') {
+        const dx = parseFloat(prompt('Enter X offset:') || '10');
+        const dy = parseFloat(prompt('Enter Y offset:') || '0');
+        await addOperation({ type: 'line', params: [dx, dy] });
+      } else {
+        await addOperation({ type, params: [distance] });
+      }
+      toast.success(`${type} line added`);
+    } catch (error) {
+      toast.error(`Failed to add line: ${error}`);
+    }
+  };
+
+  const handleAddArc = async () => {
+    try {
+      const dx = parseFloat(prompt('Enter arc end X:') || '20');
+      const dy = parseFloat(prompt('Enter arc end Y:') || '10');
+      const sagitta = parseFloat(prompt('Enter arc sagitta (curve amount):') || '5');
+      await addOperation({ type: 'sagittaArc', params: [dx, dy, sagitta] });
+      toast.success('Arc added');
+    } catch (error) {
+      toast.error(`Failed to add arc: ${error}`);
+    }
+  };
+
+  const handleFinishSketch = async () => {
+    try {
+      const extrudeDistance = parseFloat(prompt('Enter extrude distance (mm):') || '10');
+      await finishSketch(extrudeDistance);
+      toast.success('Sketch completed and extruded');
+    } catch (error) {
+      toast.error(`Failed to finish sketch: ${error}`);
+    }
+  };
+
+  return (
+    <div className={styles.sketchToolbar} data-theme={theme}>
+      <div className={styles.sketchHeader}>
+        <h3>Sketch Mode ({sketchMode})</h3>
+        <button onClick={cancelSketch} className={styles.cancelButton}>
+          <X size={16} />
+        </button>
+      </div>
+      
+      <div className={styles.sketchTools}>
+        <div className={styles.sketchSection}>
+          <span className={styles.sketchSectionTitle}>Lines</span>
+          <div className={styles.sketchButtonGroup}>
+            <button onClick={() => handleAddLine('hLine')} className={styles.sketchButton}>
+              <HorizontalLine size={16} />
+              <span>H-Line</span>
+            </button>
+            <button onClick={() => handleAddLine('vLine')} className={styles.sketchButton}>
+              <VerticalLine size={16} />
+              <span>V-Line</span>
+            </button>
+            <button onClick={() => handleAddLine('line')} className={styles.sketchButton}>
+              <Line size={16} />
+              <span>Line</span>
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.sketchSection}>
+          <span className={styles.sketchSectionTitle}>Curves</span>
+          <div className={styles.sketchButtonGroup}>
+            <button onClick={handleAddArc} className={styles.sketchButton}>
+              <Zap size={16} />
+              <span>Arc</span>
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.sketchActions}>
+          <button onClick={handleFinishSketch} className={styles.finishButton}>
+            <CheckCircle size={16} />
+            <span>Finish & Extrude</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ToolPalette() {
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
   const [, addObject] = useAtom(addObjectAtom);
   const [selectedIds] = useAtom(selectedObjectsAtom);
   const [, removeObject] = useAtom(removeObjectAtom);
   const objects = useAtomValue(cadObjectsAtom);
+  const [, startSketch] = useAtom(startSketchAtom);
   const { theme } = useTheme();
 
-  const handleToolSelect = (tool: CADTool) => {
+  // Modal state
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    placeholder: string;
+    inputType: 'text' | 'number';
+    onConfirm: (value: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    placeholder: '',
+    inputType: 'number',
+    onConfirm: () => {},
+  });
+
+  const openModal = (title: string, placeholder: string, inputType: 'text' | 'number' = 'number') => {
+    return new Promise<string>((resolve, reject) => {
+      setModalState({
+        isOpen: true,
+        title,
+        placeholder,
+        inputType,
+        onConfirm: (value) => {
+          resolve(value);
+          setModalState(prev => ({ ...prev, isOpen: false }));
+        },
+      });
+    });
+  };
+
+  const handleToolSelect = async (tool: CADTool) => {
     setActiveTool(tool);
+    
+    // Start sketching when sketch tool is selected
+    if (tool === 'sketch') {
+      try {
+        await startSketch({ mode: 'line' });
+        toast.success('Sketch mode started - use toolbar to add elements');
+      } catch (error) {
+        toast.error(`Failed to start sketch: ${error}`);
+      }
+    }
   };
 
   const performBoolean = async (op: 'union' | 'subtract' | 'intersect') => {
@@ -159,14 +437,14 @@ export default function ToolPalette() {
       toast.warning('Selected object must be a sketch');
       return;
     }
-    const distance = prompt('Extrude distance:');
-    if (!distance) return;
-    const dist = parseFloat(distance);
-    if (isNaN(dist) || dist <= 0) {
-      toast.error('Invalid distance');
-      return;
-    }
     try {
+      const distance = await openModal('Extrude Distance', 'Enter distance (mm)');
+      const dist = parseFloat(distance);
+      if (isNaN(dist) || dist <= 0) {
+        toast.error('Invalid distance');
+        return;
+      }
+      
       const shapeId = obj.metadata?.replicadId || cadId;
       const result = await cadEngine.extrudeSketch(shapeId, dist);
       if (result) {
@@ -208,14 +486,14 @@ export default function ToolPalette() {
       toast.warning('Selected object must be a sketch');
       return;
     }
-    const angle = prompt('Revolve angle (degrees):');
-    if (!angle) return;
-    const angleDeg = parseFloat(angle);
-    if (isNaN(angleDeg)) {
-      toast.error('Invalid angle');
-      return;
-    }
     try {
+      const angle = await openModal('Revolve Angle', 'Enter angle in degrees (360 for full revolution)');
+      const angleDeg = parseFloat(angle);
+      if (isNaN(angleDeg)) {
+        toast.error('Invalid angle');
+        return;
+      }
+      
       const shapeId = obj.metadata?.replicadId || cadId;
       const result = await cadEngine.revolveSketch(shapeId, [0, 0, 1], angleDeg);
       if (result) {
@@ -257,14 +535,14 @@ export default function ToolPalette() {
       toast.warning('Selected object must be a solid');
       return;
     }
-    const thickness = prompt('Shell thickness:');
-    if (!thickness) return;
-    const thick = parseFloat(thickness);
-    if (isNaN(thick) || thick === 0) {
-      toast.error('Invalid thickness');
-      return;
-    }
     try {
+      const thickness = await openModal('Shell Thickness', 'Enter wall thickness (mm)');
+      const thick = parseFloat(thickness);
+      if (isNaN(thick) || thick === 0) {
+        toast.error('Invalid thickness');
+        return;
+      }
+      
       const shapeId = obj.metadata?.replicadId || cadId;
       const result = await cadEngine.shellShape(shapeId, thick);
       if (result) {
@@ -302,14 +580,17 @@ export default function ToolPalette() {
     }
     const cadId = selectedIds[0];
     const shapeId = objects[cadId]?.metadata?.replicadId || cadId;
-    const valStr = prompt(`${mode} radius/distance:`);
-    if (!valStr) return;
-    const val = parseFloat(valStr);
-    if (isNaN(val) || val <= 0) {
-      toast.error('Invalid number');
-      return;
-    }
     try {
+      const valStr = await openModal(
+        `${mode.charAt(0).toUpperCase() + mode.slice(1)} ${mode === 'fillet' ? 'Radius' : 'Distance'}`, 
+        `Enter ${mode === 'fillet' ? 'radius' : 'distance'} (mm)`
+      );
+      const val = parseFloat(valStr);
+      if (isNaN(val) || val <= 0) {
+        toast.error('Invalid number');
+        return;
+      }
+      
       let res;
       if (mode === 'fillet') res = await cadEngine.filletEdges(shapeId, val);
       else res = await cadEngine.chamferEdges(shapeId, val);
@@ -342,7 +623,16 @@ export default function ToolPalette() {
   };
 
   return (
-    <div className={styles.container} data-theme={theme}>
+    <>
+      <Modal
+        isOpen={modalState.isOpen}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={modalState.onConfirm}
+        title={modalState.title}
+        placeholder={modalState.placeholder}
+        inputType={modalState.inputType}
+      />
+      <div className={styles.container} data-theme={theme}>
       {/* Selection Tools */}
       <ToolSection title="Select">
         <ToolButton
@@ -505,6 +795,10 @@ export default function ToolPalette() {
           }}
         />
       </ToolSection>
+
+      {/* Sketch Toolbar - appears when sketching */}
+      <SketchToolbar />
     </div>
+    </>
   );
 } 
