@@ -13,7 +13,8 @@ import {
   Cylinder,
   Pencil,
   Plus,
-  Minus
+  Minus,
+  Layers
 } from 'lucide-react';
 import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom } from '../stores/cadStore';
 import { CADTool } from '../types/cad';
@@ -31,11 +32,36 @@ interface ToolButtonProps {
 }
 
 function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
+  // Enhanced tooltips with keyboard shortcuts
+  const getTooltip = (label: string, tool: CADTool) => {
+    const shortcuts: Record<CADTool, string> = {
+      'select': 'V',
+      'pan': 'P', 
+      'rotate': 'R',
+      'zoom': '',
+      'box': 'B',
+      'cylinder': 'C',
+      'sphere': 'S',
+      'cone': '',
+      'sketch': '',
+      'extrude': 'E',
+      'revolve': '',
+      'fillet': '',
+      'chamfer': '',
+      'union': '',
+      'subtract': '',
+      'intersect': ''
+    };
+    
+    const shortcut = shortcuts[tool];
+    return shortcut ? `${label} (${shortcut})` : label;
+  };
+
   return (
     <button
       onClick={onClick}
       className={`${styles.toolButton} ${isActive ? styles.active : ''}`}
-      title={label}
+      title={getTooltip(label, tool)}
     >
       {icon}
     </button>
@@ -119,6 +145,153 @@ export default function ToolPalette() {
     } catch (err) {
       console.error(err);
       toast.error(`Failed to ${op}`);
+    }
+  };
+
+  const performExtrude = async () => {
+    if (selectedIds.length !== 1) {
+      toast.warning('Select a single sketch first');
+      return;
+    }
+    const cadId = selectedIds[0];
+    const obj = objects[cadId];
+    if (obj?.type !== 'sketch') {
+      toast.warning('Selected object must be a sketch');
+      return;
+    }
+    const distance = prompt('Extrude distance:');
+    if (!distance) return;
+    const dist = parseFloat(distance);
+    if (isNaN(dist) || dist <= 0) {
+      toast.error('Invalid distance');
+      return;
+    }
+    try {
+      const shapeId = obj.metadata?.replicadId || cadId;
+      const result = await cadEngine.extrudeSketch(shapeId, dist);
+      if (result) {
+        removeObject(cadId);
+        addObject({
+          name: `extruded_${Date.now()}`,
+          type: 'solid',
+          solid: result.replicadSolid,
+          mesh: result.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#10b981',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: result.parameters,
+          },
+          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+        });
+        toast.success('Extrude complete');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to extrude');
+    }
+  };
+
+  const performRevolve = async () => {
+    if (selectedIds.length !== 1) {
+      toast.warning('Select a single sketch first');
+      return;
+    }
+    const cadId = selectedIds[0];
+    const obj = objects[cadId];
+    if (obj?.type !== 'sketch') {
+      toast.warning('Selected object must be a sketch');
+      return;
+    }
+    const angle = prompt('Revolve angle (degrees):');
+    if (!angle) return;
+    const angleDeg = parseFloat(angle);
+    if (isNaN(angleDeg)) {
+      toast.error('Invalid angle');
+      return;
+    }
+    try {
+      const shapeId = obj.metadata?.replicadId || cadId;
+      const result = await cadEngine.revolveSketch(shapeId, [0, 0, 1], angleDeg);
+      if (result) {
+        removeObject(cadId);
+        addObject({
+          name: `revolved_${Date.now()}`,
+          type: 'solid',
+          solid: result.replicadSolid,
+          mesh: result.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#8b5cf6',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: result.parameters,
+          },
+          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+        });
+        toast.success('Revolve complete');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to revolve');
+    }
+  };
+
+  const performShell = async () => {
+    if (selectedIds.length !== 1) {
+      toast.warning('Select a single solid first');
+      return;
+    }
+    const cadId = selectedIds[0];
+    const obj = objects[cadId];
+    if (obj?.type !== 'solid') {
+      toast.warning('Selected object must be a solid');
+      return;
+    }
+    const thickness = prompt('Shell thickness:');
+    if (!thickness) return;
+    const thick = parseFloat(thickness);
+    if (isNaN(thick) || thick === 0) {
+      toast.error('Invalid thickness');
+      return;
+    }
+    try {
+      const shapeId = obj.metadata?.replicadId || cadId;
+      const result = await cadEngine.shellShape(shapeId, thick);
+      if (result) {
+        removeObject(cadId);
+        addObject({
+          name: `shell_${Date.now()}`,
+          type: 'solid',
+          solid: result.replicadSolid,
+          mesh: result.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#f59e0b',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: result.parameters,
+          },
+          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+        });
+        toast.success('Shell complete');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to shell');
     }
   };
 
@@ -248,14 +421,20 @@ export default function ToolPalette() {
           icon={<Square size={20} />}
           label="Extrude"
           isActive={activeTool === 'extrude'}
-          onClick={() => handleToolSelect('extrude')}
+          onClick={() => {
+            handleToolSelect('extrude');
+            performExtrude();
+          }}
         />
         <ToolButton
           tool="revolve"
           icon={<Circle size={20} />}
           label="Revolve"
           isActive={activeTool === 'revolve'}
-          onClick={() => handleToolSelect('revolve')}
+          onClick={() => {
+            handleToolSelect('revolve');
+            performRevolve();
+          }}
         />
       </ToolSection>
 
@@ -279,6 +458,16 @@ export default function ToolPalette() {
           onClick={() => {
             handleToolSelect('chamfer');
             performFilletChamfer('chamfer');
+          }}
+        />
+        <ToolButton
+          tool="shell"
+          icon={<Layers size={20} />}
+          label="Shell"
+          isActive={activeTool === 'shell'}
+          onClick={() => {
+            handleToolSelect('shell');
+            performShell();
           }}
         />
       </ToolSection>

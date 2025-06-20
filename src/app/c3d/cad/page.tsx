@@ -1,11 +1,25 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Toaster } from 'sonner';
 import { Loader, HelpCircle, X, Keyboard, Mouse, Grid } from 'lucide-react';
 import { useTheme } from './hooks/useTheme';
 import { useCADInitialization } from './hooks/useCADInitialization';
+import { useAtom, useSetAtom, useAtomValue } from 'jotai';
+import { 
+  selectedObjectsAtom, 
+  removeObjectAtom, 
+  cadObjectsAtom, 
+  addOperationAtom, 
+  activeToolAtom, 
+  draftSketchPointsAtom,
+  viewportSettingsAtom,
+  undoAtom,
+  redoAtom
+} from './stores/cadStore';
+import { cadEngine } from './lib/cadEngine';
+import { toast } from 'sonner';
 import styles from './page.module.css';
 
 // Dynamically import Three.js components to avoid SSR issues
@@ -162,6 +176,115 @@ export default function CADEditorPage() {
   const { theme, toggleTheme } = useTheme();
   const { isInitializing, isInitialized, error, isFallbackMode } = useCADInitialization();
   const [showHelp, setShowHelp] = useState(false);
+  
+  // Keyboard shortcut state management
+  const [selectedObjectIds, setSelectedObjectIds] = useAtom(selectedObjectsAtom);
+  const removeObject = useSetAtom(removeObjectAtom);
+  const objects = useAtomValue(cadObjectsAtom);
+  const addOperation = useSetAtom(addOperationAtom);
+  const [activeTool, setActiveTool] = useAtom(activeToolAtom);
+  const [, setDraftPoints] = useAtom(draftSketchPointsAtom);
+  const [viewportSettings, setViewportSettings] = useAtom(viewportSettingsAtom);
+  const undo = useSetAtom(undoAtom);
+  const redo = useSetAtom(redoAtom);
+
+  // Keyboard event handler
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      // Don't interfere with text input unless it's Escape
+      if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        if (event.key === 'Escape') {
+          (document.activeElement as HTMLElement).blur();
+        }
+        return;
+      }
+
+      // Handle different keyboard shortcuts
+      switch (event.key) {
+        case 'Delete':
+        case 'Backspace':
+          if (selectedObjectIds.length > 0) {
+            const objectsToDelete = [...selectedObjectIds];
+            const deletedReplicadIds: string[] = [];
+            
+            for (const id of objectsToDelete) {
+              const obj = objects[id];
+              if (obj?.metadata?.replicadId) {
+                try {
+                  cadEngine.deleteShape(obj.metadata.replicadId);
+                  deletedReplicadIds.push(obj.metadata.replicadId);
+                } catch (e) {
+                  console.warn(`Could not delete shape ${obj.metadata.replicadId} from engine:`, e);
+                }
+              }
+              removeObject(id);
+            }
+            
+            addOperation({
+              type: 'delete',
+              params: { count: objectsToDelete.length },
+              undoable: true,
+            });
+            toast.success(`Deleted ${objectsToDelete.length} object(s)`);
+            setSelectedObjectIds([]);
+          }
+          break;
+
+        case 'Escape':
+          setSelectedObjectIds([]);
+          if (activeTool === 'sketch') {
+            setDraftPoints([]);
+            toast.info("Sketch draft cleared.");
+          }
+          break;
+
+        case 'g':
+        case 'G':
+          // Toggle grid
+          setViewportSettings({
+            grid: { ...viewportSettings.grid, visible: !viewportSettings.grid.visible }
+          });
+          toast.info(`Grid ${viewportSettings.grid.visible ? 'hidden' : 'visible'}`);
+          break;
+
+        case '?':
+          setShowHelp(true);
+          break;
+
+        default:
+          // Tool shortcuts (only if no modifier keys)
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+            const key = event.key.toLowerCase();
+            switch (key) {
+              case 'v': setActiveTool('select'); toast.info('Select tool active'); break;
+              case 'p': setActiveTool('pan'); toast.info('Pan tool active'); break;
+              case 'r': setActiveTool('rotate'); toast.info('Rotate view tool active'); break;
+              case 'b': setActiveTool('box'); toast.info('Box tool active'); break;
+              case 'c': setActiveTool('cylinder'); toast.info('Cylinder tool active'); break;
+              case 's': setActiveTool('sphere'); toast.info('Sphere tool active'); break;
+              case 'e': setActiveTool('extrude'); toast.info('Extrude tool active'); break;
+            }
+          }
+          break;
+      }
+
+      // Handle Undo/Redo
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+        toast.info('Undo');
+      }
+      if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey))) {
+        event.preventDefault();
+        redo();
+        toast.info('Redo');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedObjectIds, removeObject, objects, setSelectedObjectIds, addOperation, activeTool, setActiveTool, setDraftPoints, setViewportSettings, viewportSettings.grid.visible]);
+
 
   return (
     <div className={styles.container} data-theme={theme}>

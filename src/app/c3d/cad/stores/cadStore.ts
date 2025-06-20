@@ -1,6 +1,5 @@
 import { atom } from 'jotai';
 import { CADObject, CADLayer, CADScene, ToolState, CADOperation, CADTool, ViewportSettings, SketchPoint } from '../types/cad';
-
 // Generate unique IDs
 const generateId = () => `cad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -324,4 +323,73 @@ export const updateLayerAtom = atom(
       set(cadLayersAtom, { ...layers, [layerId]: updatedLayer });
     }
   }
-); 
+);
+
+// Undo/Redo system atoms
+const MAX_HISTORY_SIZE = 50;
+
+export const undoStackAtom = atom<string[]>([]);
+export const redoStackAtom = atom<string[]>([]);
+
+// OrbitControls reference for dynamic viewport control
+export const orbitControlsRefAtom = atom<React.MutableRefObject<any> | null>(null);
+
+// Helper to serialize/deserialize scene for undo/redo
+const serializeScene = (scene: CADScene): string => JSON.stringify(scene);
+const deserializeScene = (jsonString: string): CADScene => {
+  const scene = JSON.parse(jsonString);
+  // Rehydrate Date objects if any
+  Object.values(scene.objects).forEach((obj: any) => {
+    if (obj.metadata?.createdAt) obj.metadata.createdAt = new Date(obj.metadata.createdAt);
+    if (obj.metadata?.updatedAt) obj.metadata.updatedAt = new Date(obj.metadata.updatedAt);
+  });
+  return scene;
+};
+
+export const performUndoableOperationAtom = atom(
+  null,
+  (get, set, operationFunction: () => {op: CADOperation | null, newObjectId?: string} ) => {
+    const currentScene = get(cadSceneAtom);
+    
+    set(undoStackAtom, (prev) => {
+      const newStack = [serializeScene(currentScene), ...prev];
+      return newStack.length > MAX_HISTORY_SIZE ? newStack.slice(0, MAX_HISTORY_SIZE) : newStack;
+    });
+    set(redoStackAtom, []); 
+
+    const { op, newObjectId } = operationFunction(); 
+
+    if (op) {
+      set(cadHistoryAtom, (prev) => [...prev, op]);
+    }
+    return newObjectId;
+  }
+);
+
+export const undoAtom = atom(null, (get, set) => {
+  const undoStack = get(undoStackAtom);
+  if (undoStack.length > 0) {
+    const sceneToRestoreStr = undoStack[0];
+    const sceneToRestore = deserializeScene(sceneToRestoreStr);
+    
+    const currentSceneStr = serializeScene(get(cadSceneAtom));
+    set(redoStackAtom, (prev) => [currentSceneStr, ...prev]);
+    set(undoStackAtom, (prev) => prev.slice(1));
+    
+    set(cadSceneAtom, sceneToRestore);
+  }
+});
+
+export const redoAtom = atom(null, (get, set) => {
+  const redoStack = get(redoStackAtom);
+  if (redoStack.length > 0) {
+    const sceneToRestoreStr = redoStack[0];
+    const sceneToRestore = deserializeScene(sceneToRestoreStr);
+
+    const currentSceneStr = serializeScene(get(cadSceneAtom));
+    set(undoStackAtom, (prev) => [currentSceneStr, ...prev]);
+    set(redoStackAtom, (prev) => prev.slice(1));
+
+    set(cadSceneAtom, sceneToRestore);
+  }
+}); 
