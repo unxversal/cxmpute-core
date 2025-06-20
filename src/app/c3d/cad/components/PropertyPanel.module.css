@@ -53,6 +53,15 @@
   flex: 1;
   padding: 0;
   overflow-y: auto; /* Make content area scrollable */
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.content::-webkit-scrollbar {
+  display: none;
 }
 
 /* Section */
@@ -108,10 +117,11 @@
 
 .sectionIcon {
   transition: transform 0.2s ease;
+  transform: rotate(90deg); /* Default to expanded (down arrow) */
 }
 
 .sectionIcon.collapsed {
-  transform: rotate(-90deg);
+  transform: rotate(0deg); /* When collapsed, point right */
 }
 
 .sectionContent {
@@ -179,7 +189,7 @@
 .container[data-theme="light"] .select,
 .container[data-theme="light"] .numberInput {
   background-color: #f4f4f5;
-  border-color: #e5e5e5;
+  border-color: transparent;
   color: #18181b;
 }
 
@@ -194,7 +204,7 @@
 .container[data-theme="light"] .select:hover,
 .container[data-theme="light"] .numberInput:hover {
   background-color: #e5e5e5;
-  border-color: #d4d4d8;
+  border-color: transparent;
 }
 
 .container[data-theme="dark"] .input:focus,
@@ -209,8 +219,8 @@
 .container[data-theme="light"] .select:focus,
 .container[data-theme="light"] .numberInput:focus {
   background-color: #ffffff;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Vector Input */
