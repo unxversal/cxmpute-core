@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use client';
 
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { 
   MousePointer, 
   Move, 
@@ -15,11 +15,12 @@ import {
   Plus,
   Minus
 } from 'lucide-react';
-import { activeToolAtom, addObjectAtom, addOperationAtom } from '../stores/cadStore';
+import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom } from '../stores/cadStore';
 import { CADTool } from '../types/cad';
 import { cadEngine } from '../lib/cadEngine';
 import { useTheme } from '../hooks/useTheme';
 import styles from './ToolPalette.module.css';
+import { toast } from 'sonner';
 
 interface ToolButtonProps {
   tool: CADTool;
@@ -60,62 +61,110 @@ function ToolSection({ title, children }: ToolSectionProps) {
 export default function ToolPalette() {
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
   const [, addObject] = useAtom(addObjectAtom);
-  const [, addOperation] = useAtom(addOperationAtom);
+  const [selectedIds] = useAtom(selectedObjectsAtom);
+  const [, removeObject] = useAtom(removeObjectAtom);
+  const objects = useAtomValue(cadObjectsAtom);
   const { theme } = useTheme();
 
   const handleToolSelect = (tool: CADTool) => {
     setActiveTool(tool);
   };
 
-  const handleCreatePrimitive = async (type: 'box' | 'cylinder' | 'sphere' | 'cone') => {
+  const performBoolean = async (op: 'union' | 'subtract' | 'intersect') => {
+    if (selectedIds.length !== 2) {
+      toast.warning('Select exactly two solids first');
+      return;
+    }
+    const [aId, bId] = selectedIds;
+    const shapeIdA = objects[aId]?.metadata?.replicadId || aId;
+    const shapeIdB = objects[bId]?.metadata?.replicadId || bId;
     try {
-      let shape;
-      switch (type) {
-        case 'box':
-          shape = await cadEngine.createBox(2, 2, 2);
+      let result;
+      switch (op) {
+        case 'union':
+          result = await cadEngine.unionShapes(shapeIdA, shapeIdB);
           break;
-        case 'cylinder':
-          shape = await cadEngine.createCylinder(1, 2);
+        case 'subtract':
+          result = await cadEngine.subtractShapes(shapeIdA, shapeIdB);
           break;
-        case 'sphere':
-          shape = await cadEngine.createSphere(1);
-          break;
-        case 'cone':
-          shape = await cadEngine.createCone(1, 0.5, 2);
+        case 'intersect':
+          result = await cadEngine.intersectShapes(shapeIdA, shapeIdB);
           break;
       }
-
-      if (shape) {
-        const objectId = addObject({
-          name: `${type}_${Date.now()}`,
+      if (result) {
+        // remove originals
+        removeObject(aId);
+        removeObject(bId);
+        // add new object
+        addObject({
+          name: `${op}_${Date.now()}`,
           type: 'solid',
+          solid: result.replicadSolid,
+          mesh: result.mesh,
           visible: true,
           layerId: 'default',
           properties: {
-            color: '#ffffff',
+            color: '#10b981', // emerald
             opacity: 1,
             material: 'default',
             position: [0, 0, 0],
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
-            dimensions: shape.parameters,
+            dimensions: result.parameters,
           },
-          metadata: {
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            creator: 'user',
-          },
+          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
         });
-
-        addOperation({
-          type: `create_${type}` as 'create_box' | 'create_cylinder' | 'create_sphere' | 'create_cone',
-          params: shape.parameters,
-          targetObjectId: objectId,
-          undoable: true,
-        });
+        toast.success(`${op} complete`);
       }
-    } catch (error) {
-      console.error(`Failed to create ${type}:`, error);
+    } catch (err) {
+      console.error(err);
+      toast.error(`Failed to ${op}`);
+    }
+  };
+
+  const performFilletChamfer = async (mode: 'fillet' | 'chamfer') => {
+    if (selectedIds.length !== 1) {
+      toast.warning(`Select a single solid first`);
+      return;
+    }
+    const cadId = selectedIds[0];
+    const shapeId = objects[cadId]?.metadata?.replicadId || cadId;
+    const valStr = prompt(`${mode} radius/distance:`);
+    if (!valStr) return;
+    const val = parseFloat(valStr);
+    if (isNaN(val) || val <= 0) {
+      toast.error('Invalid number');
+      return;
+    }
+    try {
+      let res;
+      if (mode === 'fillet') res = await cadEngine.filletEdges(shapeId, val);
+      else res = await cadEngine.chamferEdges(shapeId, val);
+      if (res) {
+        removeObject(cadId);
+        addObject({
+          name: `${mode}_${Date.now()}`,
+          type: 'solid',
+          solid: res.replicadSolid,
+          mesh: res.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#eab308',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: res.parameters,
+          },
+          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: res.id },
+        });
+        toast.success(`${mode} applied`);
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(`Failed to ${mode}`);
     }
   };
 
@@ -160,40 +209,28 @@ export default function ToolPalette() {
           icon={<Square size={20} />}
           label="Box"
           isActive={activeTool === 'box'}
-          onClick={() => {
-            handleToolSelect('box');
-            handleCreatePrimitive('box');
-          }}
+          onClick={() => handleToolSelect('box')}
         />
         <ToolButton
           tool="cylinder"
           icon={<Cylinder size={20} />}
           label="Cylinder"
           isActive={activeTool === 'cylinder'}
-          onClick={() => {
-            handleToolSelect('cylinder');
-            handleCreatePrimitive('cylinder');
-          }}
+          onClick={() => handleToolSelect('cylinder')}
         />
-                  <ToolButton
+        <ToolButton
           tool="sphere"
           icon={<Circle size={20} />}
           label="Sphere"
           isActive={activeTool === 'sphere'}
-          onClick={() => {
-            handleToolSelect('sphere');
-            handleCreatePrimitive('sphere');
-          }}
+          onClick={() => handleToolSelect('sphere')}
         />
         <ToolButton
           tool="cone"
           icon={<Triangle size={20} />}
           label="Cone"
           isActive={activeTool === 'cone'}
-          onClick={() => {
-            handleToolSelect('cone');
-            handleCreatePrimitive('cone');
-          }}
+          onClick={() => handleToolSelect('cone')}
         />
       </ToolSection>
 
@@ -229,14 +266,20 @@ export default function ToolPalette() {
           icon={<Circle size={20} />}
           label="Fillet"
           isActive={activeTool === 'fillet'}
-          onClick={() => handleToolSelect('fillet')}
+          onClick={() => {
+            handleToolSelect('fillet');
+            performFilletChamfer('fillet');
+          }}
         />
         <ToolButton
           tool="chamfer"
           icon={<Triangle size={20} />}
           label="Chamfer"
           isActive={activeTool === 'chamfer'}
-          onClick={() => handleToolSelect('chamfer')}
+          onClick={() => {
+            handleToolSelect('chamfer');
+            performFilletChamfer('chamfer');
+          }}
         />
       </ToolSection>
 
@@ -247,21 +290,30 @@ export default function ToolPalette() {
           icon={<Plus size={20} />}
           label="Union"
           isActive={activeTool === 'union'}
-          onClick={() => handleToolSelect('union')}
+          onClick={() => {
+            handleToolSelect('union');
+            performBoolean('union');
+          }}
         />
         <ToolButton
           tool="subtract"
           icon={<Minus size={20} />}
           label="Subtract"
           isActive={activeTool === 'subtract'}
-          onClick={() => handleToolSelect('subtract')}
+          onClick={() => {
+            handleToolSelect('subtract');
+            performBoolean('subtract');
+          }}
         />
         <ToolButton
           tool="intersect"
           icon={<Circle size={20} />}
           label="Intersect"
           isActive={activeTool === 'intersect'}
-          onClick={() => handleToolSelect('intersect')}
+          onClick={() => {
+            handleToolSelect('intersect');
+            performBoolean('intersect');
+          }}
         />
       </ToolSection>
     </div>
