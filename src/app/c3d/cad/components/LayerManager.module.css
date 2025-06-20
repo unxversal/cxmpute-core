@@ -438,4 +438,96 @@
 .actionButton:hover {
   background-color: #3b82f6;
   color: #ffffff;
+}
+
+/* Layer item container for expandable functionality */
+.layerItemContainer {
+  width: 100%;
+}
+
+/* Expand/collapse button */
+.expandButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.expandButton:hover {
+  color: var(--text-primary);
+}
+
+/* Make object count clickable when there are objects */
+.layerCount.clickable {
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  transition: background-color 0.2s ease;
+  border-radius: 4px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.layerCount.clickable:hover {
+  background-color: var(--background-hover);
+}
+
+/* Expandable object list */
+.objectList {
+  margin-left: 20px;
+  margin-top: 4px;
+  border-left: 1px solid var(--border-color);
+  padding-left: 8px;
+}
+
+.objectItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  margin-bottom: 2px;
+}
+
+.objectItem:hover {
+  background-color: var(--background-hover);
+}
+
+.objectIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.objectName {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.objectType {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  flex-shrink: 0;
 } 
