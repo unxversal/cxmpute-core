@@ -33,8 +33,25 @@ const performInitialization = async (): Promise<ReplicadModule> => {
 
     console.log('📦 Replicad Loader: Modules loaded, initializing OpenCascade...');
 
-    // Initialize OpenCascade without config first (as per the error)
-    const OC = await opencascade.default();
+    // Provide a custom locateFile so the WASM file is fetched from the public
+    // directory ("/replicad_single.wasm"). This avoids 404s when the default
+    // resolution tries to load the file next to the emitted JS chunk inside
+    // /_next/static/chunks, where it does not exist.
+
+    // Important: The path must start with a leading slash so that both dev
+    // (`next dev`) and production (`next start`) correctly resolve it from the
+    // application root.
+    const OC = await (opencascade as any).default({
+      locateFile: (file: string) => {
+        // We only want to redirect the main WASM binary, everything else can
+        // follow the default behaviour. All current builds expose a single
+        // file named "replicad_single.wasm".
+        if (file.endsWith('.wasm')) {
+          return `/replicad_single.wasm`;
+        }
+        return file;
+      },
+    });
 
     console.log('🔗 Replicad Loader: Setting up replicad with OpenCascade...');
     

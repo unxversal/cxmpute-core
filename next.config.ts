@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  webpack: (config, { isServer, dev }) => {
+  webpack: (config, { isServer }) => {
     // Exclude contracts and cli directories from the build
     config.watchOptions = {
       ...config.watchOptions,
@@ -36,30 +36,31 @@ const nextConfig: NextConfig = {
         zlib: false,
       };
 
-      // Copy WASM files from replicad-opencascadejs to public directory
-      if (!dev) {
-        try {
-          const publicDir = join(process.cwd(), 'public');
-          if (!existsSync(publicDir)) {
-            mkdirSync(publicDir, { recursive: true });
-          }
-
-          // Try to find and copy the WASM file from replicad-opencascadejs
-          const nodeModulesPath = join(process.cwd(), 'node_modules');
-          const replicadPath = join(nodeModulesPath, 'replicad-opencascadejs');
-          
-          if (existsSync(replicadPath)) {
-            const wasmFile = join(replicadPath, 'replicad_single.wasm');
-            const targetWasm = join(publicDir, 'replicad_single.wasm');
-            
-            if (existsSync(wasmFile) && !existsSync(targetWasm)) {
-              copyFileSync(wasmFile, targetWasm);
-              console.log('✅ Copied replicad WASM file to public directory');
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ Failed to copy WASM files:', error);
+      // Copy WASM file from replicad-opencascadejs to the public directory so
+      // it is always available at runtime (both `next dev` and production
+      // builds). The file is small (~4-5 MB) so the cost of copying during dev
+      // compilation is negligible compared to having a working CAD engine.
+      try {
+        const publicDir = join(process.cwd(), 'public');
+        if (!existsSync(publicDir)) {
+          mkdirSync(publicDir, { recursive: true });
         }
+
+        // Try to find and copy the WASM file from replicad-opencascadejs
+        const nodeModulesPath = join(process.cwd(), 'node_modules');
+        const replicadPath = join(nodeModulesPath, 'replicad-opencascadejs');
+        
+        if (existsSync(replicadPath)) {
+          const wasmFile = join(replicadPath, 'replicad_single.wasm');
+          const targetWasm = join(publicDir, 'replicad_single.wasm');
+          
+          if (existsSync(wasmFile) && !existsSync(targetWasm)) {
+            copyFileSync(wasmFile, targetWasm);
+            console.log('✅ Copied replicad WASM file to public directory');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to copy WASM file:', error);
       }
     }
 
