@@ -3,7 +3,7 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
-import { Suspense, useRef } from 'react';
+import React, { Suspense, useRef } from 'react';
 import * as THREE from 'three';
 import {
   visibleObjectsAtom,
@@ -160,6 +160,7 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
 // Grid component
 function CADGrid() {
   const [viewportSettings] = useAtom(viewportSettingsAtom);
+  const { theme } = useTheme();
   
   if (!viewportSettings.grid.visible) {
     return null;
@@ -170,10 +171,10 @@ function CADGrid() {
       args={[viewportSettings.grid.size, viewportSettings.grid.divisions]}
       cellSize={viewportSettings.grid.size / viewportSettings.grid.divisions}
       cellThickness={0.5}
-      cellColor="#6f6f6f"
+      cellColor={theme === 'dark' ? '#374151' : '#6f6f6f'}
       sectionSize={viewportSettings.grid.size}
       sectionThickness={1}
-      sectionColor="#9d4b4b"
+      sectionColor={theme === 'dark' ? '#3b82f6' : '#9d4b4b'}
       fadeDistance={100}
       fadeStrength={1}
       followCamera
@@ -294,7 +295,7 @@ function CADScene() {
   );
 }
 
-// Camera setup
+// Camera setup with modified controls
 function CameraSetup() {
   const [viewportSettings] = useAtom(viewportSettingsAtom);
   
@@ -308,6 +309,17 @@ function CameraSetup() {
       maxDistance={1000}
       enableDamping={true}
       dampingFactor={0.05}
+      mouseButtons={{
+        LEFT: THREE.MOUSE.PAN, // Left mouse for panning only
+        MIDDLE: THREE.MOUSE.DOLLY, // Middle for zoom
+        RIGHT: THREE.MOUSE.ROTATE // Right click for rotate
+      }}
+      keys={{
+        LEFT: 'ArrowLeft',
+        UP: 'ArrowUp', 
+        RIGHT: 'ArrowRight',
+        BOTTOM: 'ArrowDown'
+      }}
     />
   );
 }

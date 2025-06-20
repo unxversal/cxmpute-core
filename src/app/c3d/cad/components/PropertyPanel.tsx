@@ -69,7 +69,7 @@ function Vector3Input({ label, value, onChange }: Vector3InputProps) {
   return (
     <div className={styles.formGroup}>
       <label className={styles.label}>{label}</label>
-      <div className={styles.toggle}>
+      <div className={styles.vectorInput}>
         <input
           type="number"
           value={value[0]}

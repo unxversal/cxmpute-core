@@ -65,12 +65,12 @@ function LayerItem({
           e.stopPropagation();
           onToggleVisibility();
         }}
-        className="p-1 hover:bg-gray-600 rounded"
+        className={styles.iconButton}
       >
         {layer.visible ? (
-          <Eye size={14} className="text-gray-300" />
+          <Eye size={14} />
         ) : (
-          <EyeOff size={14} className="text-gray-500" />
+          <EyeOff size={14} />
         )}
       </button>
 
@@ -80,23 +80,23 @@ function LayerItem({
           e.stopPropagation();
           onToggleLock();
         }}
-        className="p-1 hover:bg-gray-600 rounded"
+        className={styles.iconButton}
       >
         {layer.locked ? (
-          <Lock size={14} className="text-gray-500" />
+          <Lock size={14} />
         ) : (
-          <Unlock size={14} className="text-gray-300" />
+          <Unlock size={14} />
         )}
       </button>
 
       {/* Color Indicator */}
       <div 
-        className="w-3 h-3 rounded border border-gray-600"
+        className={styles.layerColor}
         style={{ backgroundColor: layer.color }}
       />
 
       {/* Layer Name */}
-      <div className="flex-1 min-w-0">
+      <div className={styles.layerNameContainer}>
         {isEditing ? (
           <input
             type="text"
@@ -104,31 +104,31 @@ function LayerItem({
             onChange={(e) => setEditName(e.target.value)}
             onBlur={handleNameSubmit}
             onKeyDown={handleKeyPress}
-            className="w-full bg-gray-700 text-white text-sm px-1 py-0 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className={styles.layerNameInput}
             autoFocus
           />
         ) : (
-          <div className="text-sm text-white truncate">
+          <div className={styles.layerName}>
             {layer.name}
           </div>
         )}
       </div>
 
       {/* Object Count */}
-      <div className="text-xs text-gray-400">
+      <div className={styles.layerCount}>
         {objectCount}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className={styles.layerItemActions}>
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsEditing(true);
           }}
-          className="p-1 hover:bg-gray-600 rounded"
+          className={styles.iconButton}
         >
-          <Edit2 size={12} className="text-gray-400" />
+          <Edit2 size={12} />
         </button>
         {layer.id !== 'default' && (
           <button
@@ -136,9 +136,9 @@ function LayerItem({
               e.stopPropagation();
               onDelete();
             }}
-            className="p-1 hover:bg-gray-600 rounded"
+            className={`${styles.iconButton} ${styles.deleteButton}`}
           >
-            <Trash2 size={12} className="text-red-400" />
+            <Trash2 size={12} />
           </button>
         )}
       </div>
@@ -182,22 +182,22 @@ export default function LayerManager() {
   return (
     <div className={styles.container} data-theme={theme}>
       {/* Header */}
-      <div className="p-3 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Layers</h3>
+      <div className={styles.header}>
+        <div className={styles.headerInner}>
+          <h3 className={styles.headerTitle}>Layers</h3>
           <button
             onClick={handleCreateLayer}
-            className="p-1 hover:bg-gray-700 rounded"
+            className={styles.headerButton}
             title="Add Layer"
           >
-            <Plus size={16} className="text-gray-300" />
+            <Plus size={16} />
           </button>
         </div>
       </div>
 
       {/* Layer List */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-2 space-y-1">
+      <div className={styles.layerList}>
+        <div className={styles.layerListInner}>
           {Object.values(layers).map((layer) => {
             const objectCount = getLayerObjects(layer.id).length;
             return (
@@ -224,12 +224,21 @@ export default function LayerManager() {
       </div>
 
       {/* Layer Actions */}
-      <div className="p-3 border-t border-gray-700">
-        <div className="grid grid-cols-2 gap-2">
-          <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">
+      <div className={styles.actions}>
+        <div className={styles.actionButtons}>
+          <button className={styles.actionButton} onClick={() => {
+            // show all layers
+            const updated = { ...layers };
+            Object.keys(updated).forEach(id => updated[id].visible = true);
+            setLayers(updated);
+          }}>
             Show All
           </button>
-          <button className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">
+          <button className={styles.actionButton} onClick={() => {
+            const updated = { ...layers };
+            Object.keys(updated).forEach(id => updated[id].visible = false);
+            setLayers(updated);
+          }}>
             Hide All
           </button>
         </div>
