@@ -1,1 +1,0 @@
-import { EffectComposer, N8AO } from "@react-three/postprocessing"

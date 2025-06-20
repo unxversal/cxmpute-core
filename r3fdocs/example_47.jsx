@@ -1,1 +1,0 @@
-import { Environment, Lightformer, OrbitControls, MeshTransmissionMaterial, useGLTF } from '@react-three/drei'

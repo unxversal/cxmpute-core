@@ -1,1 +1,0 @@
-import Basic from './sandboxes/Basic'

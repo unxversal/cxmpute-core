@@ -1,1 +1,0 @@
-import { applyProps, Canvas } from '@react-three/fiber'

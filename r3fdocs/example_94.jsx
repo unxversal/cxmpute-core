@@ -1,1 +1,0 @@
-import { useGLTF, AccumulativeShadows, RandomizedLight, Html, Text, Effects, Environment, Center, MeshTransmissionMaterial } from '@react-three/drei'

@@ -1,1 +1,0 @@
-import { extend, applyProps, ReactThreeFiber } from "@react-three/fiber"

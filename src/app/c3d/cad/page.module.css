@@ -1,0 +1,247 @@
+/* Main CAD Editor Layout */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  transition: all 0.2s ease;
+}
+
+/* Dark Theme */
+.container[data-theme="dark"] {
+  background-color: #0a0a0a;
+  color: #e5e5e5;
+}
+
+/* Light Theme */
+.container[data-theme="light"] {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+/* Menu Bar */
+.menuBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid;
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.container[data-theme="dark"] .menuBar {
+  background-color: rgba(17, 17, 17, 0.95);
+  border-bottom-color: #333;
+}
+
+.container[data-theme="light"] .menuBar {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: #e5e5e5;
+}
+
+.menuLeft {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.navButton {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .navButton {
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .navButton {
+  color: #71717a;
+}
+
+.container[data-theme="dark"] .navButton:hover {
+  background-color: #27272a;
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .navButton:hover {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+.menuRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Theme Toggle */
+.themeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .themeToggle {
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .themeToggle {
+  color: #71717a;
+}
+
+.container[data-theme="dark"] .themeToggle:hover {
+  background-color: #27272a;
+  color: #fbbf24;
+}
+
+.container[data-theme="light"] .themeToggle:hover {
+  background-color: #f4f4f5;
+  color: #1f2937;
+}
+
+/* Main Content */
+.mainContent {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.leftSidebar {
+  flex-shrink: 0;
+}
+
+.centerArea {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.viewport {
+  flex: 1;
+  position: relative;
+}
+
+.rightSidebar {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.layerSection {
+  border-left: 1px solid;
+}
+
+.propertySection {
+  border-left: 1px solid;
+}
+
+.container[data-theme="dark"] .layerSection,
+.container[data-theme="dark"] .propertySection {
+  border-left-color: #333;
+}
+
+.container[data-theme="light"] .layerSection,
+.container[data-theme="light"] .propertySection {
+  border-left-color: #e5e5e5;
+}
+
+/* Status Bar */
+.statusBar {
+  height: 24px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  border-top: 1px solid;
+}
+
+.container[data-theme="dark"] .statusBar {
+  background-color: #171717;
+  border-top-color: #333;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .statusBar {
+  background-color: #f9f9f9;
+  border-top-color: #e5e5e5;
+  color: #71717a;
+}
+
+.statusLeft,
+.statusRight {
+  display: flex;
+  gap: 16px;
+}
+
+/* Loading State */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.container[data-theme="dark"] .loading {
+  background-color: #0a0a0a;
+  color: #71717a;
+}
+
+.container[data-theme="light"] .loading {
+  background-color: #ffffff;
+  color: #a1a1aa;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .rightSidebar {
+    display: none;
+  }
+  
+  .menuLeft .nav {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .leftSidebar {
+    display: none;
+  }
+  
+  .menuLeft {
+    gap: 12px;
+  }
+  
+  .title {
+    font-size: 16px;
+  }
+} 

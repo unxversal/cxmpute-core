@@ -1,1 +1,0 @@
-import { Suspense } from 'react'
