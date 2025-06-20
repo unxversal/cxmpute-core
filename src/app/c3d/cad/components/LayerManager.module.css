@@ -3,8 +3,9 @@
   width: 280px;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   transition: all 0.2s ease;
+  height: 100%;
 }
 
 .container[data-theme="dark"] {
@@ -17,36 +18,34 @@
 
 /* Header */
 .header {
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid;
 }
 
-.container[data-theme="dark"] .header {
-  border-bottom-color: #333;
+.headerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
-.container[data-theme="light"] .header {
-  border-bottom-color: #e5e5e5;
-}
-
-.title {
-  font-size: 14px;
+.headerTitle {
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.025em;
+  margin: 0;
 }
 
-.container[data-theme="dark"] .title {
-  color: #e4e4e7;
+.container[data-theme="dark"] .headerTitle {
+  color: #d1d5db;
 }
 
-.container[data-theme="light"] .title {
-  color: #18181b;
+.container[data-theme="light"] .headerTitle {
+  color: #374151;
 }
 
-.addButton {
+.headerButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,32 +53,24 @@
   height: 28px;
   border-radius: 6px;
   border: none;
+  background: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.container[data-theme="dark"] .addButton {
-  background-color: #1f1f1f;
-  color: #a1a1aa;
+.container[data-theme="dark"] .headerButton {
+  color: #9ca3af;
 }
 
-.container[data-theme="light"] .addButton {
-  background-color: #ffffff;
-  color: #71717a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.container[data-theme="light"] .headerButton {
+  color: #6b7280;
 }
 
-.container[data-theme="dark"] .addButton:hover {
-  background-color: #3b82f6;
-  color: #ffffff;
+.container[data-theme="dark"] .headerButton:hover,
+.container[data-theme="light"] .headerButton:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
   transform: scale(1.05);
-}
-
-.container[data-theme="light"] .addButton:hover {
-  background-color: #3b82f6;
-  color: #ffffff;
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
 /* Content */
@@ -153,11 +144,25 @@
 }
 
 /* Layer Name */
-.layerName {
+.layerNameContainer {
   flex: 1;
+  min-width: 0;
+}
+
+.layerName {
   font-size: 13px;
   font-weight: 500;
-  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.container[data-theme="dark"] .layerName {
+  color: #d4d4d8;
+}
+
+.container[data-theme="light"] .layerName {
+  color: #374151;
 }
 
 .layerNameInput {
@@ -330,4 +335,97 @@
   .container {
     width: 240px;
   }
+}
+
+/* Layer List */
+.layerList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.layerListInner {
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Layer Item Actions */
+.layerItemActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.layerItem:hover .layerItemActions {
+  opacity: 1;
+}
+
+.deleteButton:hover {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
+}
+
+/* Icon Button */
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .iconButton {
+  color: #9ca3af;
+}
+
+.container[data-theme="light"] .iconButton {
+  color: #6b7280;
+}
+
+.iconButton:hover {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+
+/* Actions */
+.actions {
+  padding: 12px 16px;
+}
+
+.actionButtons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.actionButton {
+  font-size: 11px;
+  padding: 6px 0;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.container[data-theme="dark"] .actionButton {
+  background-color: #1f2937;
+  color: #d1d5db;
+}
+
+.container[data-theme="light"] .actionButton {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.actionButton:hover {
+  background-color: #3b82f6;
+  color: #ffffff;
 } 

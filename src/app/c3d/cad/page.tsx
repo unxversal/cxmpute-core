@@ -1,8 +1,9 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Toaster } from 'sonner';
+import { Loader, HelpCircle, X, Keyboard, Mouse, Grid } from 'lucide-react';
 import { useTheme } from './hooks/useTheme';
 import { useCADInitialization } from './hooks/useCADInitialization';
 import styles from './page.module.css';
@@ -10,22 +11,42 @@ import styles from './page.module.css';
 // Dynamically import Three.js components to avoid SSR issues
 const CADViewport = dynamic(() => import('./components/CADViewport'), {
   ssr: false,
-  loading: () => <div className={styles.loading}>Loading 3D Viewport...</div>
+  loading: () => (
+    <div className={styles.loading}>
+      <Loader className={styles.spinner} size={24} />
+      <span>Loading 3D Viewport...</span>
+    </div>
+  )
 });
 
 const ToolPalette = dynamic(() => import('./components/ToolPalette'), {
   ssr: false,
-  loading: () => <div className={styles.loading}>Loading Tools...</div>
+  loading: () => (
+    <div className={styles.loading}>
+      <Loader className={styles.spinner} size={20} />
+      <span>Loading Tools...</span>
+    </div>
+  )
 });
 
 const PropertyPanel = dynamic(() => import('./components/PropertyPanel'), {
   ssr: false,
-  loading: () => <div className={styles.loading}>Loading Properties...</div>
+  loading: () => (
+    <div className={styles.loading}>
+      <Loader className={styles.spinner} size={20} />
+      <span>Loading Properties...</span>
+    </div>
+  )
 });
 
 const LayerManager = dynamic(() => import('./components/LayerManager'), {
   ssr: false,
-  loading: () => <div className={styles.loading}>Loading Layers...</div>
+  loading: () => (
+    <div className={styles.loading}>
+      <Loader className={styles.spinner} size={20} />
+      <span>Loading Layers...</span>
+    </div>
+  )
 });
 
 const FileManager = dynamic(() => import('./components/FileManager'), {
@@ -33,9 +54,114 @@ const FileManager = dynamic(() => import('./components/FileManager'), {
   loading: () => <div></div>
 });
 
+// Help Modal Component
+function HelpModal({ isOpen, onClose, theme }: { isOpen: boolean; onClose: () => void; theme: string }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modal} data-theme={theme}>
+        <div className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>
+            <Keyboard size={20} />
+            Keyboard Shortcuts & Controls
+          </h2>
+          <button onClick={onClose} className={styles.modalClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className={styles.modalContent}>
+          <div className={styles.shortcutSection}>
+            <h3><Mouse size={16} /> Mouse Controls</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Left Mouse + Drag</span>
+                <span>Pan view</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Right Mouse + Drag</span>
+                <span>Rotate view</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Middle Mouse / Scroll</span>
+                <span>Zoom in/out</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Click Object</span>
+                <span>Select object (drag to move)</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className={styles.shortcutSection}>
+            <h3><Keyboard size={16} /> Keyboard Shortcuts</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Esc</span>
+                <span>Deselect all</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Delete</span>
+                <span>Delete selected objects</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Ctrl/Cmd + Z</span>
+                <span>Undo</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Ctrl/Cmd + Y</span>
+                <span>Redo</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>G</span>
+                <span>Toggle grid</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>Tab</span>
+                <span>Cycle through tools</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.shortcutSection}>
+            <h3><Grid size={16} /> Tool Shortcuts</h3>
+            <div className={styles.shortcutList}>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>B</span>
+                <span>Box tool</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>C</span>
+                <span>Cylinder tool</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>S</span>
+                <span>Sphere tool</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>V</span>
+                <span>Select tool</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>P</span>
+                <span>Pan tool</span>
+              </div>
+              <div className={styles.shortcut}>
+                <span className={styles.key}>R</span>
+                <span>Rotate tool</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CADEditorPage() {
   const { theme, toggleTheme } = useTheme();
   const { isInitializing, isInitialized, error, isFallbackMode } = useCADInitialization();
+  const [showHelp, setShowHelp] = useState(false);
 
   return (
     <div className={styles.container} data-theme={theme}>
@@ -75,7 +201,12 @@ export default function CADEditorPage() {
       <div className={styles.mainContent}>
         {/* Left Sidebar - Tool Palette */}
         <div className={styles.leftSidebar}>
-          <Suspense fallback={<div className={styles.loading}>Loading Tools...</div>}>
+          <Suspense fallback={
+            <div className={styles.loading}>
+              <Loader className={styles.spinner} size={20} />
+              <span>Loading Tools...</span>
+            </div>
+          }>
             <ToolPalette />
           </Suspense>
         </div>
@@ -83,7 +214,12 @@ export default function CADEditorPage() {
         {/* Center Area - 3D Viewport */}
         <div className={styles.centerArea}>
           <div className={styles.viewport}>
-            <Suspense fallback={<div className={styles.loading}>Loading 3D Viewport...</div>}>
+            <Suspense fallback={
+              <div className={styles.loading}>
+                <Loader className={styles.spinner} size={24} />
+                <span>Loading 3D Viewport...</span>
+              </div>
+            }>
               <CADViewport />
             </Suspense>
           </div>
@@ -93,14 +229,24 @@ export default function CADEditorPage() {
         <div className={styles.rightSidebar}>
           {/* Layer Manager */}
           <div className={styles.layerSection}>
-            <Suspense fallback={<div className={styles.loading}>Loading Layers...</div>}>
+            <Suspense fallback={
+              <div className={styles.loading}>
+                <Loader className={styles.spinner} size={20} />
+                <span>Loading Layers...</span>
+              </div>
+            }>
               <LayerManager />
             </Suspense>
           </div>
           
           {/* Property Panel */}
           <div className={styles.propertySection}>
-            <Suspense fallback={<div className={styles.loading}>Loading Properties...</div>}>
+            <Suspense fallback={
+              <div className={styles.loading}>
+                <Loader className={styles.spinner} size={20} />
+                <span>Loading Properties...</span>
+              </div>
+            }>
               <PropertyPanel />
             </Suspense>
           </div>
@@ -110,21 +256,42 @@ export default function CADEditorPage() {
       {/* Status Bar */}
       <div className={styles.statusBar}>
         <div className={styles.statusLeft}>
-          <span>Grid: On</span>
-          <span>Snap: On</span>
-          <span>Units: mm</span>
+          <div className={styles.statusItem}>
+            <Grid size={12} />
+            <span>Grid: On</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span className={styles.statusDot}></span>
+            <span>Snap: On</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span>Units: mm</span>
+          </div>
         </div>
         <div className={styles.statusRight}>
-          <span>Objects: 0</span>
-          <span>Selected: 0</span>
-          <span>
-            CAD Engine: {
-              isInitializing ? '⏳ Initializing...' :
-              error ? '❌ Error' :
-              isFallbackMode ? '⚠️ Fallback Mode' :
-              isInitialized ? '✅ Ready' : '⏸️ Not Started'
-            }
-          </span>
+          <div className={styles.statusItem}>
+            <span>Objects: 0</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span>Selected: 0</span>
+          </div>
+          <div className={styles.statusItem}>
+            <span>CAD Engine:</span>
+            <div className={styles.engineStatus}>
+              {isInitializing && <Loader className={styles.statusSpinner} size={12} />}
+              {error && <span className={styles.statusError}>Error</span>}
+              {isFallbackMode && <span className={styles.statusWarning}>Fallback Mode</span>}
+              {isInitialized && !error && !isFallbackMode && <span className={styles.statusReady}>Ready</span>}
+              {!isInitializing && !isInitialized && !error && <span className={styles.statusIdle}>Not Started</span>}
+            </div>
+          </div>
+          <button 
+            className={styles.helpButton}
+            onClick={() => setShowHelp(true)}
+            title="Keyboard Shortcuts (? key)"
+          >
+            <HelpCircle size={16} />
+          </button>
         </div>
       </div>
       
@@ -134,6 +301,13 @@ export default function CADEditorPage() {
         position="bottom-right"
         closeButton
         richColors
+      />
+
+      {/* Help Modal */}
+      <HelpModal 
+        isOpen={showHelp} 
+        onClose={() => setShowHelp(false)} 
+        theme={theme} 
       />
     </div>
   );
