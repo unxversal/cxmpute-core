@@ -19,6 +19,7 @@ export interface CADObject {
     createdAt: Date;
     updatedAt: Date;
     creator: 'user' | 'ai';
+    replicadId?: string;
   };
 }
 
@@ -31,6 +32,7 @@ export interface CADObjectProperties {
     width?: number;
     height?: number;
     radius?: number;
+    depth?: number;
     thickness?: number;
   };
   position: [number, number, number];

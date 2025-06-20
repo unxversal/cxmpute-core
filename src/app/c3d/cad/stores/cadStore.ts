@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { CADScene, CADObject, CADLayer, CADOperation, ToolState, CADTool, ViewportSettings } from '../types/cad';
+import { CADScene, CADObject, CADLayer, CADOperation, ToolState, CADTool, ViewportSettings, SketchPoint } from '../types/cad';
 
 // Generate unique IDs
 const generateId = () => `cad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -268,4 +268,6 @@ export const layerObjectsAtom = atom(
     
     return layer.objects.map(id => scene.objects[id]).filter(Boolean);
   }
-); 
+);
+
+export const draftSketchPointsAtom = atom<SketchPoint[]>([]); 

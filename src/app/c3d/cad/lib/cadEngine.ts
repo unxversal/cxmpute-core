@@ -909,6 +909,48 @@ export class CADEngine {
       hasReplicad: !!this.replicad
     };
   }
+
+  // ==================== QUICK POLYGON EXTRUDE (sketch MVP) ====================
+
+  /**
+   * Convenience wrapper used by the draft-sketch UI: create an extruded solid
+   * from a 2-D poly-line described by [x,y] points lying on the XY plane.
+   */
+  async createExtrudedPolygon(points: [number, number][], height: number): Promise<ReplicadShape> {
+    if (points.length < 3) {
+      throw new Error('Need at least 3 points to form a closed profile');
+    }
+    await this.initialize();
+
+    if (this.fallbackMode || !this.replicad) {
+      // TODO: fallback simple extrusion (not critical for MVP)
+      const width = 1, depth = 1;
+      return this.createSimpleBox(width, height, depth);
+    }
+
+    try {
+      const { draw } = this.replicad;
+      const drawing = draw(points[0]);
+      for (let i = 1; i < points.length; i++) {
+        drawing.lineTo(points[i]);
+      }
+      drawing.close();
+      const sketch = drawing.sketchOnPlane('XY');
+      const solid = sketch.extrude(height);
+      const shape: ReplicadShape = {
+        id: `polyExtrude_${Date.now()}`,
+        type: 'solid',
+        replicadSolid: solid,
+        mesh: await this.convertToMesh(solid),
+        parameters: { points, height, type: 'polyExtrude' },
+      };
+      this.shapes.set(shape.id, shape);
+      return shape;
+    } catch (err) {
+      console.error('Extruded polygon failed', err);
+      throw err;
+    }
+  }
 }
 
 // Singleton instance

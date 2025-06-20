@@ -1,20 +1,36 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment } from '@react-three/drei';
-import { useAtom } from 'jotai';
+import { Canvas, type ThreeEvent } from '@react-three/fiber';
+import { OrbitControls, Grid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
+import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { Suspense, useRef } from 'react';
 import * as THREE from 'three';
-import { visibleObjectsAtom, viewportSettingsAtom } from '../stores/cadStore';
-import { CADObject } from '../types/cad';
+import {
+  visibleObjectsAtom,
+  viewportSettingsAtom,
+  selectedObjectsAtom,
+  updateObjectAtom,
+  draftSketchPointsAtom,
+  activeToolAtom,
+  addObjectAtom,
+  addOperationAtom,
+} from '../stores/cadStore';
+import { CADObject, CADTool } from '../types/cad';
 import { useTheme } from '../hooks/useTheme';
 import styles from './CADViewport.module.css';
+import { toast } from 'sonner';
+import { cadEngine } from '../lib/cadEngine';
 
 // Component to render a single CAD object
 function CADMesh({ cadObject }: { cadObject: CADObject }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const selectedIds = useAtomValue(selectedObjectsAtom) as string[];
+  const isSelected = selectedIds.includes(cadObject.id);
+  const setSelected = useSetAtom(selectedObjectsAtom);
+  const updateObject = useSetAtom(updateObjectAtom);
   
-  if (!cadObject.solid && !cadObject.sketch) {
+  // Skip rendering only if we have literally no data to build geometry.
+  if (!cadObject.mesh && !cadObject.solid && !cadObject.sketch) {
     return null;
   }
 
@@ -27,23 +43,28 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
     if (cadObject.mesh?.vertices && cadObject.mesh?.indices) {
       return (
         <bufferGeometry>
+          {/* @ts-expect-error Replicad mesh vertices are provided as raw Float32Array */}
           <bufferAttribute
             attach="attributes-position"
             count={cadObject.mesh.vertices.length / 3}
             array={cadObject.mesh.vertices}
             itemSize={3}
           />
+          {/* @ts-expect-error Replicad mesh indices are provided as raw Uint32Array */}
           <bufferAttribute
             attach="index"
             array={cadObject.mesh.indices}
           />
           {cadObject.mesh.normals && (
-            <bufferAttribute
-              attach="attributes-normal"
-              count={cadObject.mesh.normals.length / 3}
-              array={cadObject.mesh.normals}
-              itemSize={3}
-            />
+            <>
+              {/* @ts-expect-error Replicad mesh normals are provided as raw Float32Array */}
+              <bufferAttribute
+                attach="attributes-normal"
+                count={cadObject.mesh.normals.length / 3}
+                array={cadObject.mesh.normals}
+                itemSize={3}
+              />
+            </>
           )}
         </bufferGeometry>
       );
@@ -76,24 +97,63 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
   };
 
   return (
-    <mesh
-      ref={meshRef}
-      position={cadObject.properties.position}
-      rotation={cadObject.properties.rotation}
-      scale={cadObject.properties.scale}
-      visible={cadObject.visible}
-      castShadow
-      receiveShadow
-    >
-      {renderGeometry()}
-      <meshStandardMaterial 
-        color={cadObject.properties.color}
-        transparent={cadObject.properties.opacity < 1}
-        opacity={cadObject.properties.opacity}
-        roughness={0.3}
-        metalness={0.1}
-      />
-    </mesh>
+    <>
+      {isSelected && meshRef.current && (
+        <TransformControls
+          object={meshRef.current}
+          mode="translate"
+          showX
+          showY
+          showZ
+          onObjectChange={() => {
+            if (!meshRef.current) return;
+            const pos: [number, number, number] = [
+              meshRef.current.position.x,
+              meshRef.current.position.y,
+              meshRef.current.position.z,
+            ];
+            const rot: [number, number, number] = [
+              meshRef.current.rotation.x,
+              meshRef.current.rotation.y,
+              meshRef.current.rotation.z,
+            ];
+            const scl: [number, number, number] = [
+              meshRef.current.scale.x,
+              meshRef.current.scale.y,
+              meshRef.current.scale.z,
+            ];
+            updateObject(cadObject.id, {
+              properties: { ...cadObject.properties, position: pos, rotation: rot, scale: scl },
+            });
+          }}
+        />
+      )}
+      <mesh
+        ref={meshRef}
+        userData={{ id: cadObject.id }}
+        position={cadObject.properties.position}
+        rotation={cadObject.properties.rotation}
+        scale={cadObject.properties.scale}
+        visible={cadObject.visible}
+        castShadow
+        receiveShadow
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelected([cadObject.id]);
+          toast.success(`Selected ${cadObject.name}`);
+        }}
+      >
+        {renderGeometry()}
+        {isSelected && <Edges scale={1.02} threshold={15} color="#facc15" />}  {/* yellow outline */}
+        <meshStandardMaterial 
+          color={isSelected ? '#facc15' : cadObject.properties.color}
+          transparent={cadObject.properties.opacity < 1}
+          opacity={cadObject.properties.opacity}
+          roughness={0.3}
+          metalness={0.1}
+        />
+      </mesh>
+    </>
   );
 }
 
@@ -122,15 +182,114 @@ function CADGrid() {
   );
 }
 
+// Convert an array of 2-D draft points to THREE.Vector3 for preview lines
+function pointsToVec3(points: { x: number; y: number; z?: number }[]): THREE.Vector3[] {
+  return points.map(p => new THREE.Vector3(p.x, p.y, p.z ?? 0));
+}
+
 // Scene component
 function CADScene() {
   const [visibleObjects] = useAtom(visibleObjectsAtom);
+  const setSelected = useSetAtom(selectedObjectsAtom);
+  const [draftPoints] = useAtom(draftSketchPointsAtom);
+  const [activeTool, setActiveTool] = useAtom(activeToolAtom);
+  const addObject = useSetAtom(addObjectAtom);
+  const addOperation = useSetAtom(addOperationAtom);
   
+  const handleCanvasClick = async (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+
+    const primitiveTools: CADTool[] = ['box', 'cylinder', 'sphere', 'cone'];
+
+    if (primitiveTools.includes(activeTool)) {
+      await createPrimitiveAtPoint(activeTool as 'box' | 'cylinder' | 'sphere' | 'cone', event.point);
+      toast.success(`Created ${activeTool} at [${event.point.x.toFixed(1)}, ${event.point.y.toFixed(1)}, ${event.point.z.toFixed(1)}]`);
+      setActiveTool('select');
+    } else {
+      setSelected([]);
+    }
+  };
+
+  const createPrimitiveAtPoint = async (type: 'box' | 'cylinder' | 'sphere' | 'cone', point: THREE.Vector3) => {
+    try {
+      let shape;
+      // Hardcoded dimensions for now, as per original implementation
+      switch (type) {
+        case 'box':
+          shape = await cadEngine.createBox(2, 2, 2);
+          break;
+        case 'cylinder':
+          shape = await cadEngine.createCylinder(1, 2);
+          break;
+        case 'sphere':
+          shape = await cadEngine.createSphere(1);
+          break;
+        case 'cone':
+          shape = await cadEngine.createCone(1, 0.5, 2);
+          break;
+      }
+
+      if (shape) {
+        const objectId = addObject({
+          name: `${type}_${Date.now()}`,
+          type: 'solid',
+          solid: shape.replicadSolid,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#ffffff',
+            opacity: 1,
+            material: 'default',
+            position: point.toArray(),
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: shape.parameters,
+          },
+          metadata: {
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            creator: 'user',
+            replicadId: shape.id,
+          },
+        });
+
+        addOperation({
+          type: `create_${type}`,
+          params: shape.parameters,
+          targetObjectId: objectId,
+          undoable: true,
+        });
+      }
+    } catch (error) {
+      console.error(`Failed to create ${type}:`, error);
+      toast.error(`Failed to create ${type}`);
+    }
+  };
+
   return (
     <group>
       {visibleObjects.map((obj) => (
         <CADMesh key={obj.id} cadObject={obj} />
       ))}
+      {/* Click empty space (large, invisible plane) to clear selection */}
+      <mesh
+        onClick={handleCanvasClick}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0, 0]}
+        visible={true}
+      >
+        <planeGeometry args={[5000, 5000]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* Draft sketch preview */}
+      {activeTool === 'sketch' && draftPoints.length > 0 && (
+        <Line
+          points={pointsToVec3(draftPoints)}
+          color="#38bdf8"
+          lineWidth={2}
+        />
+      )}
     </group>
   );
 }
