@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { CADScene, CADObject, CADLayer, CADOperation, ToolState, CADTool, ViewportSettings, SketchPoint } from '../types/cad';
+import { CADObject, CADLayer, CADScene, ToolState, CADOperation, CADTool, ViewportSettings, SketchPoint } from '../types/cad';
 
 // Generate unique IDs
 const generateId = () => `cad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -36,6 +36,9 @@ const defaultLayer: CADLayer = {
   objects: [],
 };
 
+// Atom to hold the order of layer IDs
+export const layerOrderAtom = atom<string[]>(['default']);
+
 // Initial scene state
 const initialScene: CADScene = {
   objects: {},
@@ -57,6 +60,7 @@ const initialToolState: ToolState = {
 export const cadSceneAtom = atom<CADScene>(initialScene);
 export const cadHistoryAtom = atom<CADOperation[]>([]);
 export const toolStateAtom = atom<ToolState>(initialToolState);
+export const cadOperationsAtom = atom<CADOperation[]>([]);
 
 // Derived atoms
 export const cadObjectsAtom = atom(
@@ -80,6 +84,14 @@ export const selectedObjectsAtom = atom(
   (get, set, newSelection: string[]) => {
     const scene = get(cadSceneAtom);
     set(cadSceneAtom, { ...scene, selectedObjectIds: newSelection });
+  }
+);
+
+export const activeLayerIdAtom = atom(
+  (get) => get(cadSceneAtom).activeLayerId,
+  (get, set, newActiveLayerId: string) => {
+    const scene = get(cadSceneAtom);
+    set(cadSceneAtom, { ...scene, activeLayerId: newActiveLayerId });
   }
 );
 
@@ -183,13 +195,18 @@ export const updateObjectAtom = atom(
 
 export const addLayerAtom = atom(
   null,
-  (get, set, layer: Omit<CADLayer, 'id'>) => {
-    const scene = get(cadSceneAtom);
-    const id = generateId();
-    const newLayer: CADLayer = { ...layer, id };
-    const newLayers = { ...scene.layers, [id]: newLayer };
+  (get, set, newLayerData: Omit<CADLayer, 'id'>) => {
+    const id = `layer_${Date.now()}`;
+    const layer = { ...newLayerData, id };
     
-    set(cadSceneAtom, { ...scene, layers: newLayers });
+    const currentLayers = get(cadLayersAtom);
+    set(cadLayersAtom, { ...currentLayers, [id]: layer });
+
+    const currentOrder = get(layerOrderAtom);
+    set(layerOrderAtom, [...currentOrder, id]);
+
+    set(activeLayerIdAtom, id);
+    
     return id;
   }
 );
@@ -197,32 +214,50 @@ export const addLayerAtom = atom(
 export const removeLayerAtom = atom(
   null,
   (get, set, layerId: string) => {
-    const scene = get(cadSceneAtom);
-    
-    // Don't remove default layer
-    if (layerId === 'default') return;
-    
-    const layer = scene.layers[layerId];
-    if (!layer) return;
-    
-    // Move objects to default layer
-    const defaultLayer = scene.layers.default;
-    const updatedDefaultLayer = {
-      ...defaultLayer,
-      objects: [...defaultLayer.objects, ...layer.objects]
-    };
-    
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { [layerId]: _, ...remainingLayers } = scene.layers;
-    const newLayers = { ...remainingLayers, default: updatedDefaultLayer };
-    
-    // Switch to default layer if removing active layer
-    const newActiveLayerId = scene.activeLayerId === layerId ? 'default' : scene.activeLayerId;
-    
-    set(cadSceneAtom, {
-      ...scene,
-      layers: newLayers,
-      activeLayerId: newActiveLayerId,
+    if (layerId === 'default') return; // Prevent deleting default layer
+
+    // Reassign objects from the deleted layer to the default layer
+    const objects = get(cadObjectsAtom);
+    const updatedObjects = { ...objects };
+    Object.values(updatedObjects).forEach(obj => {
+      if (obj.layerId === layerId) {
+        updatedObjects[obj.id] = { ...obj, layerId: 'default' };
+      }
+    });
+    set(cadObjectsAtom, updatedObjects);
+
+    // Remove layer and its ID from order
+    const currentLayers = get(cadLayersAtom);
+    const newLayers = { ...currentLayers };
+    delete newLayers[layerId];
+    set(cadLayersAtom, newLayers);
+
+    const currentOrder = get(layerOrderAtom);
+    set(layerOrderAtom, currentOrder.filter(id => id !== layerId));
+
+    // Reset active layer if it was the one deleted
+    if (get(activeLayerIdAtom) === layerId) {
+      set(activeLayerIdAtom, 'default');
+    }
+  }
+);
+
+export const moveLayerAtom = atom(
+  null,
+  (get, set, { layerId, direction }: { layerId: string; direction: 'up' | 'down' }) => {
+    set(layerOrderAtom, (prev: string[]) => {
+      const order = [...prev];
+      const index = order.indexOf(layerId);
+      if (index === -1) return order;
+
+      if (direction === 'up' && index > 0) {
+        // Swap with the element above
+        [order[index - 1], order[index]] = [order[index], order[index - 1]];
+      } else if (direction === 'down' && index < order.length - 1) {
+        // Swap with the element below
+        [order[index + 1], order[index]] = [order[index], order[index + 1]];
+      }
+      return order;
     });
   }
 );
@@ -270,4 +305,23 @@ export const layerObjectsAtom = atom(
   }
 );
 
-export const draftSketchPointsAtom = atom<SketchPoint[]>([]); 
+export const draftSketchPointsAtom = atom<SketchPoint[]>([]);
+
+// Derived atom to get layers in the correct order
+export const orderedLayersAtom = atom((get) => {
+  const layers = get(cadLayersAtom);
+  const order = get(layerOrderAtom);
+  return order.map(id => layers[id]).filter(Boolean);
+});
+
+export const updateLayerAtom = atom(
+  null,
+  (get, set, { layerId, updates }: { layerId: string; updates: Partial<Omit<CADLayer, 'id'>> }) => {
+    const layers = get(cadLayersAtom);
+    const layerToUpdate = layers[layerId];
+    if (layerToUpdate) {
+      const updatedLayer = { ...layerToUpdate, ...updates };
+      set(cadLayersAtom, { ...layers, [layerId]: updatedLayer });
+    }
+  }
+); 

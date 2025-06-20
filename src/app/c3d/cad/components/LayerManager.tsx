@@ -2,12 +2,14 @@
 
 import { useAtom } from 'jotai';
 import { useState } from 'react';
-import { Eye, EyeOff, Lock, Unlock, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Unlock, Plus, Trash2, Edit2, ArrowUp, ArrowDown } from 'lucide-react';
 import { 
-  cadLayersAtom, 
-  activeLayerAtom, 
+  orderedLayersAtom,
+  activeLayerIdAtom, 
   addLayerAtom, 
   removeLayerAtom,
+  moveLayerAtom,
+  updateLayerAtom,
   layerObjectsAtom
 } from '../stores/cadStore';
 import { CADLayer } from '../types/cad';
@@ -23,6 +25,10 @@ interface LayerItemProps {
   onToggleLock: () => void;
   onRename: (newName: string) => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  isFirst: boolean;
+  isLast: boolean;
 }
 
 function LayerItem({ 
@@ -33,7 +39,11 @@ function LayerItem({
   onToggleVisibility, 
   onToggleLock, 
   onRename,
-  onDelete 
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast
 }: LayerItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(layer.name);
@@ -142,20 +152,30 @@ function LayerItem({
           </button>
         )}
       </div>
+      <div className={styles.layerMoveButtons}>
+        <button onClick={onMoveUp} disabled={isFirst} className={styles.iconButton}>
+          <ArrowUp size={14} />
+        </button>
+        <button onClick={onMoveDown} disabled={isLast} className={styles.iconButton}>
+          <ArrowDown size={14} />
+        </button>
+      </div>
     </div>
   );
 }
 
 export default function LayerManager() {
-  const [layers, setLayers] = useAtom(cadLayersAtom);
-  const [activeLayer, setActiveLayer] = useAtom(activeLayerAtom);
+  const [layers] = useAtom(orderedLayersAtom);
+  const [activeLayerId, setActiveLayerId] = useAtom(activeLayerIdAtom);
   const [, addLayer] = useAtom(addLayerAtom);
   const [, removeLayer] = useAtom(removeLayerAtom);
+  const [, moveLayer] = useAtom(moveLayerAtom);
+  const [, updateLayer] = useAtom(updateLayerAtom);
   const [getLayerObjects] = useAtom(layerObjectsAtom);
   const { theme } = useTheme();
 
   const handleCreateLayer = () => {
-    const layerCount = Object.keys(layers).length;
+    const layerCount = layers.length;
     addLayer({
       name: `Layer ${layerCount}`,
       visible: true,
@@ -166,16 +186,8 @@ export default function LayerManager() {
     });
   };
 
-  const handleLayerUpdate = (layerId: string, updates: Partial<CADLayer>) => {
-    const updatedLayers = {
-      ...layers,
-      [layerId]: { ...layers[layerId], ...updates }
-    };
-    setLayers(updatedLayers);
-  };
-
   const handleDeleteLayer = (layerId: string) => {
-    if (layerId === 'default') return; // Can't delete default layer
+    if (layerId === 'default') return;
     removeLayer(layerId);
   };
 
@@ -198,25 +210,30 @@ export default function LayerManager() {
       {/* Layer List */}
       <div className={styles.layerList}>
         <div className={styles.layerListInner}>
-          {Object.values(layers).map((layer) => {
+          {layers.map((layer, index) => {
+            if (!layer) return null; // Add a guard for safety
             const objectCount = getLayerObjects(layer.id).length;
             return (
               <LayerItem
                 key={layer.id}
                 layer={layer}
-                isActive={activeLayer?.id === layer.id}
+                isActive={activeLayerId === layer.id}
                 objectCount={objectCount}
-                onActivate={() => setActiveLayer(layer.id)}
+                onActivate={() => setActiveLayerId(layer.id)}
                 onToggleVisibility={() => 
-                  handleLayerUpdate(layer.id, { visible: !layer.visible })
+                  updateLayer({ layerId: layer.id, updates: { visible: !layer.visible } })
                 }
                 onToggleLock={() => 
-                  handleLayerUpdate(layer.id, { locked: !layer.locked })
+                  updateLayer({ layerId: layer.id, updates: { locked: !layer.locked } })
                 }
                 onRename={(newName) => 
-                  handleLayerUpdate(layer.id, { name: newName })
+                  updateLayer({ layerId: layer.id, updates: { name: newName } })
                 }
                 onDelete={() => handleDeleteLayer(layer.id)}
+                onMoveUp={() => moveLayer({ layerId: layer.id, direction: 'up' })}
+                onMoveDown={() => moveLayer({ layerId: layer.id, direction: 'down' })}
+                isFirst={index === 0}
+                isLast={index === layers.length - 1}
               />
             );
           })}
@@ -227,17 +244,16 @@ export default function LayerManager() {
       <div className={styles.actions}>
         <div className={styles.actionButtons}>
           <button className={styles.actionButton} onClick={() => {
-            // show all layers
-            const updated = { ...layers };
-            Object.keys(updated).forEach(id => updated[id].visible = true);
-            setLayers(updated);
+            layers.forEach(layer => {
+              if (layer) updateLayer({ layerId: layer.id, updates: { visible: true } });
+            });
           }}>
             Show All
           </button>
           <button className={styles.actionButton} onClick={() => {
-            const updated = { ...layers };
-            Object.keys(updated).forEach(id => updated[id].visible = false);
-            setLayers(updated);
+            layers.forEach(layer => {
+              if (layer) updateLayer({ layerId: layer.id, updates: { visible: false } });
+            });
           }}>
             Hide All
           </button>

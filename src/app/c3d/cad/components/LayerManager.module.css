@@ -363,8 +363,18 @@
   opacity: 1;
 }
 
+.layerMoveButtons {
+  display: flex;
+  gap: 4px;
+}
+
+.iconButton:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
 .deleteButton:hover {
-  background-color: rgba(239, 68, 68, 0.15) !important;
+  background-color: rgba(239, 68, 68, 0.15) !important; /* Tailwind's red-500 */
   color: #ef4444 !important;
 }
 
