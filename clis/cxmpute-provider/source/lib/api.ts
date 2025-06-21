@@ -61,8 +61,8 @@ export async function registerDevice(payload: Omit<RegisterDevicePayload, 'regis
     
     try {
         // Try to import embedded config (will exist in built binaries)
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const configModule = require('./config');
+        // Use dynamic import() for ES Modules compatibility
+        const configModule = await import('./config.js');
         registrationSecret = configModule.EMBEDDED_CONFIG?.providerSecret;
     } catch {
         // Fallback to environment variable for development

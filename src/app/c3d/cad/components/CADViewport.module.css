@@ -1,0 +1,423 @@
+/* CAD Viewport */
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+}
+
+.container[data-theme="light"] {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+}
+
+/* Canvas */
+.canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Loading State */
+.loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10;
+}
+
+.loadingSpinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+.container[data-theme="dark"] .loadingSpinner {
+  border-color: #3b82f6;
+}
+
+.container[data-theme="light"] .loadingSpinner {
+  border-color: #3b82f6;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.container[data-theme="dark"] .loadingText {
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .loadingText {
+  color: #6b7280;
+}
+
+/* Viewport Controls */
+.controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+/* Viewport Overlay for Zoom Controls */
+.viewportOverlay {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.controlButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.container[data-theme="dark"] .controlButton {
+  background-color: rgba(17, 17, 17, 0.9);
+  border-color: #333;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .controlButton {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: #e5e5e5;
+  color: #71717a;
+}
+
+.container[data-theme="dark"] .controlButton:hover {
+  background-color: #2a2a2a;
+  border-color: #3b82f6;
+  color: #e4e4e7;
+  transform: scale(1.05);
+}
+
+.container[data-theme="light"] .controlButton:hover {
+  background-color: #f4f4f5;
+  border-color: #3b82f6;
+  color: #18181b;
+  transform: scale(1.05);
+}
+
+/* Viewport Info */
+.info {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  z-index: 100;
+  border: 1px solid;
+}
+
+.container[data-theme="dark"] .info {
+  background-color: rgba(17, 17, 17, 0.9);
+  border-color: #333;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .info {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: #e5e5e5;
+  color: #71717a;
+}
+
+/* Grid Toggle */
+.gridToggle {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid;
+  z-index: 100;
+}
+
+.container[data-theme="dark"] .gridToggle {
+  background-color: rgba(17, 17, 17, 0.9);
+  border-color: #333;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .gridToggle {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: #e5e5e5;
+  color: #71717a;
+}
+
+.container[data-theme="dark"] .gridToggle:hover {
+  background-color: #2a2a2a;
+  border-color: #3b82f6;
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .gridToggle:hover {
+  background-color: #f4f4f5;
+  border-color: #3b82f6;
+  color: #18181b;
+}
+
+.gridToggle.active {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* View Mode Toggle */
+.viewModeToggle {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 1px solid;
+  z-index: 100;
+}
+
+.container[data-theme="dark"] .viewModeToggle {
+  background-color: rgba(17, 17, 17, 0.9);
+  border-color: #333;
+}
+
+.container[data-theme="light"] .viewModeToggle {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: #e5e5e5;
+}
+
+.viewModeButton {
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-right: 1px solid;
+}
+
+.container[data-theme="dark"] .viewModeButton {
+  color: #a1a1aa;
+  border-right-color: #333;
+}
+
+.container[data-theme="light"] .viewModeButton {
+  color: #71717a;
+  border-right-color: #e5e5e5;
+}
+
+.viewModeButton:last-child {
+  border-right: none;
+}
+
+.container[data-theme="dark"] .viewModeButton:hover {
+  background-color: #2a2a2a;
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .viewModeButton:hover {
+  background-color: #f4f4f5;
+  color: #18181b;
+}
+
+.viewModeButton.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+/* Selection Outline */
+.selectionOutline {
+  position: absolute;
+  border: 2px solid #3b82f6;
+  border-radius: 4px;
+  pointer-events: none;
+  animation: pulse 1s infinite;
+  z-index: 50;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Context Menu */
+.contextMenu {
+  position: absolute;
+  min-width: 160px;
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  border: 1px solid;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  animation: contextMenuIn 0.2s ease-out;
+}
+
+.container[data-theme="dark"] .contextMenu {
+  background-color: rgba(17, 17, 17, 0.95);
+  border-color: #333;
+}
+
+.container[data-theme="light"] .contextMenu {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-color: #e5e5e5;
+}
+
+@keyframes contextMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.contextMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.container[data-theme="dark"] .contextMenuItem {
+  color: #d4d4d8;
+}
+
+.container[data-theme="light"] .contextMenuItem {
+  color: #374151;
+}
+
+.container[data-theme="dark"] .contextMenuItem:hover {
+  background-color: #2a2a2a;
+  color: #e4e4e7;
+}
+
+.container[data-theme="light"] .contextMenuItem:hover {
+  background-color: #f0f0f0;
+  color: #18181b;
+}
+
+.contextMenuSeparator {
+  height: 1px;
+  margin: 4px 8px;
+}
+
+.container[data-theme="dark"] .contextMenuSeparator {
+  background-color: #333;
+}
+
+.container[data-theme="light"] .contextMenuSeparator {
+  background-color: #e5e5e5;
+}
+
+/* Measurement Tool */
+.measurement {
+  position: absolute;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 80;
+}
+
+.container[data-theme="dark"] .measurement {
+  background-color: #1f2937;
+  color: #fbbf24;
+  border: 1px solid #374151;
+}
+
+.container[data-theme="light"] .measurement {
+  background-color: #ffffff;
+  color: #f59e0b;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .controls {
+    top: 8px;
+    right: 8px;
+    gap: 4px;
+  }
+  
+  .controlButton {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .info,
+  .gridToggle {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+  
+  .viewModeToggle {
+    bottom: 8px;
+    right: 8px;
+  }
+  
+  .viewModeButton {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+} 
