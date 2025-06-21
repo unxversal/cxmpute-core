@@ -1,4 +1,5 @@
 import { CADOperation, ExportOptions } from '../types/cad';
+import { SketchEngine } from './sketchEngine';
 
 interface ReplicadShape {
   id: string;
@@ -26,6 +27,11 @@ export class CADEngine {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private replicad: any = null; // External replicad library module
   private fallbackMode = false;
+  private sketchEngine: SketchEngine;
+  
+  constructor() {
+    this.sketchEngine = new SketchEngine(this);
+  }
   
   async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -216,289 +222,58 @@ export class CADEngine {
     return sketchId;
   }
 
-  async createDrawing(startPoint: [number, number] = [0, 0]): Promise<string> {
+  async extrudeSketch(sketchId: string, distance: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    const { draw } = this.replicad;
-    const drawing = draw(startPoint);
-    
-    const drawingId = `drawing_${Date.now()}`;
-    const shape: ReplicadShape = {
-      id: drawingId,
-      type: 'sketch',
-      replicadSolid: drawing,
-      parameters: { 
-        type: 'drawing', 
-        startPoint, 
-        operations: [],
-        closed: false 
-      }
-    };
-
-    this.shapes.set(drawingId, shape);
-    return drawingId;
-  }
-
-  async addLineToDrawing(
-    drawingId: string,
-    type: 'hLine' | 'vLine' | 'line' | 'lineTo' | 'polarLine',
-    params: number[]
-  ): Promise<void> {
-    const shape = this.shapes.get(drawingId);
-    if (!shape || shape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
+    const sketch = this.shapes.get(sketchId);
+    if (!sketch || sketch.type !== 'sketch') {
+      throw new Error('Invalid sketch for extrusion');
     }
 
-    const drawing = shape.replicadSolid;
-    
-    switch (type) {
-      case 'hLine':
-        drawing.hLine(params[0]);
-        break;
-      case 'vLine':
-        drawing.vLine(params[0]);
-        break;
-      case 'line':
-        if (params.length >= 2) {
-          drawing.line(params[0], params[1]);
-        }
-        break;
-      case 'lineTo':
-        if (params.length >= 2) {
-          drawing.lineTo([params[0], params[1]]);
-        }
-        break;
-      case 'polarLine':
-        if (params.length >= 2) {
-          drawing.polarLine(params[0], params[1]);
-        }
-        break;
-    }
-    
-    // Update operations history
-    if (shape.parameters.operations) {
-      shape.parameters.operations.push({ type, params });
+    try {
+      const solid = sketch.replicadSolid.extrude(distance);
+      
+      const shape: ReplicadShape = {
+        id: `extrude_${Date.now()}`,
+        type: 'solid',
+        replicadSolid: solid,
+        mesh: await this.convertToMesh(solid),
+        parameters: { distance, originalSketch: sketchId }
+      };
+
+      this.shapes.set(shape.id, shape);
+      return shape;
+    } catch (error) {
+      console.error('Failed to extrude sketch:', error);
+      throw error;
     }
   }
 
-  async addArcToDrawing(
-    drawingId: string,
-    type: 'tangentArc' | 'sagittaArc' | 'threePointsArc' | 'halfEllipse',
-    params: number[]
-  ): Promise<void> {
-    const shape = this.shapes.get(drawingId);
-    if (!shape || shape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
-    }
-
-    const drawing = shape.replicadSolid;
-    
-    switch (type) {
-      case 'tangentArc':
-        if (params.length >= 2) {
-          drawing.tangentArc(params[0], params[1]);
-        }
-        break;
-      case 'sagittaArc':
-        if (params.length >= 3) {
-          drawing.sagittaArc(params[0], params[1], params[2]);
-        }
-        break;
-      case 'threePointsArc':
-        if (params.length >= 4) {
-          drawing.threePointsArc(params[0], params[1], params[2], params[3]);
-        }
-        break;
-      case 'halfEllipse':
-        if (params.length >= 3) {
-          drawing.halfEllipse(params[0], params[1], params[2]);
-        }
-        break;
-    }
-    
-    // Update operations history
-    if (shape.parameters.operations) {
-      shape.parameters.operations.push({ type, params });
-    }
-  }
-
-  async closeDrawing(drawingId: string): Promise<void> {
-    const shape = this.shapes.get(drawingId);
-    if (!shape || shape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
-    }
-
-    const drawing = shape.replicadSolid;
-    drawing.close();
-    
-    shape.parameters.closed = true;
-    if (shape.parameters.operations) {
-      shape.parameters.operations.push({ type: 'close', params: [] });
-    }
-  }
-
-  async sketchDrawingOnPlane(
-    drawingId: string,
-    plane: 'XY' | 'XZ' | 'YZ' = 'XY',
-    offset: number = 0
-  ): Promise<ReplicadShape> {
-    const drawingShape = this.shapes.get(drawingId);
-    if (!drawingShape || drawingShape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
-    }
-
-    const drawing = drawingShape.replicadSolid;
-    const sketch = drawing.sketchOnPlane(plane, offset);
-    
-    const sketchShape: ReplicadShape = {
-      id: `sketch_${Date.now()}`,
-      type: 'face',
-      replicadSolid: sketch,
-      parameters: { 
-        type: 'sketch_on_plane', 
-        plane, 
-        offset,
-        originalDrawing: drawingId 
-      }
-    };
-
-    this.shapes.set(sketchShape.id, sketchShape);
-    return sketchShape;
-  }
-
-  async extrudeDrawing(
-    drawingId: string,
-    distance: number,
-    plane: 'XY' | 'XZ' | 'YZ' = 'XY',
-    offset: number = 0,
-    options: {
-      direction?: [number, number, number];
-      twistAngle?: number;
-      extrusionProfile?: Record<string, unknown>;
-    } = {}
-  ): Promise<ReplicadShape> {
-    const drawingShape = this.shapes.get(drawingId);
-    if (!drawingShape || drawingShape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
-    }
-
-    const drawing = drawingShape.replicadSolid;
-    const sketch = drawing.sketchOnPlane(plane, offset);
-    
-    // Create extrusion options
-    const extrudeOptions: Record<string, unknown> = {};
-    if (options.direction) {
-      extrudeOptions.extrusionDirection = options.direction;
-    }
-    if (options.twistAngle) {
-      extrudeOptions.twistAngle = options.twistAngle;
-    }
-    if (options.extrusionProfile) {
-      extrudeOptions.extrusionProfile = options.extrusionProfile;
-    }
-    
-    const solid = sketch.extrude(distance, Object.keys(extrudeOptions).length > 0 ? extrudeOptions : undefined);
-    
-    const shape: ReplicadShape = {
-      id: `extrude_${Date.now()}`,
-      type: 'solid',
-      replicadSolid: solid,
-      mesh: await this.convertToMesh(solid),
-      parameters: { 
-        type: 'extrude',
-        distance, 
-        plane, 
-        offset,
-        options,
-        originalDrawing: drawingId 
-      }
-    };
-
-    this.shapes.set(shape.id, shape);
-    return shape;
-  }
-
-  async revolveDrawing(
-    drawingId: string,
-    axis: [number, number, number] = [0, 0, 1],
-    angle: number = 360,
-    plane: 'XY' | 'XZ' | 'YZ' = 'XY',
-    offset: number = 0
-  ): Promise<ReplicadShape> {
-    const drawingShape = this.shapes.get(drawingId);
-    if (!drawingShape || drawingShape.type !== 'sketch') {
-      throw new Error('Invalid drawing ID');
-    }
-
-    const drawing = drawingShape.replicadSolid;
-    const sketch = drawing.sketchOnPlane(plane, offset);
-    const solid = sketch.revolve(axis, { angle: angle * Math.PI / 180 });
-    
-    const shape: ReplicadShape = {
-      id: `revolve_${Date.now()}`,
-      type: 'solid',
-      replicadSolid: solid,
-      mesh: await this.convertToMesh(solid),
-      parameters: { 
-        type: 'revolve',
-        axis, 
-        angle, 
-        plane, 
-        offset,
-        originalDrawing: drawingId 
-      }
-    };
-
-    this.shapes.set(shape.id, shape);
-    return shape;
-  }
-
-  // Quick shape creation methods using drawings
-  async createRectangleDrawing(width: number, height: number, center: [number, number] = [0, 0]): Promise<string> {
+  async revolveSketch(sketchId: string, axis: [number, number, number] = [0, 0, 1], angle: number = 360): Promise<ReplicadShape> {
     await this.initialize();
     
-    const { drawRoundedRectangle } = this.replicad;
-    const drawing = drawRoundedRectangle(width, height, 0).translate(center[0], center[1]);
-    
-    const drawingId = `rect_drawing_${Date.now()}`;
-    const shape: ReplicadShape = {
-      id: drawingId,
-      type: 'sketch',
-      replicadSolid: drawing,
-      parameters: { 
-        type: 'rectangle_drawing', 
-        width, 
-        height,
-        center,
-        closed: true 
-      }
-    };
+    const sketch = this.shapes.get(sketchId);
+    if (!sketch || sketch.type !== 'sketch') {
+      throw new Error('Invalid sketch for revolution');
+    }
 
-    this.shapes.set(drawingId, shape);
-    return drawingId;
-  }
+    try {
+      const solid = sketch.replicadSolid.revolve(axis, { angle: angle * Math.PI / 180 });
+      
+      const shape: ReplicadShape = {
+        id: `revolve_${Date.now()}`,
+        type: 'solid',
+        replicadSolid: solid,
+        mesh: await this.convertToMesh(solid),
+        parameters: { axis, angle, originalSketch: sketchId }
+      };
 
-  async createCircleDrawing(radius: number, center: [number, number] = [0, 0]): Promise<string> {
-    await this.initialize();
-    
-    const { drawCircle } = this.replicad;
-    const drawing = drawCircle(radius).translate(center[0], center[1]);
-    
-    const drawingId = `circle_drawing_${Date.now()}`;
-    const shape: ReplicadShape = {
-      id: drawingId,
-      type: 'sketch',
-      replicadSolid: drawing,
-      parameters: { 
-        type: 'circle_drawing', 
-        radius,
-        center,
-        closed: true 
-      }
-    };
-
-    this.shapes.set(drawingId, shape);
-    return drawingId;
+      this.shapes.set(shape.id, shape);
+      return shape;
+    } catch (error) {
+      console.error('Failed to revolve sketch:', error);
+      throw error;
+    }
   }
 
   // ==================== BOOLEAN OPERATIONS ====================
@@ -1141,6 +916,30 @@ export class CADEngine {
     };
   }
 
+  // Get sketch engine for advanced sketch operations
+  getSketchEngine(): SketchEngine {
+    return this.sketchEngine;
+  }
+
+  // Create a basic sketch for quick prototyping
+  async createBasicSketch(
+    type: 'circle' | 'rectangle',
+    params: { radius?: number; width?: number; height?: number },
+    plane: 'XY' | 'XZ' | 'YZ' = 'XY'
+  ): Promise<ReplicadShape> {
+    const result = await this.sketchEngine.createSimpleSketch(type, params, plane);
+    
+    const shape: ReplicadShape = {
+      id: result.id,
+      type: 'sketch',
+      replicadSolid: result.replicadSketch,
+      parameters: { type, params, plane }
+    };
+
+    this.shapes.set(shape.id, shape);
+    return shape;
+  }
+
   // ==================== QUICK POLYGON EXTRUDE (sketch MVP) ====================
 
   /**
@@ -1181,15 +980,6 @@ export class CADEngine {
       console.error('Extruded polygon failed', err);
       throw err;
     }
-  }
-
-  // Legacy sketch methods for compatibility
-  async extrudeSketch(sketchId: string, distance: number): Promise<ReplicadShape> {
-    return this.extrudeDrawing(sketchId, distance);
-  }
-
-  async revolveSketch(sketchId: string, axis: [number, number, number] = [0, 0, 1], angle: number = 360): Promise<ReplicadShape> {
-    return this.revolveDrawing(sketchId, axis, angle);
   }
 }
 

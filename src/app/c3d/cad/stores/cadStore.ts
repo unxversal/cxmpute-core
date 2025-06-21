@@ -306,172 +306,6 @@ export const layerObjectsAtom = atom(
 
 export const draftSketchPointsAtom = atom<SketchPoint[]>([]);
 
-// Sketch state management
-export const activeDrawingIdAtom = atom<string | null>(null);
-export const isSketchingAtom = atom<boolean>(false);
-export const sketchModeAtom = atom<'line' | 'arc' | 'circle' | 'rectangle' | null>(null);
-export const sketchPlaneAtom = atom<'XY' | 'XZ' | 'YZ'>('XY');
-export const sketchOffsetAtom = atom<number>(0);
-
-// Current drawing operations for preview
-export const currentDrawingOpsAtom = atom<Array<{
-  type: string;
-  params: number[];
-  preview?: boolean;
-}>>([]);
-
-// Sketch actions
-export const startSketchAtom = atom(
-  null,
-  async (get, set, params: { 
-    mode: 'line' | 'arc' | 'circle' | 'rectangle';
-    plane?: 'XY' | 'XZ' | 'YZ';
-    offset?: number;
-  }) => {
-    try {
-      const { cadEngine } = await import('../lib/cadEngine');
-      
-      const drawingId = await cadEngine.createDrawing([0, 0]);
-      
-      set(activeDrawingIdAtom, drawingId);
-      set(isSketchingAtom, true);
-      set(sketchModeAtom, params.mode);
-      set(sketchPlaneAtom, params.plane || 'XY');
-      set(sketchOffsetAtom, params.offset || 0);
-      set(currentDrawingOpsAtom, []);
-      
-      return drawingId;
-    } catch (error) {
-      console.error('Failed to start sketch:', error);
-      throw error;
-    }
-  }
-);
-
-export const addDrawingOperationAtom = atom(
-  null,
-  async (get, set, operation: {
-    type: 'hLine' | 'vLine' | 'line' | 'lineTo' | 'polarLine' | 'tangentArc' | 'sagittaArc' | 'circle' | 'rectangle';
-    params: number[];
-  }) => {
-    const activeDrawingId = get(activeDrawingIdAtom);
-    if (!activeDrawingId) {
-      throw new Error('No active drawing');
-    }
-
-    try {
-      const { cadEngine } = await import('../lib/cadEngine');
-      
-      if (['hLine', 'vLine', 'line', 'lineTo', 'polarLine'].includes(operation.type)) {
-        await cadEngine.addLineToDrawing(
-          activeDrawingId,
-          operation.type as 'hLine' | 'vLine' | 'line' | 'lineTo' | 'polarLine',
-          operation.params
-        );
-      } else if (['tangentArc', 'sagittaArc'].includes(operation.type)) {
-        await cadEngine.addArcToDrawing(
-          activeDrawingId,
-          operation.type as 'tangentArc' | 'sagittaArc',
-          operation.params
-        );
-      } else if (operation.type === 'circle') {
-        // Handle circle creation
-        const radius = operation.params[0] || 10;
-        const center = [operation.params[1] || 0, operation.params[2] || 0] as [number, number];
-        const circleDrawingId = await cadEngine.createCircleDrawing(radius, center);
-        set(activeDrawingIdAtom, circleDrawingId);
-      } else if (operation.type === 'rectangle') {
-        // Handle rectangle creation
-        const width = operation.params[0] || 20;
-        const height = operation.params[1] || 10;
-        const center = [operation.params[2] || 0, operation.params[3] || 0] as [number, number];
-        const rectDrawingId = await cadEngine.createRectangleDrawing(width, height, center);
-        set(activeDrawingIdAtom, rectDrawingId);
-      }
-      
-      // Update operations list
-      const currentOps = get(currentDrawingOpsAtom);
-      set(currentDrawingOpsAtom, [...currentOps, operation]);
-      
-    } catch (error) {
-      console.error('Failed to add drawing operation:', error);
-      throw error;
-    }
-  }
-);
-
-export const finishSketchAtom = atom(
-  null,
-  async (get, set, extrudeDistance: number = 10) => {
-    const activeDrawingId = get(activeDrawingIdAtom);
-    const plane = get(sketchPlaneAtom);
-    const offset = get(sketchOffsetAtom);
-    
-    if (!activeDrawingId) {
-      throw new Error('No active drawing to finish');
-    }
-
-    try {
-      const { cadEngine } = await import('../lib/cadEngine');
-      
-      // Close the drawing
-      await cadEngine.closeDrawing(activeDrawingId);
-      
-      // Extrude to create 3D shape
-      const shape = await cadEngine.extrudeDrawing(activeDrawingId, extrudeDistance, plane, offset);
-      
-      // Add to objects
-      const newObject: CADObject = {
-        id: `obj_${Date.now()}`,
-        name: `Sketch Extrude ${extrudeDistance}mm`,
-        type: 'solid',
-        solid: shape.replicadSolid,
-        mesh: shape.mesh,
-        visible: true,
-        layerId: get(activeLayerIdAtom),
-        properties: {
-          color: '#3b82f6',
-          opacity: 1,
-          material: 'default',
-          position: [0, 0, 0],
-          rotation: [0, 0, 0],
-          scale: [1, 1, 1],
-          dimensions: shape.parameters,
-        },
-        metadata: { 
-          createdAt: new Date(), 
-          updatedAt: new Date(), 
-          creator: 'user',
-          replicadId: shape.id
-        },
-      };
-      
-      set(addObjectAtom, newObject);
-      
-      // Reset sketch state
-      set(activeDrawingIdAtom, null);
-      set(isSketchingAtom, false);
-      set(sketchModeAtom, null);
-      set(currentDrawingOpsAtom, []);
-      
-      return newObject.id;
-    } catch (error) {
-      console.error('Failed to finish sketch:', error);
-      throw error;
-    }
-  }
-);
-
-export const cancelSketchAtom = atom(
-  null,
-  (get, set) => {
-    set(activeDrawingIdAtom, null);
-    set(isSketchingAtom, false);
-    set(sketchModeAtom, null);
-    set(currentDrawingOpsAtom, []);
-  }
-);
-
 // Derived atom to get layers in the correct order
 export const orderedLayersAtom = atom((get) => {
   const layers = get(cadLayersAtom);
@@ -498,14 +332,14 @@ export const undoStackAtom = atom<string[]>([]);
 export const redoStackAtom = atom<string[]>([]);
 
 // OrbitControls reference for dynamic viewport control
-export const orbitControlsRefAtom = atom<React.MutableRefObject<unknown> | null>(null);
+export const orbitControlsRefAtom = atom<React.MutableRefObject<any> | null>(null);
 
 // Helper to serialize/deserialize scene for undo/redo
 const serializeScene = (scene: CADScene): string => JSON.stringify(scene);
 const deserializeScene = (jsonString: string): CADScene => {
-  const scene = JSON.parse(jsonString) as CADScene;
+  const scene = JSON.parse(jsonString);
   // Rehydrate Date objects if any
-  Object.values(scene.objects).forEach((obj) => {
+  Object.values(scene.objects).forEach((obj: any) => {
     if (obj.metadata?.createdAt) obj.metadata.createdAt = new Date(obj.metadata.createdAt);
     if (obj.metadata?.updatedAt) obj.metadata.updatedAt = new Date(obj.metadata.updatedAt);
   });

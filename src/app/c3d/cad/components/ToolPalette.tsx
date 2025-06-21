@@ -1,8 +1,8 @@
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useAtom, useAtomValue } from 'jotai';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { 
   MousePointer, 
   Move, 
@@ -10,32 +10,17 @@ import {
   ZoomIn,
   Square, 
   Circle, 
-  Triangle,
   Cylinder,
   Pencil,
   Plus,
   Minus,
   Layers,
   X,
-  Minus as Line,
-  MoreHorizontal as HorizontalLine,
-  MoreVertical as VerticalLine,
-  Zap,
-  CheckCircle
+  CornerUpRight,
+  CornerDownLeft,
+  Edit3
 } from 'lucide-react';
-import { 
-  activeToolAtom, 
-  addObjectAtom, 
-  selectedObjectsAtom, 
-  removeObjectAtom, 
-  cadObjectsAtom,
-  isSketchingAtom,
-  sketchModeAtom,
-  startSketchAtom,
-  addDrawingOperationAtom,
-  finishSketchAtom,
-  cancelSketchAtom
-} from '../stores/cadStore';
+import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom } from '../stores/cadStore';
 import { CADTool } from '../types/cad';
 import { cadEngine } from '../lib/cadEngine';
 import { useTheme } from '../hooks/useTheme';
@@ -120,47 +105,22 @@ interface ToolButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }
 
-// Tooltip component
+// Fixed Tooltip component with absolute positioning
 function Tooltip({ children, content }: { children: React.ReactNode; content: string }) {
   const [isVisible, setIsVisible] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseEnter = () => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const tooltipTop = rect.top - 8; // 8px gap above the button
-      let tooltipLeft = rect.left + rect.width / 2; // Center horizontally
-      
-      // Prevent tooltip from going off the left edge
-      const tooltipWidth = content.length * 8 + 20; // Rough estimate
-      if (tooltipLeft - tooltipWidth / 2 < 10) {
-        tooltipLeft = tooltipWidth / 2 + 10;
-      }
-      
-      setPosition({ top: tooltipTop, left: tooltipLeft });
-      setIsVisible(true);
-    }
-  };
 
   return (
-    <div
-      ref={containerRef}
+    <div 
       className={styles.tooltipContainer}
-      onMouseEnter={handleMouseEnter}
+      onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
     >
       {children}
       {isVisible && (
-        <div 
-          className={styles.tooltip}
-          style={{
-            top: `${position.top}px`,
-            left: `${position.left}px`,
-          }}
-        >
+        <div className={styles.tooltip}>
           {content}
         </div>
       )}
@@ -168,7 +128,7 @@ function Tooltip({ children, content }: { children: React.ReactNode; content: st
   );
 }
 
-function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
+function ToolButton({ tool, icon, label, isActive, onClick, disabled = false }: ToolButtonProps) {
   // Enhanced tooltips with keyboard shortcuts
   const getTooltip = (label: string, tool: CADTool) => {
     const shortcuts: Record<CADTool, string> = {
@@ -179,16 +139,15 @@ function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
       'box': 'B',
       'cylinder': 'C',
       'sphere': 'S',
-      'cone': '',
-      'sketch': '',
+      'sketch': 'S',
       'extrude': 'E',
       'revolve': '',
-      'fillet': '',
+      'fillet': 'F',
       'chamfer': '',
       'shell': '',
-      'union': '',
-      'subtract': '',
-      'intersect': ''
+      'union': 'U',
+      'subtract': 'D',
+      'intersect': 'I'
     };
     
     const shortcut = shortcuts[tool];
@@ -199,7 +158,8 @@ function ToolButton({ tool, icon, label, isActive, onClick }: ToolButtonProps) {
     <Tooltip content={getTooltip(label, tool)}>
       <button
         onClick={onClick}
-        className={`${styles.toolButton} ${isActive ? styles.active : ''}`}
+        disabled={disabled}
+        className={`${styles.toolButton} ${isActive ? styles.active : ''} ${disabled ? styles.disabled : ''}`}
       >
         {icon}
       </button>
@@ -223,99 +183,114 @@ function ToolSection({ title, children }: ToolSectionProps) {
   );
 }
 
-// Sketch Toolbar Component
-function SketchToolbar() {
-  const [isSketchingValue] = useAtom(isSketchingAtom);
-  const [sketchMode] = useAtom(sketchModeAtom);
-  const [, addOperation] = useAtom(addDrawingOperationAtom);
-  const [, finishSketch] = useAtom(finishSketchAtom);
-  const [, cancelSketch] = useAtom(cancelSketchAtom);
+// Sketch Mode Component
+interface SketchModeProps {
+  onExit: () => void;
+  selectedFaceId?: string;
+  onCreateSketch: (type: 'circle' | 'rectangle', params: any) => void;
+  openModal: (title: string, placeholder: string, inputType?: 'text' | 'number') => Promise<string>;
+}
+
+function SketchMode({ onExit, selectedFaceId, onCreateSketch, openModal }: SketchModeProps) {
   const { theme } = useTheme();
+  const [activeSketchTool, setActiveSketchTool] = useState<'line' | 'circle' | 'rectangle' | null>(null);
 
-  if (!isSketchingValue) return null;
-
-  const handleAddLine = async (type: 'hLine' | 'vLine' | 'line') => {
+  const handleQuickSketch = async (type: 'circle' | 'rectangle') => {
+    let params;
+    
     try {
-      const distance = parseFloat(prompt(`Enter ${type === 'hLine' ? 'horizontal' : type === 'vLine' ? 'vertical' : 'diagonal'} line distance:`) || '10');
-      if (type === 'line') {
-        const dx = parseFloat(prompt('Enter X offset:') || '10');
-        const dy = parseFloat(prompt('Enter Y offset:') || '0');
-        await addOperation({ type: 'line', params: [dx, dy] });
-      } else {
-        await addOperation({ type, params: [distance] });
+      if (type === 'circle') {
+        const radius = await openModal('Circle Radius', 'Enter radius (mm)');
+        if (!radius || isNaN(parseFloat(radius))) {
+          toast.error('Invalid radius');
+          return;
+        }
+        params = { radius: parseFloat(radius) };
+      } else if (type === 'rectangle') {
+        const width = await openModal('Rectangle Width', 'Enter width (mm)');
+        if (!width || isNaN(parseFloat(width))) {
+          toast.error('Invalid width');
+          return;
+        }
+        const height = await openModal('Rectangle Height', 'Enter height (mm)');
+        if (!height || isNaN(parseFloat(height))) {
+          toast.error('Invalid height');
+          return;
+        }
+        params = { width: parseFloat(width), height: parseFloat(height) };
       }
-      toast.success(`${type} line added`);
-    } catch (error) {
-      toast.error(`Failed to add line: ${error}`);
+
+      onCreateSketch(type, params);
+      onExit();
+    } catch {
+      // User cancelled
+      console.log('Sketch creation cancelled');
     }
   };
 
-  const handleAddArc = async () => {
-    try {
-      const dx = parseFloat(prompt('Enter arc end X:') || '20');
-      const dy = parseFloat(prompt('Enter arc end Y:') || '10');
-      const sagitta = parseFloat(prompt('Enter arc sagitta (curve amount):') || '5');
-      await addOperation({ type: 'sagittaArc', params: [dx, dy, sagitta] });
-      toast.success('Arc added');
-    } catch (error) {
-      toast.error(`Failed to add arc: ${error}`);
-    }
-  };
-
-  const handleFinishSketch = async () => {
-    try {
-      const extrudeDistance = parseFloat(prompt('Enter extrude distance (mm):') || '10');
-      await finishSketch(extrudeDistance);
-      toast.success('Sketch completed and extruded');
-    } catch (error) {
-      toast.error(`Failed to finish sketch: ${error}`);
-    }
-  };
+  if (!selectedFaceId) {
+    return (
+      <div className={styles.sketchPrompt} data-theme={theme}>
+        <div className={styles.sketchPromptContent}>
+          <Pencil size={24} />
+          <h3>Create Quick Sketch</h3>
+          <p>Create a simple sketch or select a face to sketch on</p>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <button 
+              onClick={() => handleQuickSketch('circle')}
+              className={styles.exitSketchButton}
+            >
+              Circle
+            </button>
+            <button 
+              onClick={() => handleQuickSketch('rectangle')}
+              className={styles.exitSketchButton}
+            >
+              Rectangle
+            </button>
+            <button onClick={onExit} className={styles.exitSketchButton}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.sketchToolbar} data-theme={theme}>
+    <div className={styles.sketchTools} data-theme={theme}>
       <div className={styles.sketchHeader}>
-        <h3>Sketch Mode ({sketchMode})</h3>
-        <button onClick={cancelSketch} className={styles.cancelButton}>
+        <h3>Sketch Mode</h3>
+        <button onClick={onExit} className={styles.exitSketchButton}>
           <X size={16} />
         </button>
       </div>
-      
-      <div className={styles.sketchTools}>
-        <div className={styles.sketchSection}>
-          <span className={styles.sketchSectionTitle}>Lines</span>
-          <div className={styles.sketchButtonGroup}>
-            <button onClick={() => handleAddLine('hLine')} className={styles.sketchButton}>
-              <HorizontalLine size={16} />
-              <span>H-Line</span>
-            </button>
-            <button onClick={() => handleAddLine('vLine')} className={styles.sketchButton}>
-              <VerticalLine size={16} />
-              <span>V-Line</span>
-            </button>
-            <button onClick={() => handleAddLine('line')} className={styles.sketchButton}>
-              <Line size={16} />
-              <span>Line</span>
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.sketchSection}>
-          <span className={styles.sketchSectionTitle}>Curves</span>
-          <div className={styles.sketchButtonGroup}>
-            <button onClick={handleAddArc} className={styles.sketchButton}>
-              <Zap size={16} />
-              <span>Arc</span>
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.sketchActions}>
-          <button onClick={handleFinishSketch} className={styles.finishButton}>
-            <CheckCircle size={16} />
-            <span>Finish & Extrude</span>
-          </button>
-        </div>
+      <div className={styles.sketchToolButtons}>
+        <button 
+          className={`${styles.sketchToolButton} ${activeSketchTool === 'line' ? styles.active : ''}`}
+          onClick={() => setActiveSketchTool('line')}
+        >
+          <div style={{ width: 16, height: 2, backgroundColor: 'currentColor' }} />
+          Line
+        </button>
+        <button 
+          className={`${styles.sketchToolButton} ${activeSketchTool === 'circle' ? styles.active : ''}`}
+          onClick={() => handleQuickSketch('circle')}
+        >
+          <Circle size={16} />
+          Circle
+        </button>
+        <button 
+          className={`${styles.sketchToolButton} ${activeSketchTool === 'rectangle' ? styles.active : ''}`}
+          onClick={() => handleQuickSketch('rectangle')}
+        >
+          <Square size={16} />
+          Rectangle
+        </button>
+      </div>
+      <div className={styles.sketchInstructions}>
+        {activeSketchTool === 'line' && <p>Click to create points, press Enter to finish</p>}
+        {!activeSketchTool && <p>Select a drawing tool above to create a sketch</p>}
       </div>
     </div>
   );
@@ -327,8 +302,11 @@ export default function ToolPalette() {
   const [selectedIds] = useAtom(selectedObjectsAtom);
   const [, removeObject] = useAtom(removeObjectAtom);
   const objects = useAtomValue(cadObjectsAtom);
-  const [, startSketch] = useAtom(startSketchAtom);
   const { theme } = useTheme();
+
+  // Sketch mode state
+  const [isSketchMode, setIsSketchMode] = useState(false);
+  const [selectedFaceId, setSelectedFaceId] = useState<string | undefined>(undefined);
 
   // Modal state
   const [modalState, setModalState] = useState<{
@@ -346,7 +324,7 @@ export default function ToolPalette() {
   });
 
   const openModal = (title: string, placeholder: string, inputType: 'text' | 'number' = 'number') => {
-    return new Promise<string>((resolve, reject) => {
+    return new Promise<string>((resolve) => {
       setModalState({
         isOpen: true,
         title,
@@ -360,28 +338,84 @@ export default function ToolPalette() {
     });
   };
 
-  const handleToolSelect = async (tool: CADTool) => {
-    setActiveTool(tool);
-    
-    // Start sketching when sketch tool is selected
+  const handleToolSelect = (tool: CADTool) => {
     if (tool === 'sketch') {
-      try {
-        await startSketch({ mode: 'line' });
-        toast.success('Sketch mode started - use toolbar to add elements');
-      } catch (error) {
-        toast.error(`Failed to start sketch: ${error}`);
+      setIsSketchMode(true);
+      setSelectedFaceId(undefined);
+      toast.info('Sketch Mode: Select a face to sketch on');
+    } else {
+      setIsSketchMode(false);
+      setSelectedFaceId(undefined);
+    }
+    setActiveTool(tool);
+  };
+
+  const exitSketchMode = () => {
+    setIsSketchMode(false);
+    setSelectedFaceId(undefined);
+    setActiveTool('select');
+  };
+
+  const handleCreateSketch = async (type: 'circle' | 'rectangle', params: any) => {
+    try {
+      const result = await cadEngine.createBasicSketch(type, params);
+      
+      if (result) {
+        addObject({
+          name: `${type}_sketch_${Date.now()}`,
+          type: 'sketch',
+          sketch: result.replicadSolid,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#22d3ee',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: params,
+          },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
+        });
+        
+        toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} sketch created`);
       }
+    } catch (err) {
+      console.error('Failed to create sketch:', err);
+      toast.error('Failed to create sketch');
     }
   };
 
+  // Boolean operations with better error handling
   const performBoolean = async (op: 'union' | 'subtract' | 'intersect') => {
     if (selectedIds.length !== 2) {
       toast.warning('Select exactly two solids first');
       return;
     }
+    
     const [aId, bId] = selectedIds;
-    const shapeIdA = objects[aId]?.metadata?.replicadId || aId;
-    const shapeIdB = objects[bId]?.metadata?.replicadId || bId;
+    const objA = objects[aId];
+    const objB = objects[bId];
+    
+    if (!objA || !objB) {
+      toast.error('Invalid objects selected');
+      return;
+    }
+    
+    if (objA.type !== 'solid' || objB.type !== 'solid') {
+      toast.warning('Both objects must be solids');
+      return;
+    }
+
+    const shapeIdA = objA.metadata?.replicadId || aId;
+    const shapeIdB = objB.metadata?.replicadId || bId;
+    
     try {
       let result;
       switch (op) {
@@ -395,62 +429,15 @@ export default function ToolPalette() {
           result = await cadEngine.intersectShapes(shapeIdA, shapeIdB);
           break;
       }
+      
       if (result) {
-        // remove originals
+        // Remove originals
         removeObject(aId);
         removeObject(bId);
-        // add new object
+        
+        // Add new object
         addObject({
           name: `${op}_${Date.now()}`,
-          type: 'solid',
-          solid: result.replicadSolid,
-          mesh: result.mesh,
-          visible: true,
-          layerId: 'default',
-          properties: {
-            color: '#10b981', // emerald
-            opacity: 1,
-            material: 'default',
-            position: [0, 0, 0],
-            rotation: [0, 0, 0],
-            scale: [1, 1, 1],
-            dimensions: result.parameters,
-          },
-          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
-        });
-        toast.success(`${op} complete`);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(`Failed to ${op}`);
-    }
-  };
-
-  const performExtrude = async () => {
-    if (selectedIds.length !== 1) {
-      toast.warning('Select a single sketch first');
-      return;
-    }
-    const cadId = selectedIds[0];
-    const obj = objects[cadId];
-    if (obj?.type !== 'sketch') {
-      toast.warning('Selected object must be a sketch');
-      return;
-    }
-    try {
-      const distance = await openModal('Extrude Distance', 'Enter distance (mm)');
-      const dist = parseFloat(distance);
-      if (isNaN(dist) || dist <= 0) {
-        toast.error('Invalid distance');
-        return;
-      }
-      
-      const shapeId = obj.metadata?.replicadId || cadId;
-      const result = await cadEngine.extrudeSketch(shapeId, dist);
-      if (result) {
-        removeObject(cadId);
-        addObject({
-          name: `extruded_${Date.now()}`,
           type: 'solid',
           solid: result.replicadSolid,
           mesh: result.mesh,
@@ -465,30 +452,107 @@ export default function ToolPalette() {
             scale: [1, 1, 1],
             dimensions: result.parameters,
           },
-          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
         });
+        
+        toast.success(`${op.charAt(0).toUpperCase() + op.slice(1)} complete`);
+      }
+    } catch (err) {
+      console.error(`${op} operation failed:`, err);
+      toast.error(`Failed to ${op} objects`);
+    }
+  };
+
+  // Improved extrude for sketches
+  const performExtrude = async () => {
+    if (selectedIds.length !== 1) {
+      toast.warning('Select a single sketch first');
+      return;
+    }
+    
+    const cadId = selectedIds[0];
+    const obj = objects[cadId];
+    
+    if (!obj) {
+      toast.error('Selected object not found');
+      return;
+    }
+    
+    if (obj.type !== 'sketch') {
+      toast.warning('Selected object must be a sketch');
+      return;
+    }
+    
+    try {
+      const distance = await openModal('Extrude Distance', 'Enter distance (mm)');
+      const dist = parseFloat(distance);
+      
+      if (isNaN(dist) || dist <= 0) {
+        toast.error('Invalid distance');
+        return;
+      }
+      
+      const shapeId = obj.metadata?.replicadId || cadId;
+      const result = await cadEngine.extrudeSketch(shapeId, dist);
+      
+      if (result) {
+        removeObject(cadId);
+        addObject({
+          name: `extruded_${Date.now()}`,
+          type: 'solid',
+          solid: result.replicadSolid,
+          mesh: result.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: '#3b82f6',
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            dimensions: result.parameters,
+          },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
+        });
+        
         toast.success('Extrude complete');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Extrude failed:', err);
       toast.error('Failed to extrude');
     }
   };
 
+  // Improved revolve for sketches
   const performRevolve = async () => {
     if (selectedIds.length !== 1) {
       toast.warning('Select a single sketch first');
       return;
     }
+    
     const cadId = selectedIds[0];
     const obj = objects[cadId];
-    if (obj?.type !== 'sketch') {
+    
+    if (!obj || obj.type !== 'sketch') {
       toast.warning('Selected object must be a sketch');
       return;
     }
+    
     try {
       const angle = await openModal('Revolve Angle', 'Enter angle in degrees (360 for full revolution)');
       const angleDeg = parseFloat(angle);
+      
       if (isNaN(angleDeg)) {
         toast.error('Invalid angle');
         return;
@@ -496,6 +560,7 @@ export default function ToolPalette() {
       
       const shapeId = obj.metadata?.replicadId || cadId;
       const result = await cadEngine.revolveSketch(shapeId, [0, 0, 1], angleDeg);
+      
       if (result) {
         removeObject(cadId);
         addObject({
@@ -514,30 +579,41 @@ export default function ToolPalette() {
             scale: [1, 1, 1],
             dimensions: result.parameters,
           },
-          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
         });
+        
         toast.success('Revolve complete');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Revolve failed:', err);
       toast.error('Failed to revolve');
     }
   };
 
+  // Improved shell operation
   const performShell = async () => {
     if (selectedIds.length !== 1) {
       toast.warning('Select a single solid first');
       return;
     }
+    
     const cadId = selectedIds[0];
     const obj = objects[cadId];
-    if (obj?.type !== 'solid') {
+    
+    if (!obj || obj.type !== 'solid') {
       toast.warning('Selected object must be a solid');
       return;
     }
+    
     try {
       const thickness = await openModal('Shell Thickness', 'Enter wall thickness (mm)');
       const thick = parseFloat(thickness);
+      
       if (isNaN(thick) || thick === 0) {
         toast.error('Invalid thickness');
         return;
@@ -545,6 +621,7 @@ export default function ToolPalette() {
       
       const shapeId = obj.metadata?.replicadId || cadId;
       const result = await cadEngine.shellShape(shapeId, thick);
+      
       if (result) {
         removeObject(cadId);
         addObject({
@@ -563,44 +640,65 @@ export default function ToolPalette() {
             scale: [1, 1, 1],
             dimensions: result.parameters,
           },
-          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: result.id },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
         });
+        
         toast.success('Shell complete');
       }
     } catch (err) {
-      console.error(err);
+      console.error('Shell failed:', err);
       toast.error('Failed to shell');
     }
   };
 
+  // Improved fillet/chamfer operations
   const performFilletChamfer = async (mode: 'fillet' | 'chamfer') => {
     if (selectedIds.length !== 1) {
-      toast.warning(`Select a single solid first`);
+      toast.warning('Select a single solid first');
       return;
     }
+    
     const cadId = selectedIds[0];
-    const shapeId = objects[cadId]?.metadata?.replicadId || cadId;
+    const obj = objects[cadId];
+    
+    if (!obj || obj.type !== 'solid') {
+      toast.warning('Selected object must be a solid');
+      return;
+    }
+    
     try {
       const valStr = await openModal(
         `${mode.charAt(0).toUpperCase() + mode.slice(1)} ${mode === 'fillet' ? 'Radius' : 'Distance'}`, 
         `Enter ${mode === 'fillet' ? 'radius' : 'distance'} (mm)`
       );
       const val = parseFloat(valStr);
+      
       if (isNaN(val) || val <= 0) {
         toast.error('Invalid number');
         return;
       }
       
-      let res;
-      if (mode === 'fillet') res = await cadEngine.filletEdges(shapeId, val);
-      else res = await cadEngine.chamferEdges(shapeId, val);
-      if (res) {
+      const shapeId = obj.metadata?.replicadId || cadId;
+      let result;
+      
+      if (mode === 'fillet') {
+        result = await cadEngine.filletEdges(shapeId, val);
+      } else {
+        result = await cadEngine.chamferEdges(shapeId, val);
+      }
+      
+      if (result) {
         removeObject(cadId);
         addObject({
           name: `${mode}_${Date.now()}`,
           type: 'solid',
-          solid: res.replicadSolid,
-          mesh: res.mesh,
+          solid: result.replicadSolid,
+          mesh: result.mesh,
           visible: true,
           layerId: 'default',
           properties: {
@@ -610,17 +708,28 @@ export default function ToolPalette() {
             position: [0, 0, 0],
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
-            dimensions: res.parameters,
+            dimensions: result.parameters,
           },
-          metadata: { createdAt: new Date(), updatedAt: new Date(), creator: 'user', replicadId: res.id },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.id 
+          },
         });
-        toast.success(`${mode} applied`);
+        
+        toast.success(`${mode.charAt(0).toUpperCase() + mode.slice(1)} applied`);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(`${mode} failed:`, err);
       toast.error(`Failed to ${mode}`);
     }
   };
+
+  // Check if modification tools should be disabled
+  const hasValidSolidsSelected = selectedIds.length > 0 && selectedIds.every(id => objects[id]?.type === 'solid');
+  const hasValidSketchSelected = selectedIds.length === 1 && objects[selectedIds[0]]?.type === 'sketch';
+  const hasTwoSolidsSelected = selectedIds.length === 2 && selectedIds.every(id => objects[id]?.type === 'solid');
 
   return (
     <>
@@ -632,173 +741,181 @@ export default function ToolPalette() {
         placeholder={modalState.placeholder}
         inputType={modalState.inputType}
       />
+      
+      {isSketchMode && (
+        <SketchMode 
+          onExit={exitSketchMode}
+          selectedFaceId={selectedFaceId}
+          onCreateSketch={handleCreateSketch}
+          openModal={openModal}
+        />
+      )}
+      
       <div className={styles.container} data-theme={theme}>
-      {/* Selection Tools */}
-      <ToolSection title="Select">
-        <ToolButton
-          tool="select"
-          icon={<MousePointer size={20} />}
-          label="Select"
-          isActive={activeTool === 'select'}
-          onClick={() => handleToolSelect('select')}
-        />
-        <ToolButton
-          tool="pan"
-          icon={<Move size={20} />}
-          label="Pan"
-          isActive={activeTool === 'pan'}
-          onClick={() => handleToolSelect('pan')}
-        />
-        <ToolButton
-          tool="rotate"
-          icon={<RotateCcw size={20} />}
-          label="Rotate View"
-          isActive={activeTool === 'rotate'}
-          onClick={() => handleToolSelect('rotate')}
-        />
-        <ToolButton
-          tool="zoom"
-          icon={<ZoomIn size={20} />}
-          label="Zoom"
-          isActive={activeTool === 'zoom'}
-          onClick={() => handleToolSelect('zoom')}
-        />
-      </ToolSection>
+        {/* Selection Tools */}
+        <ToolSection title="Navigate">
+          <ToolButton
+            tool="select"
+            icon={<MousePointer size={20} />}
+            label="Select"
+            isActive={activeTool === 'select'}
+            onClick={() => handleToolSelect('select')}
+          />
+          <ToolButton
+            tool="pan"
+            icon={<Move size={20} />}
+            label="Pan"
+            isActive={activeTool === 'pan'}
+            onClick={() => handleToolSelect('pan')}
+          />
+          <ToolButton
+            tool="rotate"
+            icon={<RotateCcw size={20} />}
+            label="Rotate View"
+            isActive={activeTool === 'rotate'}
+            onClick={() => handleToolSelect('rotate')}
+          />
+          <ToolButton
+            tool="zoom"
+            icon={<ZoomIn size={20} />}
+            label="Zoom"
+            isActive={activeTool === 'zoom'}
+            onClick={() => handleToolSelect('zoom')}
+          />
+        </ToolSection>
 
-      {/* Primitive Tools */}
-      <ToolSection title="Primitives">
-        <ToolButton
-          tool="box"
-          icon={<Square size={20} />}
-          label="Box"
-          isActive={activeTool === 'box'}
-          onClick={() => handleToolSelect('box')}
-        />
-        <ToolButton
-          tool="cylinder"
-          icon={<Cylinder size={20} />}
-          label="Cylinder"
-          isActive={activeTool === 'cylinder'}
-          onClick={() => handleToolSelect('cylinder')}
-        />
-        <ToolButton
-          tool="sphere"
-          icon={<Circle size={20} />}
-          label="Sphere"
-          isActive={activeTool === 'sphere'}
-          onClick={() => handleToolSelect('sphere')}
-        />
-        <ToolButton
-          tool="cone"
-          icon={<Triangle size={20} />}
-          label="Cone"
-          isActive={activeTool === 'cone'}
-          onClick={() => handleToolSelect('cone')}
-        />
-      </ToolSection>
+        {/* Primitive Tools - Removed cone as requested */}
+        <ToolSection title="Create">
+          <ToolButton
+            tool="box"
+            icon={<Square size={20} />}
+            label="Box"
+            isActive={activeTool === 'box'}
+            onClick={() => handleToolSelect('box')}
+          />
+          <ToolButton
+            tool="cylinder"
+            icon={<Cylinder size={20} />}
+            label="Cylinder"
+            isActive={activeTool === 'cylinder'}
+            onClick={() => handleToolSelect('cylinder')}
+          />
+          <ToolButton
+            tool="sphere"
+            icon={<Circle size={20} />}
+            label="Sphere"
+            isActive={activeTool === 'sphere'}
+            onClick={() => handleToolSelect('sphere')}
+          />
+        </ToolSection>
 
-      {/* Sketch Tools */}
-      <ToolSection title="Sketch">
-        <ToolButton
-          tool="sketch"
-          icon={<Pencil size={20} />}
-          label="Sketch"
-          isActive={activeTool === 'sketch'}
-          onClick={() => handleToolSelect('sketch')}
-        />
-        <ToolButton
-          tool="extrude"
-          icon={<Square size={20} />}
-          label="Extrude"
-          isActive={activeTool === 'extrude'}
-          onClick={() => {
-            handleToolSelect('extrude');
-            performExtrude();
-          }}
-        />
-        <ToolButton
-          tool="revolve"
-          icon={<Circle size={20} />}
-          label="Revolve"
-          isActive={activeTool === 'revolve'}
-          onClick={() => {
-            handleToolSelect('revolve');
-            performRevolve();
-          }}
-        />
-      </ToolSection>
+        {/* Sketch Tools */}
+        <ToolSection title="Sketch">
+          <ToolButton
+            tool="sketch"
+            icon={<Pencil size={20} />}
+            label="Sketch"
+            isActive={activeTool === 'sketch'}
+            onClick={() => handleToolSelect('sketch')}
+          />
+          <ToolButton
+            tool="extrude"
+            icon={<CornerUpRight size={20} />}
+            label="Extrude"
+            isActive={activeTool === 'extrude'}
+            onClick={() => {
+              handleToolSelect('extrude');
+              performExtrude();
+            }}
+            disabled={!hasValidSketchSelected}
+          />
+          <ToolButton
+            tool="revolve"
+            icon={<CornerDownLeft size={20} />}
+            label="Revolve"
+            isActive={activeTool === 'revolve'}
+            onClick={() => {
+              handleToolSelect('revolve');
+              performRevolve();
+            }}
+            disabled={!hasValidSketchSelected}
+          />
+        </ToolSection>
 
-      {/* Modify Tools */}
-      <ToolSection title="Modify">
-        <ToolButton
-          tool="fillet"
-          icon={<Circle size={20} />}
-          label="Fillet"
-          isActive={activeTool === 'fillet'}
-          onClick={() => {
-            handleToolSelect('fillet');
-            performFilletChamfer('fillet');
-          }}
-        />
-        <ToolButton
-          tool="chamfer"
-          icon={<Triangle size={20} />}
-          label="Chamfer"
-          isActive={activeTool === 'chamfer'}
-          onClick={() => {
-            handleToolSelect('chamfer');
-            performFilletChamfer('chamfer');
-          }}
-        />
-        <ToolButton
-          tool="shell"
-          icon={<Layers size={20} />}
-          label="Shell"
-          isActive={activeTool === 'shell'}
-          onClick={() => {
-            handleToolSelect('shell');
-            performShell();
-          }}
-        />
-      </ToolSection>
+        {/* Modify Tools */}
+        <ToolSection title="Modify">
+          <ToolButton
+            tool="fillet"
+            icon={<Circle size={20} />}
+            label="Fillet"
+            isActive={activeTool === 'fillet'}
+            onClick={() => {
+              handleToolSelect('fillet');
+              performFilletChamfer('fillet');
+            }}
+            disabled={!hasValidSolidsSelected}
+          />
+          <ToolButton
+            tool="chamfer"
+            icon={<Edit3 size={20} />}
+            label="Chamfer"
+            isActive={activeTool === 'chamfer'}
+            onClick={() => {
+              handleToolSelect('chamfer');
+              performFilletChamfer('chamfer');
+            }}
+            disabled={!hasValidSolidsSelected}
+          />
+          <ToolButton
+            tool="shell"
+            icon={<Layers size={20} />}
+            label="Shell"
+            isActive={activeTool === 'shell'}
+            onClick={() => {
+              handleToolSelect('shell');
+              performShell();
+            }}
+            disabled={!hasValidSolidsSelected}
+          />
+        </ToolSection>
 
-      {/* Boolean Tools */}
-      <ToolSection title="Boolean">
-        <ToolButton
-          tool="union"
-          icon={<Plus size={20} />}
-          label="Union"
-          isActive={activeTool === 'union'}
-          onClick={() => {
-            handleToolSelect('union');
-            performBoolean('union');
-          }}
-        />
-        <ToolButton
-          tool="subtract"
-          icon={<Minus size={20} />}
-          label="Subtract"
-          isActive={activeTool === 'subtract'}
-          onClick={() => {
-            handleToolSelect('subtract');
-            performBoolean('subtract');
-          }}
-        />
-        <ToolButton
-          tool="intersect"
-          icon={<Circle size={20} />}
-          label="Intersect"
-          isActive={activeTool === 'intersect'}
-          onClick={() => {
-            handleToolSelect('intersect');
-            performBoolean('intersect');
-          }}
-        />
-      </ToolSection>
-
-      {/* Sketch Toolbar - appears when sketching */}
-      <SketchToolbar />
-    </div>
+        {/* Boolean Tools */}
+        <ToolSection title="Boolean">
+          <ToolButton
+            tool="union"
+            icon={<Plus size={20} />}
+            label="Union"
+            isActive={activeTool === 'union'}
+            onClick={() => {
+              handleToolSelect('union');
+              performBoolean('union');
+            }}
+            disabled={!hasTwoSolidsSelected}
+          />
+          <ToolButton
+            tool="subtract"
+            icon={<Minus size={20} />}
+            label="Subtract"
+            isActive={activeTool === 'subtract'}
+            onClick={() => {
+              handleToolSelect('subtract');
+              performBoolean('subtract');
+            }}
+            disabled={!hasTwoSolidsSelected}
+          />
+          <ToolButton
+            tool="intersect"
+            icon={<Circle size={20} />}
+            label="Intersect"
+            isActive={activeTool === 'intersect'}
+            onClick={() => {
+              handleToolSelect('intersect');
+              performBoolean('intersect');
+            }}
+            disabled={!hasTwoSolidsSelected}
+          />
+        </ToolSection>
+      </div>
     </>
   );
 } 

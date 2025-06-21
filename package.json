@@ -45,6 +45,7 @@
     "hono": "^4.7.7",
     "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.1",
+    "immer": "^10.1.1",
     "jotai": "^2.12.5",
     "leva": "^0.10.0",
     "lightweight-charts": "^5.0.6",
