@@ -1,0 +1,636 @@
+/* Tool Palette */
+.container {
+  width: 60px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid;
+  padding: 8px;
+  overflow-y: auto;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.container[data-theme="dark"] {
+  background-color: #111111;
+  border-right-color: #333;
+}
+
+.container[data-theme="light"] {
+  background-color: #fafafa;
+  border-right-color: #e5e5e5;
+}
+
+/* Tool Section */
+.section {
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.container[data-theme="dark"] .sectionTitle {
+  color: #71717a;
+}
+
+.container[data-theme="light"] .sectionTitle {
+  color: #a1a1aa;
+}
+
+.sectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Tool Button */
+.toolButton {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: visible;
+}
+
+.container[data-theme="dark"] .toolButton {
+  background-color: #1f1f1f;
+  color: #a1a1aa;
+}
+
+.container[data-theme="light"] .toolButton {
+  background-color: #ffffff;
+  color: #71717a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.container[data-theme="dark"] .toolButton:hover:not(:disabled) {
+  background-color: #2a2a2a;
+  color: #e4e4e7;
+  transform: translateY(-1px);
+}
+
+.container[data-theme="light"] .toolButton:hover:not(:disabled) {
+  background-color: #f4f4f5;
+  color: #18181b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Active Tool Button */
+.toolButton.active {
+  transform: none !important;
+}
+
+.container[data-theme="dark"] .toolButton.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.container[data-theme="light"] .toolButton.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+/* Disabled Tool Button */
+.toolButton.disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.toolButton.disabled:hover {
+  transform: none !important;
+  background-color: inherit !important;
+  color: inherit !important;
+  box-shadow: inherit !important;
+}
+
+/* Fixed Tooltip Component - Now truly absolute */
+.tooltipContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip {
+  position: fixed;
+  bottom: auto;
+  top: 50%;
+  left: 80px;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 10000;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease-out;
+  max-width: 200px;
+}
+
+.container[data-theme="dark"] .tooltip {
+  background-color: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #374151;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.container[data-theme="light"] .tooltip {
+  background-color: #1f2937;
+  color: #f9fafb;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+/* Sketch Mode Components */
+.sketchPrompt {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.sketchPrompt[data-theme="dark"] {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+}
+
+.sketchPrompt[data-theme="light"] {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+}
+
+.sketchPromptContent {
+  padding: 24px;
+  text-align: center;
+  min-width: 300px;
+}
+
+.sketchPromptContent svg {
+  margin-bottom: 16px;
+}
+
+.sketchPrompt[data-theme="dark"] .sketchPromptContent svg {
+  color: #3b82f6;
+}
+
+.sketchPrompt[data-theme="light"] .sketchPromptContent svg {
+  color: #3b82f6;
+}
+
+.sketchPromptContent h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sketchPrompt[data-theme="dark"] .sketchPromptContent h3 {
+  color: #e4e4e7;
+}
+
+.sketchPrompt[data-theme="light"] .sketchPromptContent h3 {
+  color: #18181b;
+}
+
+.sketchPromptContent p {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.exitSketchButton {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sketchPrompt[data-theme="dark"] .exitSketchButton {
+  background-color: #374151;
+  color: #e4e4e7;
+}
+
+.sketchPrompt[data-theme="light"] .exitSketchButton {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.exitSketchButton:hover {
+  opacity: 0.8;
+}
+
+/* Sketch Tools Panel */
+.sketchTools {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 280px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.sketchTools[data-theme="dark"] {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+}
+
+.sketchTools[data-theme="light"] {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+}
+
+.sketchHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid;
+}
+
+.sketchTools[data-theme="dark"] .sketchHeader {
+  border-bottom-color: #333;
+}
+
+.sketchTools[data-theme="light"] .sketchHeader {
+  border-bottom-color: #e5e5e5;
+}
+
+.sketchHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sketchTools[data-theme="dark"] .sketchHeader h3 {
+  color: #e4e4e7;
+}
+
+.sketchTools[data-theme="light"] .sketchHeader h3 {
+  color: #18181b;
+}
+
+.sketchHeader .exitSketchButton {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.sketchToolButtons {
+  padding: 16px 20px;
+  display: flex;
+  gap: 8px;
+}
+
+.sketchToolButton {
+  flex: 1;
+  padding: 12px 8px;
+  border: 1px solid;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sketchTools[data-theme="dark"] .sketchToolButton {
+  border-color: #374151;
+  color: #a1a1aa;
+}
+
+.sketchTools[data-theme="light"] .sketchToolButton {
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.sketchTools[data-theme="dark"] .sketchToolButton:hover {
+  border-color: #3b82f6;
+  color: #e4e4e7;
+}
+
+.sketchTools[data-theme="light"] .sketchToolButton:hover {
+  border-color: #3b82f6;
+  color: #374151;
+}
+
+.sketchTools[data-theme="dark"] .sketchToolButton.active {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.sketchTools[data-theme="light"] .sketchToolButton.active {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.05);
+  color: #3b82f6;
+}
+
+.sketchInstructions {
+  padding: 0 20px 20px 20px;
+  font-size: 13px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+.sketchInstructions p {
+  margin: 0;
+}
+
+/* Scrollbar */
+.container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.container[data-theme="dark"]::-webkit-scrollbar-track {
+  background-color: #1f1f1f;
+}
+
+.container[data-theme="light"]::-webkit-scrollbar-track {
+  background-color: #f4f4f5;
+}
+
+.container[data-theme="dark"]::-webkit-scrollbar-thumb {
+  background-color: #404040;
+  border-radius: 2px;
+}
+
+.container[data-theme="light"]::-webkit-scrollbar-thumb {
+  background-color: #d4d4d8;
+  border-radius: 2px;
+}
+
+.container[data-theme="dark"]::-webkit-scrollbar-thumb:hover {
+  background-color: #525252;
+}
+
+.container[data-theme="light"]::-webkit-scrollbar-thumb:hover {
+  background-color: #a1a1aa;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background-color: white;
+  border-radius: 12px;
+  padding: 0;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modalContent[data-theme="dark"] {
+  background-color: #1f1f1f;
+  border: 1px solid #333;
+}
+
+.modalContent[data-theme="light"] {
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px 24px;
+  border-bottom: 1px solid;
+}
+
+.modalContent[data-theme="dark"] .modalHeader {
+  border-bottom-color: #333;
+}
+
+.modalContent[data-theme="light"] .modalHeader {
+  border-bottom-color: #e5e5e5;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modalContent[data-theme="dark"] .modalTitle {
+  color: #e4e4e7;
+}
+
+.modalContent[data-theme="light"] .modalTitle {
+  color: #18181b;
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.modalContent[data-theme="dark"] .modalCloseButton {
+  color: #a1a1aa;
+}
+
+.modalContent[data-theme="light"] .modalCloseButton {
+  color: #6b7280;
+}
+
+.modalContent[data-theme="dark"] .modalCloseButton:hover {
+  background-color: #374151;
+  color: #e4e4e7;
+}
+
+.modalContent[data-theme="light"] .modalCloseButton:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.modalForm {
+  padding: 20px 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modalInput {
+  padding: 12px 16px;
+  border: 1px solid;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.modalContent[data-theme="dark"] .modalInput {
+  background-color: #2a2a2a;
+  border-color: #404040;
+  color: #e4e4e7;
+}
+
+.modalContent[data-theme="light"] .modalInput {
+  background-color: #ffffff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modalButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modalCancelButton,
+.modalConfirmButton {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalCancelButton {
+  background-color: transparent;
+}
+
+.modalContent[data-theme="dark"] .modalCancelButton {
+  color: #a1a1aa;
+  border: 1px solid #404040;
+}
+
+.modalContent[data-theme="light"] .modalCancelButton {
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.modalContent[data-theme="dark"] .modalCancelButton:hover {
+  background-color: #374151;
+  color: #e4e4e7;
+}
+
+.modalContent[data-theme="light"] .modalCancelButton:hover {
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+.modalConfirmButton {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.modalConfirmButton:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.modalConfirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .container {
+    width: 50px;
+    padding: 6px;
+  }
+
+  .toolButton {
+    width: 38px;
+    height: 38px;
+  }
+
+  .sectionTitle {
+    font-size: 8px;
+  }
+
+  .modalContent {
+    margin: 20px;
+    min-width: auto;
+  }
+
+  .sketchTools {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+
+  .tooltip {
+    left: 60px;
+  }
+} 

@@ -43,63 +43,68 @@ If your system is supported by llama.cpp, your device is eligible to be a provid
 
 Create an account in the [Cxmpute Dashboard](https://cxmpute.cloud/dashboard).
 
-### Step 2: Download the Provider CLI
+### Step 2: Prerequisites
 
-Download the Cxmpute Provider CLI from our releases:
-👉 **[Download Latest Release](https://github.com/unxversal/cxmpute-core/releases)**
+Before installing the Cxmpute Provider CLI, ensure you have the following:
 
-#### Choose Your Platform
+**🍎 macOS Users:**
+- [Homebrew](https://brew.sh/) (for package management)
+- Node.js 18.x (will be installed automatically if missing)
 
-**🍎 macOS**
-- Intel Macs (x64): `cxmpute-provider-macos` or `cxmpute-provider-macos-intel`
-- Apple Silicon (M1/M2/M3/M4): `cxmpute-provider-macos-arm64` or `cxmpute-provider-macos-m1`
+**🐧 Linux Users:**
+- Node.js 18.x (will be installed automatically if missing)
+- One of these package managers:
+  - apt (Debian/Ubuntu)
+  - yum (RHEL/CentOS)
+  - dnf (Fedora)
 
-**🐧 Linux**
-- x64: `cxmpute-provider-linux`
+**🪟 Windows Users:**
+- PowerShell 5.1 or later
+- Node.js 18.x (will be installed automatically if missing)
+- Administrator privileges
 
-**🪟 Windows**
-- x64: `cxmpute-provider.exe` or `cxmpute-provider-windows.exe`
+### Step 3: Install the Provider CLI
 
-### Step 3: Install and Setup
-
-#### Make Executable (macOS/Linux)
-
-```bash
-# Navigate to your Downloads folder
-cd ~/Downloads
-
-# Make the file executable
-chmod +x cxmpute-provider-macos    # or cxmpute-provider-linux
-```
-
-#### Run the Provider
+Choose your platform and follow the installation instructions:
 
 **🍎 macOS**
 ```bash
-# Run directly
-./cxmpute-provider-macos
+# Option 1: Direct install
+curl -fsSL https://raw.githubusercontent.com/unxversal/cxmpute-core/main/clis/cxmpute-provider/installers/macos/install.sh | sudo bash
 
-# First time? macOS might show security warning:
-# Go to System Preferences > Security & Privacy > General
-# Click "Allow Anyway" for cxmpute-provider-macos
+# Option 2: Homebrew (coming soon)
+brew install cxmpute-provider
 ```
 
 **🐧 Linux**
 ```bash
-# Run directly
-./cxmpute-provider-linux
+# Direct install
+curl -fsSL https://raw.githubusercontent.com/unxversal/cxmpute-core/main/clis/cxmpute-provider/installers/linux/install.sh | sudo bash
 ```
 
 **🪟 Windows**
-```bash
-# Run directly (double-click or command line)
-cxmpute-provider.exe
-
-# First time? Windows might show SmartScreen warning:
-# Click "More info" > "Run anyway"
+```powershell
+# Run in PowerShell as Administrator
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/unxversal/cxmpute-core/main/clis/cxmpute-provider/installers/windows/install.ps1'))
 ```
 
-### Step 4: Follow the Setup Wizard
+### Step 4: Start the Provider
+
+After installation, you can run the CLI from anywhere:
+```bash
+cxmpute-provider
+```
+
+The CLI includes:
+- 🔒 Embedded Authentication: No environment variables needed
+- 🖥️ Cross-Platform Support: Linux, macOS (Intel & Apple Silicon), Windows
+- ⚡ Zero-Config Setup: Automatic hardware detection and service configuration
+- 💰 Real-Time Earnings: Live dashboard with earnings tracking
+- 🔧 Provider Tools: Complete CLI for compute providers
+
+### Step 5: Follow the Setup Wizard
 
 When you run `cxmpute-provider` for the first time, you'll see:
 
@@ -121,7 +126,7 @@ The CLI will guide you through:
 3. **Service Configuration**: Selecting services based on your hardware
 4. **Network Setup**: Configuring tunnels and connectivity
 
-### Step 5: Start Earning!
+### Step 6: Start Earning!
 
 After setup, you'll see your **provider dashboard**:
 
