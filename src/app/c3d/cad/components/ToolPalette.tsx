@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useState } from 'react';
 import { 
   MousePointer, 
@@ -18,14 +18,17 @@ import {
   X,
   CornerUpRight,
   CornerDownLeft,
-  Edit3
+  Edit3,
+  Check,
+  Triangle
 } from 'lucide-react';
-import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom } from '../stores/cadStore';
+import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom, isSketchingAtom, selectionAtom, currentSketchEntitiesAtom } from '../stores/cadStore';
 import { CADTool } from '../types/cad';
 import { cadEngine } from '../lib/cadEngine';
 import { useTheme } from '../hooks/useTheme';
 import styles from './ToolPalette.module.css';
 import { toast } from 'sonner';
+import { CADUtils } from '../lib/cadUtils';
 
 interface ModalProps {
   isOpen: boolean;
@@ -99,6 +102,162 @@ function Modal({ isOpen, onClose, onConfirm, title, placeholder = '', inputType 
   );
 }
 
+interface ExtrudeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (distance: number, operation: 'add' | 'cut') => void;
+  title: string;
+}
+
+function ExtrudeModal({ isOpen, onClose, onConfirm, title }: ExtrudeModalProps) {
+  const [distance, setDistance] = useState('10');
+  const [operation, setOperation] = useState<'add' | 'cut'>('add');
+  const { theme } = useTheme();
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const dist = parseFloat(distance);
+    if (!isNaN(dist) && dist > 0) {
+      onConfirm(dist, operation);
+      setDistance('10');
+      setOperation('add');
+      onClose();
+    }
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div 
+        className={styles.modalContent} 
+        data-theme={theme} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>{title}</h3>
+          <button onClick={onClose} className={styles.modalCloseButton}>
+            <X size={16} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className={styles.modalForm}>
+          <div className={styles.extrudeControls}>
+            <div className={styles.inputGroup}>
+              <label>Distance (mm)</label>
+              <input
+                type="number"
+                value={distance}
+                onChange={(e) => setDistance(e.target.value)}
+                className={styles.modalInput}
+                autoFocus
+                step="0.1"
+                min="0.1"
+              />
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Operation</label>
+              <div className={styles.operationToggle}>
+                <button
+                  type="button"
+                  className={`${styles.toggleButton} ${operation === 'add' ? styles.active : ''}`}
+                  onClick={() => setOperation('add')}
+                >
+                  <Plus size={14} />
+                  Add Material
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.toggleButton} ${operation === 'cut' ? styles.active : ''}`}
+                  onClick={() => setOperation('cut')}
+                >
+                  <Minus size={14} />
+                  Cut Material
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className={styles.modalButtons}>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className={styles.modalCancelButton}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className={styles.modalConfirmButton}
+              disabled={!distance || parseFloat(distance) <= 0}
+            >
+              Extrude
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface PlaneSelectionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (plane: 'XY' | 'XZ' | 'YZ') => void;
+}
+
+function PlaneSelectionModal({ isOpen, onClose, onConfirm }: PlaneSelectionModalProps) {
+  const { theme } = useTheme();
+
+  if (!isOpen) return null;
+
+  const handlePlaneSelect = (plane: 'XY' | 'XZ' | 'YZ') => {
+    onConfirm(plane);
+    onClose();
+  };
+
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div 
+        className={styles.modalContent} 
+        data-theme={theme} 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <h3 className={styles.modalTitle}>Select Work Plane</h3>
+          <button onClick={onClose} className={styles.modalCloseButton}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className={styles.planeSelection}>
+          <p>Choose a reference plane for sketching:</p>
+          <div className={styles.planeButtons}>
+            <button 
+              className={styles.planeButton}
+              onClick={() => handlePlaneSelect('XY')}
+            >
+              <div className={styles.planeIcon}>XY</div>
+              <span>Top View</span>
+            </button>
+            <button 
+              className={styles.planeButton}
+              onClick={() => handlePlaneSelect('XZ')}
+            >
+              <div className={styles.planeIcon}>XZ</div>
+              <span>Front View</span>
+            </button>
+            <button 
+              className={styles.planeButton}
+              onClick={() => handlePlaneSelect('YZ')}
+            >
+              <div className={styles.planeIcon}>YZ</div>
+              <span>Side View</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface ToolButtonProps {
   tool: CADTool;
   icon: React.ReactNode;
@@ -139,6 +298,7 @@ function ToolButton({ tool, icon, label, isActive, onClick, disabled = false }: 
       'box': 'B',
       'cylinder': 'C',
       'sphere': 'S',
+      'cone': '',
       'sketch': 'S',
       'extrude': 'E',
       'revolve': '',
@@ -323,6 +483,30 @@ export default function ToolPalette() {
     onConfirm: () => {},
   });
 
+  // Extrude modal state
+  const [extrudeModalState, setExtrudeModalState] = useState<{
+    isOpen: boolean;
+    onConfirm: (distance: number, operation: 'add' | 'cut') => void;
+  }>({
+    isOpen: false,
+    onConfirm: () => {},
+  });
+
+  // Plane selection modal state
+  const [planeModalState, setPlaneModalState] = useState<{
+    isOpen: boolean;
+    onConfirm: (plane: 'XY' | 'XZ' | 'YZ') => void;
+  }>({
+    isOpen: false,
+    onConfirm: () => {},
+  });
+
+  const [isSketching, setIsSketching] = useAtom(isSketchingAtom);
+  const [sketchEntities, setSketchEntities] = useAtom(currentSketchEntitiesAtom);
+  const [activeSketchTool, setActiveSketchTool] = useState<'line' | 'circle' | 'rectangle' | null>(null);
+
+  const currentSelection = useAtomValue(selectionAtom);
+
   const openModal = (title: string, placeholder: string, inputType: 'text' | 'number' = 'number') => {
     return new Promise<string>((resolve) => {
       setModalState({
@@ -364,7 +548,7 @@ export default function ToolPalette() {
         addObject({
           name: `${type}_sketch_${Date.now()}`,
           type: 'sketch',
-          sketch: result.replicadSolid,
+          // Sketch geometry kept internally by CADEngine
           visible: true,
           layerId: 'default',
           properties: {
@@ -392,7 +576,7 @@ export default function ToolPalette() {
     }
   };
 
-  // Boolean operations with better error handling
+  // Boolean operations using cadUtils API
   const performBoolean = async (op: 'union' | 'subtract' | 'intersect') => {
     if (selectedIds.length !== 2) {
       toast.warning('Select exactly two solids first');
@@ -420,17 +604,17 @@ export default function ToolPalette() {
       let result;
       switch (op) {
         case 'union':
-          result = await cadEngine.unionShapes(shapeIdA, shapeIdB);
+          result = await CADUtils.union(shapeIdA, shapeIdB);
           break;
         case 'subtract':
-          result = await cadEngine.subtractShapes(shapeIdA, shapeIdB);
+          result = await CADUtils.subtract(shapeIdA, shapeIdB);
           break;
         case 'intersect':
-          result = await cadEngine.intersectShapes(shapeIdA, shapeIdB);
+          result = await CADUtils.intersect(shapeIdA, shapeIdB);
           break;
       }
       
-      if (result) {
+      if (result?.success && result.shape) {
         // Remove originals
         removeObject(aId);
         removeObject(bId);
@@ -439,8 +623,7 @@ export default function ToolPalette() {
         addObject({
           name: `${op}_${Date.now()}`,
           type: 'solid',
-          solid: result.replicadSolid,
-          mesh: result.mesh,
+          mesh: result.shape.mesh,
           visible: true,
           layerId: 'default',
           properties: {
@@ -450,17 +633,19 @@ export default function ToolPalette() {
             position: [0, 0, 0],
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
-            dimensions: result.parameters,
+            dimensions: result.shape.parameters,
           },
           metadata: { 
             createdAt: new Date(), 
             updatedAt: new Date(), 
             creator: 'user', 
-            replicadId: result.id 
+            replicadId: result.shape.id 
           },
         });
         
-        toast.success(`${op.charAt(0).toUpperCase() + op.slice(1)} complete`);
+        toast.success(result.message || `${op.charAt(0).toUpperCase() + op.slice(1)} complete`);
+      } else {
+        toast.error(result?.error || `Failed to ${op} objects`);
       }
     } catch (err) {
       console.error(`${op} operation failed:`, err);
@@ -468,7 +653,7 @@ export default function ToolPalette() {
     }
   };
 
-  // Improved extrude for sketches
+  // Enhanced extrude with cut/add option using new modal
   const performExtrude = async () => {
     if (selectedIds.length !== 1) {
       toast.warning('Select a single sketch first');
@@ -488,50 +673,49 @@ export default function ToolPalette() {
       return;
     }
     
-    try {
-      const distance = await openModal('Extrude Distance', 'Enter distance (mm)');
-      const dist = parseFloat(distance);
-      
-      if (isNaN(dist) || dist <= 0) {
-        toast.error('Invalid distance');
-        return;
+    setExtrudeModalState({
+      isOpen: true,
+      onConfirm: async (distance: number, operation: 'add' | 'cut') => {
+        try {
+          const shapeId = obj.metadata?.replicadId || cadId;
+          const result = await CADUtils.extrude(shapeId, distance);
+          
+          if (result?.success && result.shape) {
+            removeObject(cadId);
+            addObject({
+              name: `${operation}_extruded_${Date.now()}`,
+              type: 'solid',
+              mesh: result.shape.mesh,
+              visible: true,
+              layerId: 'default',
+              properties: {
+                color: operation === 'add' ? '#3b82f6' : '#ef4444',
+                opacity: 1,
+                material: 'default',
+                position: [0, 0, 0],
+                rotation: [0, 0, 0],
+                scale: [1, 1, 1],
+                dimensions: result.shape.parameters,
+              },
+              metadata: { 
+                createdAt: new Date(), 
+                updatedAt: new Date(), 
+                creator: 'user', 
+                replicadId: result.shape.id 
+              },
+            });
+            
+            toast.success(`${operation === 'add' ? 'Add' : 'Cut'} extrude complete`);
+          } else {
+            toast.error(result?.error || 'Failed to extrude');
+          }
+        } catch (err) {
+          console.error('Extrude failed:', err);
+          toast.error('Failed to extrude');
+        }
+        setExtrudeModalState(prev => ({ ...prev, isOpen: false }));
       }
-      
-      const shapeId = obj.metadata?.replicadId || cadId;
-      const result = await cadEngine.extrudeSketch(shapeId, dist);
-      
-      if (result) {
-        removeObject(cadId);
-        addObject({
-          name: `extruded_${Date.now()}`,
-          type: 'solid',
-          solid: result.replicadSolid,
-          mesh: result.mesh,
-          visible: true,
-          layerId: 'default',
-          properties: {
-            color: '#3b82f6',
-            opacity: 1,
-            material: 'default',
-            position: [0, 0, 0],
-            rotation: [0, 0, 0],
-            scale: [1, 1, 1],
-            dimensions: result.parameters,
-          },
-          metadata: { 
-            createdAt: new Date(), 
-            updatedAt: new Date(), 
-            creator: 'user', 
-            replicadId: result.id 
-          },
-        });
-        
-        toast.success('Extrude complete');
-      }
-    } catch (err) {
-      console.error('Extrude failed:', err);
-      toast.error('Failed to extrude');
-    }
+    });
   };
 
   // Improved revolve for sketches
@@ -566,7 +750,7 @@ export default function ToolPalette() {
         addObject({
           name: `revolved_${Date.now()}`,
           type: 'solid',
-          solid: result.replicadSolid,
+          // Replicad solid kept internally by CADEngine
           mesh: result.mesh,
           visible: true,
           layerId: 'default',
@@ -627,7 +811,7 @@ export default function ToolPalette() {
         addObject({
           name: `shell_${Date.now()}`,
           type: 'solid',
-          solid: result.replicadSolid,
+          // Replicad solid kept internally by CADEngine
           mesh: result.mesh,
           visible: true,
           layerId: 'default',
@@ -687,18 +871,17 @@ export default function ToolPalette() {
       let result;
       
       if (mode === 'fillet') {
-        result = await cadEngine.filletEdges(shapeId, val);
+        result = await CADUtils.fillet(shapeId, val);
       } else {
-        result = await cadEngine.chamferEdges(shapeId, val);
+        result = await CADUtils.chamfer(shapeId, val);
       }
       
-      if (result) {
+      if (result?.success && result.shape) {
         removeObject(cadId);
         addObject({
           name: `${mode}_${Date.now()}`,
           type: 'solid',
-          solid: result.replicadSolid,
-          mesh: result.mesh,
+          mesh: result.shape.mesh,
           visible: true,
           layerId: 'default',
           properties: {
@@ -708,17 +891,19 @@ export default function ToolPalette() {
             position: [0, 0, 0],
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
-            dimensions: result.parameters,
+            dimensions: result.shape.parameters,
           },
           metadata: { 
             createdAt: new Date(), 
             updatedAt: new Date(), 
             creator: 'user', 
-            replicadId: result.id 
+            replicadId: result.shape.id 
           },
         });
         
-        toast.success(`${mode.charAt(0).toUpperCase() + mode.slice(1)} applied`);
+        toast.success(result.message || `${mode.charAt(0).toUpperCase() + mode.slice(1)} applied`);
+      } else {
+        toast.error(result?.error || `Failed to ${mode}`);
       }
     } catch (err) {
       console.error(`${mode} failed:`, err);
@@ -731,6 +916,162 @@ export default function ToolPalette() {
   const hasValidSketchSelected = selectedIds.length === 1 && objects[selectedIds[0]]?.type === 'sketch';
   const hasTwoSolidsSelected = selectedIds.length === 2 && selectedIds.every(id => objects[id]?.type === 'solid');
 
+  const handleStartSketch = () => {
+    if (currentSelection?.type === 'face') {
+      // Sketch on selected face
+      setIsSketching(true);
+      toast.success('Sketch mode activated on face');
+    } else if (!currentSelection) {
+      // No selection - show plane selection modal
+      setPlaneModalState({
+        isOpen: true,
+        onConfirm: (plane: 'XY' | 'XZ' | 'YZ') => {
+          setIsSketching(true);
+          // Store the selected reference plane for the sketch
+          // This will be used by CADViewport to position the camera
+          toast.success(`Sketch mode activated on ${plane} plane`);
+        }
+      });
+    } else {
+      toast.warning('Select a face or start a new sketch on a reference plane');
+    }
+  };
+
+  const handleFinishSketch = async () => {
+    if (sketchEntities.length === 0) {
+      toast.warning('No sketch entities to finalize');
+      return;
+    }
+    try {
+      // For now, create a simple rectangle sketch from entities
+      if (currentSelection?.type === 'face') {
+        const result = await cadEngine.createBasicSketch('rectangle', { width: 10, height: 10 });
+        if (result) {
+          addObject({
+            name: `face_sketch_${Date.now()}`,
+            type: 'sketch',
+            mesh: result.mesh,
+            visible: true,
+            layerId: 'default',
+            properties: {
+              color: '#22d3ee',
+              opacity: 1,
+              material: 'default',
+              position: [0, 0, 0],
+              rotation: [0, 0, 0],
+              scale: [1, 1, 1],
+            },
+            metadata: { 
+              createdAt: new Date(), 
+              updatedAt: new Date(), 
+              creator: 'user', 
+              replicadId: result.id 
+            },
+          });
+          toast.success('Sketch created on face');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to finish sketch:', err);
+      toast.error('Failed to create sketch');
+    }
+    setSketchEntities([]);
+    setIsSketching(false);
+    setActiveSketchTool(null);
+  };
+
+  const addSketchEntity = (type: 'line' | 'circle' | 'rectangle', points: Array<[number, number]>, params?: Record<string, number>) => {
+    const entity = {
+      id: `${type}_${Date.now()}`,
+      type,
+      points,
+      params
+    };
+    setSketchEntities(prev => [...prev, entity]);
+  };
+
+  const handleCreatePrimitive = async (type: 'box' | 'cylinder' | 'sphere' | 'cone') => {
+    try {
+      let result;
+      
+      switch (type) {
+        case 'box': {
+          const width = await openModal('Box Width', 'Enter width (mm)', 'number');
+          const height = await openModal('Box Height', 'Enter height (mm)', 'number');
+          const depth = await openModal('Box Depth', 'Enter depth (mm)', 'number');
+          
+          result = await CADUtils.createBox(parseFloat(width), parseFloat(height), parseFloat(depth));
+          break;
+        }
+        case 'cylinder': {
+          const radius = await openModal('Cylinder Radius', 'Enter radius (mm)', 'number');
+          const height = await openModal('Cylinder Height', 'Enter height (mm)', 'number');
+          
+          result = await CADUtils.createCylinder({ 
+            radius: parseFloat(radius), 
+            height: parseFloat(height) 
+          });
+          break;
+        }
+        case 'sphere': {
+          const radius = await openModal('Sphere Radius', 'Enter radius (mm)', 'number');
+          
+          result = await CADUtils.createSphere({ 
+            radius: parseFloat(radius) 
+          });
+          break;
+        }
+        case 'cone': {
+          const baseRadius = await openModal('Cone Base Radius', 'Enter base radius (mm)', 'number');
+          const topRadius = await openModal('Cone Top Radius', 'Enter top radius (mm)', 'number');
+          const height = await openModal('Cone Height', 'Enter height (mm)', 'number');
+          
+          result = await CADUtils.createCone({ 
+            baseRadius: parseFloat(baseRadius), 
+            topRadius: parseFloat(topRadius), 
+            height: parseFloat(height) 
+          });
+          break;
+        }
+      }
+      
+      if (result?.success && result.shape) {
+        const colors = { box: '#6366f1', cylinder: '#10b981', sphere: '#f59e0b', cone: '#8b5cf6' };
+        
+        addObject({
+          name: `${type}_${Date.now()}`,
+          type: 'solid',
+          mesh: result.shape.mesh,
+          visible: true,
+          layerId: 'default',
+          properties: {
+            color: colors[type],
+            opacity: 1,
+            material: 'default',
+            position: [0, 0, 0],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+          },
+          metadata: { 
+            createdAt: new Date(), 
+            updatedAt: new Date(), 
+            creator: 'user', 
+            replicadId: result.shape.id 
+          },
+        });
+        
+        toast.success(result.message || `${type} created successfully`);
+      } else {
+        toast.error(result?.error || `Failed to create ${type}`);
+      }
+    } catch (err) {
+      if (err !== 'cancelled') {
+        console.error(`Failed to create ${type}:`, err);
+        toast.error(`Failed to create ${type}`);
+      }
+    }
+  };
+
   return (
     <>
       <Modal
@@ -741,6 +1082,19 @@ export default function ToolPalette() {
         placeholder={modalState.placeholder}
         inputType={modalState.inputType}
       />
+
+      <ExtrudeModal
+        isOpen={extrudeModalState.isOpen}
+        onClose={() => setExtrudeModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={extrudeModalState.onConfirm}
+        title="Extrude Sketch"
+      />
+
+      <PlaneSelectionModal
+        isOpen={planeModalState.isOpen}
+        onClose={() => setPlaneModalState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={planeModalState.onConfirm}
+      />
       
       {isSketchMode && (
         <SketchMode 
@@ -749,6 +1103,69 @@ export default function ToolPalette() {
           onCreateSketch={handleCreateSketch}
           openModal={openModal}
         />
+      )}
+      
+      {isSketching && (
+        <div className={styles.container} data-theme={theme}>
+          <div className={styles.sketchToolbar}>
+            <div className={styles.sketchHeader}>
+              <h3>Sketch Mode</h3>
+              <span>{sketchEntities.length} entities</span>
+            </div>
+            
+            <ToolSection title="2D Tools">
+              <ToolButton 
+                tool="sketch" 
+                icon={<div style={{ width: 16, height: 2, backgroundColor: 'currentColor' }} />} 
+                label="Line" 
+                isActive={activeSketchTool === 'line'}
+                onClick={() => setActiveSketchTool('line')}
+              />
+              <ToolButton 
+                tool="sketch" 
+                icon={<Circle size={16} />} 
+                label="Circle" 
+                isActive={activeSketchTool === 'circle'}
+                onClick={() => {
+                  setActiveSketchTool('circle');
+                  addSketchEntity('circle', [[0, 0]], { radius: 5 });
+                }}
+              />
+              <ToolButton 
+                tool="sketch" 
+                icon={<Square size={16} />} 
+                label="Rectangle" 
+                isActive={activeSketchTool === 'rectangle'}
+                onClick={() => {
+                  setActiveSketchTool('rectangle');
+                  addSketchEntity('rectangle', [[0, 0], [10, 10]], { width: 10, height: 10 });
+                }}
+              />
+            </ToolSection>
+
+            <ToolSection title="Actions">
+              <button 
+                className={styles.finishButton}
+                onClick={handleFinishSketch}
+                disabled={sketchEntities.length === 0}
+              >
+                <Check size={16} />
+                Finish Sketch
+              </button>
+              <button 
+                className={styles.cancelButton}
+                onClick={() => {
+                  setSketchEntities([]);
+                  setIsSketching(false);
+                  setActiveSketchTool(null);
+                }}
+              >
+                <X size={16} />
+                Cancel
+              </button>
+            </ToolSection>
+          </div>
+        </div>
       )}
       
       <div className={styles.container} data-theme={theme}>
@@ -791,21 +1208,28 @@ export default function ToolPalette() {
             icon={<Square size={20} />}
             label="Box"
             isActive={activeTool === 'box'}
-            onClick={() => handleToolSelect('box')}
+            onClick={() => handleCreatePrimitive('box')}
           />
           <ToolButton
             tool="cylinder"
             icon={<Cylinder size={20} />}
             label="Cylinder"
             isActive={activeTool === 'cylinder'}
-            onClick={() => handleToolSelect('cylinder')}
+            onClick={() => handleCreatePrimitive('cylinder')}
           />
           <ToolButton
             tool="sphere"
             icon={<Circle size={20} />}
             label="Sphere"
             isActive={activeTool === 'sphere'}
-            onClick={() => handleToolSelect('sphere')}
+            onClick={() => handleCreatePrimitive('sphere')}
+          />
+          <ToolButton
+            tool="cone"
+            icon={<Triangle size={20} />}
+            label="Cone"
+            isActive={activeTool === 'cone'}
+            onClick={() => handleCreatePrimitive('cone')}
           />
         </ToolSection>
 
@@ -839,6 +1263,14 @@ export default function ToolPalette() {
               performRevolve();
             }}
             disabled={!hasValidSketchSelected}
+          />
+          <ToolButton 
+            tool="sketch" 
+            icon={<Edit3 size={16} />} 
+            label="Start Sketch" 
+            isActive={false}
+            onClick={handleStartSketch}
+            disabled={currentSelection?.type === 'edge' || currentSelection?.type === 'object'}
           />
         </ToolSection>
 

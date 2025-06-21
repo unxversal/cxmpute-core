@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import { CADObject, CADLayer, CADScene, ToolState, CADOperation, CADTool, ViewportSettings, SketchPoint } from '../types/cad';
+import { CADObject, CADLayer, CADScene, ToolState, CADOperation, CADTool, ViewportSettings, SketchPoint, Selection } from '../types/cad';
 // Generate unique IDs
 const generateId = () => `cad_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -60,6 +60,20 @@ export const cadSceneAtom = atom<CADScene>(initialScene);
 export const cadHistoryAtom = atom<CADOperation[]>([]);
 export const toolStateAtom = atom<ToolState>(initialToolState);
 export const cadOperationsAtom = atom<CADOperation[]>([]);
+
+// New selection atom capable of face/edge
+export const selectionAtom = atom<Selection | null>(null);
+
+// Sketch mode flag
+export const isSketchingAtom = atom<boolean>(false);
+
+// Current sketch entities being drawn
+export const currentSketchEntitiesAtom = atom<Array<{
+  id: string;
+  type: 'line' | 'circle' | 'rectangle';
+  points: Array<[number, number]>;
+  params?: Record<string, number>;
+}>>([]);
 
 // Derived atoms
 export const cadObjectsAtom = atom(

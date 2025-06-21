@@ -63,6 +63,16 @@ const LayerManager = dynamic(() => import('./components/LayerManager'), {
   )
 });
 
+const CodeEditor = dynamic(() => import('./components/CodeEditor'), {
+  ssr: false,
+  loading: () => (
+    <div className={styles.loading}>
+      <Loader className={styles.spinner} size={20} />
+      <span>Loading Code Editor...</span>
+    </div>
+  )
+});
+
 const FileManager = dynamic(() => import('./components/FileManager'), {
   ssr: false,
   loading: () => <div></div>
@@ -176,6 +186,7 @@ export default function CADEditorPage() {
   const { theme, toggleTheme } = useTheme();
   const { isInitializing, isInitialized, error, isFallbackMode } = useCADInitialization();
   const [showHelp, setShowHelp] = useState(false);
+  const [showCodeEditor, setShowCodeEditor] = useState(false);
   
   // Keyboard shortcut state management
   const [selectedObjectIds, setSelectedObjectIds] = useAtom(selectedObjectsAtom);
@@ -303,6 +314,16 @@ export default function CADEditorPage() {
         </div>
         
         <div className={styles.menuRight}>
+          <button 
+            className={styles.codeToggle} 
+            onClick={() => setShowCodeEditor(!showCodeEditor)} 
+            title={`${showCodeEditor ? 'Hide' : 'Show'} code editor`}
+          >
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            {showCodeEditor ? 'Visual' : 'Code'}
+          </button>
           <button className={styles.themeToggle} onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? (
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -334,18 +355,31 @@ export default function CADEditorPage() {
           </Suspense>
         </div>
 
-        {/* Center Area - 3D Viewport */}
+        {/* Center Area - 3D Viewport or Code Editor */}
         <div className={styles.centerArea}>
-          <div className={styles.viewport}>
-            <Suspense fallback={
-              <div className={styles.loading}>
-                <Loader className={styles.spinner} size={24} />
-                <span>Loading 3D Viewport...</span>
-              </div>
-            }>
-              <CADViewport />
-            </Suspense>
-          </div>
+          {!showCodeEditor ? (
+            <div className={styles.viewport}>
+              <Suspense fallback={
+                <div className={styles.loading}>
+                  <Loader className={styles.spinner} size={24} />
+                  <span>Loading 3D Viewport...</span>
+                </div>
+              }>
+                <CADViewport />
+              </Suspense>
+            </div>
+          ) : (
+            <div className={styles.viewport}>
+              <Suspense fallback={
+                <div className={styles.loading}>
+                  <Loader className={styles.spinner} size={24} />
+                  <span>Loading Code Editor...</span>
+                </div>
+              }>
+                <CodeEditor isVisible={showCodeEditor} />
+              </Suspense>
+            </div>
+          )}
         </div>
 
         {/* Right Sidebar - Properties and Layers */}

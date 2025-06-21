@@ -120,6 +120,43 @@
   gap: 8px;
 }
 
+/* Code Toggle */
+.codeToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.container[data-theme="dark"] .codeToggle {
+  color: #a1a1aa;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.container[data-theme="light"] .codeToggle {
+  color: #71717a;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.container[data-theme="dark"] .codeToggle:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.container[data-theme="light"] .codeToggle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1f2937;
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
 /* Theme Toggle */
 .themeToggle {
   display: flex;

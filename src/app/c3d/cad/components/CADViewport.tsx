@@ -3,7 +3,7 @@
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
-import React, { Suspense, useRef, useEffect } from 'react';
+import React, { Suspense, useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import {
@@ -16,6 +16,9 @@ import {
   addObjectAtom,
   addOperationAtom,
   orbitControlsRefAtom,
+  selectionAtom,
+  isSketchingAtom,
+  currentSketchEntitiesAtom,
 } from '../stores/cadStore';
 import { CADObject, CADTool } from '../types/cad';
 import { useTheme } from '../hooks/useTheme';
@@ -30,9 +33,13 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
   const isSelected = selectedIds.includes(cadObject.id);
   const setSelected = useSetAtom(selectedObjectsAtom);
   const updateObject = useSetAtom(updateObjectAtom);
+  const setSelection = useSetAtom(selectionAtom);
+  const selection = useAtomValue(selectionAtom);
+  const isSketching = useAtomValue(isSketchingAtom);
+  const orbitControlsRef = useAtomValue(orbitControlsRefAtom);
   
-  // Skip rendering only if we have literally no data to build geometry.
-  if (!cadObject.mesh && !cadObject.solid && !cadObject.sketch) {
+  // Skip rendering if no mesh data available.
+  if (!cadObject.mesh) {
     return null;
   }
 
@@ -98,6 +105,66 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
     }
   };
 
+  const highlightGeometry = useMemo(() => {
+    if (!meshRef.current || selection?.type !== 'face' || selection.objectId !== cadObject.id) {
+      return null;
+    }
+    const geom = meshRef.current.geometry as THREE.BufferGeometry;
+    if (!geom.index) return null;
+    const { array: indexArray } = geom.index;
+    const faceIdx = selection.faceIndex;
+    const vIndices = [indexArray[faceIdx * 3], indexArray[faceIdx * 3 + 1], indexArray[faceIdx * 3 + 2]];
+    const positions = geom.getAttribute('position');
+    const verts: number[] = [];
+    vIndices.forEach((vi) => {
+      verts.push(positions.getX(vi), positions.getY(vi), positions.getZ(vi));
+    });
+    const highlight = new THREE.BufferGeometry();
+    highlight.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    highlight.setIndex([0, 1, 2]);
+    return highlight;
+  }, [selection, meshRef.current]);
+
+  const edgeHighlight = useMemo(() => {
+    if (!meshRef.current || selection?.type !== 'edge' || selection.objectId !== cadObject.id) return null;
+    const geom = meshRef.current.geometry as THREE.BufferGeometry;
+    if (!geom.index) return null;
+    const vKey = selection.edgeId.toString().split('_');
+    if (vKey.length !== 2) return null;
+    const [v1, v2] = vKey.map(Number);
+    const positions = geom.getAttribute('position');
+    const verts: number[] = [positions.getX(v1), positions.getY(v1), positions.getZ(v1), positions.getX(v2), positions.getY(v2), positions.getZ(v2)];
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    return lineGeo;
+  }, [selection, meshRef.current]);
+
+  useEffect(() => {
+    if (isSketching && selection?.type === 'face' && orbitControlsRef) {
+      // compute centroid & normal of selected face and move camera
+      if (!meshRef.current) return;
+      const geom = meshRef.current.geometry as THREE.BufferGeometry;
+      if (!geom.index) return;
+      const iArr = geom.index.array;
+      const idx = selection.faceIndex;
+      const vA = iArr[idx*3];
+      const vB = iArr[idx*3+1];
+      const vC = iArr[idx*3+2];
+      const posAttr = geom.getAttribute('position');
+      const a = new THREE.Vector3(posAttr.getX(vA),posAttr.getY(vA),posAttr.getZ(vA));
+      const b = new THREE.Vector3(posAttr.getX(vB),posAttr.getY(vB),posAttr.getZ(vB));
+      const c = new THREE.Vector3(posAttr.getX(vC),posAttr.getY(vC),posAttr.getZ(vC));
+      const centroid = new THREE.Vector3().add(a).add(b).add(c).multiplyScalar(1/3);
+      const normal = new THREE.Vector3().subVectors(b,a).cross(new THREE.Vector3().subVectors(c,a)).normalize();
+      const camPos = centroid.clone().add(normal.multiplyScalar(10));
+      if (orbitControlsRef.current) {
+        orbitControlsRef.current.target.copy(centroid);
+        orbitControlsRef.current.object.position.copy(camPos);
+        orbitControlsRef.current.update();
+      }
+    }
+  }, [isSketching]);
+
   return (
     <>
       {isSelected && meshRef.current && (
@@ -141,8 +208,28 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
-          setSelected([cadObject.id]);
-          toast.success(`Selected ${cadObject.name}`);
+          if (e.shiftKey) {
+            // Edge selection
+            if (typeof e.faceIndex === 'number' && meshRef.current?.geometry.index) {
+              const indexArr = meshRef.current.geometry.index.array;
+              const faceIdx = e.faceIndex;
+              const vA = indexArr[faceIdx * 3];
+              const vB = indexArr[faceIdx * 3 + 1];
+              // store edge
+              setSelection({ type: 'edge', objectId: cadObject.id, edgeId: Number(`${Math.min(vA,vB)}_${Math.max(vA,vB)}`) });
+              toast.success(`Edge selected on ${cadObject.name}`);
+            }
+          } else if (e.ctrlKey || e.metaKey) {
+            // Face selection when modifier key held
+            if (typeof e.faceIndex === 'number') {
+              setSelection({ type: 'face', objectId: cadObject.id, faceIndex: e.faceIndex });
+              toast.success(`Face selected on ${cadObject.name}`);
+            }
+          } else {
+            setSelected([cadObject.id]);
+            setSelection({ type: 'object', id: cadObject.id });
+            toast.success(`Selected ${cadObject.name}`);
+          }
         }}
       >
         {renderGeometry()}
@@ -154,6 +241,16 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
           roughness={0.3}
           metalness={0.1}
         />
+        {highlightGeometry && (
+          <mesh geometry={highlightGeometry}>
+            <meshStandardMaterial color="#facc15" opacity={0.6} transparent side={THREE.DoubleSide} />
+          </mesh>
+        )}
+        {edgeHighlight && (
+          <mesh geometry={edgeHighlight}>
+            <meshStandardMaterial color="#facc15" opacity={0.6} transparent side={THREE.DoubleSide} />
+          </mesh>
+        )}
       </mesh>
     </>
   );
@@ -233,9 +330,17 @@ function CADScene() {
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
   const addObject = useSetAtom(addObjectAtom);
   const addOperation = useSetAtom(addOperationAtom);
+  const isSketching = useAtomValue(isSketchingAtom);
+  const [sketchEntities, setSketchEntities] = useAtom(currentSketchEntitiesAtom);
+  const selection = useAtomValue(selectionAtom);
   
   const handleCanvasClick = async (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
+
+    if (isSketching) {
+      await handleSketchClick(event);
+      return;
+    }
 
     const primitiveTools: CADTool[] = ['box', 'cylinder', 'sphere', 'cone'];
 
@@ -246,6 +351,30 @@ function CADScene() {
     } else {
       setSelected([]);
     }
+  };
+
+  const handleSketchClick = async (event: ThreeEvent<MouseEvent>) => {
+    if (!selection || selection.type !== 'face') {
+      toast.warning('No face selected for sketching');
+      return;
+    }
+
+    // Project 3D click point to the face plane for 2D coordinates
+    const clickPoint = event.point;
+    
+    // For now, map to simple 2D coordinates - in production this would use the face plane transformation
+    const point2D: [number, number] = [clickPoint.x, clickPoint.z];
+    
+    // Create a simple line point for the active sketch
+    const newEntity = {
+      id: `point_${Date.now()}`,
+      type: 'line' as const,
+      points: [point2D],
+      params: {}
+    };
+
+    setSketchEntities(prev => [...prev, newEntity]);
+    toast.success(`Added sketch point at (${point2D[0].toFixed(1)}, ${point2D[1].toFixed(1)})`);
   };
 
   const createPrimitiveAtPoint = async (type: 'box' | 'cylinder' | 'sphere' | 'cone', point: THREE.Vector3) => {
@@ -271,7 +400,7 @@ function CADScene() {
         const objectId = addObject({
           name: `${type}_${Date.now()}`,
           type: 'solid',
-          solid: shape.replicadSolid,
+          // Replicad solid kept internally by CADEngine – only mesh & params stored in UI
           visible: true,
           layerId: 'default',
           properties: {

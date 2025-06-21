@@ -1,11 +1,9 @@
-import { Solid, Sketch } from 'replicad';
+// No direct Replicad types in frontend state
 
 export interface CADObject {
   id: string;
   name: string;
   type: 'solid' | 'sketch' | 'group';
-  solid?: Solid;
-  sketch?: Sketch;
   mesh?: {
     vertices: Float32Array;
     indices: Uint32Array;
@@ -124,6 +122,7 @@ export type CADTool =
   | 'box'
   | 'cylinder'
   | 'sphere'
+  | 'cone'
   | 'sketch'
   | 'extrude'
   | 'revolve'
@@ -159,4 +158,10 @@ export interface ExportOptions {
   quality: 'low' | 'medium' | 'high';
   units: 'mm' | 'cm' | 'm' | 'in' | 'ft';
   includeHidden: boolean;
-} 
+}
+
+// Selection can be object, face, or edge
+export type Selection =
+  | { type: 'object'; id: string }
+  | { type: 'face'; objectId: string; faceIndex: number }
+  | { type: 'edge'; objectId: string; edgeId: number }; 

@@ -4,8 +4,6 @@ import { SketchEngine } from './sketchEngine';
 interface ReplicadShape {
   id: string;
   type: 'solid' | 'sketch' | 'wire' | 'face';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  replicadSolid?: any; // Actual replicad solid/shape - external library type
   mesh?: {
     vertices: Float32Array;
     indices: Uint32Array;
@@ -22,11 +20,15 @@ interface ReplicadShape {
 
 export class CADEngine {
   private shapes: Map<string, ReplicadShape> = new Map();
+  // Stores the heavyweight Replicad objects (Solid, Sketch…) keyed by shape id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private replicadObjects: Map<string, any> = new Map();
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private replicad: any = null; // External replicad library module
-  private fallbackMode = false;
+  // Fallback mode removed – Replicad is now a hard requirement
+  private fallbackMode = false; // Kept for type-safety; always false
   private sketchEngine: SketchEngine;
   
   constructor() {
@@ -46,45 +48,23 @@ export class CADEngine {
   }
   
   private async _initialize(): Promise<void> {
-    try {
-      // Check if we're in a browser environment
-      if (typeof window === 'undefined') {
-        console.error('❌ CAD Engine: Not in browser environment');
-        throw new Error('CAD Engine requires browser environment');
-      }
-      
-      console.log('🔄 CAD Engine: Starting initialization...');
-      console.log('🌐 CAD Engine: Browser environment confirmed');
-      
-      // Use the replicad loader
-      const { initializeReplicad } = await import('./replicadLoader');
-      this.replicad = await initializeReplicad();
-      
-      this.initialized = true;
-      this.fallbackMode = false;
-      
-      console.log('🎉 CAD Engine: Full initialization completed successfully!');
-      console.log('📊 CAD Engine Status:', {
-        initialized: this.initialized,
-        fallbackMode: this.fallbackMode,
-        hasReplicad: !!this.replicad
-      });
-    } catch (error) {
-      console.warn('⚠️  CAD Engine: Full initialization failed, enabling fallback mode');
-      console.error('💥 CAD Engine Error Details:', error);
-      
-      // Enable fallback mode - use simple geometries
-      this.fallbackMode = true;
-      this.initialized = true;
-      
-      console.log('🔄 CAD Engine: Fallback mode enabled');
-      console.log('📊 CAD Engine Status (Fallback):', {
-        initialized: this.initialized,
-        fallbackMode: this.fallbackMode,
-        hasReplicad: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+    // Ensure we are in the browser – Replicad needs WebAssembly
+    if (typeof window === 'undefined') {
+      throw new Error('CADEngine initialisation must run in a browser environment');
     }
+
+    console.log('🔄 CAD Engine: Starting initialization…');
+
+    // Dynamically import Replicad & its loader
+    const { initializeReplicad } = await import('./replicadLoader');
+    this.replicad = await initializeReplicad();
+
+    if (!this.replicad) {
+      throw new Error('Unable to load Replicad – Aborting');
+    }
+
+    this.initialized = true;
+    console.log('🎉 CAD Engine initialized with Replicad');
   }
 
   // ==================== PRIMITIVE CREATION ====================
@@ -92,23 +72,25 @@ export class CADEngine {
   async createBox(width: number, height: number, depth: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    if (this.fallbackMode || !this.replicad) {
-      return this.createSimpleBox(width, height, depth);
+    if (!this.replicad) {
+      throw new Error('Replicad not initialised');
     }
     
     try {
       const { makeBaseBox } = this.replicad;
       const solid = makeBaseBox(width, height, depth);
       
+      const id = `box_${Date.now()}`;
+      this.replicadObjects.set(id, solid);
+
       const shape: ReplicadShape = {
-        id: `box_${Date.now()}`,
+        id,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { width, height, depth }
       };
 
-      this.shapes.set(shape.id, shape);
+      this.shapes.set(id, shape);
       return shape;
     } catch (error) {
       console.error('Failed to create box with replicad:', error);
@@ -120,23 +102,25 @@ export class CADEngine {
   async createCylinder(radius: number, height: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    if (this.fallbackMode || !this.replicad) {
-      return this.createSimpleCylinder(radius, height);
+    if (!this.replicad) {
+      throw new Error('Replicad not initialised');
     }
     
     try {
       const { makeCylinder } = this.replicad;
       const solid = makeCylinder(radius, height);
       
+      const id = `cylinder_${Date.now()}`;
+      this.replicadObjects.set(id, solid);
+
       const shape: ReplicadShape = {
-        id: `cylinder_${Date.now()}`,
+        id,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { radius, height }
       };
 
-      this.shapes.set(shape.id, shape);
+      this.shapes.set(id, shape);
       return shape;
     } catch (error) {
       console.error('Failed to create cylinder with replicad:', error);
@@ -147,23 +131,25 @@ export class CADEngine {
   async createSphere(radius: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    if (this.fallbackMode || !this.replicad) {
-      return this.createSimpleSphere(radius);
+    if (!this.replicad) {
+      throw new Error('Replicad not initialised');
     }
     
     try {
       const { makeSphere } = this.replicad;
       const solid = makeSphere(radius);
       
+      const id = `sphere_${Date.now()}`;
+      this.replicadObjects.set(id, solid);
+
       const shape: ReplicadShape = {
-        id: `sphere_${Date.now()}`,
+        id,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { radius }
       };
 
-      this.shapes.set(shape.id, shape);
+      this.shapes.set(id, shape);
       return shape;
     } catch (error) {
       console.error('Failed to create sphere with replicad:', error);
@@ -174,8 +160,8 @@ export class CADEngine {
   async createCone(radius1: number, radius2: number, height: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    if (this.fallbackMode || !this.replicad) {
-      return this.createSimpleCone(radius1, radius2, height);
+    if (!this.replicad) {
+      throw new Error('Replicad not initialised');
     }
     
     try {
@@ -186,15 +172,17 @@ export class CADEngine {
       
       const solid = baseCircle.loftWith([topCircle]);
       
+      const id = `cone_${Date.now()}`;
+      this.replicadObjects.set(id, solid);
+
       const shape: ReplicadShape = {
-        id: `cone_${Date.now()}`,
+        id,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { radius1, radius2, height }
       };
 
-      this.shapes.set(shape.id, shape);
+      this.shapes.set(id, shape);
       return shape;
     } catch (error) {
       console.error('Failed to create cone with replicad:', error);
@@ -211,10 +199,11 @@ export class CADEngine {
     const sketcher = new Sketcher(plane, offset);
     
     const sketchId = `sketch_${Date.now()}`;
+    this.replicadObjects.set(sketchId, sketcher);
+
     const shape: ReplicadShape = {
       id: sketchId,
       type: 'sketch',
-      replicadSolid: sketcher,
       parameters: { plane, offset }
     };
 
@@ -225,23 +214,25 @@ export class CADEngine {
   async extrudeSketch(sketchId: string, distance: number): Promise<ReplicadShape> {
     await this.initialize();
     
-    const sketch = this.shapes.get(sketchId);
-    if (!sketch || sketch.type !== 'sketch') {
+    const sketchObj = this.replicadObjects.get(sketchId);
+    if (!sketchObj) {
       throw new Error('Invalid sketch for extrusion');
     }
 
     try {
-      const solid = sketch.replicadSolid.extrude(distance);
+      const solid = sketchObj.extrude(distance);
       
+      const id = `extrude_${Date.now()}`;
+      this.replicadObjects.set(id, solid);
+
       const shape: ReplicadShape = {
-        id: `extrude_${Date.now()}`,
+        id,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { distance, originalSketch: sketchId }
       };
 
-      this.shapes.set(shape.id, shape);
+      this.shapes.set(id, shape);
       return shape;
     } catch (error) {
       console.error('Failed to extrude sketch:', error);
@@ -252,18 +243,17 @@ export class CADEngine {
   async revolveSketch(sketchId: string, axis: [number, number, number] = [0, 0, 1], angle: number = 360): Promise<ReplicadShape> {
     await this.initialize();
     
-    const sketch = this.shapes.get(sketchId);
-    if (!sketch || sketch.type !== 'sketch') {
+    const sketchObj = this.replicadObjects.get(sketchId);
+    if (!sketchObj) {
       throw new Error('Invalid sketch for revolution');
     }
 
     try {
-      const solid = sketch.replicadSolid.revolve(axis, { angle: angle * Math.PI / 180 });
+      const solid = sketchObj.revolve(axis, { angle: angle * Math.PI / 180 });
       
       const shape: ReplicadShape = {
         id: `revolve_${Date.now()}`,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { axis, angle, originalSketch: sketchId }
       };
@@ -281,20 +271,19 @@ export class CADEngine {
   async unionShapes(shape1Id: string, shape2Id: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const shape1 = this.shapes.get(shape1Id);
-    const shape2 = this.shapes.get(shape2Id);
+    const shape1Obj = this.replicadObjects.get(shape1Id);
+    const shape2Obj = this.replicadObjects.get(shape2Id);
     
-    if (!shape1?.replicadSolid || !shape2?.replicadSolid) {
+    if (!shape1Obj || !shape2Obj) {
       throw new Error('Invalid shapes for union operation');
     }
 
     try {
-      const result = shape1.replicadSolid.fuse(shape2.replicadSolid);
+      const result = shape1Obj.fuse(shape2Obj);
       
       const shape: ReplicadShape = {
         id: `union_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'union', operands: [shape1Id, shape2Id] }
       };
@@ -310,20 +299,19 @@ export class CADEngine {
   async subtractShapes(baseShapeId: string, toolShapeId: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const baseShape = this.shapes.get(baseShapeId);
-    const toolShape = this.shapes.get(toolShapeId);
+    const baseShapeObj = this.replicadObjects.get(baseShapeId);
+    const toolShapeObj = this.replicadObjects.get(toolShapeId);
     
-    if (!baseShape?.replicadSolid || !toolShape?.replicadSolid) {
+    if (!baseShapeObj || !toolShapeObj) {
       throw new Error('Invalid shapes for subtraction operation');
     }
 
     try {
-      const result = baseShape.replicadSolid.cut(toolShape.replicadSolid);
+      const result = baseShapeObj.cut(toolShapeObj);
       
       const shape: ReplicadShape = {
         id: `subtract_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'subtract', base: baseShapeId, tool: toolShapeId }
       };
@@ -339,20 +327,19 @@ export class CADEngine {
   async intersectShapes(shape1Id: string, shape2Id: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const shape1 = this.shapes.get(shape1Id);
-    const shape2 = this.shapes.get(shape2Id);
+    const shape1Obj = this.replicadObjects.get(shape1Id);
+    const shape2Obj = this.replicadObjects.get(shape2Id);
     
-    if (!shape1?.replicadSolid || !shape2?.replicadSolid) {
+    if (!shape1Obj || !shape2Obj) {
       throw new Error('Invalid shapes for intersection operation');
     }
 
     try {
-      const result = shape1.replicadSolid.intersect(shape2.replicadSolid);
+      const result = shape1Obj.intersect(shape2Obj);
       
       const shape: ReplicadShape = {
         id: `intersect_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'intersect', operands: [shape1Id, shape2Id] }
       };
@@ -370,8 +357,8 @@ export class CADEngine {
   async filletEdges(shapeId: string, radius: number, edgeFilter?: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const shape = this.shapes.get(shapeId);
-    if (!shape?.replicadSolid) {
+    const shapeObj = this.replicadObjects.get(shapeId);
+    if (!shapeObj) {
       throw new Error('Invalid shape for fillet operation');
     }
 
@@ -380,16 +367,15 @@ export class CADEngine {
       if (edgeFilter) {
         // Apply fillet with edge filter
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        result = shape.replicadSolid.fillet(radius, (e: any) => e.inDirection(edgeFilter));
+        result = shapeObj.fillet(radius, (e: any) => e.inDirection(edgeFilter));
       } else {
         // Apply fillet to all edges
-        result = shape.replicadSolid.fillet(radius);
+        result = shapeObj.fillet(radius);
       }
       
       const newShape: ReplicadShape = {
         id: `fillet_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'fillet', radius, originalShape: shapeId, edgeFilter }
       };
@@ -405,8 +391,8 @@ export class CADEngine {
   async chamferEdges(shapeId: string, distance: number, edgeFilter?: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const shape = this.shapes.get(shapeId);
-    if (!shape?.replicadSolid) {
+    const shapeObj = this.replicadObjects.get(shapeId);
+    if (!shapeObj) {
       throw new Error('Invalid shape for chamfer operation');
     }
 
@@ -414,15 +400,14 @@ export class CADEngine {
       let result;
       if (edgeFilter) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        result = shape.replicadSolid.chamfer(distance, (e: any) => e.inDirection(edgeFilter));
+        result = shapeObj.chamfer(distance, (e: any) => e.inDirection(edgeFilter));
       } else {
-        result = shape.replicadSolid.chamfer(distance);
+        result = shapeObj.chamfer(distance);
       }
       
       const newShape: ReplicadShape = {
         id: `chamfer_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'chamfer', distance, originalShape: shapeId, edgeFilter }
       };
@@ -438,8 +423,8 @@ export class CADEngine {
   async shellShape(shapeId: string, thickness: number, faceFilter?: string): Promise<ReplicadShape> {
     await this.initialize();
     
-    const shape = this.shapes.get(shapeId);
-    if (!shape?.replicadSolid) {
+    const shapeObj = this.replicadObjects.get(shapeId);
+    if (!shapeObj) {
       throw new Error('Invalid shape for shell operation');
     }
 
@@ -447,15 +432,14 @@ export class CADEngine {
       let result;
       if (faceFilter) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        result = shape.replicadSolid.shell(thickness, (f: any) => f.inPlane(faceFilter));
+        result = shapeObj.shell(thickness, (f: any) => f.inPlane(faceFilter));
       } else {
-        result = shape.replicadSolid.shell(thickness);
+        result = shapeObj.shell(thickness);
       }
       
       const newShape: ReplicadShape = {
         id: `shell_${Date.now()}`,
         type: 'solid',
-        replicadSolid: result,
         mesh: await this.convertToMesh(result),
         parameters: { operation: 'shell', thickness, originalShape: shapeId, faceFilter }
       };
@@ -480,7 +464,7 @@ export class CADEngine {
       throw new Error('Shape not found');
     }
 
-    let transformedSolid = shape.replicadSolid;
+    let transformedSolid = this.replicadObjects.get(shapeId);
 
     if (transform.position) {
       transformedSolid = transformedSolid.translate(transform.position);
@@ -501,7 +485,6 @@ export class CADEngine {
     const newShape: ReplicadShape = {
       id: `transform_${Date.now()}`,
       type: shape.type,
-      replicadSolid: transformedSolid,
       mesh: shape.mesh, // Will be updated if needed
       parameters: { ...shape.parameters, transform },
       transform
@@ -632,12 +615,12 @@ export class CADEngine {
   }
 
   private async exportToSTEP(shape: ReplicadShape): Promise<Blob> {
-    if (!shape.replicadSolid) {
+    if (!this.replicadObjects.get(shape.id)) {
       throw new Error('No replicad solid available for STEP export');
     }
 
     try {
-      const stepContent = shape.replicadSolid.toSTEP();
+      const stepContent = this.replicadObjects.get(shape.id).toSTEP();
       return new Blob([stepContent], { type: 'application/step' });
     } catch (error) {
       console.error('Failed to export to STEP:', error);
@@ -727,157 +710,25 @@ export class CADEngine {
 
   // ==================== FALLBACK SIMPLE GEOMETRY ====================
 
-  private createSimpleBox(width: number, height: number, depth: number): ReplicadShape {
-    const vertices = new Float32Array([
-      // Front face
-      -width/2, -height/2,  depth/2,
-       width/2, -height/2,  depth/2,
-       width/2,  height/2,  depth/2,
-      -width/2,  height/2,  depth/2,
-      
-      // Back face
-      -width/2, -height/2, -depth/2,
-      -width/2,  height/2, -depth/2,
-       width/2,  height/2, -depth/2,
-       width/2, -height/2, -depth/2,
-    ]);
-
-    const indices = new Uint32Array([
-      0,  1,  2,    0,  2,  3,    // front
-      4,  5,  6,    4,  6,  7,    // back
-      5,  0,  3,    5,  3,  6,    // top
-      1,  4,  7,    1,  7,  2,    // bottom
-      0,  5,  4,    0,  4,  1,    // right
-      2,  7,  6,    2,  6,  3     // left
-    ]);
-
-    return {
-      id: `box_${Date.now()}`,
-      type: 'solid',
-      mesh: { vertices, indices },
-      parameters: { width, height, depth }
-    };
+  // Simple geometry helpers removed – Replicad is mandatory. Keeping stubs that throw for old callers.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private createSimpleBox(_w: number, _h: number, _d: number): never {
+    throw new Error('createSimpleBox() is no longer available – Replicad must be loaded');
   }
-
-  private createSimpleCylinder(radius: number, height: number, segments = 32): ReplicadShape {
-    const vertices: number[] = [];
-    const indices: number[] = [];
-    
-    // Create cylinder vertices
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      
-      // Bottom vertex
-      vertices.push(x, -height/2, z);
-      // Top vertex
-      vertices.push(x, height/2, z);
-    }
-    
-    // Create indices for sides
-    for (let i = 0; i < segments; i++) {
-      const i1 = i * 2;
-      const i2 = ((i + 1) % segments) * 2;
-      
-      // Side faces
-      indices.push(i1, i2, i1 + 1);
-      indices.push(i2, i2 + 1, i1 + 1);
-    }
-
-    return {
-      id: `cylinder_${Date.now()}`,
-      type: 'solid',
-      mesh: { 
-        vertices: new Float32Array(vertices), 
-        indices: new Uint32Array(indices)
-      },
-      parameters: { radius, height, segments }
-    };
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private createSimpleCylinder(_r: number, _h: number): never {
+    throw new Error('createSimpleCylinder() is no longer available – Replicad must be loaded');
   }
-
-  private createSimpleSphere(radius: number, widthSegments = 32, heightSegments = 16): ReplicadShape {
-    const vertices: number[] = [];
-    const indices: number[] = [];
-    
-    // Create sphere vertices
-    for (let lat = 0; lat <= heightSegments; lat++) {
-      const theta = lat * Math.PI / heightSegments;
-      const sinTheta = Math.sin(theta);
-      const cosTheta = Math.cos(theta);
-      
-      for (let lon = 0; lon <= widthSegments; lon++) {
-        const phi = lon * 2 * Math.PI / widthSegments;
-        const sinPhi = Math.sin(phi);
-        const cosPhi = Math.cos(phi);
-        
-        const x = cosPhi * sinTheta * radius;
-        const y = cosTheta * radius;
-        const z = sinPhi * sinTheta * radius;
-        
-        vertices.push(x, y, z);
-      }
-    }
-    
-    // Create indices
-    for (let lat = 0; lat < heightSegments; lat++) {
-      for (let lon = 0; lon < widthSegments; lon++) {
-        const first = (lat * (widthSegments + 1)) + lon;
-        const second = first + widthSegments + 1;
-        
-        indices.push(first, second, first + 1);
-        indices.push(second, second + 1, first + 1);
-      }
-    }
-
-    return {
-      id: `sphere_${Date.now()}`,
-      type: 'solid',
-      mesh: { 
-        vertices: new Float32Array(vertices), 
-        indices: new Uint32Array(indices)
-      },
-      parameters: { radius, widthSegments, heightSegments }
-    };
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private createSimpleSphere(_r: number): never {
+    throw new Error('createSimpleSphere() is no longer available – Replicad must be loaded');
   }
-
-  private createSimpleCone(radius1: number, radius2: number, height: number, segments = 32): ReplicadShape {
-    const vertices: number[] = [];
-    const indices: number[] = [];
-    
-    // Create cone vertices
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2;
-      const x1 = Math.cos(angle) * radius1;
-      const z1 = Math.sin(angle) * radius1;
-      const x2 = Math.cos(angle) * radius2;
-      const z2 = Math.sin(angle) * radius2;
-      
-      // Bottom vertex
-      vertices.push(x1, 0, z1);
-      // Top vertex
-      vertices.push(x2, height, z2);
-    }
-    
-    // Create indices for sides
-    for (let i = 0; i < segments; i++) {
-      const i1 = i * 2;
-      const i2 = ((i + 1) % segments) * 2;
-      
-      // Side faces
-      indices.push(i1, i2, i1 + 1);
-      indices.push(i2, i2 + 1, i1 + 1);
-    }
-
-    return {
-      id: `cone_${Date.now()}`,
-      type: 'solid',
-      mesh: { 
-        vertices: new Float32Array(vertices), 
-        indices: new Uint32Array(indices)
-      },
-      parameters: { radius1, radius2, height, segments }
-    };
+  
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private createSimpleCone(_r1: number, _r2: number, _h: number): never {
+    throw new Error('createSimpleCone() is no longer available – Replicad must be loaded');
   }
 
   // ==================== SHAPE MANAGEMENT ====================
@@ -923,21 +774,41 @@ export class CADEngine {
 
   // Create a basic sketch for quick prototyping
   async createBasicSketch(
-    type: 'circle' | 'rectangle',
-    params: { radius?: number; width?: number; height?: number },
-    plane: 'XY' | 'XZ' | 'YZ' = 'XY'
-  ): Promise<ReplicadShape> {
-    const result = await this.sketchEngine.createSimpleSketch(type, params, plane);
+    type: 'rectangle' | 'circle',
+    params: { width?: number; height?: number; radius?: number }
+  ): Promise<{ id: string; mesh: any } | null> {
+    await this.initialize();
     
-    const shape: ReplicadShape = {
-      id: result.id,
-      type: 'sketch',
-      replicadSolid: result.replicadSketch,
-      parameters: { type, params, plane }
-    };
+    if (!this.replicad) {
+      throw new Error('Replicad not loaded');
+    }
 
-    this.shapes.set(shape.id, shape);
-    return shape;
+    try {
+      const { drawRoundedRectangle, drawCircle } = this.replicad;
+      const id = `sketch_${Date.now()}`;
+      
+      let shape;
+      if (type === 'rectangle') {
+        const width = params.width || 10;
+        const height = params.height || 10;
+        shape = drawRoundedRectangle(width, height, 0);
+      } else if (type === 'circle') {
+        const radius = params.radius || 5;
+        shape = drawCircle(radius);
+      } else {
+        throw new Error(`Unsupported sketch type: ${type}`);
+      }
+
+      const sketched = shape.sketchOnPlane();
+      const mesh = await this.convertToMesh(sketched);
+      
+      this.replicadObjects.set(id, sketched);
+      
+      return { id, mesh };
+    } catch (error) {
+      console.error('Failed to create basic sketch:', error);
+      return null;
+    }
   }
 
   // ==================== QUICK POLYGON EXTRUDE (sketch MVP) ====================
@@ -952,7 +823,7 @@ export class CADEngine {
     }
     await this.initialize();
 
-    if (this.fallbackMode || !this.replicad) {
+    if (!this.replicad) {
       // TODO: fallback simple extrusion (not critical for MVP)
       const width = 1, depth = 1;
       return this.createSimpleBox(width, height, depth);
@@ -970,7 +841,6 @@ export class CADEngine {
       const shape: ReplicadShape = {
         id: `polyExtrude_${Date.now()}`,
         type: 'solid',
-        replicadSolid: solid,
         mesh: await this.convertToMesh(solid),
         parameters: { points, height, type: 'polyExtrude' },
       };
@@ -980,6 +850,200 @@ export class CADEngine {
       console.error('Extruded polygon failed', err);
       throw err;
     }
+  }
+
+  /**
+   * Return the underlying Replicad shape (Solid/Sketch…) for a given id.
+   * Undefined if id not found or not yet created.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getReplicadShape(id: string): any | undefined {
+    return this.replicadObjects.get(id);
+  }
+
+  /**
+   * Best-effort helper: given an object id and a mesh faceIndex, return a Replicad FaceFinder
+   * that matches the face.  For now we approximate by using containsPoint() with one vertex
+   * of the triangle.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getReplicadFace(id: string, faceIndex: number): any | null {
+    const solid = this.replicadObjects.get(id);
+    if (!solid) return null;
+
+    // Retrieve mesh vertices for that face
+    const shapeEntry = this.shapes.get(id);
+    if (!shapeEntry?.mesh) return null;
+
+    const { vertices, indices } = shapeEntry.mesh;
+    const triOffset = faceIndex * 3;
+    if (triOffset + 2 >= indices.length) return null;
+
+    const vIndex = indices[triOffset] * 3;
+    const point: [number, number, number] = [
+      vertices[vIndex],
+      vertices[vIndex + 1],
+      vertices[vIndex + 2],
+    ];
+
+    // Build finder that matches face containing the point
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { FaceFinder } = this.replicad as any;
+    if (!FaceFinder) return null;
+    return new FaceFinder().containsPoint(point);
+  }
+
+  /**
+   * Map an object id and two vertex indices to an EdgeFinder based on point membership.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getReplicadEdge(id: string, v1: number, v2: number): any | null {
+    const solid = this.replicadObjects.get(id);
+    if (!solid) return null;
+    const shapeEntry = this.shapes.get(id);
+    if (!shapeEntry?.mesh) return null;
+    const { vertices } = shapeEntry.mesh;
+    const p1: [number, number, number] = [vertices[v1 * 3], vertices[v1 * 3 + 1], vertices[v1 * 3 + 2]];
+    const p2: [number, number, number] = [vertices[v2 * 3], vertices[v2 * 3 + 1], vertices[v2 * 3 + 2]];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { EdgeFinder } = this.replicad as any;
+    if (!EdgeFinder) return null;
+    // Use containsPoint approximation on mid point
+    const mid: [number, number, number] = [(p1[0]+p2[0])/2,(p1[1]+p2[1])/2,(p1[2]+p2[2])/2];
+    return new EdgeFinder().containsPoint(mid);
+  }
+
+  // ==================== CODE EDITOR SUPPORT ====================
+
+  async executeCode(code: string): Promise<{ success: boolean; error?: string }> {
+    await this.initialize();
+    
+    try {
+      // Clear current scene
+      this.clearAllShapes();
+      
+      // Create a sandboxed environment with replicad functions
+      const sandbox = {
+        replicad: this.replicad,
+        makeBox: this.replicad?.makeBox,
+        makeCylinder: this.replicad?.makeCylinder,
+        makeSphere: this.replicad?.makeSphere,
+        drawCircle: this.replicad?.drawCircle,
+        drawRectangle: this.replicad?.drawRectangle,
+        drawRoundedRectangle: this.replicad?.drawRoundedRectangle,
+        console: {
+          log: (...args: any[]) => console.log('[Code Editor]', ...args),
+          error: (...args: any[]) => console.error('[Code Editor]', ...args),
+          warn: (...args: any[]) => console.warn('[Code Editor]', ...args),
+        }
+      };
+
+      // Execute the code in a sandboxed context
+      const wrappedCode = `
+        (function() {
+          const { replicad, makeBox, makeCylinder, makeSphere, drawCircle, drawRectangle, drawRoundedRectangle, console } = arguments[0];
+          
+          ${code}
+          
+          if (typeof main === 'function') {
+            return main();
+          } else if (typeof exports !== 'undefined' && exports.default) {
+            return exports.default();
+          } else {
+            throw new Error('No main function found. Please export a main function or define main().');
+          }
+        })
+      `;
+
+      const func = new Function('return ' + wrappedCode)();
+      const result = func(sandbox);
+
+      if (result && typeof result === 'object' && result.mesh) {
+        // Convert Replicad result to our shape format
+        const shape: ReplicadShape = {
+          id: `code_result_${Date.now()}`,
+          type: 'solid',
+          mesh: await this.convertToMesh(result),
+          parameters: { source: 'code_editor', code }
+        };
+
+        this.shapes.set(shape.id, shape);
+        this.replicadObjects.set(shape.id, result);
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Code execution failed:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      };
+    }
+  }
+
+  async generateCode(): Promise<string | null> {
+    const shapes = this.getAllShapes();
+    
+    if (shapes.length === 0) {
+      return null;
+    }
+
+    let code = `// Generated from CAD scene
+const { makeBox, makeCylinder, makeSphere, drawCircle, drawRectangle } = replicad;
+
+const main = () => {
+`;
+
+    for (let i = 0; i < shapes.length; i++) {
+      const shape = shapes[i];
+      const varName = `shape${i + 1}`;
+      
+      // Generate code based on shape parameters
+      if (shape.parameters.operation === 'create_box') {
+        const { width, height, depth } = shape.parameters;
+        code += `  const ${varName} = makeBox(${width}, ${height}, ${depth});\n`;
+      } else if (shape.parameters.operation === 'create_cylinder') {
+        const { radius, height } = shape.parameters;
+        code += `  const ${varName} = makeCylinder(${radius}, ${height});\n`;
+      } else if (shape.parameters.operation === 'create_sphere') {
+        const { radius } = shape.parameters;
+        code += `  const ${varName} = makeSphere(${radius});\n`;
+      } else {
+        // Generic shape
+        code += `  // ${shape.id} - ${shape.type}\n`;
+        code += `  const ${varName} = makeBox(10, 10, 10); // Placeholder\n`;
+      }
+
+      // Add transformations if present
+      if (shape.transform) {
+        if (shape.transform.position) {
+          const [x, y, z] = shape.transform.position;
+          code += `  ${varName} = ${varName}.translate([${x}, ${y}, ${z}]);\n`;
+        }
+        if (shape.transform.rotation) {
+          const [rx, ry, rz] = shape.transform.rotation;
+          if (rx !== 0) code += `  ${varName} = ${varName}.rotate(${rx}, [1, 0, 0]);\n`;
+          if (ry !== 0) code += `  ${varName} = ${varName}.rotate(${ry}, [0, 1, 0]);\n`;
+          if (rz !== 0) code += `  ${varName} = ${varName}.rotate(${rz}, [0, 0, 1]);\n`;
+        }
+      }
+    }
+
+    // Return the first shape or combine multiple shapes
+    if (shapes.length === 1) {
+      code += `\n  return shape1;\n`;
+    } else {
+      code += `\n  // Combine multiple shapes\n`;
+      code += `  let result = shape1;\n`;
+      for (let i = 1; i < shapes.length; i++) {
+        code += `  result = result.fuse(shape${i + 1});\n`;
+      }
+      code += `  return result;\n`;
+    }
+
+    code += `};\n\nexport default main;`;
+
+    return code;
   }
 }
 
