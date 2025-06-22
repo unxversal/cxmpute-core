@@ -1,16 +1,17 @@
 /* Dark Trading Dashboard Stats Page */
 .statsContainer {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #e5e5e5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #000000;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Inter', sans-serif;
+  font-weight: 300;
   padding: 0;
 }
 
 .header {
-  background: #111111;
-  border-bottom: 1px solid #333333;
-  padding: 2rem 3rem;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1a1a1a;
+  padding: 1.75rem 3rem;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -32,20 +33,21 @@
 }
 
 .header h1 {
-  font-size: 2.5rem;
-  font-weight: 600;
+  font-size: 2.2rem;
+  font-weight: 300;
   margin: 0;
   color: #ffffff;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.5px;
 }
 
 .lastUpdated {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #888888;
+  color: #666666;
   font-size: 0.9rem;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 300;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Loading States */
@@ -55,9 +57,10 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #0a0a0a;
+  background: #000000;
   text-align: center;
   color: #ffffff;
+  font-weight: 300;
 }
 
 .loadingSpinner {
@@ -73,15 +76,16 @@
 
 .retryButton {
   background: #667eea;
-  color: white;
+  color: #ffffff;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1.25rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
   margin-top: 1rem;
-  transition: background 0.2s ease;
-  font-family: inherit;
+  transition: all 0.15s ease;
+  letter-spacing: 0.3px;
+  font-weight: 300;
 }
 
 .retryButton:hover {
@@ -92,21 +96,21 @@
 .overviewSection, .mapSection, .networkSection, .liveProvidersSection, .analyticsSection, .growthSection {
   padding: 2rem 3rem;
   border-bottom: 1px solid #1a1a1a;
+  background: #000000;
 }
 
 .overviewSection h2, .mapSection h2, .networkSection h2, .liveProvidersSection h2, .analyticsSection h2, .growthSection h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 300;
   margin: 0 0 2rem 0;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: 1.1rem;
+  letter-spacing: 0.5px;
 }
 
 /* Map Section */
 .mapSection {
-  background: #0a0a0a;
+  background: #000000;
   border-bottom: 1px solid #1a1a1a;
 }
 
@@ -121,8 +125,8 @@
 }
 
 .mapContainer {
-  background: #0c0c0c;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 3px;
   padding: 2rem;
   position: relative;
@@ -134,7 +138,7 @@
   top: 2rem;
   right: 2rem;
   background: rgba(10, 10, 10, 0.9);
-  border: 1px solid #333333;
+  border: 1px solid #1a1a1a;
   border-radius: 6px;
   padding: 1rem;
   display: flex;
@@ -148,7 +152,8 @@
   align-items: center;
   gap: 0.75rem;
   font-size: 0.85rem;
-  color: #cccccc;
+  color: #ffffff;
+  font-weight: 300;
 }
 
 .legendDot {
@@ -167,8 +172,8 @@
 }
 
 .statCard {
-  background: #151515;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   padding: 1.5rem;
   transition: border-color 0.2s ease;
@@ -199,18 +204,18 @@
 }
 
 .statValue {
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: 2.2rem;
+  font-weight: 300;
   line-height: 1;
   margin-bottom: 0.5rem;
   color: #ffffff;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 .statLabel {
   font-size: 0.85rem;
   color: #888888;
-  font-weight: 500;
+  font-weight: 300;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -219,7 +224,8 @@
   font-size: 0.8rem;
   color: #666666;
   margin-top: 0.5rem;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 300;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Network Section */
@@ -230,8 +236,8 @@
 }
 
 .networkCard {
-  background: #151515;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   padding: 2rem;
 }
@@ -244,8 +250,8 @@
   margin: 0 0 1.5rem 0;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-weight: 300;
 }
 
 .networkCard h3 svg {
@@ -264,13 +270,13 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 1rem;
-  background: #0f0f0f;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
 }
 
 .regionName {
-  font-weight: 600;
+  font-weight: 300;
   font-size: 0.9rem;
   color: #ffffff;
 }
@@ -278,7 +284,8 @@
 .regionCount {
   font-size: 0.8rem;
   color: #888888;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 300;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 .regionBar {
@@ -308,7 +315,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #0f0f0f;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
   transition: border-color 0.2s ease;
@@ -319,9 +326,9 @@
 }
 
 .tierName {
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.85rem;
-  color: #cccccc;
+  color: #ffffff;
 }
 
 .tierCount {
@@ -330,9 +337,9 @@
   color: #667eea;
   padding: 0.25rem 0.75rem;
   border-radius: 3px;
-  font-weight: 600;
+  font-weight: 300;
   font-size: 0.8rem;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Capacity Metrics */
@@ -347,22 +354,22 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #0f0f0f;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
 }
 
 .capacityLabel {
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.85rem;
-  color: #cccccc;
+  color: #ffffff;
 }
 
 .capacityValue {
-  font-weight: 700;
+  font-weight: 300;
   font-size: 1rem;
   color: #ffffff;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Live Providers Section */
@@ -373,8 +380,8 @@
 }
 
 .serviceCard {
-  background: #151515;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   padding: 2rem;
   min-height: 300px;
@@ -385,8 +392,8 @@
   margin: 0 0 1.5rem 0;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-weight: 300;
 }
 
 .modelList {
@@ -413,7 +420,7 @@
 }
 
 .modelList::-webkit-scrollbar-thumb:hover {
-  background: #444444;
+  background: #555555;
 }
 
 .modelItem {
@@ -421,7 +428,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #0f0f0f;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 3px;
   transition: border-color 0.2s ease;
@@ -432,14 +439,14 @@
 }
 
 .modelName {
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.85rem;
-  color: #cccccc;
+  color: #ffffff;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 .modelCount {
@@ -448,10 +455,10 @@
   color: #667eea;
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
-  font-weight: 600;
+  font-weight: 300;
   font-size: 0.75rem;
   margin-left: 1rem;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 .noProviders {
@@ -470,8 +477,8 @@
 }
 
 .endpointCard {
-  background: #151515;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   padding: 2rem;
 }
@@ -480,12 +487,12 @@
   font-size: 0.9rem;
   margin: 0 0 1.5rem 0;
   color: #ffffff;
-  font-family: 'Monaco', 'Menlo', monospace;
-  background: #0f0f0f;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   padding: 0.75rem;
   border-radius: 3px;
-  font-weight: 600;
+  font-weight: 300;
 }
 
 .endpointStats {
@@ -507,18 +514,18 @@
 }
 
 .endpointStat .statLabel {
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.8rem;
   color: #888888;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
 }
 
 .endpointStat .statValue {
-  font-weight: 700;
+  font-weight: 300;
   font-size: 1rem;
   color: #ffffff;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Growth Section */
@@ -529,8 +536,8 @@
 }
 
 .growthCard {
-  background: #151515;
-  border: 1px solid #222222;
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
   border-radius: 4px;
   padding: 2rem;
 }
@@ -543,8 +550,8 @@
   margin: 0 0 1.5rem 0;
   color: #ffffff;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-weight: 300;
 }
 
 .growthCard h3 svg {
@@ -562,36 +569,37 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: #0f0f0f;
+  background: #0a0a0a;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
 }
 
 .growthLabel, .healthLabel {
-  font-weight: 500;
+  font-weight: 300;
   font-size: 0.85rem;
-  color: #cccccc;
+  color: #ffffff;
 }
 
 .growthValue, .healthValue {
-  font-weight: 700;
+  font-weight: 300;
   font-size: 1rem;
   color: #ffffff;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Footer */
 .footer {
   padding: 2rem 3rem;
   border-top: 1px solid #1a1a1a;
-  background: #0f0f0f;
+  background: #0a0a0a;
   color: #666666;
 }
 
 .footer p {
   margin: 0.25rem 0;
   font-size: 0.8rem;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 300;
+  font-family: 'Monaco', 'Menlo', 'JetBrains Mono', monospace;
 }
 
 /* Responsive Design */
@@ -645,7 +653,7 @@
   .mapLegend {
     position: static;
     margin-top: 1rem;
-    background: #0f0f0f;
+    background: #0a0a0a;
     border: 1px solid #1a1a1a;
   }
 }
