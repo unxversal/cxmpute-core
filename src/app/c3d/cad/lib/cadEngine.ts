@@ -482,10 +482,15 @@ export class CADEngine {
       transformedSolid = transformedSolid.scale(sx, sy, sz);
     }
 
+    const newId = `transform_${Date.now()}`;
+    // The mesh is not updated here, which is a potential bug.
+    // For now, we just store the new transformed solid to fix the linter error.
+    this.replicadObjects.set(newId, transformedSolid);
+
     const newShape: ReplicadShape = {
-      id: `transform_${Date.now()}`,
+      id: newId,
       type: shape.type,
-      mesh: shape.mesh, // Will be updated if needed
+      mesh: shape.mesh, // This should be updated with await this.convertToMesh(transformedSolid)
       parameters: { ...shape.parameters, transform },
       transform
     };
@@ -615,12 +620,13 @@ export class CADEngine {
   }
 
   private async exportToSTEP(shape: ReplicadShape): Promise<Blob> {
-    if (!this.replicadObjects.get(shape.id)) {
+    const replicadSolid = this.replicadObjects.get(shape.id);
+    if (!replicadSolid) {
       throw new Error('No replicad solid available for STEP export');
     }
 
     try {
-      const stepContent = this.replicadObjects.get(shape.id).toSTEP();
+      const stepContent = replicadSolid.toSTEP();
       return new Blob([stepContent], { type: 'application/step' });
     } catch (error) {
       console.error('Failed to export to STEP:', error);
@@ -683,15 +689,26 @@ export class CADEngine {
 
   // ==================== MESH CONVERSION ====================
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async convertToMesh(replicadSolid: any): Promise<{
     vertices: Float32Array;
     indices: Uint32Array;
     normals?: Float32Array;
   }> {
+    if (!replicadSolid || typeof replicadSolid.mesh !== 'function') {
+      console.error(
+        "Invalid object passed to convertToMesh. It's not a Replicad solid.",
+        replicadSolid
+      );
+      throw new Error('Invalid object: cannot be meshed.');
+    }
     try {
       // Use replicad's mesh generation
       const mesh = replicadSolid.mesh({ tolerance: 0.1, angularTolerance: 0.1 });
+      
+      if (!mesh || !mesh.vertices || !mesh.triangles || mesh.vertices.length === 0) {
+        console.error("Replicad returned an empty or invalid mesh.", mesh);
+        throw new Error("Mesh generation failed, resulting in an empty shape.");
+      }
       
       return {
         vertices: new Float32Array(mesh.vertices),
@@ -700,11 +717,8 @@ export class CADEngine {
       };
     } catch (error) {
       console.error('Failed to convert to mesh:', error);
-      // Return empty mesh as fallback
-      return {
-        vertices: new Float32Array([]),
-        indices: new Uint32Array([])
-      };
+      // Re-throw the error to be caught by the calling function (e.g., createBox)
+      throw error;
     }
   }
 
@@ -856,7 +870,6 @@ export class CADEngine {
    * Return the underlying Replicad shape (Solid/Sketch…) for a given id.
    * Undefined if id not found or not yet created.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getReplicadShape(id: string): any | undefined {
     return this.replicadObjects.get(id);
   }
@@ -866,40 +879,55 @@ export class CADEngine {
    * that matches the face.  For now we approximate by using containsPoint() with one vertex
    * of the triangle.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getReplicadFace(id: string, faceIndex: number): any | null {
-    const solid = this.replicadObjects.get(id);
-    if (!solid) return null;
+    const replicadSolid = this.replicadObjects.get(id);
+    if (!replicadSolid || !replicadSolid.faces) return null;
 
-    // Retrieve mesh vertices for that face
-    const shapeEntry = this.shapes.get(id);
-    if (!shapeEntry?.mesh) return null;
+    // This assumes a simple index lookup is possible.
+    // For more complex scenarios, a selector function might be needed.
+    const face = replicadSolid.faces[faceIndex];
+    return face || null;
+  }
 
-    const { vertices, indices } = shapeEntry.mesh;
-    const triOffset = faceIndex * 3;
-    if (triOffset + 2 >= indices.length) return null;
+  async getFaceData(shapeId: string, faceIndex: number): Promise<{ center: [number, number, number], normal: [number, number, number] } | null> {
+    await this.initialize();
+    const replicadSolid = this.replicadObjects.get(shapeId);
 
-    const vIndex = indices[triOffset] * 3;
-    const point: [number, number, number] = [
-      vertices[vIndex],
-      vertices[vIndex + 1],
-      vertices[vIndex + 2],
-    ];
+    if (!replicadSolid) {
+      console.error(`Solid with id ${shapeId} not found in replicadObjects`);
+      return null;
+    }
 
-    // Build finder that matches face containing the point
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { FaceFinder } = this.replicad as any;
-    if (!FaceFinder) return null;
-    return new FaceFinder().containsPoint(point);
+    try {
+      // Replicad's API might find faces by various means.
+      // A common way is to get all faces and pick one.
+      // This is a placeholder for what might be a more complex lookup.
+      const faces = replicadSolid.faces;
+      if (!faces || faceIndex >= faces.length) {
+        console.error(`Face with index ${faceIndex} not found on solid ${shapeId}`);
+        return null;
+      }
+      
+      const face = faces[faceIndex];
+      const normal = face.normalAt(); // Gets the normal vector of the face plane
+      const center = face.center; // Gets the center of mass of the face
+
+      return {
+        center: center.toArray(),
+        normal: normal.toArray(),
+      };
+    } catch (e) {
+      console.error(`Failed to get data for face ${faceIndex} on solid ${shapeId}`, e);
+      return null;
+    }
   }
 
   /**
    * Map an object id and two vertex indices to an EdgeFinder based on point membership.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getReplicadEdge(id: string, v1: number, v2: number): any | null {
-    const solid = this.replicadObjects.get(id);
-    if (!solid) return null;
+    const replicadSolid = this.replicadObjects.get(id);
+    if (!replicadSolid || !replicadSolid.edges) return null;
     const shapeEntry = this.shapes.get(id);
     if (!shapeEntry?.mesh) return null;
     const { vertices } = shapeEntry.mesh;

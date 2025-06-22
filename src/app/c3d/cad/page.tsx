@@ -314,16 +314,22 @@ export default function CADEditorPage() {
         </div>
         
         <div className={styles.menuRight}>
-          <button 
-            className={styles.codeToggle} 
-            onClick={() => setShowCodeEditor(!showCodeEditor)} 
-            title={`${showCodeEditor ? 'Hide' : 'Show'} code editor`}
-          >
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-            </svg>
-            {showCodeEditor ? 'Visual' : 'Code'}
-          </button>
+          <div className={styles.toggleGroup}>
+            <button 
+              className={`${styles.toggleButton} ${!showCodeEditor ? styles.active : ''}`}
+              onClick={() => setShowCodeEditor(false)}
+              title="Visual editor mode"
+            >
+              Visual
+            </button>
+            <button 
+              className={`${styles.toggleButton} ${showCodeEditor ? styles.active : ''}`}
+              onClick={() => setShowCodeEditor(true)}
+              title="Code editor mode"
+            >
+              Code
+            </button>
+          </div>
           <button className={styles.themeToggle} onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? (
               <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -355,34 +361,21 @@ export default function CADEditorPage() {
           </Suspense>
         </div>
 
-        {/* Center Area - 3D Viewport or Code Editor */}
+        {/* Center Area - 3D Viewport */}
         <div className={styles.centerArea}>
-          {!showCodeEditor ? (
-            <div className={styles.viewport}>
-              <Suspense fallback={
-                <div className={styles.loading}>
-                  <Loader className={styles.spinner} size={24} />
-                  <span>Loading 3D Viewport...</span>
-                </div>
-              }>
-                <CADViewport />
-              </Suspense>
-            </div>
-          ) : (
-            <div className={styles.viewport}>
-              <Suspense fallback={
-                <div className={styles.loading}>
-                  <Loader className={styles.spinner} size={24} />
-                  <span>Loading Code Editor...</span>
-                </div>
-              }>
-                <CodeEditor isVisible={showCodeEditor} />
-              </Suspense>
-            </div>
-          )}
+          <div className={styles.viewport}>
+            <Suspense fallback={
+              <div className={styles.loading}>
+                <Loader className={styles.spinner} size={24} />
+                <span>Loading 3D Viewport...</span>
+              </div>
+            }>
+              <CADViewport />
+            </Suspense>
+          </div>
         </div>
 
-        {/* Right Sidebar - Properties and Layers */}
+        {/* Right Sidebar - Properties, Layers, and Code Editor */}
         <div className={styles.rightSidebar}>
           {/* Layer Manager */}
           <div className={styles.layerSection}>
@@ -407,6 +400,20 @@ export default function CADEditorPage() {
               <PropertyPanel />
             </Suspense>
           </div>
+
+          {/* Code Editor */}
+          {showCodeEditor && (
+            <div className={styles.codeEditorSection}>
+              <Suspense fallback={
+                <div className={styles.loading}>
+                  <Loader className={styles.spinner} size={20} />
+                  <span>Loading Code Editor...</span>
+                </div>
+              }>
+                <CodeEditor isVisible={showCodeEditor} />
+              </Suspense>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Play, Save, RotateCcw, FileText } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';

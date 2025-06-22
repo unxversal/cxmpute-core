@@ -778,6 +778,23 @@ export class CADUtils {
     }
   }
 
+  /**
+   * Get geometric data for a specific face of a shape
+   */
+  static async getFaceData(shapeId: string, faceIndex: number): Promise<CADUtilsResult> {
+    try {
+      const data = await cadEngine.getFaceData(shapeId, faceIndex);
+      if (!data) {
+        return { success: false, error: `Could not retrieve data for face ${faceIndex} on shape ${shapeId}` };
+      }
+      return { success: true, data };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to get face data';
+      showToast.operationError('Get face data', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
   // ==================== ADVANCED FEATURES ====================
 
   /**

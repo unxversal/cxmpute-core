@@ -75,6 +75,15 @@ export const currentSketchEntitiesAtom = atom<Array<{
   params?: Record<string, number>;
 }>>([]);
 
+// Sketch plane information
+export const sketchPlaneAtom = atom<{
+  type: 'face' | 'reference';
+  plane: 'XY' | 'XZ' | 'YZ' | null;
+  faceId?: string;
+  normal?: [number, number, number];
+  center?: [number, number, number];
+} | null>(null);
+
 // Derived atoms
 export const cadObjectsAtom = atom(
   (get) => get(cadSceneAtom).objects,

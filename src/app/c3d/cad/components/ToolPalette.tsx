@@ -22,7 +22,7 @@ import {
   Check,
   Triangle
 } from 'lucide-react';
-import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom, isSketchingAtom, selectionAtom, currentSketchEntitiesAtom } from '../stores/cadStore';
+import { activeToolAtom, addObjectAtom, selectedObjectsAtom, removeObjectAtom, cadObjectsAtom, isSketchingAtom, selectionAtom, currentSketchEntitiesAtom, sketchPlaneAtom } from '../stores/cadStore';
 import { CADTool } from '../types/cad';
 import { cadEngine } from '../lib/cadEngine';
 import { useTheme } from '../hooks/useTheme';
@@ -322,6 +322,7 @@ function ToolButton({ tool, icon, label, isActive, onClick, disabled = false }: 
         className={`${styles.toolButton} ${isActive ? styles.active : ''} ${disabled ? styles.disabled : ''}`}
       >
         {icon}
+        <span className={styles.toolButtonLabel}>{label}</span>
       </button>
     </Tooltip>
   );
@@ -458,10 +459,10 @@ function SketchMode({ onExit, selectedFaceId, onCreateSketch, openModal }: Sketc
 
 export default function ToolPalette() {
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
-  const [, addObject] = useAtom(addObjectAtom);
   const [selectedIds] = useAtom(selectedObjectsAtom);
-  const [, removeObject] = useAtom(removeObjectAtom);
   const objects = useAtomValue(cadObjectsAtom);
+  const removeObject = useSetAtom(removeObjectAtom);
+  const addObject = useSetAtom(addObjectAtom);
   const { theme } = useTheme();
 
   // Sketch mode state
@@ -503,6 +504,7 @@ export default function ToolPalette() {
 
   const [isSketching, setIsSketching] = useAtom(isSketchingAtom);
   const [sketchEntities, setSketchEntities] = useAtom(currentSketchEntitiesAtom);
+  const setSketchPlane = useSetAtom(sketchPlaneAtom);
   const [activeSketchTool, setActiveSketchTool] = useState<'line' | 'circle' | 'rectangle' | null>(null);
 
   const currentSelection = useAtomValue(selectionAtom);
@@ -524,12 +526,19 @@ export default function ToolPalette() {
 
   const handleToolSelect = (tool: CADTool) => {
     if (tool === 'sketch') {
+      // Set to sketch mode and prompt user to select a face
       setIsSketchMode(true);
       setSelectedFaceId(undefined);
       toast.info('Sketch Mode: Select a face to sketch on');
     } else {
-      setIsSketchMode(false);
-      setSelectedFaceId(undefined);
+      // If previously in sketch mode, clean up
+      if (isSketchMode) {
+        setIsSketchMode(false);
+        setSelectedFaceId(undefined);
+        setIsSketching(false);
+        setSketchEntities([]);
+        setSketchPlane(null);
+      }
     }
     setActiveTool(tool);
   };
@@ -537,7 +546,13 @@ export default function ToolPalette() {
   const exitSketchMode = () => {
     setIsSketchMode(false);
     setSelectedFaceId(undefined);
+    setIsSketching(false);
+    setSketchEntities([]);
+    setSketchPlane(null);
     setActiveTool('select');
+    
+    // Don't change grid visibility when exiting sketch mode
+    // This ensures the grid stays visible if it was on before
   };
 
   const handleCreateSketch = async (type: 'circle' | 'rectangle', params: any) => {
@@ -916,19 +931,37 @@ export default function ToolPalette() {
   const hasValidSketchSelected = selectedIds.length === 1 && objects[selectedIds[0]]?.type === 'sketch';
   const hasTwoSolidsSelected = selectedIds.length === 2 && selectedIds.every(id => objects[id]?.type === 'solid');
 
-  const handleStartSketch = () => {
+  const handleStartSketch = async () => {
     if (currentSelection?.type === 'face') {
-      // Sketch on selected face
-      setIsSketching(true);
-      toast.success('Sketch mode activated on face');
-    } else if (!currentSelection) {
-      // No selection - show plane selection modal
+      // A face is selected, get its data and start sketching
+      const { objectId, faceIndex } = currentSelection;
+      const result = await CADUtils.getFaceData(objectId, faceIndex);
+
+      if (result.success && result.data) {
+        setSketchPlane({
+          type: 'face',
+          plane: null,
+          faceId: objectId,
+          normal: result.data.normal,
+          center: result.data.center,
+        });
+        setIsSketching(true);
+        toast.success('Sketch mode activated on selected face');
+      } else {
+        toast.error(result.error || 'Could not get face data to start sketch.');
+      }
+    } else if (!currentSelection || currentSelection.type === 'object' || currentSelection.type === 'edge') {
+      // No selection or a whole object/edge is selected, so ask for a reference plane
       setPlaneModalState({
         isOpen: true,
         onConfirm: (plane: 'XY' | 'XZ' | 'YZ') => {
+          setSketchPlane({
+            type: 'reference',
+            plane: plane,
+            normal: plane === 'XY' ? [0, 0, 1] : plane === 'XZ' ? [0, 1, 0] : [1, 0, 0],
+            center: [0, 0, 0]
+          });
           setIsSketching(true);
-          // Store the selected reference plane for the sketch
-          // This will be used by CADViewport to position the camera
           toast.success(`Sketch mode activated on ${plane} plane`);
         }
       });
@@ -991,85 +1024,9 @@ export default function ToolPalette() {
   };
 
   const handleCreatePrimitive = async (type: 'box' | 'cylinder' | 'sphere' | 'cone') => {
-    try {
-      let result;
-      
-      switch (type) {
-        case 'box': {
-          const width = await openModal('Box Width', 'Enter width (mm)', 'number');
-          const height = await openModal('Box Height', 'Enter height (mm)', 'number');
-          const depth = await openModal('Box Depth', 'Enter depth (mm)', 'number');
-          
-          result = await CADUtils.createBox(parseFloat(width), parseFloat(height), parseFloat(depth));
-          break;
-        }
-        case 'cylinder': {
-          const radius = await openModal('Cylinder Radius', 'Enter radius (mm)', 'number');
-          const height = await openModal('Cylinder Height', 'Enter height (mm)', 'number');
-          
-          result = await CADUtils.createCylinder({ 
-            radius: parseFloat(radius), 
-            height: parseFloat(height) 
-          });
-          break;
-        }
-        case 'sphere': {
-          const radius = await openModal('Sphere Radius', 'Enter radius (mm)', 'number');
-          
-          result = await CADUtils.createSphere({ 
-            radius: parseFloat(radius) 
-          });
-          break;
-        }
-        case 'cone': {
-          const baseRadius = await openModal('Cone Base Radius', 'Enter base radius (mm)', 'number');
-          const topRadius = await openModal('Cone Top Radius', 'Enter top radius (mm)', 'number');
-          const height = await openModal('Cone Height', 'Enter height (mm)', 'number');
-          
-          result = await CADUtils.createCone({ 
-            baseRadius: parseFloat(baseRadius), 
-            topRadius: parseFloat(topRadius), 
-            height: parseFloat(height) 
-          });
-          break;
-        }
-      }
-      
-      if (result?.success && result.shape) {
-        const colors = { box: '#6366f1', cylinder: '#10b981', sphere: '#f59e0b', cone: '#8b5cf6' };
-        
-        addObject({
-          name: `${type}_${Date.now()}`,
-          type: 'solid',
-          mesh: result.shape.mesh,
-          visible: true,
-          layerId: 'default',
-          properties: {
-            color: colors[type],
-            opacity: 1,
-            material: 'default',
-            position: [0, 0, 0],
-            rotation: [0, 0, 0],
-            scale: [1, 1, 1],
-          },
-          metadata: { 
-            createdAt: new Date(), 
-            updatedAt: new Date(), 
-            creator: 'user', 
-            replicadId: result.shape.id 
-          },
-        });
-        
-        toast.success(result.message || `${type} created successfully`);
-      } else {
-        toast.error(result?.error || `Failed to create ${type}`);
-      }
-    } catch (err) {
-      if (err !== 'cancelled') {
-        console.error(`Failed to create ${type}:`, err);
-        toast.error(`Failed to create ${type}`);
-      }
-    }
+    // Set the active tool to the primitive type so user can click to place it
+    setActiveTool(type);
+    toast.success(`Click on the canvas to place ${type}`);
   };
 
   return (
@@ -1114,33 +1071,35 @@ export default function ToolPalette() {
             </div>
             
             <ToolSection title="2D Tools">
-              <ToolButton 
-                tool="sketch" 
-                icon={<div style={{ width: 16, height: 2, backgroundColor: 'currentColor' }} />} 
-                label="Line" 
-                isActive={activeSketchTool === 'line'}
-                onClick={() => setActiveSketchTool('line')}
-              />
-              <ToolButton 
-                tool="sketch" 
-                icon={<Circle size={16} />} 
-                label="Circle" 
-                isActive={activeSketchTool === 'circle'}
-                onClick={() => {
-                  setActiveSketchTool('circle');
-                  addSketchEntity('circle', [[0, 0]], { radius: 5 });
-                }}
-              />
-              <ToolButton 
-                tool="sketch" 
-                icon={<Square size={16} />} 
-                label="Rectangle" 
-                isActive={activeSketchTool === 'rectangle'}
-                onClick={() => {
-                  setActiveSketchTool('rectangle');
-                  addSketchEntity('rectangle', [[0, 0], [10, 10]], { width: 10, height: 10 });
-                }}
-              />
+              <div className={styles.compactToolRow}>
+                <ToolButton 
+                  tool="sketch" 
+                  icon={<div style={{ width: 14, height: 2, backgroundColor: 'currentColor' }} />} 
+                  label="Line" 
+                  isActive={activeSketchTool === 'line'}
+                  onClick={() => setActiveSketchTool('line')}
+                />
+                <ToolButton 
+                  tool="sketch" 
+                  icon={<Circle size={14} />} 
+                  label="Circle" 
+                  isActive={activeSketchTool === 'circle'}
+                  onClick={() => {
+                    setActiveSketchTool('circle');
+                    addSketchEntity('circle', [[0, 0]], { radius: 5 });
+                  }}
+                />
+                <ToolButton 
+                  tool="sketch" 
+                  icon={<Square size={14} />} 
+                  label="Rect" 
+                  isActive={activeSketchTool === 'rectangle'}
+                  onClick={() => {
+                    setActiveSketchTool('rectangle');
+                    addSketchEntity('rectangle', [[0, 0], [10, 10]], { width: 10, height: 10 });
+                  }}
+                />
+              </div>
             </ToolSection>
 
             <ToolSection title="Actions">

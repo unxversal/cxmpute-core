@@ -1,6 +1,6 @@
 /* Tool Palette */
 .container {
-  width: 60px;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -9,6 +9,7 @@
   overflow-y: auto;
   transition: all 0.2s ease;
   position: relative;
+  gap: 4px;
 }
 
 .container[data-theme="dark"] {
@@ -45,15 +46,18 @@
 
 .sectionContent {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 4px;
+  justify-content: flex-start;
 }
 
 /* Tool Button */
 .toolButton {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
@@ -62,6 +66,15 @@
   transition: all 0.2s ease;
   position: relative;
   overflow: visible;
+  padding: 4px 2px;
+}
+
+.toolButtonLabel {
+  font-size: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .container[data-theme="dark"] .toolButton {
@@ -639,9 +652,24 @@
   background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(79, 70, 229, 0.05));
   border: 1px solid rgba(34, 211, 238, 0.3);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   margin-bottom: 16px;
   backdrop-filter: blur(10px);
+  max-width: 280px;
+  overflow: hidden;
+}
+
+.compactToolRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.compactToolRow .toolButton {
+  flex: 1;
+  min-width: 60px;
+  font-size: 10px;
+  padding: 6px 4px;
 }
 
 .sketchHeader {
@@ -656,16 +684,17 @@
 .sketchHeader h3 {
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .sketchHeader span {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   background: rgba(34, 211, 238, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .finishButton {
