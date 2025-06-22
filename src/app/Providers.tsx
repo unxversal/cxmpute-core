@@ -23,7 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         {/* Legacy hot-toast notifications */}
         <HotToaster position="bottom-right" />
         {/* Preferred Sonner toast notifications used by the CAD editor */}
-        <SonnerToaster richColors position="bottom-right" />
+        <SonnerToaster theme="dark" position="top-center" />
         {children}
       </QueryClientProvider>
     </WagmiProvider>

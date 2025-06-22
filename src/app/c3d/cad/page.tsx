@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import styles from './page.module.css';
 
 // Import components
@@ -175,7 +175,7 @@ export default function CADPage() {
       <div className={styles.loadingContainer}>
         <div className={styles.loadingSpinner} />
         <p>Initializing CAD Engine...</p>
-        <Toaster theme="dark" position="top-center" />
+        {/* Global Toaster in Providers handles notifications */}
       </div>
     );
   }
@@ -248,17 +248,7 @@ export default function CADPage() {
         </div>
       </div>
 
-      <Toaster 
-        theme="dark" 
-        position="top-center"
-        toastOptions={{
-          style: {
-            background: '#0a0a0a',
-            border: '1px solid #333333',
-            color: '#ffffff',
-          },
-        }}
-      />
+      {/* Toast notifications are managed globally via Providers */}
     </div>
   );
 } 
