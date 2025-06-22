@@ -1,26 +1,31 @@
 'use client';
 
+import React from 'react';
 import styles from '../page.module.css';
 
 interface ErrorDisplayProps {
   error: string;
-  onDismiss: () => void;
+  onClose: () => void;
 }
 
-export function ErrorDisplay({ error, onDismiss }: ErrorDisplayProps) {
+export default function ErrorDisplay({ error, onClose }: ErrorDisplayProps) {
   return (
-    <div className={styles.errorDisplay}>
-      <div className={styles.errorHeader}>
-        <h4 className={styles.errorTitle}>Error</h4>
-        <button 
-          className={styles.errorClose}
-          onClick={onDismiss}
-          title="Dismiss error"
-        >
-          ×
-        </button>
+    <div className={styles.errorOverlay}>
+      <div className={styles.errorContent}>
+        <div className={styles.errorHeader}>
+          <h4 className={styles.errorTitle}>Execution Error</h4>
+          <button 
+            className={styles.errorCloseButton}
+            onClick={onClose}
+            title="Close error"
+          >
+            ✕
+          </button>
+        </div>
+        <div className={styles.errorMessage}>
+          {error}
+        </div>
       </div>
-      <pre className={styles.errorMessage}>{error}</pre>
     </div>
   );
 } 

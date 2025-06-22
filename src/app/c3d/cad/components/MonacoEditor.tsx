@@ -1,61 +1,140 @@
 'use client';
 
-import Editor from '@monaco-editor/react';
-import styles from '../page.module.css';
+import React, { useRef, useEffect } from 'react';
+import * as monaco from 'monaco-editor';
 
 interface MonacoEditorProps {
   value: string;
   onChange: (value: string) => void;
-  isExecuting: boolean;
+  language: string;
 }
 
-export function MonacoEditor({ value, onChange, isExecuting }: MonacoEditorProps) {
-  const handleEditorDidMount = () => {
-    // Monaco editor is ready
-    console.log('Monaco editor mounted');
-  };
+export default function MonacoEditor({ value, onChange, language }: MonacoEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const monacoRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
-  const handleEditorChange = (newValue: string | undefined) => {
-    if (newValue !== undefined) {
-      onChange(newValue);
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    // Define dark theme
+    monaco.editor.defineTheme('cad-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '666666', fontStyle: 'italic' },
+        { token: 'keyword', foreground: 'ffffff', fontStyle: 'bold' },
+        { token: 'string', foreground: 'cccccc' },
+        { token: 'number', foreground: 'ffffff' },
+        { token: 'function', foreground: 'ffffff' },
+        { token: 'variable', foreground: 'cccccc' },
+      ],
+      colors: {
+        'editor.background': '#0a0a0a',
+        'editor.foreground': '#ffffff',
+        'editor.lineHighlightBackground': '#1a1a1a',
+        'editor.selectionBackground': '#333333',
+        'editor.selectionHighlightBackground': '#2a2a2a',
+        'editorCursor.foreground': '#ffffff',
+        'editorWhitespace.foreground': '#333333',
+        'editorLineNumber.foreground': '#666666',
+        'editorLineNumber.activeForeground': '#ffffff',
+        'editor.findMatchBackground': '#333333',
+        'editor.findMatchHighlightBackground': '#2a2a2a',
+        'scrollbar.shadow': '#000000',
+        'scrollbarSlider.background': '#333333',
+        'scrollbarSlider.hoverBackground': '#555555',
+        'scrollbarSlider.activeBackground': '#666666',
+      }
+    });
+
+    // Create editor
+    const editor = monaco.editor.create(editorRef.current, {
+      value,
+      language,
+      theme: 'cad-dark',
+      fontSize: 13,
+      fontFamily: "'JetBrains Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+      fontWeight: '300',
+      lineHeight: 1.5,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      tabSize: 2,
+      insertSpaces: true,
+      wordWrap: 'on',
+      lineNumbers: 'on',
+      glyphMargin: false,
+      folding: true,
+      lineDecorationsWidth: 0,
+      lineNumbersMinChars: 3,
+      renderLineHighlight: 'line',
+      selectOnLineNumbers: true,
+      roundedSelection: false,
+      readOnly: false,
+      cursorStyle: 'line',
+      cursorWidth: 2,
+      cursorBlinking: 'phase',
+      smoothScrolling: true,
+      scrollbar: {
+        vertical: 'auto',
+        horizontal: 'auto',
+        verticalScrollbarSize: 8,
+        horizontalScrollbarSize: 8,
+      },
+      suggest: {
+        showKeywords: true,
+        showSnippets: true,
+        showFunctions: true,
+        showVariables: true,
+      },
+      quickSuggestions: {
+        other: true,
+        comments: false,
+        strings: false,
+      },
+      parameterHints: {
+        enabled: true,
+      },
+      hover: {
+        enabled: true,
+        delay: 300,
+      },
+    });
+
+    monacoRef.current = editor;
+
+    // Set up change listener
+    const changeListener = editor.onDidChangeModelContent(() => {
+      const currentValue = editor.getValue();
+      onChange(currentValue);
+    });
+
+    // Add keyboard shortcuts
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+      // This will be handled by the parent component's keyboard listener
+    });
+
+    return () => {
+      changeListener.dispose();
+      editor.dispose();
+    };
+  }, []);
+
+  // Update value when prop changes
+  useEffect(() => {
+    if (monacoRef.current && monacoRef.current.getValue() !== value) {
+      monacoRef.current.setValue(value);
     }
-  };
+  }, [value]);
 
   return (
-    <div className={styles.editorContainer}>
-      <div className={styles.editorHeader}>
-        <h3 className={styles.editorTitle}>Code Editor</h3>
-        <div className={`${styles.editorStatus} ${isExecuting ? styles.executing : ''}`}>
-          {isExecuting ? 'Executing...' : 'Ready'}
-        </div>
-      </div>
-      <div className={styles.editorWrapper}>
-        <Editor
-          height="100%"
-          defaultLanguage="javascript"
-          value={value}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          theme="vs-dark"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            lineNumbers: 'on',
-            roundedSelection: false,
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            tabSize: 2,
-            insertSpaces: true,
-            wordWrap: 'on',
-            folding: true,
-            contextmenu: false,
-            quickSuggestions: true,
-            suggestOnTriggerCharacters: true,
-            acceptSuggestionOnEnter: 'on',
-            tabCompletion: 'on',
-          }}
-        />
-      </div>
-    </div>
+    <div 
+      ref={editorRef} 
+      style={{ 
+        width: '100%', 
+        height: '100%',
+        backgroundColor: '#0a0a0a'
+      }} 
+    />
   );
 } 

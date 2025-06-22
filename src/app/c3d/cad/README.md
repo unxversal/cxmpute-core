@@ -1,158 +1,113 @@
-# C3D CAD Studio
+# C3D CAD Tool
 
-A modern, browser-based CAD tool powered by Replicad and OpenCascade. Create 3D models using JavaScript code with real-time preview.
+A modern, minimalist in-browser CAD tool built with React, Three.js, and Replicad.
 
-## Features
+## How Code Execution Works
 
-- **Code-Based Modeling**: Create 3D shapes using JavaScript and the Replicad API
-- **Real-Time Preview**: See your changes instantly in the 3D viewer
-- **Monaco Editor**: Full-featured code editor with syntax highlighting and IntelliSense
-- **Dark Theme**: Modern, minimalist dark theme for comfortable coding
-- **Export Options**: Export your models as STL or STEP files
-- **AI Integration**: API endpoint for AI agents to generate and modify CAD code
+### Auto-run vs Manual Run
+- **Auto-run**: Code executes automatically 500ms after you stop typing
+- **Manual run**: Click the "▶ Run" button or press `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows/Linux)
+- **Execution feedback**: Real-time notifications via toast messages
 
-## Getting Started
+### Keyboard Shortcuts
+- `Cmd+Enter` / `Ctrl+Enter`: Run code immediately (bypasses auto-run delay)
 
-1. Navigate to `/c3d/cad` in your browser
-2. Start writing Replicad code in the editor on the right
-3. Your 3D model will appear in the viewer on the left
+### Execution Process
+1. Code is passed to the CAD engine singleton
+2. Replicad library is loaded into a sandboxed execution context
+3. Your code runs with access to the `replicad` object
+4. Generated shapes are converted to Three.js meshes
+5. 3D viewer updates with the new geometry
 
-## Example Code
+## Viewer Controls
 
-Here's a simple example to get you started:
+The buttons over the CAD viewer provide essential navigation and utility functions:
 
+| Button | Icon | Function | Description |
+|--------|------|----------|-------------|
+| Reset View | 🏠 | Reset camera position | Returns camera to default isometric view (50, 50, 50) |
+| Fit to View | 📐 | Frame all objects | Automatically adjusts camera to fit all shapes in view |
+| Wireframe | 🔗 | Toggle wireframe mode | Switches between solid and wireframe rendering |
+| Screenshot | 📸 | Capture image | Downloads a PNG screenshot of the current view |
+
+## Export Options
+- **Export STL**: For 3D printing (coming soon)
+- **Export STEP**: For CAD interoperability (coming soon)
+
+## Notifications & Debugging
+
+The tool uses Sonner for elegant toast notifications:
+
+- **Success**: Green toasts for successful code execution
+- **Error**: Red toasts for compilation/runtime errors  
+- **Info**: Blue toasts for feature updates and export status
+- **Loading**: Gray toasts during initialization
+
+## Code Examples
+
+### Basic Cylinder with Hole
 ```javascript
-const { drawCircle, drawRectangle } = replicad;
+const { draw, drawCircle } = replicad;
 
 const main = () => {
   // Create a cylinder
-  const cylinder = drawCircle(20).sketchOnPlane().extrude(40);
+  const cylinder = drawCircle(20)
+    .sketchOnPlane()
+    .extrude(50);
   
-  // Create a rectangular hole
-  const hole = drawRectangle(30, 10).sketchOnPlane().extrude(50);
+  // Create a hole
+  const hole = drawCircle(8)
+    .sketchOnPlane()
+    .extrude(60)
+    .translateZ(-5);
   
   // Cut the hole from the cylinder
-  const result = cylinder.cut(hole);
-  
-  return result;
+  return cylinder.cut(hole);
 };
 ```
 
-## API Reference
+### Multiple Shapes
+```javascript
+const { draw, drawCircle, drawRectangle } = replicad;
 
-The tool exposes all Replicad functions. Here are the most commonly used:
+const main = () => {
+  const cylinder = drawCircle(10).sketchOnPlane().extrude(20);
+  const box = drawRectangle(15, 15).sketchOnPlane().extrude(10).translateZ(25);
+  
+  return [cylinder, box]; // Return array for multiple shapes
+};
+```
 
-### Drawing Functions
-- `draw()` - Start a 2D drawing
-- `drawCircle(radius)` - Create a circle
-- `drawRectangle(width, height)` - Create a rectangle
-- `drawRoundedRectangle(width, height, radius)` - Create a rounded rectangle
+## Color Scheme
 
-### 3D Operations
-- `.sketchOnPlane(plane?, offset?)` - Place 2D drawing on a 3D plane
-- `.extrude(distance)` - Add thickness to create a 3D shape
-- `.revolve()` - Revolve around an axis
-- `.loftWith(otherShape)` - Create smooth transition between shapes
+The interface uses a minimalist dark theme:
+- **Background**: Pure black (#000000)
+- **Panels**: Dark gray (#0a0a0a) 
+- **Borders**: Subtle gray (#1a1a1a)
+- **Text**: White (#ffffff) with light gray (#cccccc) for secondary text
+- **3D Objects**: Purple (#8844ff) for visibility against dark background
 
-### Boolean Operations
-- `.cut(other)` - Subtract one shape from another
-- `.fuse(other)` - Combine shapes together
-- `.intersect(other)` - Keep only the intersection
+## Technical Architecture
 
-### Modifications
-- `.fillet(radius)` - Round edges
-- `.chamfer(distance)` - Bevel edges
-- `.translate(x, y, z)` - Move shape
-- `.rotate(angle, origin, axis)` - Rotate shape
+- **Frontend**: React 18 with TypeScript
+- **3D Rendering**: Three.js with custom WebGL renderer
+- **Code Editor**: Monaco Editor with custom dark theme
+- **CAD Engine**: Replicad with OpenCascade.js WASM backend
+- **Notifications**: Sonner toast system
+- **Styling**: CSS Modules for component isolation
+
+## Performance Features
+
+- **Debounced execution**: Prevents excessive re-rendering during typing
+- **Singleton engine**: CAD engine initialized once and reused
+- **Optimized rendering**: 60fps viewport with efficient mesh updates
+- **Progressive loading**: Engine initializes asynchronously with user feedback
 
 ## AI Integration
 
-The CAD tool provides an API endpoint for AI agents to set code:
-
-### Endpoint: `POST /api/cad/set-code`
-
-```json
-{
-  "code": "const { drawCircle } = replicad;\n\nconst main = () => {\n  return drawCircle(10).sketchOnPlane().extrude(5);\n};"
-}
-```
-
-### Frontend Integration
-
-AI agents can also directly call the frontend function:
-
+The tool exposes a global function for AI agents:
 ```javascript
-window.setCADCode(`
-const { makeCylinder, makeSphere } = replicad;
-
-const main = () => {
-  const cylinder = makeCylinder(15, 30);
-  const sphere = makeSphere(20).translate([0, 0, 25]);
-  return cylinder.fuse(sphere);
-};
-`);
+window.setCADCode(newCode) // Programmatically set and execute code
 ```
 
-## Controls
-
-### 3D Viewer
-- **Mouse drag**: Rotate view
-- **Mouse wheel**: Zoom in/out
-- **Right click + drag**: Pan view
-- **Reset button (🏠)**: Reset camera to default position
-- **Wireframe button (📐)**: Toggle wireframe view
-
-### Code Editor
-- **Ctrl/Cmd + S**: The code auto-saves and executes
-- **Ctrl/Cmd + /**: Toggle comment
-- **Ctrl/Cmd + F**: Find and replace
-- **Auto-completion**: Press Ctrl/Cmd + Space for suggestions
-
-## Keyboard Shortcuts
-
-- `Ctrl/Cmd + Enter`: Force code execution
-- `Ctrl/Cmd + Shift + E`: Export as STL
-- `Ctrl/Cmd + Shift + S`: Export as STEP
-- `F11`: Toggle fullscreen
-
-## Troubleshooting
-
-### Common Errors
-
-1. **"No main function found"**: Make sure your code defines a `main()` function that returns a shape
-2. **"Kernel Error"**: Usually caused by invalid geometry operations. Check your boolean operations and fillet radii
-3. **"Shape not visible"**: Make sure your shape is positioned near the origin and has reasonable dimensions
-
-### Performance Tips
-
-- Use simpler shapes for better performance
-- Avoid overly complex boolean operations
-- Keep fillet radii reasonable relative to shape size
-- Use `console.log()` to debug shape properties
-
-## Browser Compatibility
-
-- **Chrome/Edge**: Full support (recommended)
-- **Firefox**: Supported but file loading may be limited
-- **Safari**: Basic support
-
-## Technical Details
-
-- Built with React, Three.js, and Monaco Editor
-- Uses Replicad library with OpenCascade.js kernel
-- WebAssembly for high-performance 3D operations
-- Client-side rendering for real-time feedback
-
-## Contributing
-
-To add new features or fix bugs:
-
-1. The main page component is in `page.tsx`
-2. Editor logic is in `components/MonacoEditor.tsx`
-3. 3D viewer is in `components/CADViewer.tsx`
-4. CAD engine wrapper is in `utils/cadEngine.ts`
-5. Shape conversion utilities are in `utils/shapeConverter.ts`
-
-## License
-
-This CAD tool is part of the Cxmpute Core platform. See the main project license for details. 
+This allows AI assistants to directly manipulate the CAD tool through the browser console or embedded scripts. 

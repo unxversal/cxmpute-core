@@ -1,159 +1,264 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { MonacoEditor } from './components/MonacoEditor';
-import { CADViewer } from './components/CADViewer';
-import { ControlPanel } from './components/ControlPanel';
-import { ErrorDisplay } from './components/ErrorDisplay';
-import { CADEngine, CADShape } from './utils/cadEngine';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { toast, Toaster } from 'sonner';
 import styles from './page.module.css';
 
-// Initialize CAD engine singleton
-let cadEngine: CADEngine | null = null;
+// Import components
+import MonacoEditor from './components/MonacoEditor';
+import ErrorDisplay from './components/ErrorDisplay';
+import CADViewer from './components/CADViewer';
 
-const defaultCode = `const { drawCircle, drawRectangle } = replicad;
+// Import the CAD engine - fix the import
+import { CADEngine } from './utils/cadEngine';
+
+// Create a singleton instance
+const cadEngine = new CADEngine();
+
+// Extend the Window interface for our global function
+declare global {
+  interface Window {
+    setCADCode?: (code: string) => void;
+  }
+}
+
+// Default example code
+const DEFAULT_CODE = `const { draw, drawCircle } = replicad;
 
 const main = () => {
-  // Create a cylinder
-  const base = drawCircle(20).sketchOnPlane().extrude(10);
+  // Create a cylinder with a hole
+  const cylinder = drawCircle(20)
+    .sketchOnPlane()
+    .extrude(50);
   
-  // Create a smaller cylinder to cut a hole
-  const hole = drawCircle(8).sketchOnPlane().extrude(15);
+  const hole = drawCircle(8)
+    .sketchOnPlane()
+    .extrude(60)
+    .translateZ(-5);
   
-  // Cut the hole from the base
-  const result = base.cut(hole);
-  
-  return result;
+  return cylinder.cut(hole);
 };`;
 
 export default function CADPage() {
-  const [code, setCode] = useState(defaultCode);
-  const [shapes, setShapes] = useState<CADShape[]>([]);
+  const [code, setCode] = useState(DEFAULT_CODE);
+  const [shapes, setShapes] = useState<unknown[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isExecuting, setIsExecuting] = useState(false);
-  const executeTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isLoading, setIsLoading] = useState(true);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Execute code with debouncing
+  const executeCode = useCallback(async (codeToExecute: string = code) => {
+    if (isExecuting) return;
+    
+    setIsExecuting(true);
+    setError(null);
+
+    try {
+      const result = await cadEngine.executeCode(codeToExecute);
+      setShapes(result);
+      toast.success('Code executed successfully', {
+        description: `Generated ${result.length} shape${result.length !== 1 ? 's' : ''}`,
+        duration: 2000
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      toast.error('Execution failed', {
+        description: errorMessage.slice(0, 80) + (errorMessage.length > 80 ? '...' : ''),
+        duration: 4000
+      });
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [code, isExecuting]);
+
+  // Debounced execution for auto-run
+  const debouncedExecute = useCallback((newCode: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      executeCode(newCode);
+    }, 500);
+  }, [executeCode]);
+
+  // Handle code changes
+  const handleCodeChange = useCallback((newCode: string) => {
+    setCode(newCode);
+    debouncedExecute(newCode);
+  }, [debouncedExecute]);
+
+  // Manual run function
+  const handleRunCode = useCallback(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    executeCode();
+  }, [executeCode]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Cmd+Enter or Ctrl+Enter to run code
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        event.preventDefault();
+        handleRunCode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRunCode]);
 
   // Initialize CAD engine
   useEffect(() => {
     const initEngine = async () => {
       try {
-        if (!cadEngine) {
-          cadEngine = new CADEngine();
-          await cadEngine.initialize();
-        }
+        toast.loading('Initializing CAD engine...', { id: 'init' });
+        await cadEngine.initialize();
+        toast.success('CAD engine initialized', { id: 'init' });
+        
+        // Execute initial code
+        await executeCode(DEFAULT_CODE);
         setIsLoading(false);
       } catch (err) {
-        console.error('Failed to initialize CAD engine:', err);
-        setError('Failed to initialize CAD engine');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize';
+        toast.error('Initialization failed', { 
+          id: 'init',
+          description: errorMessage,
+          duration: 5000
+        });
+        setError(errorMessage);
         setIsLoading(false);
       }
     };
 
     initEngine();
-  }, []);
+  }, [executeCode]);
 
-  // Execute code with debouncing
-  const executeCode = useCallback(async (codeToExecute: string) => {
-    if (!cadEngine || isLoading) return;
-
-    // Clear previous timeout
-    if (executeTimeoutRef.current) {
-      clearTimeout(executeTimeoutRef.current);
-    }
-
-    // Debounce execution
-    executeTimeoutRef.current = setTimeout(async () => {
-      setIsExecuting(true);
-      setError(null);
-
-      try {
-        const result = await cadEngine.executeCode(codeToExecute);
-        setShapes(result);
-      } catch (err) {
-        console.error('Code execution error:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
-        setShapes([]);
-      } finally {
-        setIsExecuting(false);
-      }
-    }, 500); // 500ms debounce
-  }, [isLoading]);
-
-  // Execute code when it changes
+  // Set up global function for AI agents
   useEffect(() => {
-    executeCode(code);
-  }, [code, executeCode]);
-
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-  };
-
-  const handleExport = async (format: 'stl' | 'step') => {
-    if (!cadEngine || shapes.length === 0) return;
-
-    try {
-      await cadEngine.exportShapes(shapes, format);
-    } catch (err) {
-      console.error('Export error:', err);
-      setError(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
-
-  // AI Agent function to set code
-  const setCodeFromAI = (newCode: string) => {
-    setCode(newCode);
-  };
-
-  // Expose setCodeFromAI to global scope for AI agent
-  useEffect(() => {
-    (window as any).setCADCode = setCodeFromAI;
-    return () => {
-      delete (window as any).setCADCode;
+    // Use proper type declaration for window
+    window.setCADCode = (newCode: string) => {
+      setCode(newCode);
+      executeCode(newCode);
     };
-  }, []);
+
+    return () => {
+      delete window.setCADCode;
+    };
+  }, [executeCode]);
+
+  // Export functions
+  const handleExportSTL = useCallback(() => {
+    if (shapes.length === 0) {
+      toast.error('No shapes to export');
+      return;
+    }
+    // TODO: Implement STL export
+    toast.info('STL export coming soon');
+  }, [shapes]);
+
+  const handleExportSTEP = useCallback(() => {
+    if (shapes.length === 0) {
+      toast.error('No shapes to export');
+      return;
+    }
+    // TODO: Implement STEP export
+    toast.info('STEP export coming soon');
+  }, [shapes]);
 
   if (isLoading) {
     return (
       <div className={styles.loadingContainer}>
-        <div className={styles.loadingSpinner}></div>
+        <div className={styles.loadingSpinner} />
         <p>Initializing CAD Engine...</p>
+        <Toaster theme="dark" position="top-center" />
       </div>
     );
   }
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>C3D CAD Studio</h1>
-        <ControlPanel 
-          onExport={handleExport}
-          canExport={shapes.length > 0 && !isExecuting}
-        />
-      </div>
-      
+      <header className={styles.header}>
+        <h1 className={styles.title}>C3D CAD</h1>
+        <div className={styles.controlPanel}>
+          <button
+            className={styles.runButton}
+            onClick={handleRunCode}
+            disabled={isExecuting}
+            title="Run code (⌘+Enter)"
+          >
+            {isExecuting ? (
+              <>
+                <div className={styles.loadingSpinner} style={{ width: 12, height: 12, marginRight: 4 }} />
+                Running
+              </>
+            ) : (
+              <>▶ Run</>
+            )}
+          </button>
+          <span className={styles.shortcutHint}>⌘+Enter</span>
+          <button
+            className={styles.button}
+            onClick={handleExportSTL}
+            disabled={shapes.length === 0}
+          >
+            Export STL
+          </button>
+          <button
+            className={styles.button}
+            onClick={handleExportSTEP}
+            disabled={shapes.length === 0}
+          >
+            Export STEP
+          </button>
+        </div>
+      </header>
+
       <div className={styles.workspace}>
         <div className={styles.viewerPanel}>
-          <CADViewer 
-            shapes={shapes}
-            isLoading={isExecuting}
-          />
+          <CADViewer shapes={shapes} />
           {error && (
             <ErrorDisplay 
-              error={error}
-              onDismiss={() => setError(null)}
+              error={error} 
+              onClose={() => setError(null)} 
             />
           )}
         </div>
-        
+
         <div className={styles.editorPanel}>
-          <MonacoEditor
-            value={code}
-            onChange={handleCodeChange}
-            isExecuting={isExecuting}
-          />
+          <div className={styles.editorHeader}>
+            <h3 className={styles.editorTitle}>Code Editor</h3>
+            <div className={styles.editorActions}>
+              <span className={`${styles.editorStatus} ${isExecuting ? styles.executing : ''}`}>
+                {isExecuting ? 'Executing...' : 'Ready'}
+              </span>
+            </div>
+          </div>
+          <div className={styles.editorWrapper}>
+            <MonacoEditor
+              value={code}
+              onChange={handleCodeChange}
+              language="javascript"
+            />
+          </div>
         </div>
       </div>
+
+      <Toaster 
+        theme="dark" 
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: '#0a0a0a',
+            border: '1px solid #333333',
+            color: '#ffffff',
+          },
+        }}
+      />
     </div>
   );
 } 
