@@ -281,6 +281,13 @@
   max-width: 600px;
 }
 
+/* When the code editor is active, allow the sidebar to take all remaining space */
+.rightSidebar.codeMode {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+
 .layerSection {
   border-left: 1px solid;
 }

@@ -376,8 +376,9 @@ export default function CADEditorPage() {
         </div>
 
         {/* Right Sidebar - Properties, Layers, and Code Editor */}
-        <div className={styles.rightSidebar}>
-          {/* Layer Manager */}
+        <div className={`${styles.rightSidebar} ${showCodeEditor ? 'codeMode' : ''}`.trim()}>
+          {/* Layer Manager (hidden in code mode) */}
+          {!showCodeEditor && (
           <div className={styles.layerSection}>
             <Suspense fallback={
               <div className={styles.loading}>
@@ -388,8 +389,10 @@ export default function CADEditorPage() {
               <LayerManager />
             </Suspense>
           </div>
-          
-          {/* Property Panel */}
+          )}
+ 
+          {/* Property Panel (hidden in code mode) */}
+          {!showCodeEditor && (
           <div className={styles.propertySection}>
             <Suspense fallback={
               <div className={styles.loading}>
@@ -400,7 +403,8 @@ export default function CADEditorPage() {
               <PropertyPanel />
             </Suspense>
           </div>
-
+          )}
+ 
           {/* Code Editor */}
           {showCodeEditor && (
             <div className={styles.codeEditorSection}>

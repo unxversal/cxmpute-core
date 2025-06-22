@@ -1,7 +1,6 @@
 .container {
   display: flex;
   flex-direction: column;
-  width: 100%;
   height: 100%;
   background: var(--background-primary);
   border-radius: 12px;
@@ -98,7 +97,6 @@
 
 .editorContainer {
   flex: 1;
-  width: 100%;
   position: relative;
   overflow: hidden;
 }

@@ -459,10 +459,10 @@ function SketchMode({ onExit, selectedFaceId, onCreateSketch, openModal }: Sketc
 
 export default function ToolPalette() {
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
+  const [, addObject] = useAtom(addObjectAtom);
   const [selectedIds] = useAtom(selectedObjectsAtom);
+  const [, removeObject] = useAtom(removeObjectAtom);
   const objects = useAtomValue(cadObjectsAtom);
-  const removeObject = useSetAtom(removeObjectAtom);
-  const addObject = useSetAtom(addObjectAtom);
   const { theme } = useTheme();
 
   // Sketch mode state
@@ -526,19 +526,12 @@ export default function ToolPalette() {
 
   const handleToolSelect = (tool: CADTool) => {
     if (tool === 'sketch') {
-      // Set to sketch mode and prompt user to select a face
       setIsSketchMode(true);
       setSelectedFaceId(undefined);
       toast.info('Sketch Mode: Select a face to sketch on');
     } else {
-      // If previously in sketch mode, clean up
-      if (isSketchMode) {
-        setIsSketchMode(false);
-        setSelectedFaceId(undefined);
-        setIsSketching(false);
-        setSketchEntities([]);
-        setSketchPlane(null);
-      }
+      setIsSketchMode(false);
+      setSelectedFaceId(undefined);
     }
     setActiveTool(tool);
   };
@@ -546,13 +539,7 @@ export default function ToolPalette() {
   const exitSketchMode = () => {
     setIsSketchMode(false);
     setSelectedFaceId(undefined);
-    setIsSketching(false);
-    setSketchEntities([]);
-    setSketchPlane(null);
     setActiveTool('select');
-    
-    // Don't change grid visibility when exiting sketch mode
-    // This ensures the grid stays visible if it was on before
   };
 
   const handleCreateSketch = async (type: 'circle' | 'rectangle', params: any) => {

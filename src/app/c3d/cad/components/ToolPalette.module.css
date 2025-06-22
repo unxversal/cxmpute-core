@@ -1,6 +1,7 @@
 /* Tool Palette */
 .container {
-  width: 100%;
+  /* Exact width for two 52-px buttons + 4-px column gap + 16-px horizontal padding */
+  width: 124px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -49,7 +50,6 @@
   flex-direction: row;
   flex-wrap: wrap;
   gap: 4px;
-  justify-content: flex-start;
 }
 
 /* Tool Button */

@@ -2,11 +2,11 @@
 'use client';
 
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Grid as DreiGrid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, Edges, TransformControls, Line } from '@react-three/drei';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import React, { Suspense, useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
-import { ZoomIn, ZoomOut, Grid as GridIcon } from 'lucide-react';
+import { ZoomIn, ZoomOut } from 'lucide-react';
 import {
   visibleObjectsAtom,
   viewportSettingsAtom,
@@ -192,10 +192,62 @@ function CADMesh({ cadObject }: { cadObject: CADObject }) {
   );
 }
 
+// Grid component – now aligns with the current sketch plane (if any)
+function CADGrid() {
+  const [viewportSettings] = useAtom(viewportSettingsAtom);
+  const isSketching = useAtomValue(isSketchingAtom);
+  const sketchPlane = useAtomValue(sketchPlaneAtom);
+  const { theme } = useTheme();
+
+  if (!viewportSettings.grid.visible) {
+    return null;
+  }
+
+  // Determine grid rotation based on active sketch plane
+  const rotation: [number, number, number] = (() => {
+    if (isSketching && sketchPlane?.plane) {
+      switch (sketchPlane.plane) {
+        case 'XY':
+          // Move grid from XZ (default) to XY – rotate -90° around X
+          return [-Math.PI / 2, 0, 0];
+        case 'YZ':
+          // Rotate 90° around Z so X axis becomes Y
+          return [0, 0, Math.PI / 2];
+        case 'XZ':
+        default:
+          return [0, 0, 0];
+      }
+    }
+    return [0, 0, 0];
+  })();
+
+  return (
+    <group rotation={rotation}>
+      <Grid
+        args={[viewportSettings.grid.size, viewportSettings.grid.divisions]}
+        cellSize={viewportSettings.grid.size / viewportSettings.grid.divisions}
+        cellThickness={0.5}
+        cellColor={theme === 'dark' ? '#374151' : '#6f6f6f'}
+        sectionSize={viewportSettings.grid.size}
+        sectionThickness={1}
+        sectionColor={theme === 'dark' ? '#3b82f6' : '#9d4b4b'}
+        fadeDistance={100}
+        fadeStrength={1}
+        followCamera
+        infiniteGrid
+      />
+    </group>
+  );
+}
+
+// Convert an array of 2-D draft points to THREE.Vector3 for preview lines
+function pointsToVec3(points: { x: number; y: number; z?: number }[]): THREE.Vector3[] {
+  return points.map(p => new THREE.Vector3(p.x, p.y, p.z ?? 0));
+}
+
 // Viewport overlay controls component for zoom buttons
 function ViewportOverlayControls() {
   const orbitControlsRef = useAtomValue(orbitControlsRefAtom);
-  const [viewportSettings, setViewportSettings] = useAtom(viewportSettingsAtom);
 
   const handleZoom = (factor: number) => {
     if (orbitControlsRef?.current) {
@@ -206,16 +258,6 @@ function ViewportOverlayControls() {
       }
       orbitControlsRef.current.update();
     }
-  };
-
-  const toggleGrid = () => {
-    setViewportSettings({
-      ...viewportSettings,
-      grid: {
-        ...viewportSettings.grid,
-        visible: !viewportSettings.grid.visible
-      }
-    });
   };
 
   return (
@@ -234,68 +276,22 @@ function ViewportOverlayControls() {
       >
         <ZoomOut size={18} />
       </button>
-      <button
-        onClick={toggleGrid}
-        title={viewportSettings.grid.visible ? "Hide Grid" : "Show Grid"}
-        className={`${styles.controlButton} ${viewportSettings.grid.visible ? styles.active : ''}`}
-      >
-        <GridIcon size={18} />
-      </button>
     </div>
   );
 }
 
-// Grid component - using DreiGrid to avoid naming conflicts
-function CADGrid() {
-  const [viewportSettings] = useAtom(viewportSettingsAtom);
-  const { theme } = useTheme();
-  
-  // Always show grid when it's set to visible, regardless of sketching mode
-  if (!viewportSettings.grid.visible) {
-    return null;
-  }
-
-  return (
-    <DreiGrid
-      args={[viewportSettings.grid.size, viewportSettings.grid.divisions]}
-      cellSize={viewportSettings.grid.size / viewportSettings.grid.divisions}
-      cellThickness={0.5}
-      cellColor={theme === 'dark' ? '#374151' : '#6f6f6f'}
-      sectionSize={viewportSettings.grid.size}
-      sectionThickness={1}
-      sectionColor={theme === 'dark' ? '#3b82f6' : '#9d4b4b'}
-      fadeDistance={100}
-      fadeStrength={1}
-      followCamera
-      infiniteGrid
-    />
-  );
-}
-
-// Convert an array of 2-D draft points to THREE.Vector3 for preview lines
-function pointsToVec3(points: { x: number; y: number; z?: number }[]): THREE.Vector3[] {
-  return points.map(p => new THREE.Vector3(p.x, p.y, p.z ?? 0));
-}
-
 // Scene component
 function CADScene() {
-  // State and references
-  const visibleObjects = useAtomValue(visibleObjectsAtom);
+  const [visibleObjects] = useAtom(visibleObjectsAtom);
+  const setSelected = useSetAtom(selectedObjectsAtom);
+  const [draftPoints] = useAtom(draftSketchPointsAtom);
   const [activeTool, setActiveTool] = useAtom(activeToolAtom);
-  const setSelectedIds = useSetAtom(selectedObjectsAtom);
   const addObject = useSetAtom(addObjectAtom);
   const addOperation = useSetAtom(addOperationAtom);
   const isSketching = useAtomValue(isSketchingAtom);
   const [sketchEntities, setSketchEntities] = useAtom(currentSketchEntitiesAtom);
   const sketchPlane = useAtomValue(sketchPlaneAtom);
-  const [draftPoints] = useAtom(draftSketchPointsAtom);
   
-  // Ensure grid visibility when changing between modes
-  useEffect(() => {
-    // Grid visibility is now managed separately from sketch mode
-  }, [isSketching]);
-  
-  // Handle click events on the canvas based on active tool
   const handleCanvasClick = async (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
 
@@ -311,7 +307,7 @@ function CADScene() {
       toast.success(`Created ${activeTool} at [${event.point.x.toFixed(1)}, ${event.point.y.toFixed(1)}, ${event.point.z.toFixed(1)}]`);
       setActiveTool('select');
     } else {
-      setSelectedIds([]);
+      setSelected([]);
     }
   };
 
