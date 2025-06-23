@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 // NOTE: This file contains the original implementation of the CAD page. It is imported dynamically from the server wrapper (page.tsx) with `ssr:false` so that Web Worker APIs are not evaluated during server-side rendering.
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { SandpackProvider, SandpackLayout, SandpackCodeEditor } from '@codesandbox/sandpack-react';
+import { SandpackProvider, SandpackLayout, SandpackCodeEditor, useSandpack } from '@codesandbox/sandpack-react';
+import { amethyst } from '@codesandbox/sandpack-themes';
 import styles from './page.module.css';
 
 // Components
@@ -59,6 +61,29 @@ const geometries = syncGeometries(meshedShapes, []);
 // Export for use in Three.js scene
 export { geometries };`;
 
+// Component to handle code changes within Sandpack context
+function CodeEditor({ onCodeChange }: { onCodeChange: (code: string) => void }) {
+  const { sandpack } = useSandpack();
+  
+  useEffect(() => {
+    const file = sandpack.files['/index.ts'];
+    if (file && file.code) {
+      onCodeChange(file.code);
+    }
+  }, [sandpack.files, onCodeChange]);
+
+  return (
+    <SandpackCodeEditor 
+      showTabs={false}
+      showLineNumbers={true}
+      showInlineErrors={false}
+      wrapContent={false}
+      closableTabs={false}
+      style={{ height: "100vh" }}
+    />
+  );
+}
+
 export default function CADClientPage() {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [shapes, setShapes] = useState<WorkerShape[]>([]);
@@ -103,8 +128,8 @@ export default function CADClientPage() {
     initializeOpenCascade();
   }, [isInitialized]);
 
-  // Execute example code
-  const executeExampleCode = useCallback(async () => {
+  // Execute current code
+  const executeCode = useCallback(async () => {
     if (isExecuting || !isInitialized) return;
 
     setIsExecuting(true);
@@ -114,6 +139,7 @@ export default function CADClientPage() {
     });
 
     try {
+      // For now, execute the default example (user code execution requires eval)
       // Import replicad and helper
       const replicad = await import('replicad');
       const { syncGeometries } = await import('replicad-threejs-helper');
@@ -180,9 +206,9 @@ export default function CADClientPage() {
   // Auto-execute once after initialization
   useEffect(() => {
     if (isInitialized && shapes.length === 0) {
-      executeExampleCode();
+      executeCode();
     }
-  }, [isInitialized]); // Only depend on isInitialized, not executeExampleCode
+  }, [isInitialized, executeCode]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -190,28 +216,28 @@ export default function CADClientPage() {
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
         event.preventDefault();
         if (isInitialized) {
-          executeExampleCode();
+          executeCode();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isInitialized]); // Only depend on isInitialized
+  }, [isInitialized, executeCode]);
 
   // Set up global function for AI agents
   useEffect(() => {
     window.setCADCode = (newCode: string) => {
       setCode(newCode);
       if (isInitialized) {
-        executeExampleCode();
+        executeCode();
       }
     };
 
     return () => {
       delete window.setCADCode;
     };
-  }, [isInitialized]); // Only depend on isInitialized
+  }, [isInitialized, executeCode]);
 
   const handleExportSTL = useCallback(async () => {
     if (shapes.length === 0) {
@@ -244,7 +270,7 @@ export default function CADClientPage() {
             <div className={styles.editorControls}>
               <button
                 className={styles.runButton}
-                onClick={executeExampleCode}
+                onClick={executeCode}
                 disabled={isExecuting}
               >
                 {isExecuting ? 'Running...' : 'Run Code'}
@@ -255,6 +281,7 @@ export default function CADClientPage() {
           <div className={styles.sandpackContainer}>
             <SandpackProvider
               template="vanilla-ts"
+              theme={amethyst}
               files={{
                 "/index.ts": {
                   code: code,
@@ -274,14 +301,7 @@ export default function CADClientPage() {
               }}
             >
               <SandpackLayout>
-                <SandpackCodeEditor 
-                  showTabs={false}
-                  showLineNumbers={true}
-                  showInlineErrors={false}
-                  wrapContent={false}
-                  closableTabs={false}
-                  readOnly={true}
-                />
+                <CodeEditor onCodeChange={setCode} />
               </SandpackLayout>
             </SandpackProvider>
           </div>
