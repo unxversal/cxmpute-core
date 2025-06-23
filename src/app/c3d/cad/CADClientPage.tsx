@@ -258,22 +258,48 @@ export default function CADClientPage() {
   return (
     <div className={styles.pageContainer}>
       <header className={styles.header}>
-        <h1 className={styles.title}>CAD Engine</h1>
-        <p className={styles.subtitle}>Create 3D models with code using Replicad</p>
+        <h1 className={styles.title}>C3D CAD</h1>
+        <p className={styles.subtitle}>An agentic, code-first CAD editor.</p>
       </header>
 
       <div className={styles.mainContent}>
-        {/* Left Panel - Code Editor with Sandpack */}
+        {/* Left Panel - 3D Viewer */}
         <div className={styles.leftPanel}>
+
+          {error ? (
+            <ErrorDisplay error={error} onClose={() => setError(null)} />
+          ) : (
+            <CADViewer shapes={shapes} />
+          )}
+        </div>
+
+        {/* Right Panel - Code Editor with Sandpack */}
+        <div className={styles.rightPanel}>
           <div className={styles.editorHeader}>
-            <h3>Code Editor</h3>
-            <div className={styles.editorControls}>
+            <div className={styles.editorHeaderLeft}>
               <button
                 className={styles.runButton}
                 onClick={executeCode}
                 disabled={isExecuting}
               >
-                {isExecuting ? 'Running...' : 'Run Code'}
+                ▶ {isExecuting ? 'Running...' : 'Run'}
+              </button>
+              <span className={styles.shortcutHint}>⌘+Enter</span>
+            </div>
+            <div className={styles.editorHeaderRight}>
+              <button
+                className={styles.exportButton}
+                onClick={handleExportSTL}
+                disabled={shapes.length === 0}
+              >
+                Export STL
+              </button>
+              <button
+                className={styles.exportButton}
+                onClick={handleExportSTEP}
+                disabled={shapes.length === 0}
+              >
+                Export STEP
               </button>
             </div>
           </div>
@@ -306,39 +332,7 @@ export default function CADClientPage() {
             </SandpackProvider>
           </div>
 
-          {/* Export Controls */}
-          <div className={styles.exportControls}>
-            <button
-              className={styles.exportButton}
-              onClick={handleExportSTL}
-              disabled={shapes.length === 0}
-            >
-              Export STL
-            </button>
-            <button
-              className={styles.exportButton}
-              onClick={handleExportSTEP}
-              disabled={shapes.length === 0}
-            >
-              Export STEP
-            </button>
-          </div>
-        </div>
 
-        {/* Right Panel - 3D Viewer */}
-        <div className={styles.rightPanel}>
-          <div className={styles.viewerHeader}>
-            <h3>3D Preview</h3>
-            <div className={styles.shapeInfo}>
-              {shapes.length > 0 ? `${shapes.length} shape(s)` : 'Loading...'}
-            </div>
-          </div>
-
-          {error ? (
-            <ErrorDisplay error={error} onClose={() => setError(null)} />
-          ) : (
-            <CADViewer shapes={shapes} />
-          )}
         </div>
       </div>
 

@@ -37,6 +37,28 @@
   }
 }
 
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (min-width: 768px) {
+  .headerLeft {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .title {
   font-size: 1.25rem;
   font-weight: 300;
@@ -66,23 +88,26 @@
 }
 
 .leftPanel {
+  flex: 1;
+  position: relative;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #1a1a1a;
+  overflow: hidden;
+  height: 100%;
+}
+
+.rightPanel {
   width: 480px;
   min-width: 380px;
   max-width: 700px;
   background: #0a0a0a;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #1a1a1a;
   resize: horizontal;
   overflow: hidden;
   height: 100%;
-}
-
-.rightPanel {
-  flex: 1;
-  position: relative;
-  background: #000000;
-  overflow: hidden;
 }
 
 .editorHeader {
@@ -91,6 +116,18 @@
   align-items: center;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #1a1a1a;
+}
+
+.editorHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.editorHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .editorHeader h3 {
@@ -299,8 +336,11 @@
 
 .shortcutHint {
   font-size: 0.7rem;
-  color: #666666;
+  color: #888888;
   font-weight: 300;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
 }
 
 /* Error Display Styles */
@@ -418,19 +458,16 @@
   background: rgba(10, 10, 10, 0.9);
   border: 1px solid #333333;
   color: #ffffff;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 300;
   backdrop-filter: blur(10px);
-  white-space: nowrap;
-  min-width: 80px;
+  width: 36px;
+  height: 36px;
 }
 
 .viewerButton:hover {
@@ -503,6 +540,36 @@
   backdrop-filter: blur(10px);
 }
 
+/* Tooltip Styles */
+.tooltip {
+  position: fixed;
+  background: rgba(10, 10, 10, 0.95);
+  color: #ffffff;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 300;
+  z-index: 10000;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateX(-100%) translateY(-50%);
+  backdrop-filter: blur(10px);
+  border: 1px solid #333333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tooltipArrow {
+  position: absolute;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 4px solid rgba(10, 10, 10, 0.95);
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .workspace {
@@ -526,6 +593,10 @@
   .header {
     padding: 0.5rem 1rem;
   }
+
+  .headerRight {
+    gap: 0.5rem;
+  }
   
   .title {
     font-size: 1.1rem;
@@ -538,5 +609,14 @@
   .button, .runButton {
     padding: 0.375rem 0.75rem;
     font-size: 0.75rem;
+  }
+
+  .exportButton {
+    padding: 0.375rem 0.6rem;
+    font-size: 0.7rem;
+  }
+
+  .shortcutHint {
+    display: none;
   }
 } 

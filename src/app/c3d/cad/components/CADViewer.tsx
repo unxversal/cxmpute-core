@@ -23,6 +23,7 @@ interface WorkerShape {
   };
 }
 import styles from '../page.module.css';
+import Tooltip from './Tooltip';
 
 interface CADViewerProps {
   shapes: WorkerShape[];
@@ -230,38 +231,38 @@ export default function CADViewer({ shapes }: CADViewerProps) {
       
       {/* Viewer Controls */}
       <div className={styles.viewerControls}>
-        <button
-          className={styles.viewerButton}
-          onClick={resetView}
-          title="Reset view to default position"
-        >
-          <Home size={16} />
-          <span>Home</span>
-        </button>
-        <button
-          className={styles.viewerButton}
-          onClick={fitToView}
-          title="Fit all shapes in view"
-        >
-          <Maximize2 size={16} />
-          <span>Fit</span>
-        </button>
-        <button
-          className={styles.viewerButton}
-          onClick={toggleWireframe}
-          title="Toggle wireframe mode"
-        >
-          <Grid3X3 size={16} />
-          <span>Wireframe</span>
-        </button>
-        <button
-          className={styles.viewerButton}
-          onClick={captureScreenshot}
-          title="Take screenshot"
-        >
-          <Camera size={16} />
-          <span>Screenshot</span>
-        </button>
+        <Tooltip content="Home">
+          <button
+            className={styles.viewerButton}
+            onClick={resetView}
+          >
+            <Home size={16} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Fit">
+          <button
+            className={styles.viewerButton}
+            onClick={fitToView}
+          >
+            <Maximize2 size={16} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Wireframe">
+          <button
+            className={styles.viewerButton}
+            onClick={toggleWireframe}
+          >
+            <Grid3X3 size={16} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Screenshot">
+          <button
+            className={styles.viewerButton}
+            onClick={captureScreenshot}
+          >
+            <Camera size={16} />
+          </button>
+        </Tooltip>
       </div>
 
       {/* Info Panel */}
