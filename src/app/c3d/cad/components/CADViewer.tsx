@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useRef, useState } from 'react';
+import React, { Suspense, useRef, useState, createContext, useContext } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,6 +25,9 @@ interface WorkerShape {
 import styles from '../page.module.css';
 import Tooltip from './Tooltip';
 
+// Wireframe context
+const WireframeContext = createContext<boolean>(false);
+
 interface CADViewerProps {
   shapes: WorkerShape[];
 }
@@ -32,6 +35,7 @@ interface CADViewerProps {
 // Component for rendering a single CAD shape
 function CADShape({ shapeData }: { shapeData: WorkerShape }) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const isWireframe = useContext(WireframeContext);
   
   const geometry = React.useMemo(() => {
     const geom = new THREE.BufferGeometry();
@@ -55,8 +59,9 @@ function CADShape({ shapeData }: { shapeData: WorkerShape }) {
       transparent: (shapeData.opacity ?? 1) < 1,
       opacity: shapeData.opacity ?? 1,
       side: THREE.DoubleSide,
+      wireframe: isWireframe,
     });
-  }, [shapeData.color, shapeData.opacity]);
+  }, [shapeData.color, shapeData.opacity, isWireframe]);
         
   return (
     <mesh
@@ -133,9 +138,9 @@ function LoadingSpinner() {
 }
 
 // Scene setup component
-function Scene({ shapes }: { shapes: WorkerShape[] }) {
+function Scene({ shapes, isWireframe }: { shapes: WorkerShape[], isWireframe: boolean }) {
   return (
-    <>
+    <WireframeContext.Provider value={isWireframe}>
       {/* Lighting */}
       <ambientLight intensity={0.3} />
       <directionalLight
@@ -171,12 +176,13 @@ function Scene({ shapes }: { shapes: WorkerShape[] }) {
       {shapes.map((shapeData, index) => (
         <CADShape key={index} shapeData={shapeData} />
       ))}
-    </>
+    </WireframeContext.Provider>
   );
 }
 
 export default function CADViewer({ shapes }: CADViewerProps) {
   const [autoFit, setAutoFit] = useState(true);
+  const [isWireframe, setIsWireframe] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Control functions
@@ -200,8 +206,7 @@ export default function CADViewer({ shapes }: CADViewerProps) {
   };
   
   const toggleWireframe = () => {
-    // This would need to be implemented with a context or state management
-    console.log('Wireframe toggle not yet implemented');
+    setIsWireframe(prev => !prev);
   };
 
   return (
@@ -223,7 +228,7 @@ export default function CADViewer({ shapes }: CADViewerProps) {
           }}
         >
           <Suspense fallback={<LoadingSpinner />}>
-            <Scene shapes={shapes} />
+            <Scene shapes={shapes} isWireframe={isWireframe} />
             <CameraController shapes={shapes} autoFit={autoFit} />
           </Suspense>
         </Canvas>

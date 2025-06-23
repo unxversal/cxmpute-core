@@ -7,6 +7,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { SandpackProvider, SandpackLayout, SandpackCodeEditor, useSandpack } from '@codesandbox/sandpack-react';
 import { amethyst } from '@codesandbox/sandpack-themes';
+import { MessageCircle, Send } from 'lucide-react';
 import styles from './page.module.css';
 
 // Components
@@ -61,6 +62,66 @@ const geometries = syncGeometries(meshedShapes, []);
 // Export for use in Three.js scene
 export { geometries };`;
 
+// Chat component
+function ChatInterface({ state }: { state: 'panel' | 'overlay' }) {
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    
+    // TODO: Implement AI chat functionality
+    console.log('Message:', message);
+    setMessage('');
+  };
+
+  if (state === 'overlay') {
+    return (
+      <div className={styles.chatOverlay}>
+        <form onSubmit={handleSubmit} className={styles.chatForm}>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Ask the AI agent to help with your CAD design..."
+            className={styles.chatTextarea}
+            rows={5}
+          />
+          <button type="submit" className={styles.chatSubmit}>
+            <Send size={16} />
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.chatPanel}>
+      <div className={styles.chatHeader}>
+        <h3>AI Agent</h3>
+      </div>
+      <div className={styles.chatMessages}>
+        <div className={styles.chatMessage}>
+          <div className={styles.chatMessageContent}>
+            Welcome! I can help you create CAD designs with code. Try asking me to create shapes, modify existing designs, or explain CAD concepts.
+          </div>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className={styles.chatInputForm}>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Ask me to help with your CAD design..."
+          className={styles.chatInput}
+          rows={2}
+        />
+        <button type="submit" className={styles.chatSubmitButton}>
+          <Send size={16} />
+        </button>
+      </form>
+    </div>
+  );
+}
+
 // Component to handle code changes within Sandpack context
 function CodeEditor({ onCodeChange }: { onCodeChange: (code: string) => void }) {
   const { sandpack } = useSandpack();
@@ -90,6 +151,7 @@ export default function CADClientPage() {
   const [error, setError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [chatState, setChatState] = useState<'hidden' | 'panel' | 'overlay'>('hidden');
 
     // Initialize OpenCascade once
   useEffect(() => {
@@ -255,6 +317,14 @@ export default function CADClientPage() {
     toast.info('STEP export would use replicad export functions directly');
   }, [shapes.length]);
 
+  const toggleChat = () => {
+    setChatState(prev => {
+      if (prev === 'hidden') return 'panel';
+      if (prev === 'panel') return 'overlay';
+      return 'hidden';
+    });
+  };
+
   return (
     <div className={styles.pageContainer}>
       <header className={styles.header}>
@@ -265,7 +335,6 @@ export default function CADClientPage() {
       <div className={styles.mainContent}>
         {/* Left Panel - 3D Viewer */}
         <div className={styles.leftPanel}>
-
           {error ? (
             <ErrorDisplay error={error} onClose={() => setError(null)} />
           ) : (
@@ -273,8 +342,8 @@ export default function CADClientPage() {
           )}
         </div>
 
-        {/* Right Panel - Code Editor with Sandpack */}
-        <div className={styles.rightPanel}>
+        {/* Middle Panel - Code Editor with Sandpack */}
+        <div className={`${styles.rightPanel} ${chatState === 'panel' ? styles.withChatPanel : ''}`}>
           <div className={styles.editorHeader}>
             <div className={styles.editorHeaderLeft}>
               <button
@@ -284,7 +353,7 @@ export default function CADClientPage() {
               >
                 ▶ {isExecuting ? 'Running...' : 'Run'}
               </button>
-              <span className={styles.shortcutHint}>⌘+Enter</span>
+              <span className={styles.shortcutHint}>⌘ + Enter</span>
             </div>
             <div className={styles.editorHeaderRight}>
               <button
@@ -300,6 +369,13 @@ export default function CADClientPage() {
                 disabled={shapes.length === 0}
               >
                 Export STEP
+              </button>
+              <button
+                className={styles.aiButton}
+                onClick={toggleChat}
+                title={`AI Agent (${chatState})`}
+              >
+                <MessageCircle size={16} />
               </button>
             </div>
           </div>
@@ -331,9 +407,13 @@ export default function CADClientPage() {
               </SandpackLayout>
             </SandpackProvider>
           </div>
-
-
+          
+          {/* Chat overlay - on top of code editor */}
+          {chatState === 'overlay' && <ChatInterface state="overlay" />}
         </div>
+
+        {/* Right Panel - Chat (when in panel mode) */}
+        {chatState === 'panel' && <ChatInterface state="panel" />}
       </div>
 
 
