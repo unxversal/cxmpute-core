@@ -84,6 +84,46 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+
+  // Relax CSP only for the CAD playground (it needs `new Function` and WASM)
+  async headers() {
+    return [
+      {
+        // Apply to the CAD root page ("/c3d/cad")
+        source: '/c3d/cad',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' blob:; " +
+              "worker-src 'self' blob:; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data:; " +
+              "connect-src 'self' https:; " +
+              "font-src 'self';",
+          },
+        ],
+      },
+      {
+        // Apply to all nested CAD routes and assets
+        source: '/c3d/cad/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' blob:; " +
+              "worker-src 'self' blob:; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data:; " +
+              "connect-src 'self' https:; " +
+              "font-src 'self';",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

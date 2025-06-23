@@ -11,37 +11,52 @@ import {
   Camera, 
   Loader2
 } from 'lucide-react';
-import { convertReplicadShapeToGeometry, normalizeShapeData, type NormalizedShapeData } from '../utils/shapeConverter';
-import styles from '../page.module.css';
-
-interface ShapeData {
-  shape?: unknown;
+// WorkerShape interface moved to CADClientPage
+interface WorkerShape {
+  name?: string;
   color?: string;
   opacity?: number;
-  name?: string;
+  meshData: {
+    vertices: Float32Array;
+    indices: Uint32Array | Uint16Array;
+    normals?: Float32Array;
+  };
 }
+import styles from '../page.module.css';
 
 interface CADViewerProps {
-  shapes: (unknown | ShapeData)[];
+  shapes: WorkerShape[];
 }
 
 // Component for rendering a single CAD shape
-function CADShape({ shapeData }: { shapeData: NormalizedShapeData }) {
+function CADShape({ shapeData }: { shapeData: WorkerShape }) {
   const meshRef = useRef<THREE.Mesh>(null);
   
   const geometry = React.useMemo(() => {
-    return convertReplicadShapeToGeometry(shapeData.shape);
-  }, [shapeData.shape]);
+    const geom = new THREE.BufferGeometry();
+    if (shapeData.meshData.vertices) {
+      geom.setAttribute('position', new THREE.BufferAttribute(shapeData.meshData.vertices, 3));
+    }
+    if (shapeData.meshData.indices) {
+      geom.setIndex(new THREE.BufferAttribute(shapeData.meshData.indices, 1));
+    }
+    if (shapeData.meshData.normals) {
+      geom.setAttribute('normal', new THREE.BufferAttribute(shapeData.meshData.normals, 3));
+    } else {
+      geom.computeVertexNormals();
+    }
+    return geom;
+  }, [shapeData.meshData]);
   
   const material = React.useMemo(() => {
     return new THREE.MeshPhongMaterial({
       color: new THREE.Color(shapeData.color),
-      transparent: shapeData.opacity < 1,
-      opacity: shapeData.opacity,
+      transparent: (shapeData.opacity ?? 1) < 1,
+      opacity: shapeData.opacity ?? 1,
       side: THREE.DoubleSide,
     });
   }, [shapeData.color, shapeData.opacity]);
-  
+        
   return (
     <mesh
       ref={meshRef}
@@ -52,9 +67,9 @@ function CADShape({ shapeData }: { shapeData: NormalizedShapeData }) {
     />
   );
 }
-
+        
 // Component for camera controls and auto-fitting
-function CameraController({ shapes, autoFit }: { shapes: NormalizedShapeData[], autoFit: boolean }) {
+function CameraController({ shapes, autoFit }: { shapes: WorkerShape[], autoFit: boolean }) {
   const { camera, scene } = useThree();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
@@ -67,9 +82,9 @@ function CameraController({ shapes, autoFit }: { shapes: NormalizedShapeData[], 
         box.expandByObject(child);
       }
     });
-    
+
     if (box.isEmpty()) return;
-    
+
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -83,8 +98,8 @@ function CameraController({ shapes, autoFit }: { shapes: NormalizedShapeData[], 
     camera.lookAt(center.x, center.y, center.z);
     
     if (controlsRef.current) {
-      controlsRef.current.target.copy(center);
-      controlsRef.current.update();
+    controlsRef.current.target.copy(center);
+    controlsRef.current.update();
     }
   }, [camera, scene]);
   
@@ -117,7 +132,7 @@ function LoadingSpinner() {
 }
 
 // Scene setup component
-function Scene({ shapes }: { shapes: NormalizedShapeData[] }) {
+function Scene({ shapes }: { shapes: WorkerShape[] }) {
   return (
     <>
       {/* Lighting */}
@@ -163,17 +178,12 @@ export default function CADViewer({ shapes }: CADViewerProps) {
   const [autoFit, setAutoFit] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Normalize shapes data
-  const normalizedShapes: NormalizedShapeData[] = React.useMemo(() => {
-    return shapes.map((shapeItem, index) => normalizeShapeData(shapeItem, index));
-  }, [shapes]);
-  
   // Control functions
   const resetView = () => {
     setAutoFit(prev => !prev); // Trigger re-fit
     setTimeout(() => setAutoFit(true), 100);
   };
-  
+
   const captureScreenshot = () => {
     if (!canvasRef.current) return;
     
@@ -192,7 +202,7 @@ export default function CADViewer({ shapes }: CADViewerProps) {
     // This would need to be implemented with a context or state management
     console.log('Wireframe toggle not yet implemented');
   };
-  
+
   return (
     <div className={styles.cadViewer}>
       <div className={styles.viewerCanvas}>
@@ -212,8 +222,8 @@ export default function CADViewer({ shapes }: CADViewerProps) {
           }}
         >
           <Suspense fallback={<LoadingSpinner />}>
-            <Scene shapes={normalizedShapes} />
-            <CameraController shapes={normalizedShapes} autoFit={autoFit} />
+            <Scene shapes={shapes} />
+            <CameraController shapes={shapes} autoFit={autoFit} />
           </Suspense>
         </Canvas>
       </div>
