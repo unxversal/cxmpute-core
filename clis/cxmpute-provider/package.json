@@ -1,5 +1,5 @@
 {
-	"name": "cxmpute-provider",
+	"name": "@unxversallabs/cxmpute-provider",
 	"version": "0.5.3",
 	"description": "Transform your computer into an AI compute provider and earn rewards",
 	"keywords": ["ai", "compute", "provider", "blockchain", "earnings", "cli"],
@@ -12,7 +12,9 @@
 	"bugs": "https://github.com/unxversal/cxmpute-core/issues",
 	"author": "Cxmpute Team <support@cxmpute.cloud>",
 	"license": "MIT",
-	"bin": "dist/cli.js",
+	"bin": {
+		"cxmpute-provider": "dist/cli.js"
+	},
 	"type": "module",
 	"engines": {
 		"node": ">=16"

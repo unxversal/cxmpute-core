@@ -8,25 +8,11 @@ Transform your computer into an AI compute provider and start earning rewards!
 
 ### Option 1: npm (Recommended)
 ```bash
-npm install -g cxmpute-provider
+npm install -g @unxversallabs/cxmpute-provider
 cxmpute-provider
 ```
 
-### Option 2: Download Binary
-1. **Download**: Get the binary for your platform from [releases](https://github.com/unxversal/cxmpute-core/releases/latest)
-2. **Make executable**: `chmod +x cxmpute-provider-macos` (macOS/Linux)
-3. **Run**: `./cxmpute-provider-macos`
-
-### Install Binary Globally
-```bash
-# macOS/Linux
-sudo mv cxmpute-provider-macos /usr/local/bin/cxmpute-provider
-cxmpute-provider
-
-# Windows
-move cxmpute-provider.exe C:\Windows\System32\cxmpute-provider.exe
-cxmpute-provider
-```
+**Requirements**: Node.js 16+ required
 
 ## 💰 What You'll Earn
 

@@ -78,47 +78,9 @@ jobs:
       - name: 🔨 Build & Embed Hash
         working-directory: ${{ env.CLI_PATH }}
         run: |
-          echo "🔨 Running release build (hash + binaries)..."
+          echo "🔨 Running release build with integrity hash..."
           npm run build:secure
           echo "✅ Release build complete"
-          
-      - name: 📦 Install pkg
-        run: npm install -g pkg
-        
-      - name: 🏗️ Build Binaries
-        working-directory: ${{ env.CLI_PATH }}
-        run: |
-          echo "📦 Building cross-platform binaries..."
-          mkdir -p binaries
-          
-          # Build with clean, user-friendly names and improved pkg configuration
-          echo "📦 Building for Linux x64..."
-          pkg . --target "node18-linux-x64" --output "binaries/cxmpute-provider-linux" --no-bytecode
-          
-          echo "📦 Building for macOS Intel..."
-          pkg . --target "node18-macos-x64" --output "binaries/cxmpute-provider-macos" --no-bytecode
-          
-          echo "📦 Building for macOS Apple Silicon..."
-          pkg . --target "node18-macos-arm64" --output "binaries/cxmpute-provider-macos-arm64" --no-bytecode
-          
-          echo "📦 Building for Windows..."
-          pkg . --target "node18-win-x64" --output "binaries/cxmpute-provider.exe" --no-bytecode
-          
-          # Create additional copies with alternative names for user choice
-          cp "binaries/cxmpute-provider-macos" "binaries/cxmpute-provider-macos-intel"
-          cp "binaries/cxmpute-provider-macos-arm64" "binaries/cxmpute-provider-macos-m1"
-          cp "binaries/cxmpute-provider.exe" "binaries/cxmpute-provider-windows.exe"
-          
-          echo "🎉 All binaries built successfully!"
-          echo "📁 Generated files:"
-          ls -la binaries/
-          
-      - name: 🗑️ Clean up Config (Security)
-        working-directory: ${{ env.CLI_PATH }}
-        run: |
-          echo "🧹 Removing config file for security..."
-          rm -f source/lib/config.ts
-          echo "✅ Config file cleaned up"
           
       - name: 📦 Publish to npm
         working-directory: ${{ env.CLI_PATH }}
@@ -165,31 +127,12 @@ jobs:
           
           ### 📦 Installation
           
-          **Option 1: npm (Recommended)**
           \`\`\`bash
-          npm install -g cxmpute-provider
+          npm install -g @unxversallabs/cxmpute-provider
           cxmpute-provider
           \`\`\`
           
-          **Option 2: Direct Binary Download**
-          
-          **macOS Users:**
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/macos/install.sh | sudo bash
-          \`\`\`
-          
-          **Linux Users:**
-          \`\`\`bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/linux/install.sh | sudo bash
-          \`\`\`
-          
-          **Windows Users:**
-          \`\`\`powershell
-          # Run in PowerShell as Administrator
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-          iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/windows/install.ps1'))
-          \`\`\`
+          **Requirements**: Node.js 16+ required
           
           ### ⚡ Quick Start
           
@@ -224,45 +167,9 @@ jobs:
           - **Email**: support@cxmpute.cloud
           EOF
           
-      - name: 🔍 Verify Installer Files
-        run: |
-          echo "Checking installer files..."
-          INSTALLER_FILES=(
-            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/macos/install.sh"
-            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/linux/install.sh"
-            "${{ github.workspace }}/${{ env.CLI_PATH }}/installers/windows/install.ps1"
-          )
-          
-          for file in "${INSTALLER_FILES[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "❌ Error: File not found: $file"
-              exit 1
-            fi
-            echo "✅ Found: $file"
-          done
-          
-          echo "All installer files verified!"
-          
-      - name: 🔍 Debug File Locations
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Listing contents of workspace:"
-          ls -la
-          echo "Listing contents of CLI_PATH:"
-          ls -la ${{ env.CLI_PATH }}
-          echo "Listing contents of installers directory:"
-          ls -la ${{ env.CLI_PATH }}/installers/
-          echo "Listing contents of each installer subdirectory:"
-          ls -la ${{ env.CLI_PATH }}/installers/macos/
-          ls -la ${{ env.CLI_PATH }}/installers/linux/
-          ls -la ${{ env.CLI_PATH }}/installers/windows/
-          
       - name: 📦 Prepare Release Files
         run: |
           mkdir -p release_files
-          cp ${{ env.CLI_PATH }}/installers/macos/install.sh release_files/macos-install.sh
-          cp ${{ env.CLI_PATH }}/installers/linux/install.sh release_files/linux-install.sh
-          cp ${{ env.CLI_PATH }}/installers/windows/install.ps1 release_files/windows-install.ps1
           cp release_notes.md release_files/
           
       - name: 🏷️ Create GitHub Release
@@ -271,10 +178,6 @@ jobs:
           tag_name: ${{ steps.version.outputs.version }}
           name: 'Cxmpute Provider CLI ${{ steps.version.outputs.version }}'
           body_path: release_files/release_notes.md
-          files: |
-            release_files/macos-install.sh
-            release_files/linux-install.sh
-            release_files/windows-install.ps1
           draft: false
           prerelease: false
           generate_release_notes: true

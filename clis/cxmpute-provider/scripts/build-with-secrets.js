@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 // scripts/build-with-secrets.js
 
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { createHash } from 'crypto';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configuration
 const CONFIG_TEMPLATE_PATH = path.join(__dirname, '../source/lib/config.template.ts');
@@ -41,7 +47,7 @@ try {
     // --- Calculate build hash and embed for integrity verification ---
     console.log('🔍 Calculating build hash for integrity verification...');
     const distBuffer = fs.readFileSync(DIST_CLI_PATH);
-    const buildHash = require('crypto').createHash('sha256').update(distBuffer).digest('hex');
+    const buildHash = createHash('sha256').update(distBuffer).digest('hex');
 
     console.log(`📄 Build hash: ${buildHash}`);
 

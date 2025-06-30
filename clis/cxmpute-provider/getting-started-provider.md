@@ -31,7 +31,7 @@ The Cxmpute Provider CLI turns your computer into a node in the Cxmpute network,
 If you have Node.js installed (16+):
 
 ```bash
-npm install -g cxmpute-provider
+npm install -g @unxversallabs/cxmpute-provider
 cxmpute-provider
 ```
 
