@@ -96,7 +96,7 @@ jobs:
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           
           echo "📦 Publishing to npm registry..."
-          npm publish
+          npm publish --access public
           echo "✅ Published to npm registry"
           
       - name: 📝 Generate Release Notes
