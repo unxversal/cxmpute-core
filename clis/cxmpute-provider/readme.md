@@ -6,12 +6,18 @@ Transform your computer into an AI compute provider and start earning rewards!
 
 **[📖 Full Getting Started Guide →](./getting-started-provider.md)**
 
-### Download & Run
+### Option 1: npm (Recommended)
+```bash
+npm install -g cxmpute-provider
+cxmpute-provider
+```
+
+### Option 2: Download Binary
 1. **Download**: Get the binary for your platform from [releases](https://github.com/unxversal/cxmpute-core/releases/latest)
 2. **Make executable**: `chmod +x cxmpute-provider-macos` (macOS/Linux)
 3. **Run**: `./cxmpute-provider-macos`
 
-### Install Globally
+### Install Binary Globally
 ```bash
 # macOS/Linux
 sudo mv cxmpute-provider-macos /usr/local/bin/cxmpute-provider
@@ -38,9 +44,9 @@ npm run build
 node dist/cli.js
 ```
 
-### Build with Embedded Secrets
+### Release Build (includes integrity hash, binaries)
 ```bash
-CXMPUTE_PROVIDER_SECRET="your-secret" npm run build:secure
+npm run build:secure  # prepares dist and embeds integrity hash
 ```
 
 ## 📚 Documentation

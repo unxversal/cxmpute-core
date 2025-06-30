@@ -6,23 +6,11 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 // Configuration
-const SECRET_KEY = process.env.CXMPUTE_PROVIDER_SECRET || process.argv[2];
 const CONFIG_TEMPLATE_PATH = path.join(__dirname, '../source/lib/config.template.ts');
 const CONFIG_OUTPUT_PATH = path.join(__dirname, '../source/lib/config.ts');
+const DIST_CLI_PATH = path.join(__dirname, '../dist/cli.js');
 
-if (!SECRET_KEY) {
-    console.error('❌ Error: Provider secret not provided');
-    console.error('Usage: node scripts/build-with-secrets.js <SECRET_KEY>');
-    console.error('   or: CXMPUTE_PROVIDER_SECRET=<key> node scripts/build-with-secrets.js');
-    process.exit(1);
-}
-
-if (SECRET_KEY.length < 32) {
-    console.error('❌ Error: Secret key must be at least 32 characters long');
-    process.exit(1);
-}
-
-console.log('🔧 Building Cxmpute Provider CLI with embedded secrets...');
+console.log('🔧 Building Cxmpute Provider CLI with integrity hash...');
 
 try {
     // 1. Read template file
@@ -30,10 +18,11 @@ try {
     const template = fs.readFileSync(CONFIG_TEMPLATE_PATH, 'utf8');
     
     // 2. Replace placeholders
-    console.log('🔄 Injecting secrets...');
-    const config = template
-        .replace('__PROVIDER_SECRET_PLACEHOLDER__', SECRET_KEY)
-        .replace('__BUILD_TIME_PLACEHOLDER__', new Date().toISOString());
+    console.log('🔄 Preparing config...');
+    let config = template
+        .replace('__BUILD_TIME_PLACEHOLDER__', new Date().toISOString())
+        // temporary placeholder, will be replaced after first build
+        .replace('__EXPECTED_HASH_PLACEHOLDER__', 'DEV_PLACEHOLDER');
     
     // 3. Write actual config file
     fs.writeFileSync(CONFIG_OUTPUT_PATH, config);
@@ -49,43 +38,27 @@ try {
     console.log('🔨 Compiling TypeScript...');
     execSync('npm run build', { stdio: 'inherit' });
     
-    // 6. Create binaries directory
-    const binariesDir = path.join(__dirname, '../binaries');
-    if (!fs.existsSync(binariesDir)) {
-        fs.mkdirSync(binariesDir);
-    }
+    // --- Calculate build hash and embed for integrity verification ---
+    console.log('🔍 Calculating build hash for integrity verification...');
+    const distBuffer = fs.readFileSync(DIST_CLI_PATH);
+    const buildHash = require('crypto').createHash('sha256').update(distBuffer).digest('hex');
+
+    console.log(`📄 Build hash: ${buildHash}`);
+
+    // Replace placeholder with actual hash
+    const finalConfig = config.replace('DEV_PLACEHOLDER', buildHash);
+    fs.writeFileSync(CONFIG_OUTPUT_PATH, finalConfig);
+
+    // Recompile only config.ts to update dist/lib/config.js
+    console.log('🔄 Recompiling updated config with embedded hash...');
+    execSync('npm run build', { stdio: 'inherit' });
     
-    // 7. Build binaries with pkg
-    console.log('📦 Building binaries...');
-    const targets = [
-        'node18-linux-x64',
-        'node18-macos-x64',
-        'node18-macos-arm64',
-        'node18-win-x64'
-    ];
-    
-    for (const target of targets) {
-        console.log(`📦 Building for ${target}...`);
-        const outputName = target.includes('win') ? 'cxmpute-provider.exe' : 'cxmpute-provider';
-        const outputPath = path.join(binariesDir, `${target}-${outputName}`);
-        
-        try {
-            // Use --no-bytecode to avoid issues with native modules
-            execSync(`npx pkg . --target ${target} --output "${outputPath}" --no-bytecode`, { 
-                stdio: 'inherit' 
-            });
-            console.log(`✅ Built: ${outputPath}`);
-        } catch (error) {
-            console.error(`❌ Failed to build ${target}:`, error.message);
-        }
-    }
-    
-    // 8. Clean up config file (security)
-    console.log('🧹 Cleaning up temporary files...');
+    // 6. Clean up config file (security)
+    console.log('🧹 Removing temporary config.ts...');
     fs.unlinkSync(CONFIG_OUTPUT_PATH);
     
-    console.log('🎉 Build complete! Binaries are in the binaries/ directory');
-    console.log('⚠️  Config file has been cleaned up for security');
+    console.log('🎉 Build preparation complete! Ready for packaging with pkg.');
+    console.log('⚠️  Temporary config.ts has been cleaned up for security');
     
 } catch (error) {
     console.error('❌ Build failed:', error.message);

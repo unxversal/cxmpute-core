@@ -75,43 +75,12 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📋 Building version: $VERSION"
           
-      - name: 🔧 Generate Config from Template
-        working-directory: ${{ env.CLI_PATH }}
-        env:
-          PROVIDER_SECRET: ${{ secrets.CXMPUTE_PROVIDER_SECRET }}
-        run: |
-          if [ -z "$PROVIDER_SECRET" ]; then
-            echo "❌ CXMPUTE_PROVIDER_SECRET not set in GitHub secrets"
-            exit 1
-          fi
-          
-          if [ ${#PROVIDER_SECRET} -lt 32 ]; then
-            echo "❌ Provider secret must be at least 32 characters"
-            exit 1
-          fi
-          
-          echo "🔄 Creating config file..."
-          
-          # Create the config.ts file directly
-          cat > source/lib/config.ts << EOF
-          // source/lib/config.ts
-          // This file is generated during build - DO NOT EDIT MANUALLY
-          
-          export const EMBEDDED_CONFIG = {
-              providerSecret: '$PROVIDER_SECRET',
-              version: '1.0.0',
-              buildTime: '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
-          };
-          EOF
-          
-          echo "✅ Config file created successfully"
-          
-      - name: 🔨 Build TypeScript
+      - name: 🔨 Build & Embed Hash
         working-directory: ${{ env.CLI_PATH }}
         run: |
-          echo "🔨 Compiling TypeScript..."
-          npm run build
-          echo "✅ TypeScript compilation complete"
+          echo "🔨 Running release build (hash + binaries)..."
+          npm run build:secure
+          echo "✅ Release build complete"
           
       - name: 📦 Install pkg
         run: npm install -g pkg
@@ -151,6 +120,23 @@ jobs:
           rm -f source/lib/config.ts
           echo "✅ Config file cleaned up"
           
+      - name: 📦 Publish to npm
+        working-directory: ${{ env.CLI_PATH }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "⚠️ NPM_TOKEN not set, skipping npm publish"
+            exit 0
+          fi
+          
+          echo "🔧 Setting up npm authentication..."
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          
+          echo "📦 Publishing to npm registry..."
+          npm publish
+          echo "✅ Published to npm registry"
+          
       - name: 📝 Generate Release Notes
         id: release_notes
         run: |
@@ -179,18 +165,21 @@ jobs:
           
           ### 📦 Installation
           
+          **Option 1: npm (Recommended)**
+          \`\`\`bash
+          npm install -g cxmpute-provider
+          cxmpute-provider
+          \`\`\`
+          
+          **Option 2: Direct Binary Download**
+          
           **macOS Users:**
           \`\`\`bash
-          # Option 1: Direct install
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/macos/install.sh | sudo bash
-          
-          # Option 2: Homebrew (coming soon)
-          brew install cxmpute-provider
           \`\`\`
           
           **Linux Users:**
           \`\`\`bash
-          # Direct install
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/clis/cxmpute-provider/installers/linux/install.sh | sudo bash
           \`\`\`
           

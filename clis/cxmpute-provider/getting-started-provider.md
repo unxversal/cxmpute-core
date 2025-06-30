@@ -24,9 +24,20 @@ The Cxmpute Provider CLI turns your computer into a node in the Cxmpute network,
 - **CPU**: Multi-core processor (Intel i5/AMD Ryzen 5+)
 - **Internet**: High-speed connection (100+ Mbps)
 
-## 📦 Download & Installation
+## 📦 Installation
 
-### **Step 1: Download for Your Platform**
+### **Option 1: npm (Recommended)**
+
+If you have Node.js installed (16+):
+
+```bash
+npm install -g cxmpute-provider
+cxmpute-provider
+```
+
+✅ **Advantages**: Easy updates, automatic PATH setup, works on all platforms
+
+### **Option 2: Download Binary**
 
 Go to the [latest release](https://github.com/unxversal/cxmpute-core/releases/latest) and download:
 
@@ -77,9 +88,9 @@ cxmpute-provider.exe
 # Click "More info" > "Run anyway"
 ```
 
-## 🌟 Install Globally (Optional)
+## 🌟 Install Binary Globally (Optional)
 
-Make `cxmpute-provider` available from anywhere on your system:
+Make the downloaded binary available from anywhere on your system:
 
 ### **🍎 macOS**
 ```bash

@@ -1,6 +1,16 @@
 {
 	"name": "cxmpute-provider",
 	"version": "0.5.3",
+	"description": "Transform your computer into an AI compute provider and earn rewards",
+	"keywords": ["ai", "compute", "provider", "blockchain", "earnings", "cli"],
+	"homepage": "https://cxmpute.cloud",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/unxversal/cxmpute-core.git",
+		"directory": "clis/cxmpute-provider"
+	},
+	"bugs": "https://github.com/unxversal/cxmpute-core/issues",
+	"author": "Cxmpute Team <support@cxmpute.cloud>",
 	"license": "MIT",
 	"bin": "dist/cli.js",
 	"type": "module",
@@ -10,11 +20,13 @@
 	"scripts": {
 		"build": "tsc",
 		"build:secure": "node scripts/build-with-secrets.js",
+		"prepublishOnly": "npm run build",
 		"dev": "tsc --watch",
 		"test": "prettier --check . && xo && ava"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"readme.md"
 	],
 	"dependencies": {
 		"@peaq-network/sdk": "^0.9.2",

@@ -7,13 +7,16 @@ This CLI uses GitHub Actions to automatically build and release binaries when co
 ### **Setup Instructions**
 
 #### **1. Set GitHub Secret**
-
-Go to your repository settings → Secrets and variables → Actions → New repository secret:
-
-- **Name**: `CXMPUTE_PROVIDER_SECRET`
-- **Value**: Your provider registration secret (must be 32+ characters)
-
-#### **2. Create Releases Branch**
+-
+-Go to your repository settings → Secrets and variables → Actions → New repository secret:
+-
+-- **Name**: `CXMPUTE_PROVIDER_SECRET`
+-- **Value**: Your provider registration secret (must be 32+ characters)
+-
+-#### **2. Create Releases Branch**
++# (Provider secret no longer required)
++
++#### **2. Create Releases Branch**
 
 ```bash
 # Create and switch to releases branch
@@ -46,25 +49,30 @@ Each release includes cross-platform binaries:
 ## 🛠️ Local Development Builds
 
 ### **With Environment Variable (Development)**
-
-```bash
-# Set your development secret
-export CXMPUTE_PROVIDER_SECRET="your_dev_secret_here"
-
-# Build and run
-npm run build
-node dist/cli.js
-```
-
-### **With Embedded Secret (Production)**
-
-```bash
-# Build with embedded secret
-CXMPUTE_PROVIDER_SECRET="your_secret" npm run build:secure
-
-# Or using the script directly
-node scripts/build-with-secrets.js "your_secret_here"
-```
++```bash
++# Build and run from source
++npm run build
++node dist/cli.js
++```
+-
+-### **With Embedded Secret (Production)**
+-
+-```bash
+-# Build with embedded secret
+-CXMPUTE_PROVIDER_SECRET="your_secret" npm run build:secure
+-
+-# Or using the script directly
+-node scripts/build-with-secrets.js "your_secret_here"
+-```
++
++### **Release Build with Integrity Hash**
++
++```bash
++npm run build:secure   # embeds integrity hash, prepares dist
++
++# Then create binaries (requires pkg)
++npx pkg . --targets node18-linux-x64
++```
 
 ## 🔐 Security Features
 

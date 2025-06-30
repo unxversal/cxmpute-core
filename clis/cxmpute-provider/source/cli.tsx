@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import React from 'react';
 import {render} from 'ink';
+// Integrity check (exits process if tampered)
+import { verifyIntegrity } from './lib/hashCheck.js';
 // import meow from 'meow';
 import App from './app.js';
 import dotenv from 'dotenv';
@@ -46,6 +48,9 @@ dotenv.config({ path: path.join(projectRoot, '.env') });
 // 		},
 // 	},
 // );
+
+// Perform integrity verification before continuing
+verifyIntegrity();
 
 // Pass flags if App component expects them, otherwise, just <App />
 render(<App /* name={cli.flags.name} */ />);

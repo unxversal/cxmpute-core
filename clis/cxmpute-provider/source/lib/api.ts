@@ -16,7 +16,6 @@ interface RegisterDevicePayload {
     };
     username: string;
     deviceName: string;
-    registrationSecret: string;
 }
 
 interface RegisterDeviceResponse {
@@ -55,40 +54,10 @@ interface OrchestratorEndPayload {
 }
 
 
-export async function registerDevice(payload: Omit<RegisterDevicePayload, 'registrationSecret'>): Promise<RegisterDeviceResponse> {
-    // Try to get secret from embedded config first, fallback to env var
-    let registrationSecret: string | undefined;
-    
+export async function registerDevice(payload: RegisterDevicePayload): Promise<RegisterDeviceResponse> {
     try {
-        // Try to import embedded config (will exist in built binaries)
-        // Use dynamic import() for ES Modules compatibility
-        const configModule = await import('./config.js');
-        registrationSecret = configModule.EMBEDDED_CONFIG?.providerSecret;
-    } catch {
-        // Fallback to environment variable for development
-        registrationSecret = process.env['CXMPUTE_PROVIDER_SECRET'];
-    }
-
-    if (!registrationSecret) {
-        return { 
-            success: false, 
-            message: "Missing provider credentials. This CLI requires proper authentication. Contact support@cxmpute.cloud for access." 
-        };
-    }
-
-    // Validate secret format (basic check)
-    if (registrationSecret.length < 32) {
-        return {
-            success: false,
-            message: "Invalid provider credentials format. Please verify your installation."
-        };
-    }
-
-    try {
-        // Add secret to payload
         const securePayload: RegisterDevicePayload = {
-            ...payload,
-            registrationSecret
+            ...payload
         };
 
         const response = await fetch(`${CXMPUTE_API_BASE_URL}/v1/providers/new`, {
@@ -101,7 +70,7 @@ export async function registerDevice(payload: Omit<RegisterDevicePayload, 'regis
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             // Provide helpful error messages for common authentication issues
             if (response.status === 401) {
-                throw new Error("Invalid provider credentials. Please verify your CXMPUTE_PROVIDER_SECRET.");
+                throw new Error("Registration unauthorized. Please contact support.");
             }
             throw new Error(errorData.message || `Registration failed with status: ${response.status}`);
         }

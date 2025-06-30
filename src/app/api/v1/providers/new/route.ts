@@ -49,22 +49,13 @@ export async function POST(req: NextRequest) {
       deviceDiagnostics,
       location,        // e.g. { country, state, city }
       username,        // Added: CLI sends this
-      deviceName,      // Added: CLI sends this
-      registrationSecret // Added: Secret for CLI access control
+      deviceName,      // Device name from CLI
     } = body || {};
 
-    // 2) Validate registration secret first (security check)
-    const validSecret = (Resource as any).ProviderRegistrationSecret?.value;
-    if (!validSecret || registrationSecret !== validSecret) {
+    // 2) Basic required fields check (registrationSecret removed)
+    if (!providerId || !providerAk || !provisionId || !deviceDiagnostics || !location) {
       return NextResponse.json({
-        error: "Invalid registration credentials. Contact support@cxmpute.cloud for access."
-      }, { status: 401 });
-    }
-
-    // 3) Basic required fields check
-    if (!providerId || !providerAk || !provisionId || !deviceDiagnostics || !location || !registrationSecret) {
-      return NextResponse.json({
-        error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location, registrationSecret"
+        error: "Missing required fields: providerId, providerAk, provisionId, deviceDiagnostics, location"
       }, { status: 400 });
     }
 
